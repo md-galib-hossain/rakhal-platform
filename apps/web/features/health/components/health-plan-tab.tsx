@@ -1,16 +1,16 @@
 "use client";
 
-import { useDeferredValue, useEffect, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ChevronRight, Plus, Search } from "lucide-react";
+import { ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Pagination } from "@/components/shared/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DrilldownFilterBar } from "@/components/shared/drilldown-filter-bar";
+import type { FilterCategoryConfig } from "@/components/shared/drilldown-filter-popover";
 import { useHealthPlansPagedList, useHealthTasks, useRounds } from "../hooks/use-health";
 import { HealthPlanCard } from "./health-plan-card";
 import { CreateHealthPlanDialog } from "./create-health-plan-dialog";
@@ -72,6 +72,7 @@ export function HealthPlanTab({
   onStatusChange?: (status: AppliedStatus) => void;
 }) {
   const t = useTranslations("health.healthPlan");
+  const tApplied = useTranslations("health.healthPlan.applied");
   const tCondition = useTranslations("health.reportSickness");
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search.trim());
@@ -136,6 +137,102 @@ export function HealthPlanTab({
     setFormOpen(true);
   }
 
+  const categories: FilterCategoryConfig[] = useMemo(() => {
+    const viewCategory: FilterCategoryConfig = {
+      id: "view",
+      label: t("views.label"),
+      mode: "single",
+      options: [
+        { value: "running", label: t("views.running"), badge: runningRounds.length },
+        { value: "library", label: t("views.library") },
+      ],
+    };
+
+    const kindCategory: FilterCategoryConfig = {
+      id: "kind",
+      label: t("filters.kindLabel"),
+      mode: "single",
+      options: [
+        { value: "TREATMENT", label: t("filters.kind.TREATMENT"), indicatorColor: "bg-info" },
+        { value: "PREVENTION", label: t("filters.kind.PREVENTION"), indicatorColor: "bg-accent-indigo" },
+        { value: "BREEDING", label: t("filters.kind.BREEDING"), indicatorColor: "bg-muted-foreground" },
+      ],
+    };
+
+    if (activeView === "running") {
+      return [
+        viewCategory,
+        {
+          id: "status",
+          label: tApplied("statusLabel"),
+          mode: "single",
+          options: [
+            { value: "needs", label: tApplied("status.needs"), indicatorColor: "bg-destructive" },
+            { value: "upcoming", label: tApplied("status.upcoming"), indicatorColor: "bg-warning" },
+            { value: "finished", label: tApplied("status.finished"), indicatorColor: "bg-success" },
+            { value: "all", label: tApplied("status.all") },
+          ],
+        },
+        kindCategory,
+      ];
+    }
+
+    return [
+      viewCategory,
+      kindCategory,
+      {
+        id: "condition",
+        label: t("filters.conditionLabel"),
+        mode: "single",
+        searchable: true,
+        searchPlaceholder: t("searchPlaceholder"),
+        options: HEALTH_CONDITIONS.map((c) => ({
+          value: c,
+          label: tCondition(`conditionValue.${c}`),
+        })),
+      },
+    ];
+  }, [t, tApplied, tCondition, activeView, runningRounds.length]);
+
+  const activeFilterValues: Record<string, string[]> = useMemo(() => {
+    const values: Record<string, string[]> = {};
+    if (activeView && activeView !== "library") {
+      values.view = [activeView];
+    }
+    if (kind !== "ALL") values.kind = [kind];
+    if (activeView === "running") {
+      if (status && status !== "needs") values.status = [status];
+    } else {
+      if (condition !== "ALL") values.condition = [condition];
+    }
+    return values;
+  }, [activeView, kind, status, condition]);
+
+  function handleFilterChange(next: Record<string, string[]>) {
+    const targetView = (next.view?.[0] as ProtocolsView) || "library";
+    if (targetView !== activeView) {
+      setView(targetView);
+    }
+    setKind((next.kind?.[0] as KindFilter) ?? "ALL");
+    if (targetView === "running") {
+      if (next.status?.[0]) {
+        setStatus(next.status[0] as AppliedStatus);
+      } else {
+        setStatus("needs");
+      }
+    } else {
+      setCondition((next.condition?.[0] as HealthCondition) ?? "ALL");
+    }
+  }
+
+  function handleClearAllFilters() {
+    setView("library");
+    setKind("ALL");
+    setCondition("ALL");
+    setStatus("needs");
+    setSearch("");
+  }
+
   if (activeView === null || (activeView === "library" && list.isLoading)) {
     return (
       <div className="flex flex-col gap-4">
@@ -152,71 +249,27 @@ export function HealthPlanTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("searchPlaceholder")} aria-label={t("searchPlaceholder")} className="pl-9" />
-        </div>
-        <Button type="button" onClick={openCreate}>
-          <Plus className="size-4" aria-hidden />
-          {t("createNewPlan")}
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label={t("views.label")} className="flex flex-wrap items-center gap-2">
-          {(["library", "running"] as const).map((v) => (
-            <button
-              key={v}
-              type="button"
-              role="tab"
-              aria-selected={activeView === v}
-              onClick={() => setView(v)}
-              className={cn(
-                "flex min-h-9 items-center rounded-full border px-4 text-sm font-medium transition-colors",
-                activeView === v ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
-              )}
-            >
-              {v === "running" ? t("views.runningCount", { count: runningRounds.length }) : t("views.library")}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="radiogroup" aria-label={t("filters.kindLabel")} className="flex flex-wrap items-center gap-2">
-          {KIND_FILTERS.map((k) => (
-            <button
-              key={k}
-              type="button"
-              role="radio"
-              aria-checked={kind === k}
-              onClick={() => setKind(k)}
-              className={cn(
-                "flex h-9 items-center rounded-lg border px-3 text-sm font-medium transition-colors",
-                kind === k ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-foreground/30",
-              )}
-            >
-              {t(`filters.kind.${k}`)}
-            </button>
-          ))}
-        </div>
-        {activeView === "library" ? (
-          <Select value={condition} onValueChange={(value) => setCondition(value as HealthCondition | "ALL")}>
-            <SelectTrigger className="w-full sm:w-52" aria-label={t("filters.conditionLabel")}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">{t("filters.allConditions")}</SelectItem>
-              {HEALTH_CONDITIONS.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {tCondition(`conditionValue.${c}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : null}
-      </div>
+      <DrilldownFilterBar
+        search={search}
+        onSearchChange={setSearch}
+        searchPlaceholder={t("searchPlaceholder")}
+        categories={categories}
+        filterValues={activeFilterValues}
+        onFilterChange={handleFilterChange}
+        onClearAllFilters={handleClearAllFilters}
+        filterTriggerLabel={t("filters.trigger")}
+        filterPopoverTitle={t("filters.title")}
+        actions={
+          <Button
+            type="button"
+            onClick={openCreate}
+            className="gap-2 rounded-xl h-11 px-4 text-sm font-semibold"
+          >
+            <Plus className="size-4" aria-hidden />
+            <span>{t("createNewPlan")}</span>
+          </Button>
+        }
+      />
 
       {activeView === "running" ? (
         <>
@@ -241,6 +294,7 @@ export function HealthPlanTab({
             onStatusChange={setStatus}
             onOpen={(round) => setOpenSheet({ kind: "round", key: round.roundKey, snapshot: round })}
             onShowLibrary={() => setView("library")}
+            hideStatusPicker
           />
         </>
       ) : (

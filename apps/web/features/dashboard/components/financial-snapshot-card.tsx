@@ -34,10 +34,10 @@ export function FinancialSnapshotCard() {
   const t = useTranslations("dashboard.financialSnapshot");
   const query = useFinancialSnapshot();
 
-  if (query.isLoading) return <CardSkeleton lines={4} className="rounded-2xl" />;
+  if (query.isLoading) return <CardSkeleton lines={4} className="h-full min-h-[360px] rounded-2xl" />;
   if (query.isError) {
     return (
-      <DashboardCard title={t("title")}>
+      <DashboardCard title={t("title")} className="min-h-[360px]">
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </DashboardCard>
     );
@@ -46,7 +46,7 @@ export function FinancialSnapshotCard() {
   if (!data) return null;
 
   return (
-    <DashboardCard title={t("title")}>
+    <DashboardCard title={t("title")} className="min-h-[360px]">
       <div className="flex flex-1 flex-col justify-between gap-3">
         <Row label={t("income")} current={data.income.current} changePct={data.income.changePct} />
         <Row label={t("expenses")} current={data.expenses.current} changePct={data.expenses.changePct} />

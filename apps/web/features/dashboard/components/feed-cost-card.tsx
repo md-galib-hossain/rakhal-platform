@@ -18,10 +18,10 @@ export function FeedCostCard() {
   const t = useTranslations("dashboard.feedCost");
   const query = useFeedCostSummary(7);
 
-  if (query.isLoading) return <CardSkeleton lines={3} className="rounded-2xl" />;
+  if (query.isLoading) return <CardSkeleton lines={3} className="h-full min-h-[360px] rounded-2xl" />;
   if (query.isError) {
     return (
-      <DashboardCard title={t("title")}>
+      <DashboardCard title={t("title")} className="min-h-[360px]">
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </DashboardCard>
     );
@@ -30,7 +30,7 @@ export function FeedCostCard() {
   const data = query.data;
 
   return (
-    <DashboardCard title={t("title")}>
+    <DashboardCard title={t("title")} className="min-h-[360px]">
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1 rounded-lg border border-border p-2">
           <span className="text-xs text-muted-foreground">{t("costPerCowDay")}</span>

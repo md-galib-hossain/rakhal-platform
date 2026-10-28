@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
 import { ArrowDownToLine, ArrowUpFromLine, BarChart3, LayoutDashboard, Receipt, Wallet } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FINANCE_TABS, type FinanceTabKey } from "../types";
 
 const TAB_KEYS = FINANCE_TABS.map((t) => t.key) as [FinanceTabKey, ...FinanceTabKey[]];
@@ -24,25 +24,19 @@ export function FinanceTabs() {
   const [tab, setTab] = useQueryState("tab", parseAsStringEnum<FinanceTabKey>(TAB_KEYS).withDefault("overview"));
 
   return (
-    <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-muted p-1.5">
-      {FINANCE_TABS.map(({ key }) => {
-        const Icon = TAB_ICONS[key];
-        return (
-          <button
-            key={key}
-            type="button"
-            onClick={() => void setTab(key)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-sm px-4 py-1.5 text-sm font-medium transition-colors",
-              tab === key ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Icon className="size-[18px]" aria-hidden />
-            {t(key)}
-          </button>
-        );
-      })}
-    </div>
+    <Tabs value={tab} onValueChange={(v) => void setTab(v as FinanceTabKey)}>
+      <TabsList className="h-auto flex-wrap sm:h-11">
+        {FINANCE_TABS.map(({ key }) => {
+          const Icon = TAB_ICONS[key];
+          return (
+            <TabsTrigger key={key} value={key}>
+              <Icon className="mr-1.5 size-4" aria-hidden />
+              {t(key)}
+            </TabsTrigger>
+          );
+        })}
+      </TabsList>
+    </Tabs>
   );
 }
 

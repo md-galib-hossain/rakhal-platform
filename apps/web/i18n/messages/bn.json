@@ -910,6 +910,11 @@
     },
     "filters": {
       "searchPlaceholder": "নাম বা আইডি দিয়ে পশু খুঁজুন",
+      "trigger": "ফিল্টার",
+      "title": "ফিল্টার যোগ করুন",
+      "clearAll": "সব মুছুন",
+      "clear": "মুছুন",
+      "noMatching": "কোন মিল পাওয়া যায়নি",
       "status": "অবস্থা",
       "health": "স্বাস্থ্য",
       "breed": "জাত",
@@ -3795,7 +3800,13 @@
       "emptyFilteredTitle": "কোনো প্রোটোকল মেলেনি",
       "emptyFilteredDescription": "অন্য ফিল্টার বেছে নিন, বা ফিল্টার মুছে সব প্রোটোকল দেখুন।",
       "filters": {
+        "trigger": "ফিল্টার",
+        "title": "ফিল্টার যোগ করুন",
+        "clearAll": "সব মুছুন",
+        "searchPlaceholder": "এখানে খুঁজুন…",
+        "noMatching": "কোন মিল পাওয়া যায়নি",
         "kindLabel": "প্রোটোকলের ধরন",
+        "statusLabel": "অবস্থা",
         "kind": {
           "ALL": "সব",
           "TREATMENT": "চিকিৎসা",

@@ -9,6 +9,7 @@ import { DateRangePicker, type DateRangeOption } from "@/components/shared/date-
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
@@ -84,34 +85,6 @@ function localDayKey(d: Date): string {
 
 const cattleName = (c: CattleOption) => c.name ?? c.tagNumber;
 
-function FilterChip({
-  active,
-  onClick,
-  children,
-  className,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        active
-          ? "border-primary bg-primary text-primary-foreground shadow-xs"
-          : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground",
-        className,
-      )}
-    >
-      {children}
-    </button>
-  );
-}
 
 /**
  * Reproduction Events Activity Feed.
@@ -233,21 +206,26 @@ export function ReproductionEventsFeed() {
     <ReproductionCard title={t("title")} description={t("description")}>
       <div className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/40 p-3">
         <div className="flex items-center gap-2">
-          <div
-            role="group"
-            aria-label={t("filterType")}
-            className="-mx-1 flex min-w-0 flex-1 gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          <Tabs
+            value={eventType}
+            onValueChange={(v) => setEventType(v as ReproEventType | "all")}
+            className="min-w-0 flex-1"
           >
-            {(["all", ...EVENT_TYPES] as const).map((value) => {
-              const Icon = value === "all" ? null : EVENT_ICONS[value];
-              return (
-                <FilterChip key={value} active={value === eventType} onClick={() => setEventType(value)}>
-                  {Icon ? <Icon className="size-3.5" aria-hidden /> : null}
-                  {value === "all" ? t("allTypes") : t(`eventTypes.${value}`)}
-                </FilterChip>
-              );
-            })}
-          </div>
+            <TabsList
+              aria-label={t("filterType")}
+              className="w-full sm:w-auto overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {(["all", ...EVENT_TYPES] as const).map((value) => {
+                const Icon = value === "all" ? null : EVENT_ICONS[value];
+                return (
+                  <TabsTrigger key={value} value={value} className="shrink-0">
+                    {Icon && <Icon className="mr-1.5 size-4" aria-hidden />}
+                    {value === "all" ? t("allTypes") : t(`eventTypes.${value}`)}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </Tabs>
           <Button
             variant="outline"
             size="sm"

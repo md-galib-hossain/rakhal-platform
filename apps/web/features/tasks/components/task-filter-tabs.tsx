@@ -1,6 +1,7 @@
+"use client";
 import { AlertTriangle, ListChecks, ListX, User } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TaskHighlights, TaskListFilter } from "../types";
 
 const TABS: { value: TaskListFilter; icon: typeof User }[] = [
@@ -31,37 +32,23 @@ export function TaskFilterTabs({
   const badgeFor: Partial<Record<TaskListFilter, number>> = { overdue: highlights.overdue, blocked: highlights.blocked };
 
   return (
-    <div className="flex max-w-full flex-col items-start overflow-x-auto rounded-lg border border-border bg-muted p-1.5">
-      <div className="flex items-center gap-1">
+    <Tabs value={value} onValueChange={(v) => onChange(v as TaskListFilter)}>
+      <TabsList className="h-11 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {TABS.map(({ value: tab, icon: Icon }) => {
-          const active = tab === value;
           const badge = badgeFor[tab];
           return (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => onChange(tab)}
-              className={cn(
-                "flex items-center justify-center gap-1.5 rounded px-4 py-1.5 text-sm font-bold whitespace-nowrap transition-colors",
-                active ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <Icon className="size-[18px]" aria-hidden />
+            <TabsTrigger key={tab} value={tab} className="shrink-0">
+              <Icon className="mr-1.5 size-4" aria-hidden />
               {t(tab)}
               {typeof badge === "number" && badge > 0 ? (
-                <span
-                  className={cn(
-                    "flex items-center justify-center rounded-full px-2 py-0.5 text-xs font-bold",
-                    active ? "bg-primary-hover text-white" : "bg-border text-muted-foreground",
-                  )}
-                >
+                <span className="ml-1.5 min-w-4.5 rounded-full bg-primary/15 px-1 text-center text-[0.7rem] font-bold leading-4 text-primary">
                   {badge}
                 </span>
               ) : null}
-            </button>
+            </TabsTrigger>
           );
         })}
-      </div>
-    </div>
+      </TabsList>
+    </Tabs>
   );
 }

@@ -26,10 +26,10 @@ describe("HealthManagementCenterCard (RFE-140, RFE-143)", () => {
   it("has three plainly named tabs — the Schedule / Care steps tab is gone", () => {
     renderCard();
     for (const name of ["Sick Bay", "Protocols", "Insights"]) {
-      expect(screen.getByRole("button", { name })).toBeTruthy();
+      expect(screen.getByRole("tab", { name })).toBeTruthy();
     }
-    expect(screen.queryByRole("button", { name: "Schedule" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Care steps" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Schedule" })).toBeNull();
+    expect(screen.queryByRole("tab", { name: "Care steps" })).toBeNull();
   });
 
   it("opens on the Sick Bay, and does not mount the Insights charts until asked", () => {

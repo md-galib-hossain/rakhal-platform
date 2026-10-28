@@ -44,6 +44,7 @@ export function AppliedView({
   onStatusChange,
   onOpen,
   onShowLibrary,
+  hideStatusPicker = false,
 }: {
   kind: HealthPlanKind | "ALL";
   search: string;
@@ -52,6 +53,7 @@ export function AppliedView({
   /** Opens the full round sheet (Progress table, Steps, Results). */
   onOpen: (round: ProtocolRound) => void;
   onShowLibrary: () => void;
+  hideStatusPicker?: boolean;
 }) {
   const t = useTranslations("health.healthPlan.applied");
   const tRounds = useTranslations("health.healthPlan.rounds");
@@ -187,7 +189,7 @@ export function AppliedView({
   return (
     <div className="flex flex-col gap-3">
       <p className="text-xs text-muted-foreground">{t("subtitle")}</p>
-      {picker}
+      {!hideStatusPicker && picker}
       {body}
       {adding ? <RoundAnimalsDialog round={adding} open onOpenChange={(next) => !next && setAdding(null)} /> : null}
       <ConfirmDialog

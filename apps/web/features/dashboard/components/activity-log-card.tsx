@@ -61,24 +61,28 @@ export function ActivityLogCard() {
 
   const items = query.data?.pages.flatMap((page) => page.items) ?? [];
 
-  return (
-    <DashboardCard
-      title={t("title")}
-      headerRight={
-        <Link
-          href="/activity"
-          aria-label={t("viewAllAria")}
-          className="text-xs font-medium text-primary-hover hover:underline"
-        >
-          {t("viewAll")}
-        </Link>
-      }
+  const headerRight = (
+    <Link
+      href="/activity"
+      aria-label={t("viewAllAria")}
+      className="text-xs font-medium text-primary-hover hover:underline"
     >
-      {query.isLoading ? (
-        <CardSkeleton lines={4} />
-      ) : query.isError ? (
+      {t("viewAll")}
+    </Link>
+  );
+
+  if (query.isLoading) return <CardSkeleton lines={4} className="h-full min-h-[360px] rounded-2xl" />;
+  if (query.isError) {
+    return (
+      <DashboardCard title={t("title")} headerRight={headerRight} className="min-h-[360px]">
         <ErrorState description={t("error")} onRetry={() => void query.refetch()} />
-      ) : items.length === 0 ? (
+      </DashboardCard>
+    );
+  }
+
+  return (
+    <DashboardCard title={t("title")} headerRight={headerRight} className="min-h-[360px]">
+      {items.length === 0 ? (
         <EmptyState icon={History} title={t("emptyTitle")} description={t("emptyDescription")} />
       ) : (
         <div ref={scrollRef} className="flex max-h-[320px] flex-col gap-2 overflow-y-auto pr-1">

@@ -9,6 +9,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ErrorState } from "@/components/shared/error-state";
 import { useSession } from "@/lib/auth/use-session";
 import {
@@ -228,28 +229,24 @@ function CaseManagementSheetBody({
           <>
             <CaseInfoHeader healthCase={query.data} />
 
-            <div className="flex items-center gap-1 rounded-xl border border-border bg-muted p-1">
-              {CASE_MANAGE_TABS.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setTab(key)}
-                  className={cn(
-                    "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                    tab === key ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {key === "overview" ? (
-                    <ClipboardList className="size-4" aria-hidden />
-                  ) : key === "logTreatment" ? (
-                    <Syringe className="size-4" aria-hidden />
-                  ) : (
-                    <Box className="size-4" aria-hidden />
-                  )}
-                  {t(`tabs.${key}`)}
-                </button>
-              ))}
-            </div>
+            <Tabs value={tab} onValueChange={(v) => setTab(v as CaseManageTab)}>
+              <TabsList className="w-full">
+                {CASE_MANAGE_TABS.map((key) => {
+                  const Icon =
+                    key === "overview"
+                      ? ClipboardList
+                      : key === "logTreatment"
+                        ? Syringe
+                        : Box;
+                  return (
+                    <TabsTrigger key={key} value={key} className="flex-1">
+                      <Icon className="mr-1.5 size-4" aria-hidden />
+                      {t(`tabs.${key}`)}
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </Tabs>
 
             {tab === "overview" ? (
               <CaseOverviewTab healthCase={query.data} onNavigate={setTab} />

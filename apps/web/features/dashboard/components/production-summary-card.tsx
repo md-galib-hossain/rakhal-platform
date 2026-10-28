@@ -15,17 +15,17 @@ export function ProductionSummaryCard() {
   const query = useProductionSummary(period);
   const headerRight = <PeriodSelect value={period} onChange={setPeriod} />;
 
-  if (query.isLoading) return <CardSkeleton lines={3} className="rounded-2xl" />;
+  if (query.isLoading) return <CardSkeleton lines={3} className="h-full min-h-[360px] rounded-2xl" />;
   if (query.isError) {
     return (
-      <DashboardCard title={t("title")} headerRight={headerRight}>
+      <DashboardCard title={t("title")} headerRight={headerRight} className="min-h-[360px]">
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </DashboardCard>
     );
   }
 
   return (
-    <DashboardCard title={t("title")} headerRight={headerRight}>
+    <DashboardCard title={t("title")} headerRight={headerRight} className="min-h-[360px]">
       <div className="flex flex-1 flex-col justify-between gap-4">
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>

@@ -64,10 +64,10 @@ export function KpiBar() {
   const locale = useLocale() as Locale;
   const query = useKpis();
 
-  if (query.isLoading) return <CardSkeleton lines={4} className="rounded-2xl" />;
+  if (query.isLoading) return <CardSkeleton lines={4} className="h-full min-h-[360px] rounded-2xl" />;
   if (query.isError) {
     return (
-      <DashboardCard title={t("title")}>
+      <DashboardCard title={t("title")} className="min-h-[360px]">
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </DashboardCard>
     );
@@ -76,7 +76,7 @@ export function KpiBar() {
   if (!data) return null;
 
   return (
-    <DashboardCard title={t("title")}>
+    <DashboardCard title={t("title")} className="min-h-[360px]">
       <div className="grid flex-1 grid-cols-2 gap-2">
         <KpiTile
           icon={<Droplets className="size-4 text-success" aria-hidden />}

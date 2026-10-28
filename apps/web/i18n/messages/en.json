@@ -910,6 +910,11 @@
     },
     "filters": {
       "searchPlaceholder": "Find animal by name or id",
+      "trigger": "Filters",
+      "title": "Add Filters",
+      "clearAll": "Clear All",
+      "clear": "Clear",
+      "noMatching": "No matching options",
       "status": "Status",
       "health": "Health",
       "breed": "Breed",
@@ -3795,7 +3800,13 @@
       "emptyFilteredTitle": "No protocols match",
       "emptyFilteredDescription": "Try a different filter, or clear them to see every protocol.",
       "filters": {
+        "trigger": "Filters",
+        "title": "Add Filters",
+        "clearAll": "Clear All",
+        "searchPlaceholder": "Search here…",
+        "noMatching": "No matching options",
         "kindLabel": "Protocol kind",
+        "statusLabel": "Status",
         "kind": {
           "ALL": "All",
           "TREATMENT": "Treatment",

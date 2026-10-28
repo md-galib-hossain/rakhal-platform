@@ -14,17 +14,17 @@ export function FeedStockAlertsCard() {
   const t = useTranslations("dashboard.feedStockAlerts");
   const query = useFeedStockAlerts();
 
-  if (query.isLoading) return <CardSkeleton lines={3} className="rounded-2xl" />;
+  if (query.isLoading) return <CardSkeleton lines={3} className="h-full min-h-[360px] rounded-2xl" />;
   if (query.isError) {
     return (
-      <DashboardCard title={t("title")}>
+      <DashboardCard title={t("title")} className="min-h-[360px]">
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </DashboardCard>
     );
   }
 
   return (
-    <DashboardCard title={t("title")}>
+    <DashboardCard title={t("title")} className="min-h-[360px]">
       {!query.data?.alerts.length ? (
         <EmptyState title={t("emptyTitle")} description={t("emptyDescription")} />
       ) : (

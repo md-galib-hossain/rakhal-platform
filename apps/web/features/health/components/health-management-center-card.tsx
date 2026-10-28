@@ -3,8 +3,8 @@
 import { useTranslations } from "next-intl";
 import { createParser, useQueryState } from "nuqs";
 import { Stethoscope, Syringe } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { HEALTH_MANAGEMENT_TABS, type HealthManagementTab } from "../types";
 import { TreatmentsTab } from "./treatments-tab";
 import { HealthPlanTab } from "./health-plan-tab";
@@ -55,21 +55,15 @@ export function HealthManagementCenterCard({
     <HealthCard
       title={t("title")}
       headerRight={
-        <div className="flex items-center gap-1 rounded-xl border border-border bg-muted p-1">
-          {HEALTH_MANAGEMENT_TABS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => void setTab(key)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors sm:px-4",
-                tab === key ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {t(`tabs.${key}`)}
-            </button>
-          ))}
-        </div>
+        <Tabs value={tab} onValueChange={(v) => void setTab(v as HealthManagementTab)}>
+          <TabsList>
+            {HEALTH_MANAGEMENT_TABS.map((key) => (
+              <TabsTrigger key={key} value={key}>
+                {t(`tabs.${key}`)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       }
       className="w-full"
     >

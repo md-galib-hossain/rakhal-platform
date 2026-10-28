@@ -14,13 +14,21 @@ export function TabsList({ className, ...props }: React.ComponentProps<typeof Ta
   );
 }
 
-export function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
+export function TabsTrigger({ className, onClick, ...props }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
   return (
     <TabsPrimitive.Trigger
       className={cn(
         "inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-sm px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs",
         className,
       )}
+      onClick={(e) => {
+        if (e.currentTarget.getAttribute("data-state") !== "active") {
+          e.currentTarget.dispatchEvent(
+            new MouseEvent("mousedown", { bubbles: true, cancelable: true, button: 0 }),
+          );
+        }
+        onClick?.(e);
+      }}
       {...props}
     />
   );

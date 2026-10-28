@@ -101,10 +101,10 @@ export function PrioritiesPanel() {
   const t = useTranslations("dashboard.priorities");
   const query = usePriorities();
 
-  if (query.isLoading) return <CardSkeleton lines={4} className="rounded-2xl" />;
+  if (query.isLoading) return <CardSkeleton lines={4} className="h-full min-h-[360px] rounded-2xl" />;
   if (query.isError) {
     return (
-      <DashboardCard title={t("title")}>
+      <DashboardCard title={t("title")} className="min-h-[360px]">
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </DashboardCard>
     );
@@ -116,6 +116,7 @@ export function PrioritiesPanel() {
   return (
     <DashboardCard
       title={t("title")}
+      className="min-h-[360px]"
       headerRight={
         attentionCount > 0 ? (
           <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-destructive-tint px-2.5 py-1 text-xs font-semibold text-destructive">

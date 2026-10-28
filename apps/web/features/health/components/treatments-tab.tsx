@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringEnum, useQueryState } from "nuqs";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Pagination } from "@/components/shared/pagination";
 import { SickBayTable } from "./sick-bay-table";
 import { SafetyWithdrawalSection } from "./safety-withdrawal-tab";
@@ -45,26 +46,25 @@ export function TreatmentsTab({
   return (
     <div className="flex flex-col gap-4">
       {!hideScopeSwitcher && (
-        <div role="tablist" aria-label={t("viewLabel")} className="flex flex-wrap items-center gap-2">
-          {SICK_BAY_VIEWS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={view === key}
-              onClick={() => void setView(key)}
-              className={cn(
-                "flex min-h-9 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
-                view === key ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
-              )}
-            >
-              {t(`views.${key}`)}
-              {counts[key] !== undefined ? (
-                <span className={cn("rounded-full px-1.5 text-xs", view === key ? "bg-primary/15" : "bg-muted")}>{counts[key]}</span>
-              ) : null}
-            </button>
-          ))}
-        </div>
+        <Tabs value={view} onValueChange={(v) => void setView(v as SickBayView)}>
+          <TabsList aria-label={t("viewLabel")}>
+            {SICK_BAY_VIEWS.map((key) => (
+              <TabsTrigger key={key} value={key}>
+                {t(`views.${key}`)}
+                {counts[key] !== undefined ? (
+                  <span
+                    className={cn(
+                      "ml-1.5 min-w-4.5 rounded-full px-1 text-center text-[0.7rem] font-bold leading-4",
+                      view === key ? "bg-primary/15 text-primary" : "bg-background/60 text-muted-foreground",
+                    )}
+                  >
+                    {counts[key]}
+                  </span>
+                ) : null}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
       )}
 
       {view === "cases" ? (

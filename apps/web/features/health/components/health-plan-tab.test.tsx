@@ -126,14 +126,19 @@ describe("HealthPlanTab — one list of protocols (RFE-142)", () => {
     expect(lastFilters().inUse).toBeUndefined();
   });
 
-  it("the kind chips filter on the server, with no page-sized counts", () => {
+  it("the kind chips filter on the server, with no page-sized counts", async () => {
     renderTab();
-    fireEvent.click(screen.getByRole("radio", { name: "Prevention" }));
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+    fireEvent.click(await screen.findByText("Protocol kind"));
+    fireEvent.click(await screen.findByText("Prevention"));
     expect(lastFilters()).toMatchObject({ kind: "PREVENTION" });
-    fireEvent.click(screen.getByRole("radio", { name: "All" }));
+    expect(screen.getByText("Protocol kind:")).toBeTruthy();
+    expect(screen.getAllByText("Prevention").length).toBeGreaterThanOrEqual(1);
+
+    const removeBtn = screen.getByLabelText("Remove Prevention");
+    fireEvent.click(removeBtn);
     expect(lastFilters().kind).toBeUndefined();
-    // the old chips carried a number that was only the size of the loaded page
-    expect(screen.getByRole("radio", { name: "Prevention" }).textContent).toBe("Prevention");
+    expect(screen.queryByText("Protocol kind:")).toBeNull();
   });
 
   it("search goes to the server", async () => {
@@ -148,9 +153,11 @@ describe("HealthPlanTab — one list of protocols (RFE-142)", () => {
     expect(screen.getAllByTestId("card").map((c) => c.firstChild?.textContent)).toEqual(["Quiet", "Late", "Today"]);
   });
 
-  it("a filter with no match offers to clear it", () => {
+  it("a filter with no match offers to clear it", async () => {
     renderTab();
-    fireEvent.click(screen.getByRole("radio", { name: "Treatment" }));
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+    fireEvent.click(await screen.findByText("Protocol kind"));
+    fireEvent.click(await screen.findByText("Treatment"));
     expect(screen.getByText("No protocols match")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
     expect(lastFilters().kind).toBeUndefined();
@@ -199,13 +206,15 @@ describe("HealthPlanTab - protocol sheet (RFE-143)", () => {
     expect(screen.queryByText("Not part of a protocol")).toBeNull();
   });
 
-  it("steps with no protocol get their own entry, with a count, in the Running view, and it opens the sheet", () => {
+  it("steps with no protocol get their own entry, with a count, in the Running view, and it opens the sheet", async () => {
     h.page.items = [plan("A")];
     h.loose.items = [{ id: "t1" }, { id: "t2" }];
     renderTab();
     // nothing is running, so the page opens on Library, where the entry is not shown
     expect(screen.queryByText("Not part of a protocol")).toBeNull();
-    fireEvent.click(screen.getByRole("tab", { name: /^Applied/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Filters" }));
+    fireEvent.click(await screen.findByText("Protocols view"));
+    fireEvent.click(await screen.findByText("Applied"));
     expect(screen.getByText("Not part of a protocol")).toBeTruthy();
     expect(screen.getByText("2 steps")).toBeTruthy();
     fireEvent.click(screen.getByText("Not part of a protocol"));
@@ -215,7 +224,13 @@ describe("HealthPlanTab - protocol sheet (RFE-143)", () => {
 });
 
 const round = (key: string, over: Record<string, unknown> = {}) => ({ roundKey: key, stepsOverdue: 0, stepsDueToday: 0, nextDueDate: null, healthPlan: { id: "p1", name: "FMD vaccine" }, ...over });
-const tabNamed = (name: RegExp) => screen.getByRole("tab", { name });
+
+async function switchViewTo(target: "Applied" | "Library") {
+  fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
+  fireEvent.click(await screen.findByText("Protocols view"));
+  fireEvent.click(await screen.findByText(target));
+  fireEvent.click(screen.getByLabelText("Close filters"));
+}
 
 describe("HealthPlanTab - Library | Applied (RFE-146, EPIC_PROTOCOL_ROUNDS D1)", () => {
   beforeEach(() => {
@@ -229,71 +244,78 @@ describe("HealthPlanTab - Library | Applied (RFE-146, EPIC_PROTOCOL_ROUNDS D1)",
   it("opens on Applied when a running round has a step due or late", () => {
     h.rounds.items = [round("app:a", { stepsDueToday: 1 })];
     renderTab();
-    expect(tabNamed(/^Applied/).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByTestId("applied-view")).toBeTruthy();
     expect(screen.queryByTestId("card")).toBeNull();
   });
 
   it("opens on Library when nothing is running", () => {
     renderTab();
-    expect(tabNamed(/^Library/).getAttribute("aria-selected")).toBe("true");
     expect(screen.queryByTestId("applied-view")).toBeNull();
   });
 
   it("opens on Library when running rounds exist but none is due", () => {
     h.rounds.items = [round("app:a", { nextDueDate: "2026-10-09" })];
     renderTab();
-    expect(tabNamed(/^Library/).getAttribute("aria-selected")).toBe("true");
+    expect(screen.queryByTestId("applied-view")).toBeNull();
   });
 
   it("falls back to Library when the rounds cannot be loaded", () => {
     h.rounds.isError = true;
     renderTab();
-    expect(tabNamed(/^Library/).getAttribute("aria-selected")).toBe("true");
+    expect(screen.queryByTestId("applied-view")).toBeNull();
   });
 
-  it("the Applied tab carries the count of applied protocols", () => {
+  it("the Applied view category option carries the count of applied protocols", async () => {
     h.rounds.items = [round("app:a"), round("app:b")];
     renderTab();
-    expect(tabNamed(/^Applied/).textContent).toBe("Applied (2)");
+    fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
+    fireEvent.click(await screen.findByText("Protocols view"));
+    expect(await screen.findByText("2")).toBeTruthy();
   });
 
-  it("the user's own choice wins over the default", () => {
+  it("the user's own choice wins over the default", async () => {
     h.rounds.items = [round("app:a", { stepsOverdue: 2 })];
     renderTab();
-    expect(tabNamed(/^Applied/).getAttribute("aria-selected")).toBe("true");
-    fireEvent.click(tabNamed(/^Library/));
-    expect(tabNamed(/^Library/).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByTestId("applied-view")).toBeTruthy();
+    await switchViewTo("Library");
     expect(screen.queryByTestId("applied-view")).toBeNull();
   });
 
   it("shows a loading state until it knows which view to open", () => {
     h.rounds.isLoading = true;
     renderTab();
-    expect(screen.queryByRole("tab")).toBeNull();
+    expect(screen.queryByPlaceholderText("Find health plan by name")).toBeNull();
   });
 
   it("the Applied view gets the kind, the search and a status that starts on Needs action", async () => {
     h.rounds.items = [round("app:a", { stepsDueToday: 1 })];
     renderTab();
     expect(screen.getByTestId("applied-view").textContent).toContain("status=needs");
-    fireEvent.click(screen.getByRole("radio", { name: "Prevention" }));
+    fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
+    fireEvent.click(await screen.findByText("Protocol kind"));
+    fireEvent.click(await screen.findByText("Prevention"));
     fireEvent.change(screen.getByPlaceholderText("Find health plan by name"), { target: { value: " fmd " } });
     await waitFor(() => expect(screen.getByTestId("applied-view").textContent).toContain("kind=PREVENTION;search=fmd"));
   });
 
-  it("there are no Late only / Finished rounds switches any more; the condition filter belongs to Library", () => {
+  it("there are no Late only / Finished rounds switches any more; the condition filter belongs to Library", async () => {
     h.rounds.items = [round("app:a", { stepsDueToday: 1 })];
     renderTab();
     expect(screen.queryByRole("switch")).toBeNull();
-    expect(screen.queryByRole("combobox")).toBeNull();
-    fireEvent.click(tabNamed(/^Library/));
-    expect(screen.getByRole("combobox")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
+    expect(screen.queryByText("Condition")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Close filters"));
+    await switchViewTo("Library");
+    fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
+    expect(await screen.findByText("Condition")).toBeTruthy();
   });
 
-  it("the tabs read Library then Applied", () => {
+  it("the filter categories list includes Protocols view with Library and Applied", async () => {
     renderTab();
-    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual(["Library", "Applied (0)"]);
+    fireEvent.click(screen.getByRole("button", { name: /Filters/ }));
+    fireEvent.click(await screen.findByText("Protocols view"));
+    expect(await screen.findByText("Library")).toBeTruthy();
+    expect(await screen.findByText("Applied")).toBeTruthy();
   });
 
   it("opening a round opens the sheet on that round", () => {
@@ -346,7 +368,7 @@ describe("HealthPlanTab - Library | Applied (RFE-146, EPIC_PROTOCOL_ROUNDS D1)",
   it("a ?status= link (the Late steps tile) lands on Applied even when nothing is due", () => {
     h.rounds.items = [round("app:a")];
     renderTab({ status: "needs" });
-    expect(tabNamed(/^Applied/).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByTestId("applied-view")).toBeTruthy();
     expect(screen.getByTestId("applied-view").textContent).toContain("status=needs");
   });
 
@@ -360,7 +382,7 @@ describe("HealthPlanTab - Library | Applied (RFE-146, EPIC_PROTOCOL_ROUNDS D1)",
     h.rounds.items = [round("app:a", { stepsDueToday: 1 })];
     renderTab();
     fireEvent.click(screen.getByRole("button", { name: "go-library" }));
-    expect(tabNamed(/^Library/).getAttribute("aria-selected")).toBe("true");
+    expect(screen.queryByTestId("applied-view")).toBeNull();
   });
 
 });

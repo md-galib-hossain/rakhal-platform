@@ -144,17 +144,20 @@ export function DrilldownFilterPopover({
     }),
   };
 
+  function handleClose() {
+    setOpen(false);
+    setActiveCategoryId(null);
+    setSearchQuery("");
+  }
+
   return (
     <Popover
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
         if (!next) {
-          // Reset view to root when closed
-          setTimeout(() => {
-            setActiveCategoryId(null);
-            setSearchQuery("");
-          }, 150);
+          setActiveCategoryId(null);
+          setSearchQuery("");
         }
       }}
     >
@@ -220,7 +223,7 @@ export function DrilldownFilterPopover({
                   ) : null}
                   <button
                     type="button"
-                    onClick={() => setOpen(false)}
+                    onClick={handleClose}
                     className="flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                     aria-label="Close filters"
                   >
@@ -295,7 +298,7 @@ export function DrilldownFilterPopover({
                   )}
                   <button
                     type="button"
-                    onClick={() => setOpen(false)}
+                    onClick={handleClose}
                     className="flex size-7 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                     aria-label="Close filters"
                   >
@@ -343,6 +346,8 @@ export function DrilldownFilterPopover({
                       <button
                         key={opt.value}
                         type="button"
+                        role={activeCategory.mode === "single" ? "radio" : undefined}
+                        aria-checked={activeCategory.mode === "single" ? isSelected : undefined}
                         onClick={() =>
                           handleToggleOption(activeCategory.id, opt.value, activeCategory.mode)
                         }

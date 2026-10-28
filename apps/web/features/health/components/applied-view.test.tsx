@@ -235,4 +235,10 @@ describe("AppliedView (table)", () => {
     expect(screen.queryByText("Nothing needs action")).toBeNull();
     expect(screen.queryAllByRole("row")).toHaveLength(0);
   });
+
+  it("suppresses the redundant status picker chips when hideStatusPicker is true", () => {
+    h.running = [round("r1", "Plan 1")];
+    renderView({ hideStatusPicker: true });
+    expect(screen.queryByRole("radiogroup", { name: "Show" })).toBeNull();
+  });
 });

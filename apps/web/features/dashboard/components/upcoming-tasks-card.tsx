@@ -25,10 +25,10 @@ export function UpcomingTasksCard() {
     </Link>
   );
 
-  if (query.isLoading) return <CardSkeleton lines={4} className="rounded-2xl" />;
+  if (query.isLoading) return <CardSkeleton lines={4} className="h-full min-h-[360px] rounded-2xl" />;
   if (query.isError) {
     return (
-      <DashboardCard title={t("title")} headerRight={headerRight}>
+      <DashboardCard title={t("title")} headerRight={headerRight} className="min-h-[360px]">
         <ErrorState description={t("error")} onRetry={() => query.refetch()} />
       </DashboardCard>
     );
@@ -37,7 +37,7 @@ export function UpcomingTasksCard() {
   if (!data) return null;
 
   return (
-    <DashboardCard title={t("title")} headerRight={headerRight}>
+    <DashboardCard title={t("title")} headerRight={headerRight} className="min-h-[360px]">
       <div className="flex flex-1 flex-col gap-3">
         <div className="flex items-center gap-4 text-sm">
           <span className="text-muted-foreground">

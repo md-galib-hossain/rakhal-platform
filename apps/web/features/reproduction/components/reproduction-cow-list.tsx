@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Chip, type ChipProps } from "@/components/ui/chip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
@@ -61,32 +62,18 @@ export function ReproductionCowList() {
   const rows = pager.items;
 
   const headerFilter = (
-    <div
-      role="tablist"
-      aria-label={t("filterLabel")}
-      className="inline-flex items-center gap-1 rounded-xl border border-border bg-muted p-1"
+    <Tabs
+      value={status ?? "all"}
+      onValueChange={(v) => setStatus(v === "all" ? undefined : (v as ReproductiveStatus))}
     >
-      {STATUS_FILTERS.map((value) => {
-        const active = value === status;
-        return (
-          <button
-            key={value ?? "all"}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => setStatus(value)}
-            className={cn(
-              "flex items-center rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 sm:text-sm",
-              active
-                ? "bg-card text-foreground shadow-xs"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
+      <TabsList aria-label={t("filterLabel")}>
+        {STATUS_FILTERS.map((value) => (
+          <TabsTrigger key={value ?? "all"} value={value ?? "all"}>
             {value ? t(`statusValues.${value}`) : t("filterAll")}
-          </button>
-        );
-      })}
-    </div>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </Tabs>
   );
 
   return (

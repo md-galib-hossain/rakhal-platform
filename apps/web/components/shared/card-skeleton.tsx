@@ -11,7 +11,7 @@ export interface CardSkeletonProps {
 /** Loading-state placeholder for StatCard/ChartCard/dashboard widgets. */
 export function CardSkeleton({ className, lines = 2 }: CardSkeletonProps) {
   return (
-    <Card className={cn("min-h-[220px]", className)}>
+    <Card className={cn("h-full min-h-[220px]", className)}>
 
       <CardHeader>
         <Skeleton className="h-4 w-24" />

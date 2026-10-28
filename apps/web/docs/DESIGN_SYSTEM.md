@@ -89,9 +89,8 @@ Combobox · Avatar · Progress · Separator · Skeleton · Command (for global s
 - **StatCard** — label, value, delta arrow, optional sparkline (dashboard KPIs, module highlight bars).
 - **ChartCard** — title, range picker, dynamic-imported chart child, export slot.
 - **EmptyState / ErrorState / TableSkeleton / CardSkeleton**.
-- **ConfirmDialog** — destructive-action confirmation (archive cattle, void txn, delete shed).
-- **FilterBar** — debounced search (300ms), select filters, date-range; serializes to URL params.
-- **FileUpload** — client type/size validation, progress, preview (cattle photo, CSV import, task photo).
+- **DrilldownFilterBar** (`components/shared/drilldown-filter-bar.tsx`) — **Canonical project-wide filter component**: debounced search (300ms), scope switcher tabs, animated drilldown filter popover with single/multi modes and in-category search, active chip pills with clear all, and dedicated action button slot. Used in Healthcare / Sick Bay, Animal / Cattle, and future module listings to ensure unified project theme and UX.
+- **FilterBar** (`components/shared/filter-bar.tsx`) — legacy popover filter bar; superseded by `DrilldownFilterBar`.
 - **FormSheet / FormDialog** — standard create/edit containers (RHF + zod wired).
 - **MoneyText / DateText** — locale-aware ৳ + date rendering (wraps `lib/format.ts`).
 - **CattlePicker** — search-select of the farm's animals (used by milk log, health case, repro events, tasks).

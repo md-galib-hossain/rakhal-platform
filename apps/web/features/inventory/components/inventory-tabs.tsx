@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
 import { Box, LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { INVENTORY_TABS, type InventoryTabKey } from "../types";
 
 const TAB_KEYS = INVENTORY_TABS.map((t) => t.key) as [InventoryTabKey, ...InventoryTabKey[]];
@@ -27,28 +28,20 @@ export function InventoryTabs({
   const showViewToggle = showViewToggleProp ?? (activeTabConfig?.hasViewToggle ?? false);
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-muted p-1.5">
-      <div className="flex flex-wrap items-center gap-1">
-        {INVENTORY_TABS.map(({ key }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => void setTab(key)}
-            className={cn(
-              "flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
-              tab === key
-                ? "bg-card text-primary shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            <Box className="size-[18px]" aria-hidden />
-            {t(key)}
-          </button>
-        ))}
-      </div>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <Tabs value={tab} onValueChange={(v) => void setTab(v as InventoryTabKey)}>
+        <TabsList className="h-auto flex-wrap sm:h-11">
+          {INVENTORY_TABS.map(({ key }) => (
+            <TabsTrigger key={key} value={key}>
+              <Box className="mr-1.5 size-4" aria-hidden />
+              {t(key)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       {showViewToggle ? (
-        <div className="flex items-center gap-0.5 rounded-lg bg-card p-0.5 shadow-sm">
+        <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card p-0.5 shadow-xs">
           <button
             type="button"
             onClick={() => onViewChange("grid")}

@@ -177,31 +177,15 @@ export function ProtocolsPanel() {
         </TabsList>
 
         <TabsContent value="running" className="mt-0 flex flex-1 flex-col gap-3">
-          <div
-            role="group"
-            aria-label={t("activeInstances")}
-            className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            {INSTANCE_TABS.map((tab) => {
-              const active = tab === instanceTab;
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setInstanceTab(tab)}
-                  className={cn(
-                    "h-8 shrink-0 rounded-full border px-3.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    active
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-card text-muted-foreground hover:bg-muted",
-                  )}
-                >
+          <Tabs value={instanceTab} onValueChange={(next) => setInstanceTab(next as InstanceTab)}>
+            <TabsList aria-label={t("activeInstances")} className="w-full sm:w-fit overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {INSTANCE_TABS.map((tab) => (
+                <TabsTrigger key={tab} value={tab} className="shrink-0">
                   {t(`instanceTabs.${tab}`)}
-                </button>
-              );
-            })}
-          </div>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
           {instanceTab === "ACTIVE" ? (
             <ActiveInstances durations={durations} onApply={() => openApply()} onTimeline={setTimelineInstance} />
           ) : (

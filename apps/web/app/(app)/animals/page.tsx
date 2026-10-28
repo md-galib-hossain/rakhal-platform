@@ -44,19 +44,17 @@ export default async function CattlePage() {
         <CalfKpiBanner />
       </Suspense>
       <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-2xl font-bold text-foreground">{tCattle("allCattleView")}</h2>
-          <Suspense fallback={null}>
-            <CattleFilters
-              actions={
-                <div className="flex items-center gap-2">
-                  <AnimalGroupsButton />
-                  <CattleAddButton />
-                </div>
-              }
-            />
-          </Suspense>
-        </div>
+        <h2 className="text-2xl font-bold text-foreground">{tCattle("allCattleView")}</h2>
+        <Suspense fallback={null}>
+          <CattleFilters
+            actions={
+              <div className="flex items-center gap-2">
+                <AnimalGroupsButton />
+                <CattleAddButton />
+              </div>
+            }
+          />
+        </Suspense>
         <Suspense fallback={null}>
           <CattleTable />
         </Suspense>

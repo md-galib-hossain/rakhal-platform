@@ -105,13 +105,13 @@ export function ReproductionActionPanels({
         <Tabs value={activeTab} onValueChange={selectTab} className="flex flex-1 flex-col gap-3">
           <TabsList
             aria-label={t("title")}
-            className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl bg-muted p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="w-full justify-start overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {TAB_ORDER.map((key) => (
               <TabsTrigger
                 key={key}
                 value={key}
-                className="h-8 shrink-0 rounded-lg px-2.5 text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-xs"
+                className="shrink-0"
               >
                 {t(`tabs.${key}`)}
                 <span

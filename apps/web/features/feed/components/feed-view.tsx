@@ -224,20 +224,20 @@ export function FeedView() {
   return (
     <div className="flex flex-1 flex-col gap-4">
       <Tabs defaultValue="ingredients" className="flex flex-1 flex-col">
-        <TabsList className="h-auto w-full flex-wrap items-stretch justify-between gap-1 rounded-xl border border-border bg-muted p-1 text-muted-foreground">
-          <TabsTrigger value="ingredients" className="flex-1">
+        <TabsList className="h-auto flex-wrap sm:h-11 w-full sm:w-fit">
+          <TabsTrigger value="ingredients" className="flex-1 sm:flex-none">
             {t("ingredientsManager.title")}
           </TabsTrigger>
-          <TabsTrigger value="templates" className="flex-1">
+          <TabsTrigger value="templates" className="flex-1 sm:flex-none">
             {t("concentrationTemplate")}
           </TabsTrigger>
-          <TabsTrigger value="mixtures" className="flex-1">
+          <TabsTrigger value="mixtures" className="flex-1 sm:flex-none">
             {t("feedMixture")}
           </TabsTrigger>
-          <TabsTrigger value="plans" className="flex-1">
+          <TabsTrigger value="plans" className="flex-1 sm:flex-none">
             {t("plans.tab")}
           </TabsTrigger>
-          <TabsTrigger value="requirements" className="flex-1">
+          <TabsTrigger value="requirements" className="flex-1 sm:flex-none">
             {t("requirements.tab")}
           </TabsTrigger>
         </TabsList>

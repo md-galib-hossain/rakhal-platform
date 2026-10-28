@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
 import { TrendingUp, ArrowLeftRight, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DateRangePicker } from "@/components/shared/date-range-picker";
 import { usePeriod } from "@/lib/hooks/use-period";
 import { AgingSummaryStrip } from "../payments/aging-summary-strip";
@@ -42,25 +42,19 @@ export function ReportsView() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-muted p-1.5">
-          {REPORT_KEYS.map((key) => {
-            const Icon = REPORT_ICONS[key];
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => void setSegment(key)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-sm px-4 py-1.5 text-sm font-medium transition-colors",
-                  segment === key ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icon className="size-[16px]" aria-hidden />
-                {t(`segments.${key.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())}`)}
-              </button>
-            );
-          })}
-        </div>
+        <Tabs value={segment} onValueChange={(v) => void setSegment(v as ReportKey)}>
+          <TabsList className="h-auto flex-wrap sm:h-11">
+            {REPORT_KEYS.map((key) => {
+              const Icon = REPORT_ICONS[key];
+              return (
+                <TabsTrigger key={key} value={key}>
+                  <Icon className="mr-1.5 size-4" aria-hidden />
+                  {t(`segments.${key.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())}`)}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
 
         {isPeriodReport ? (
           <DateRangePicker
