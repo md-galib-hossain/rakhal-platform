@@ -9,6 +9,7 @@ import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { HealthModule } from '../health/health.module';
 import { TaskModule } from '../task/task.module';
 import { FeedModule } from '../feed/feed.module';
+import { FarmTimeModule } from 'src/common/farm-time/farm-time.module';
 import { SchedulerService } from './application/services/scheduler.service';
 
 /**
@@ -29,6 +30,7 @@ import { SchedulerService } from './application/services/scheduler.service';
     HealthModule,
     TaskModule,
     FeedModule,
+    FarmTimeModule,
   ],
   providers: [SchedulerService],
   exports: [SchedulerService],

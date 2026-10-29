@@ -1,4 +1,6 @@
-﻿import { Module } from '@nestjs/common';
+﻿import { AnimalEventsModule } from '../animal-events/animal-events.module';
+import { HealthEventHandler } from './application/events/health-events.handler';
+import { Module } from '@nestjs/common';
 import { LoggerModule } from 'src/core/logger/logger/logger.module';
 import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
@@ -22,6 +24,7 @@ import { PurchasingModule } from '../purchasing/purchasing.module';
 
 @Module({
   imports: [
+    AnimalEventsModule,
     AuthModule,
     LoggerModule,
     TenantAccessModule,
@@ -38,6 +41,7 @@ import { PurchasingModule } from '../purchasing/purchasing.module';
   ],
   controllers: [HealthController, CattleHealthController],
   providers: [
+    HealthEventHandler,
     HealthService,
     ProtocolStockService,
     HealthCycleService,

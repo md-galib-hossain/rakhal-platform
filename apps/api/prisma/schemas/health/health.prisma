@@ -326,6 +326,8 @@ model TreatmentLog {
   @@index([farmId, cattleId])
   @@index([farmId, healthCaseId])
   @@index([farmId, administeredAt])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
 }
 
 model HealthUpdate {
@@ -382,6 +384,8 @@ model MortalityRecord {
   @@index([farmId, cattleId])
   @@index([farmId, healthCaseId])
   @@index([farmId, deathDate])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
 }
 
 model SafetyWithdrawal {

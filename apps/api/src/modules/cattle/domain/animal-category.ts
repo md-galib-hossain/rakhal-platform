@@ -28,6 +28,8 @@ export interface DeriveAnimalCategoryInput {
   dateOfBirth: Date | null;
   totalCalvings: number;
   now?: Date;
+  /** RAKHAL-477: farm's `cattleLifecycleWeaningDays`; defaults to the calf module's constant. */
+  weaningDays?: number;
 }
 
 /**
@@ -45,8 +47,9 @@ export function deriveAnimalCategory({
   dateOfBirth,
   totalCalvings,
   now = new Date(),
+  weaningDays = DEFAULT_WEANING_DAYS,
 }: DeriveAnimalCategoryInput): AnimalCategory {
-  if (dateOfBirth && ageInDays(dateOfBirth, now) < DEFAULT_WEANING_DAYS) {
+  if (dateOfBirth && ageInDays(dateOfBirth, now) < weaningDays) {
     return 'CALF';
   }
 
@@ -77,8 +80,9 @@ export function deriveAnimalCategory({
 export function buildAnimalCategoryWhere(
   category: AnimalCategory,
   now: Date,
+  weaningDays: number = DEFAULT_WEANING_DAYS,
 ): Prisma.CattleWhereInput {
-  const weaningCutoff = new Date(now.getTime() - DEFAULT_WEANING_DAYS * DAY_MS);
+  const weaningCutoff = new Date(now.getTime() - weaningDays * DAY_MS);
   const notCalfByAge: Prisma.CattleWhereInput = {
     OR: [{ dateOfBirth: null }, { dateOfBirth: { lt: weaningCutoff } }],
   };

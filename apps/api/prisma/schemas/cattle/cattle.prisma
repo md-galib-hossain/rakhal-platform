@@ -99,6 +99,7 @@ model Cattle {
   safetyWithdrawals      SafetyWithdrawal[]
   bcsRecords             BodyConditionScore[]
   weightRecords          WeightRecord[]
+  animalEvents           AnimalEvent[]          @relation("CattleToAnimalEvent")
   animalSaleLines        AnimalSaleLine[]            @relation("CattleToAnimalSaleLine")
   dispositions           CattleDisposition[]         @relation("CattleToCattleDisposition")
   disposition            CattleDisposition?          @relation("CattleDispositionRecord", fields: [dispositionId], references: [id])
@@ -135,6 +136,8 @@ model BodyConditionScore {
 
   @@index([cattleId])
   @@index([cattleId, recordedDate])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
 }
 
 /// Body weight record (PRD §8.5, RAKHAL-039). Timestamped; denormalized to
@@ -154,6 +157,8 @@ model WeightRecord {
 
   @@index([cattleId])
   @@index([cattleId, recordedDate])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
 }
 
 model Breed {

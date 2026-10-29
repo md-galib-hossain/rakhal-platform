@@ -15,6 +15,8 @@ import { MediaModule } from '../media/media.module';
 // `FarmSettingsModule` is a lean, standalone module (Prisma + Logger only,
 // no back-reference to `CattleModule`) so this creates no cycle.
 import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
+import { CattleEventHandler } from './application/events/cattle-events.handler';
+import { AnimalEventsModule } from '../animal-events/animal-events.module';
 // RAKHAL-307: CattleService.create() needs ReproductionDerivationService to
 // end intake with the same refreshDerivedState() recompute every other
 // reproduction write uses. ReproductionModule already imports CattleModule
@@ -48,6 +50,7 @@ import { ShedController } from './presentation/controllers/shed.controller';
     SubscriptionModule,
     MediaModule,
     FarmSettingsModule,
+    AnimalEventsModule,
     forwardRef(() => ReproductionModule),
     TaskModule,
   ],
@@ -71,6 +74,8 @@ import { ShedController } from './presentation/controllers/shed.controller';
     // RAKHAL-475: per-animal upcoming events for the list column + `GET /cattle/:id/upcoming-events`.
     // `FarmClockService` comes from the global `FarmTimeModule`.
     AnimalUpcomingEventsService,
+    // RAKHAL-481: WEIGHT / BCS handler for `POST /cattle/:id/events`.
+    CattleEventHandler,
   ],
   exports: [
     CattleService,

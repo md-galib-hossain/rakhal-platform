@@ -5,11 +5,14 @@ import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { TaskModule } from '../task/task.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { AnimalEventsModule } from '../animal-events/animal-events.module';
+import { CalfEventHandler } from './application/events/calf-events.handler';
 import { CalfService } from './application/services/calf.service';
 import { CalfController } from './presentation/controllers/calf.controller';
 
 @Module({
   imports: [
+    AnimalEventsModule,
     AuthModule,
     LoggerModule,
     TenantAccessModule,
@@ -18,7 +21,7 @@ import { CalfController } from './presentation/controllers/calf.controller';
     SubscriptionModule,
   ],
   controllers: [CalfController],
-  providers: [CalfService],
+  providers: [CalfService, CalfEventHandler],
   exports: [CalfService],
 })
 export class CalfModule {}

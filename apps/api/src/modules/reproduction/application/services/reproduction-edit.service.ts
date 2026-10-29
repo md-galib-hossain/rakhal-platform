@@ -225,6 +225,8 @@ export class ReproductionEditService {
     const newBreedingDate = dto.breedingDate
       ? new Date(dto.breedingDate)
       : existing.breedingDate;
+    const pregnancyCheckDays =
+      await this.farmSettings.reproPregnancyCheckDays(farmId);
 
     const hadStraw =
       existing.breedingMethod === BreedingMethod.AI &&
@@ -353,7 +355,7 @@ export class ReproductionEditService {
         expectedPregnancyCheckDate: dto.expectedPregnancyCheckDate
           ? new Date(dto.expectedPregnancyCheckDate)
           : dto.breedingDate
-            ? this.addDays(newBreedingDate, 35)
+            ? this.addDays(newBreedingDate, pregnancyCheckDays)
             : undefined,
         notes: dto.notes,
       },
@@ -441,7 +443,8 @@ export class ReproductionEditService {
         farmId,
         'BREEDING_EVENT',
         id,
-        updated.expectedPregnancyCheckDate ?? this.addDays(newBreedingDate, 35),
+        updated.expectedPregnancyCheckDate ??
+          this.addDays(newBreedingDate, pregnancyCheckDays),
       );
 
       const linkedHeat = await this.prisma.heatEvent.findFirst({

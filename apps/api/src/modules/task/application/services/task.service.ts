@@ -50,6 +50,8 @@ type TaskWithAssignee = Task & {
   cattles: { cattleId: string }[];
 };
 
+import { eventApiContext } from 'src/modules/animal-events/application/event-api-context';
+
 @Injectable()
 export class TaskService {
   private readonly log: LoggerService;
@@ -108,6 +110,9 @@ export class TaskService {
    * record is identical to a manual task and shows up in the Task Hub.
    */
   async createInternal(input: CreateTaskInternalInput): Promise<Task> {
+    // RAKHAL-481: a HISTORICAL entry creates no reminder (hub §3.5). Callers
+    // of this seam ignore the row, so a placeholder keeps the signature.
+    if (eventApiContext()?.historical) return { id: 'historical-skipped' } as Task;
     await this.assertAssignee(input.farmId, input.assignedToId);
     return this.insert({
       farmId: input.farmId,

@@ -11,6 +11,8 @@ import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
 import { PurchasingModule } from '../purchasing/purchasing.module';
 import { CattleModule } from '../cattle/cattle.module';
+import { AnimalEventsModule } from '../animal-events/animal-events.module';
+import { ReproductionEventHandler } from './application/events/reproduction-events.handler';
 import { ReproductionService } from './application/services/reproduction.service';
 import { ReproductionDerivationService } from './application/services/reproduction-derivation.service';
 import { ReproductionEditService } from './application/services/reproduction-edit.service';
@@ -26,6 +28,7 @@ import { LactationController } from './presentation/lactation.controller';
 
 @Module({
   imports: [
+    AnimalEventsModule,
     AuthModule,
     LoggerModule,
     TenantAccessModule,
@@ -60,6 +63,7 @@ import { LactationController } from './presentation/lactation.controller';
     ReproProtocolService,
     LactationStatsService,
     LactationEconomicsService,
+    ReproductionEventHandler,
   ],
   exports: [ReproductionService, ReproductionDerivationService],
 })

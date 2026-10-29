@@ -7,6 +7,10 @@ import {
   ReproductionState,
 } from '@prisma/client';
 import { CursorPaginationQueryDto } from 'src/common/pagination';
+import {
+  CATTLE_CATEGORIES,
+  type CattleCategory,
+} from 'src/modules/animal-events/domain/eligibility/categories';
 import { toBoolean, trimString } from 'src/common/dto';
 import {
   ANIMAL_CATEGORIES,
@@ -67,6 +71,16 @@ export class ListCattleQueryDto extends CursorPaginationQueryDto {
   @Transform(trimString)
   @IsIn(ANIMAL_CATEGORIES)
   animalCategory?: AnimalCategory;
+
+  /** RAKHAL-480 (MILESTONE 31): the 13 event/bulk chips (all, male, female, cow,
+   * heifer, weaned, calf, pregnant, milking, dry, fresh, open, fattening),
+   * generated from the same table as event eligibility. Case-insensitive. */
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsIn(CATTLE_CATEGORIES)
+  category?: CattleCategory;
 
   @IsOptional()
   @Transform(trimString)

@@ -13,6 +13,8 @@ import {
   ActivityTaggedValue,
 } from './activity-log.service';
 
+import { eventApiContext } from 'src/modules/animal-events/application/event-api-context';
+
 export interface AqrEventResult {
   cattleId: string;
   eventKey: AqrEventKey;
@@ -76,6 +78,10 @@ export class AqrService {
     eventKey: AqrEventKey,
     options: ApplyEventOptions = {},
   ): Promise<AqrEventResult> {
+    // RAKHAL-481: a HISTORICAL entry never moves the score (hub §3.5).
+    if (eventApiContext()?.historical) {
+      return { cattleId, eventKey, delta: null, aqrScore: null };
+    }
     const def: AqrEventDef = await this.config.resolveEvent(farmId, eventKey);
 
     const cattle = await this.prisma.cattle.findFirst({

@@ -66,6 +66,8 @@ import {
   PregnancyStage,
 } from '../../domain/pregnancy-stage';
 import { computeDryOffProjection } from '../../domain/lactation-dry-off-projection';
+import { eventApiContext } from 'src/modules/animal-events/application/event-api-context';
+import { estimatePregnancyDates } from '../../domain/pregnancy-estimate';
 import {
   ReproductionDerivationService,
   deriveReproductionState,
@@ -406,7 +408,8 @@ export class ReproductionService {
     const activePregnancy = await this.prisma.pregnancy.findFirst({
       where: { cattleId: dto.cattleId, status: PregnancyStatus.ACTIVE },
     });
-    if (activePregnancy) {
+    // RAKHAL-481 (Q4): through the event API this is a warning, not a block.
+    if (activePregnancy && !eventApiContext()) {
       throw new BadRequestException(
         `[${cattle.tagNumber}] already has an active pregnancy (id ${activePregnancy.id}, expected calving ${activePregnancy.expectedCalvingDate?.toISOString().slice(0, 10) ?? 'unknown'}). Resolve or correct it before recording a new breeding.`,
       );
@@ -528,6 +531,9 @@ export class ReproductionService {
       })) + 1;
 
     const heatWindowDays = await this.farmSettings.reproHeatWindowDays(farmId);
+    // RAKHAL-476: preg-check lead time is a farm setting (default 35).
+    const pregnancyCheckDays =
+      await this.farmSettings.reproPregnancyCheckDays(farmId);
     const breedingDate = new Date(dto.breedingDate);
 
     let breedingEvent = await this.prisma.$transaction(async (tx) => {
@@ -540,7 +546,7 @@ export class ReproductionService {
         where: { cattleId: dto.cattleId, status: PregnancyStatus.ACTIVE },
         select: { id: true },
       });
-      if (activePregnancyInTx) {
+      if (activePregnancyInTx && !eventApiContext()) {
         throw new BadRequestException(
           `[${cattle.tagNumber}] already has an active pregnancy (id ${activePregnancyInTx.id}). Resolve or correct it before recording a new breeding.`,
         );
@@ -573,7 +579,7 @@ export class ReproductionService {
           breedingNumber,
           expectedPregnancyCheckDate: dto.expectedPregnancyCheckDate
             ? new Date(dto.expectedPregnancyCheckDate)
-            : this.addDays(breedingDate, 35),
+            : this.addDays(breedingDate, pregnancyCheckDays),
           status: BreedingStatus.PENDING_CHECK,
           notes: dto.notes,
         },
@@ -675,7 +681,7 @@ export class ReproductionService {
         priority: TaskPriority.MEDIUM,
         dueAt:
           breedingEvent.expectedPregnancyCheckDate ??
-          this.addDays(new Date(dto.breedingDate), 35),
+          this.addDays(new Date(dto.breedingDate), pregnancyCheckDays),
         source: TaskSource.SYSTEM_AUTO,
         relatedCattleId: dto.cattleId,
         sourceEventType: 'BREEDING_EVENT',
@@ -767,10 +773,16 @@ export class ReproductionService {
     if (!dto.breedingEventId) {
       const openBreedings = await this.prisma.breedingEvent.findMany({
         where: { cattleId: dto.cattleId, status: BreedingStatus.PENDING_CHECK },
-        select: { id: true },
+        select: { id: true, breedingDate: true },
         take: 2,
       });
-      if (openBreedings.length === 1) {
+      // RAKHAL-481 (D2): via the event API an old check must not attach itself
+      // to an AI recorded after it.
+      if (
+        openBreedings.length === 1 &&
+        (!eventApiContext() ||
+          openBreedings[0].breedingDate <= new Date(dto.diagnosisDate))
+      ) {
         dto.breedingEventId = openBreedings[0].id;
       }
     }
@@ -806,14 +818,26 @@ export class ReproductionService {
       });
 
       if (dto.result === PregnancyDiagnosisResult.PREGNANT) {
-        const conceptionDate =
-          breedingEvent?.breedingDate ?? new Date(dto.diagnosisDate);
+        // RAKHAL-476: with no linked breeding, derive conception from the
+        // gestation day / expected calving — never the check date itself.
+        const estimate = estimatePregnancyDates({
+          diagnosisDate: new Date(dto.diagnosisDate),
+          breedingDate: breedingEvent?.breedingDate,
+          gestationDay: dto.gestationDay,
+          expectedCalvingDate: dto.expectedCalvingDate
+            ? new Date(dto.expectedCalvingDate)
+            : null,
+        });
+        if (estimate.source !== 'BREEDING') {
+          this.log.info('CONCEPTION_ESTIMATED', {
+            cattleId: dto.cattleId,
+            source: estimate.source,
+          });
+        }
+        const conceptionDate = estimate.conceptionDate;
         // RAKHAL-317: the system's own estimate, kept forever regardless of
         // any later farmer override — never recomputed after this.
-        const calculatedCalvingDate = this.addDays(
-          conceptionDate,
-          DEFAULT_GESTATION_DAYS,
-        );
+        const calculatedCalvingDate = estimate.calculatedCalvingDate;
         const pregnancy = await tx.pregnancy.create({
           data: {
             cattleId: dto.cattleId,
@@ -1367,7 +1391,8 @@ export class ReproductionService {
       where: { cattleId, status: LactationStatus.ACTIVE },
       orderBy: { startDate: 'desc' },
     });
-    if (!activeLactation) {
+    // RAKHAL-481: through the event API a missing lactation is a warning.
+    if (!activeLactation && !eventApiContext()) {
       throw new BadRequestException(
         `[${cattle.tagNumber}] has no active lactation to dry off`,
       );
@@ -1385,16 +1410,19 @@ export class ReproductionService {
     const targetDays = await this.farmSettings.reproDryPeriodTargetDays(farmId);
 
     const dryPeriod = await this.prisma.$transaction(async (tx) => {
-      await tx.lactation.update({
-        where: { id: activeLactation.id },
-        data: {
-          status: LactationStatus.ENDED,
-          endDate: dryOffDate,
-          // RAKHAL-290: closes RAKHAL-281's own note that `recordDryOff`
-          // didn't set this yet.
-          endReason: LactationEndReason.DRY_OFF,
-        },
-      });
+      // RAKHAL-481: with no active lactation (event API only) there is nothing to close.
+      if (activeLactation) {
+        await tx.lactation.update({
+          where: { id: activeLactation.id },
+          data: {
+            status: LactationStatus.ENDED,
+            endDate: dryOffDate,
+            // RAKHAL-290: closes RAKHAL-281's own note that `recordDryOff`
+            // didn't set this yet.
+            endReason: LactationEndReason.DRY_OFF,
+          },
+        });
+      }
 
       const created = await tx.dryPeriod.create({
         data: {
@@ -1439,7 +1467,7 @@ export class ReproductionService {
       dryPeriodId: dryPeriod.id,
       cattleId,
       farmId,
-      lactationId: activeLactation.id,
+      lactationId: activeLactation?.id ?? null,
     });
 
     return dryPeriod;
@@ -2627,6 +2655,8 @@ export class ReproductionService {
     input: Parameters<TaskService['createInternal']>[0],
     namePrefix: string,
   ) {
+    // RAKHAL-481: a history entry creates no reminder (hub §3.5).
+    if (eventApiContext()?.historical) return;
     if (input.sourceEventType && input.sourceEventId) {
       const existing = await this.prisma.task.findFirst({
         where: {

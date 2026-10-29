@@ -89,6 +89,9 @@ model FarmModuleSettings {
   /// too few real days is unreliable, so it stays null (same
   /// null-below-threshold convention already used elsewhere in this module).
   minDimFor305DayYield           Int @default(30)
+  /// RAKHAL-476: days after a breeding before `expectedPregnancyCheckDate`
+  /// (and the pregnancy-check task). Was hard-coded 35.
+  reproPregnancyCheckDays        Int @default(35)
 
   // Finance
   financeCurrency           String @default("Tk")

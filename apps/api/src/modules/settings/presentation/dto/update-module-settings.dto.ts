@@ -37,6 +37,7 @@ class MilkModuleDto {
 
 class ReproductionModuleDto {
   @IsOptional() @IsInt() @Min(0) @Max(365) vwp_days?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(120) pregnancy_check_days?: number;
   @IsOptional()
   @IsInt()
   @Min(200)

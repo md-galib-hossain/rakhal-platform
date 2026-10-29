@@ -8,6 +8,8 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { FarmClockService } from 'src/common/farm-time/farm-clock.service';
+import { localDateIso } from 'src/common/farm-time/farm-time';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { deriveOutstanding } from 'src/common/finance/txn-filters';
 import { computeRunwaySnapshot } from 'src/common/finance/runway';
@@ -86,6 +88,7 @@ export class SchedulerService {
     private readonly feedFitSweep: FeedPlanFitSweepService,
     private readonly healthReminders: HealthReminderService,
     private readonly healthCycles: HealthCycleService,
+    private readonly farmClock: FarmClockService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(SchedulerService.name);
@@ -548,32 +551,46 @@ export class SchedulerService {
    */
   private async sweepTodaysTasksReady(): Promise<number> {
     const now = new Date();
-    const startOfDay = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-    );
-    const endOfDay = new Date(startOfDay.getTime() + DAY_MS);
+    // RAKHAL-477: "today" is the FARM's local day, not UTC. Fetch a window wide
+    // enough for any timezone (UTC-12..+14), then keep tasks whose local date
+    // equals the farm's local today.
     const tasks = await this.prisma.task.findMany({
       where: {
-        dueAt: { gte: startOfDay, lt: endOfDay },
+        dueAt: {
+          gte: new Date(now.getTime() - 2 * DAY_MS),
+          lt: new Date(now.getTime() + 2 * DAY_MS),
+        },
         status: { in: ['PENDING', 'IN_PROGRESS'] },
         assignedToId: { not: null },
       },
-      select: { farmId: true, assignedToId: true },
+      select: { farmId: true, assignedToId: true, dueAt: true },
     });
 
-    const byUser = new Map<string, { farmId: string; count: number }>();
+    const tzByFarm = new Map<string, string>();
+    const byUser = new Map<
+      string,
+      { farmId: string; count: number; today: string }
+    >();
     for (const t of tasks) {
-      if (!t.assignedToId) continue;
+      if (!t.assignedToId || !t.dueAt) continue;
+      let tz = tzByFarm.get(t.farmId);
+      if (!tz) {
+        tz = await this.farmClock.timezone(t.farmId);
+        tzByFarm.set(t.farmId, tz);
+      }
+      const today = localDateIso(tz, now);
+      if (localDateIso(tz, t.dueAt) !== today) continue;
       const entry = byUser.get(t.assignedToId) ?? {
         farmId: t.farmId,
         count: 0,
+        today,
       };
       entry.count += 1;
       byUser.set(t.assignedToId, entry);
     }
 
     let emitted = 0;
-    for (const [userId, { farmId, count }] of byUser) {
+    for (const [userId, { farmId, count, today }] of byUser) {
       const created = await this.notifications.notifyUsers({
         farmId,
         userIds: [userId],
@@ -582,7 +599,7 @@ export class SchedulerService {
         message: `You have ${count} task(s) due today.`,
         params: { count },
         link: '/tasks',
-        dedupeKey: `todays_tasks_ready:${userId}:${this.ymd(now)}`,
+        dedupeKey: `todays_tasks_ready:${userId}:${today}`,
       });
       emitted += created.length;
     }

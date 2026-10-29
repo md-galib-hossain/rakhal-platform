@@ -44,9 +44,18 @@ export class BcsService {
       },
     });
 
+    // RAKHAL-477: `lastBcs` is the LATEST-BY-DATE score; a back-dated entry
+    // must not overwrite a newer one.
+    const latest = await this.prisma.bodyConditionScore.findFirst({
+      where: { cattleId },
+      orderBy: [{ recordedDate: 'desc' }, { createdAt: 'desc' }],
+      select: { score: true },
+    });
+    const lastBcs = latest?.score ?? dto.score;
+
     await this.prisma.cattle.update({
       where: { id: cattleId },
-      data: { lastBcs: dto.score },
+      data: { lastBcs },
     });
 
     const alerts = await this.computeAlerts(cattleId, dto.score, recordedDate);
@@ -58,7 +67,7 @@ export class BcsService {
       alerts: alerts.length,
     });
 
-    return { record, lastBcs: dto.score, alerts };
+    return { record, lastBcs, alerts };
   }
 
   /** Recent BCS history for the BCS trend chart (PRD §8.5/§8.6). */

@@ -99,6 +99,8 @@ function careTypeForPlanCategory(category: HealthPlanCategory): HealthCareType {
  * feed the live AQR/Activity engines: reporting sickness emits −10, recovery
  * +5, and mortality nullifies the score (PRD §19.2).
  */
+import { eventApiContext } from 'src/modules/animal-events/application/event-api-context';
+
 @Injectable()
 export class HealthService {
   private readonly log: LoggerService;
@@ -438,7 +440,8 @@ export class HealthService {
             : { note: { equals: dto.note, mode: 'insensitive' } }),
         },
       });
-      if (duplicate) {
+      // RAKHAL-481: through the event API this is the finding OPEN_CASE_EXISTS, not a 409.
+      if (duplicate && !eventApiContext()) {
         throw new ConflictException(
           'Active health case already exists for this diagnosis',
         );

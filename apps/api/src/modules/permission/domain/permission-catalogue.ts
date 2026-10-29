@@ -51,7 +51,17 @@ const RESOURCES: ResourceDef[] = [
     // here, so no role had a real catalogue entry for it (PermissionGuard's
     // wildcard match still let Owner/Manager through in practice — this was
     // a missing-catalogue-row gap, not a live-broken route).
-    actions: [...BASE, 'bcs', 'archive', 'bulk', 'dispose', 'hold'],
+    actions: [
+      ...BASE,
+      'bcs',
+      'archive',
+      'bulk',
+      'dispose',
+      'hold',
+      // MILESTONE 31 (RAKHAL-481): record any animal event / void it.
+      'event',
+      'event.void',
+    ],
   },
   {
     resource: 'reproduction',
@@ -290,6 +300,8 @@ export const ROLE_PERMISSIONS: Record<SystemRoleName, string[]> = {
     'dashboard.read',
     'cattle.read',
     'cattle.bcs',
+    // RAKHAL-481: workers record events; each type's own permission still applies.
+    'cattle.event',
     'reproduction.heat',
     'milk.read',
     'milk.create',

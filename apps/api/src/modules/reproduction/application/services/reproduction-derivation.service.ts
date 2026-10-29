@@ -29,6 +29,8 @@ export interface ReproductionStateInput {
   lastBreeding: { status: BreedingStatus } | null;
   lastCalving: { calvingDate: Date } | null;
   vwpDays: number;
+  /** RAKHAL-476: farm's breeding age (`cattleLifecycleBreedingAgeDays`); defaults to 450. */
+  breedingAgeDays?: number;
 }
 
 /**
@@ -55,12 +57,13 @@ export function deriveReproductionState(
     lastBreeding,
     lastCalving,
     vwpDays,
+    breedingAgeDays = MIN_BREEDING_AGE_DAYS,
   } = input;
 
   const ageDays = dateOfBirth
     ? Math.floor((now.getTime() - dateOfBirth.getTime()) / DAY_MS)
     : null;
-  const underBreedingAge = ageDays !== null && ageDays < MIN_BREEDING_AGE_DAYS;
+  const underBreedingAge = ageDays !== null && ageDays < breedingAgeDays;
 
   if (
     gender !== CattleGender.FEMALE ||
@@ -445,7 +448,10 @@ export class ReproductionDerivationService {
       existingProfile?.totalCalvings ?? 0,
     );
 
+    const { breedingAgeDays } =
+      await this.farmSettings.lifecycleBoundaries(farmId);
     const status = deriveReproductionState({
+      breedingAgeDays,
       now: new Date(),
       gender: cattle?.gender,
       dateOfBirth: cattle?.dateOfBirth ?? null,

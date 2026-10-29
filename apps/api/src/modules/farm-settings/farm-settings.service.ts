@@ -51,6 +51,11 @@ export class FarmSettingsService {
     return (await this.getEffective(farmId)).reproVwpDays;
   }
 
+  /** Days from a breeding to its expected pregnancy check (RAKHAL-476, default 35). */
+  async reproPregnancyCheckDays(farmId: string): Promise<number> {
+    return (await this.getEffective(farmId)).reproPregnancyCheckDays;
+  }
+
   /** Dry-period target length, in days (PRD §9) — projects `DryPeriod.expectedEndDate`. */
   async reproDryPeriodTargetDays(farmId: string): Promise<number> {
     return (await this.getEffective(farmId)).reproDryPeriodTargetDays;

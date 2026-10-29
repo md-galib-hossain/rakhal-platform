@@ -105,6 +105,11 @@ export class WorkspaceSettingsService {
       this.assign(data, 'reproVwpDays', dto.reproduction.vwp_days);
       this.assign(
         data,
+        'reproPregnancyCheckDays',
+        dto.reproduction.pregnancy_check_days,
+      );
+      this.assign(
+        data,
         'reproTargetCalvingIntervalDays',
         dto.reproduction.target_calving_interval_days,
       );
@@ -491,6 +496,7 @@ export class WorkspaceSettingsService {
       },
       reproduction: {
         vwp_days: s.reproVwpDays,
+        pregnancy_check_days: s.reproPregnancyCheckDays,
         target_calving_interval_days: s.reproTargetCalvingIntervalDays,
         dry_period_target_days: s.reproDryPeriodTargetDays,
       },

@@ -46,9 +46,18 @@ export class WeightService {
       },
     });
 
+    // RAKHAL-477: `lastWeightKg` is the LATEST-BY-DATE reading, so a back-dated
+    // entry must not overwrite a newer one.
+    const latest = await this.prisma.weightRecord.findFirst({
+      where: { cattleId },
+      orderBy: [{ recordedDate: 'desc' }, { createdAt: 'desc' }],
+      select: { weightKg: true },
+    });
+    const lastWeightKg = latest?.weightKg ?? dto.weightKg;
+
     await this.prisma.cattle.update({
       where: { id: cattleId },
-      data: { lastWeightKg: dto.weightKg },
+      data: { lastWeightKg },
     });
 
     this.log.info('Weight recorded', {
@@ -56,7 +65,7 @@ export class WeightService {
       farmId,
       weightKg: dto.weightKg,
     });
-    return { record, lastWeightKg: dto.weightKg };
+    return { record, lastWeightKg };
   }
 
   /** Recent weight history for the weight-vs-target chart (PRD §8.5 Tab1). */

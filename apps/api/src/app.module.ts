@@ -65,6 +65,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { FeedModule } from './modules/feed/feed.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { AnimalEventsModule } from './modules/animal-events/animal-events.module';
 import { FarmModule } from './modules/farm/farm.module';
 import { ActivityModule } from './modules/activity/activity.module';
 import { TaskModule } from './modules/task/task.module';
@@ -186,6 +187,7 @@ type JwtDuration = `${number}${'ms' | 's' | 'm' | 'h' | 'd' | 'w' | 'y'}`;
     FeedModule,
     ReportsModule,
     InventoryModule,
+    AnimalEventsModule,
     FarmModule,
     SettingsModule,
     OnboardingModule,

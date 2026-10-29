@@ -38,6 +38,7 @@ import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.ser
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { AnimalHoldService } from './animal-hold.service';
 import { AnimalUpcomingEventsService } from './animal-upcoming-events.service';
+import { EligibilityService } from 'src/modules/animal-events/application/services/eligibility.service';
 import {
   MediaService,
   type MediaUrls,
@@ -198,6 +199,8 @@ export class CattleService {
     private readonly logger: LoggerService,
     // RAKHAL-475: trailing so existing positional construction (the spec's `make()`) keeps working.
     private readonly upcomingEventsService: AnimalUpcomingEventsService,
+    // RAKHAL-480: trailing for the same reason; only `findAll`'s `?category=` uses it.
+    private readonly eligibility?: EligibilityService,
   ) {
     this.log = this.logger.setContext(CattleService.name);
   }
@@ -496,9 +499,10 @@ export class CattleService {
     // route's query cost is unchanged for every request that doesn't pass
     // `lifecycleSubStage` — reused below for composeStatus's `reproCtx` too
     // (never fetched twice for one request).
-    const presetSettings = query.lifecycleSubStage
-      ? await this.farmSettings.getEffective(farmId)
-      : undefined;
+    const presetSettings =
+      query.lifecycleSubStage || query.animalCategory
+        ? await this.farmSettings.getEffective(farmId)
+        : undefined;
 
     // RAKHAL-400: `includeDeleted` and `status` are independent controls —
     // the old `includeArchived` conflated them (true meant "drop every scope
@@ -538,7 +542,11 @@ export class CattleService {
         : {}),
       ...(query.healthStatus ? this.healthStatusWhere(query.healthStatus) : {}),
       ...(query.animalCategory
-        ? buildAnimalCategoryWhere(query.animalCategory, new Date())
+        ? buildAnimalCategoryWhere(
+            query.animalCategory,
+            new Date(),
+            presetSettings?.cattleLifecycleWeaningDays,
+          )
         : {}),
       ...(query.lifecycleSubStage
         ? buildLifecycleSubStageWhere(
@@ -555,8 +563,17 @@ export class CattleService {
       ? await this.upcomingEventsService.dueFilterWhere(farmId, query.dueFilter)
       : null;
 
+    // RAKHAL-480: `?category=` (13 chips) from the shared eligibility table.
+    const categoryWhere =
+      query.category && this.eligibility
+        ? await this.eligibility.categoryWhere(farmId, query.category)
+        : null;
+    const extraWhere = [dueWhere, categoryWhere].filter(
+      (w): w is Prisma.CattleWhereInput => w !== null,
+    );
+
     const rows = await this.prisma.cattle.findMany({
-      where: dueWhere ? { AND: [where, dueWhere] } : where,
+      where: extraWhere.length ? { AND: [where, ...extraWhere] } : where,
       orderBy: [{ createdAt: query.sortOrder }, { id: query.sortOrder }],
       ...getCursorArgs(query),
       include: this.defaultInclude(),
@@ -1946,6 +1963,7 @@ export class CattleService {
       dateOfBirth: row.dateOfBirth,
       totalCalvings: row.reproductionProfile?.totalCalvings ?? 0,
       now,
+      weaningDays: reproCtx?.settings.cattleLifecycleWeaningDays,
     });
 
     const lifecycleSubStage = deriveLifecycleSubStage({
