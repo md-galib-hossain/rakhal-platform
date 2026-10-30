@@ -87,6 +87,12 @@ export function useRecordEvent(cattleId: string, eventKey: EventKey) {
         const body = await eventsApi.create(cattleId, request, idempotencyKey);
         return { via: "route" as const, body };
       } catch (error) {
+        // A server that does not take `followUps` yet rejects it as an unknown property; nothing was saved, so retry without.
+        if (error instanceof ApiError && error.status === 400 && request.followUps && /followUps/i.test(error.message)) {
+          const withoutToggles = { ...request };
+          delete withoutToggles.followUps;
+          return { via: "route" as const, body: await eventsApi.create(cattleId, withoutToggles, idempotencyKey) };
+        }
         if (!(error instanceof ApiError) || error.status !== 404) throw error;
         const fallback = FALLBACK[eventKey];
         if (!fallback) throw new EventUnavailableError();

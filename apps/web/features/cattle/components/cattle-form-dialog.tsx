@@ -6,7 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ChevronLeft, Info, Plus, Sparkles, X } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ApiError } from "@/lib/api/errors";
 import {
   Sheet,
@@ -23,7 +22,6 @@ import {
   LabeledSelectTrigger,
 } from "@/components/ui/labeled-field";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -34,53 +32,32 @@ import {
   useCreateAnimalGroup,
   useCreateBreed,
   useCreateCattle,
-  useCreatePurchasedLactation,
   useCreateShedInline,
   useRemoveCattlePhoto,
   useSetCattlePhoto,
   useSheds,
   useUpdateCattle,
-  useUpdateCattleStatus,
 } from "../hooks/use-cattle";
 import { cattleEditFormSchema, type CattleEditFormInput } from "../schemas";
 import { deriveAnimalCategoryPreview } from "../utils/animal-category-preview";
 import { ANIMAL_CATEGORY_VARIANT } from "../utils/animal-category-style";
-import { BreedingEventStep } from "@/features/reproduction/components/dialogs/breeding-event-step";
-import { PregnancyDiagnosisStep } from "@/features/reproduction/components/dialogs/pregnancy-diagnosis-step";
-import { HeatEventStep } from "@/features/reproduction/components/dialogs/heat-event-step";
-import { DryOffStep } from "@/features/reproduction/components/dialogs/dry-off-step";
 import type { AnimalCategory, CattleDetail, CattleFormPayload } from "../types";
-import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { cn } from "@/lib/utils";
+import { todayLocalIso } from "@/lib/local-date";
+import { HistoryStep } from "./intake-history/history-step";
+import { isEmptyHistory, isHistoryRejected, toHistoryPayload, toLegacyIntake, type DroppedItem, type HistoryValues } from "./intake-history/history-model";
 
 const UNSET = "__unset__";
 const ADD_NEW_BREED = "__add_new_breed__";
 
 const GENDERS = ["MALE", "FEMALE", "CASTRATED_MALE"] as const;
 const SOURCE_TYPES = ["BORN", "PURCHASED", "GIFTED", "UNKNOWN"] as const;
-const BREEDING_METHODS = ["AI", "NATURAL", "EMBRYO_TRANSFER"] as const;
-// RAKHAL-status-fold-p5: step titles borrow each target's own dialog title, no new i18n needed.
-const STEP_TITLE_KEY: Record<"breeding" | "pregnancy" | "heat" | "dryoff", string> = {
-  breeding: "reproduction.dialogs.breeding.title",
-  pregnancy: "reproduction.dialogs.pregnancyDiagnosis.title",
-  heat: "reproduction.dialogs.heat.title",
-  dryoff: "reproduction.dialogs.dryOff.title",
-};
-// RAKHAL-status-fold: ported from `CattleStatusDialog`.
-const PRODUCTION_STATUSES = ["MILKING", "DRY"] as const;
-const REPRODUCTIVE_STATUSES = [
-  "NOT_ELIGIBLE",
-  "POSTPARTUM_WAITING",
-  "OPEN",
-  "BRED_AWAITING_CONFIRMATION",
-  "PREGNANT",
-] as const;
-
 /** Strips the `""`/`UNSET` sentinel back to `undefined` before hitting the API — the backend's
  * optional string fields reject an empty string differently than an omitted key in some paths
  * (`@IsOptional` only skips `undefined`), so never send `""`/sentinel on the wire. */
 /** RAKHAL-319-F — only sent create-mode (an edit is always a `PATCH`, and the backend's intake
  * fields live on `CreateCattleDto` only). Mode is exclusive: `bred` and `heat` never both fire. */
-function toPayload(values: CattleEditFormInput, isEdit: boolean): CattleFormPayload {
+function toPayload(values: CattleEditFormInput): CattleFormPayload {
   const clean = <T,>(v: T | "" | typeof UNSET | undefined): T | undefined =>
     v === "" || v === UNSET || v === undefined ? undefined : v;
   return {
@@ -98,18 +75,6 @@ function toPayload(values: CattleEditFormInput, isEdit: boolean): CattleFormPayl
     color: clean(values.color),
     notes: clean(values.notes),
     priorCalvings: values.gender === "FEMALE" ? values.priorCalvings : undefined,
-    intakeBreeding:
-      !isEdit && values.intakeReproductionMode === "bred" && values.intakeBreedingDate
-        ? {
-            breedingDate: values.intakeBreedingDate,
-            breedingMethod: values.intakeBreedingMethod,
-            notes: clean(values.intakeBreedingNotes),
-          }
-        : undefined,
-    intakeHeat:
-      !isEdit && values.intakeReproductionMode === "heat" && values.intakeHeatDateTime
-        ? { heatDateTime: values.intakeHeatDateTime, notes: clean(values.intakeHeatNotes) }
-        : undefined,
   };
 }
 
@@ -283,8 +248,6 @@ function CattleFormDialogSkeleton() {
   );
 }
 
-type ReproductionStep = "basic" | "breeding" | "pregnancy" | "heat" | "dryoff";
-
 function CattleFormDialogBody({
   onOpenChange,
   cattle,
@@ -296,16 +259,6 @@ function CattleFormDialogBody({
 }) {
   const t = useTranslations("cattle.form");
   const tCategory = useTranslations("cattle.animalCategory");
-  /** RAKHAL-319-F — reuses the reproduction module's already-translated `breedingMethodValue.*`
-   * labels rather than duplicating them (same reasoning as `tCategory` above reusing
-   * `cattle.animalCategory.*` for the create-mode preview badge). */
-  const tBreedingMethod = useTranslations("reproduction.dialogs.breeding");
-  /** Status section (edit-mode only) reuses the former `CattleStatusDialog`'s own i18n namespace
-   * verbatim — field labels/options didn't move, only the dialog they lived in did. */
-  const tStatus = useTranslations("cattle.statusDialog");
-  // RAKHAL-status-fold-p5: root-scoped (no namespace) so `STEP_TITLE_KEY`'s full dotted paths
-  // resolve across multiple reproduction dialog namespaces; `common` for the Back/step chrome.
-  const tRoot = useTranslations();
   const tCommon = useTranslations("common");
   const isEdit = Boolean(cattle);
 
@@ -318,22 +271,15 @@ function CattleFormDialogBody({
   const updateCattle = useUpdateCattle();
   const setPhoto = useSetCattlePhoto();
   const removePhotoMutation = useRemoveCattlePhoto();
-  const updateStatus = useUpdateCattleStatus();
-  const createPurchasedLactation = useCreatePurchasedLactation();
 
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [clearExistingPhoto, setClearExistingPhoto] = useState(false);
   const [addBreedOpen, setAddBreedOpen] = useState(false);
-  // RAKHAL-status-fold: ported from `CattleStatusDialog` as-is — toggles the exact
-  // `lactationStartDate` path vs the estimated-intake path when setting MILKING on a cow with no
-  // active lactation.
-  const [useEstimatedIntake, setUseEstimatedIntake] = useState(false);
-  // RAKHAL-status-fold-p5: which wizard step is showing. Picking a status value that has a
-  // dedicated Reproduction-module recorder (breeding/pregnancy/heat/dry-off) swaps the modal body
-  // to that step instead of writing a raw status PATCH or popping a second dialog — same modal,
-  // Back returns to "basic" with step 1's values intact.
-  const [step, setStep] = useState<ReproductionStep>("basic");
+  // RFE-162: Add animal is two steps — basics, then an optional "her / his history". Edit profile is identity only.
+  const [createStep, setCreateStep] = useState<"basic" | "history">("basic");
+  const [historyValues, setHistoryValues] = useState<HistoryValues>({});
+  const today = todayLocalIso();
 
   const form = useForm<CattleEditFormInput>({
     resolver: zodResolver(cattleEditFormSchema),
@@ -345,7 +291,6 @@ function CattleFormDialogBody({
   const watchedGender = useWatch({ control: form.control, name: "gender" });
   const watchedDob = useWatch({ control: form.control, name: "dateOfBirth" });
   const watchedPriorCalvings = useWatch({ control: form.control, name: "priorCalvings" });
-  const watchedIntakeMode = useWatch({ control: form.control, name: "intakeReproductionMode" }) ?? "none";
   const previewCategory: AnimalCategory | null = isEdit
     ? null
     : deriveAnimalCategoryPreview({
@@ -354,22 +299,8 @@ function CattleFormDialogBody({
         priorCalvings: watchedPriorCalvings,
       });
 
-  // RAKHAL-status-fold: ported from `CattleStatusDialog` as-is.
-  const watchedProductionStatus = useWatch({ control: form.control, name: "productionStatus" });
-  const watchedStatusPriorCalvings = useWatch({ control: form.control, name: "statusPriorCalvings" });
-  const needsLactationStartDate =
-    isEdit && watchedProductionStatus === "MILKING" && cattle?.lactationStage === null;
-  const needsPriorCalvings =
-    needsLactationStartDate && !useEstimatedIntake && cattle?.animalCategory === "HEIFER";
-  const hasCalvedBefore = watchedStatusPriorCalvings !== undefined;
-
   const pending =
-    createCattle.isPending ||
-    updateCattle.isPending ||
-    setPhoto.isPending ||
-    removePhotoMutation.isPending ||
-    updateStatus.isPending ||
-    createPurchasedLactation.isPending;
+    createCattle.isPending || updateCattle.isPending || setPhoto.isPending || removePhotoMutation.isPending;
   const displayedPhotoUrl =
     photoPreviewUrl ??
     (!clearExistingPhoto ? (cattle?.profile_photo?.thumb_url ?? null) : null);
@@ -388,32 +319,45 @@ function CattleFormDialogBody({
     setClearExistingPhoto(true);
   }
 
-  async function onSubmit(values: CattleEditFormInput) {
-    if (!isEdit && values.intakeReproductionMode === "bred" && !values.intakeBreedingDate) {
-      form.setError("intakeBreedingDate", { message: t("intake.breedingDateRequired") });
-      return;
-    }
-    if (!isEdit && values.intakeReproductionMode === "heat" && !values.intakeHeatDateTime) {
-      form.setError("intakeHeatDateTime", { message: t("intake.heatDateRequired") });
-      return;
-    }
-    // RAKHAL-status-fold: same required-field guards `CattleStatusDialog.onSubmit` had, run before
-    // anything hits the wire so a status validation failure never leaves the basic-info save as a
-    // silent partial success.
-    if (isEdit && needsLactationStartDate && !useEstimatedIntake && !values.lactationStartDate) {
-      form.setError("lactationStartDate", { message: tStatus("lactationStartDateRequired") });
-      return;
-    }
-    if (isEdit && needsPriorCalvings && !values.statusPriorCalvings) {
-      form.setError("statusPriorCalvings", { message: tStatus("priorCalvingsRequired") });
-      return;
-    }
-    const payload = toPayload(values, isEdit);
+  async function goToHistory() {
+    if (await form.trigger()) setCreateStep("history");
+  }
+
+  /** Create: tries the `history` field first; while the server does not accept it, falls back to the existing intake
+   * fields where they map and reports what they cannot hold. */
+  async function createWithHistory(
+    payload: CattleFormPayload,
+    values: CattleEditFormInput,
+    withHistory: boolean,
+  ): Promise<{ id: string; dropped: DroppedItem[] }> {
+    const history = withHistory ? toHistoryPayload(historyValues, values.gender, today) : undefined;
+    if (!history) return { id: (await createCattle.mutateAsync(payload)).id, dropped: [] };
     try {
-      const savedId =
-        isEdit && cattle
-          ? (await updateCattle.mutateAsync({ id: cattle.id, dto: payload })).id
-          : (await createCattle.mutateAsync(payload)).id;
+      return { id: (await createCattle.mutateAsync({ ...payload, history })).id, dropped: [] };
+    } catch (error) {
+      if (!isHistoryRejected(error)) throw error;
+      const legacy = toLegacyIntake(historyValues, values.gender, today);
+      const created = await createCattle.mutateAsync({
+        ...payload,
+        ...legacy.fields,
+        priorCalvings: legacy.fields.priorCalvings ?? payload.priorCalvings,
+      });
+      return { id: created.id, dropped: legacy.dropped };
+    }
+  }
+
+  async function onSubmit(values: CattleEditFormInput, withHistory: boolean) {
+    const payload = toPayload(values);
+    try {
+      let dropped: DroppedItem[] = [];
+      let savedId: string;
+      if (isEdit && cattle) {
+        savedId = (await updateCattle.mutateAsync({ id: cattle.id, dto: payload })).id;
+      } else {
+        const created = await createWithHistory(payload, values, withHistory && !isEmptyHistory(historyValues, values.gender));
+        savedId = created.id;
+        dropped = created.dropped;
+      }
       try {
         if (photoFile) {
           await setPhoto.mutateAsync({ id: savedId, file: photoFile });
@@ -427,44 +371,8 @@ function CattleFormDialogBody({
             : t("photoGenericError"),
         );
       }
-      // RAKHAL-status-fold: former `CattleStatusDialog.onSubmit` branching, ported as-is —
-      // estimated-intake path creates the Lactation via a separate endpoint, then a follow-up
-      // status PATCH only if reproductiveStatus also changed; otherwise a single status PATCH,
-      // only fired when production/reproductive status actually changed (avoids a no-op write).
-      if (isEdit && cattle) {
-        if (needsLactationStartDate && useEstimatedIntake) {
-          await createPurchasedLactation.mutateAsync({
-            id: cattle.id,
-            dto: {
-              estimatedCalvingDate: values.estimatedCalvingDate || undefined,
-              estimatedDaysInMilk: values.estimatedDaysInMilk,
-              estimatedLactationNumber: values.estimatedLactationNumber,
-            },
-          });
-          if (values.reproductiveStatus && values.reproductiveStatus !== cattle.reproductiveStatus) {
-            await updateStatus.mutateAsync({
-              id: cattle.id,
-              dto: { reproductiveStatus: values.reproductiveStatus },
-            });
-          }
-        } else {
-          const statusChanged =
-            (values.productionStatus ?? undefined) !== (cattle.productionStatus ?? undefined) ||
-            (values.reproductiveStatus ?? undefined) !== (cattle.reproductiveStatus ?? undefined);
-          if (statusChanged) {
-            await updateStatus.mutateAsync({
-              id: cattle.id,
-              dto: {
-                productionStatus: values.productionStatus,
-                reproductiveStatus: values.reproductiveStatus,
-                lactationStartDate: values.lactationStartDate,
-                priorCalvings: values.statusPriorCalvings,
-              },
-            });
-          }
-        }
-      }
       toast.success(isEdit ? t("updatedToast") : t("createdToast"));
+      if (dropped.length > 0) toast.message(t("history.droppedNote", { items: dropped.map((d) => t(`history.dropped.${d}`)).join(", ") }));
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
@@ -475,10 +383,10 @@ function CattleFormDialogBody({
     <>
     <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 overflow-hidden p-0 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:max-w-[680px]">
       <div className="flex items-center gap-2 px-6 py-5">
-        {step !== "basic" ? (
+        {createStep === "history" ? (
           <button
             type="button"
-            onClick={() => setStep("basic")}
+            onClick={() => setCreateStep("basic")}
             aria-label={tCommon("back")}
             className="flex size-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
           >
@@ -486,24 +394,13 @@ function CattleFormDialogBody({
           </button>
         ) : null}
         <SheetTitle className="text-xl font-bold text-foreground">
-          {step === "basic" ? (isEdit ? t("editTitle") : t("createTitle")) : tRoot(STEP_TITLE_KEY[step])}
+          {isEdit ? t("editTitle") : createStep === "history" ? t(watchedGender === "FEMALE" ? "history.titleFemale" : "history.titleMale") : t("createTitle")}
         </SheetTitle>
       </div>
       <div className="border-t border-border" />
 
-      {step !== "basic" && cattle ? (
-        step === "breeding" ? (
-          <BreedingEventStep cattleId={cattle.id} onBack={() => setStep("basic")} onDone={() => onOpenChange(false)} />
-        ) : step === "pregnancy" ? (
-          <PregnancyDiagnosisStep cattleId={cattle.id} onBack={() => setStep("basic")} onDone={() => onOpenChange(false)} />
-        ) : step === "heat" ? (
-          <HeatEventStep cattleId={cattle.id} onBack={() => setStep("basic")} onDone={() => onOpenChange(false)} />
-        ) : (
-          <DryOffStep cattleId={cattle.id} onBack={() => setStep("basic")} onDone={() => onOpenChange(false)} />
-        )
-      ) : (
       <form
-        onSubmit={form.handleSubmit(onSubmit)}
+        onSubmit={form.handleSubmit((values) => onSubmit(values, createStep === "history"))}
         noValidate
         className="flex min-h-0 flex-1 flex-col"
       >
@@ -512,7 +409,7 @@ function CattleFormDialogBody({
             as one unit instead of just this middle section. `min-h-[460px]` keeps the dialog a
             consistent height whether step 1 (long) or a wizard step (short, e.g. Heat) is
             showing, per the same reasoning as each step's own scroll area. */}
-        <div className="flex min-h-[460px] flex-1 flex-col gap-4 overflow-y-auto px-6 py-5">
+        <div className={cn("flex min-h-[460px] flex-1 flex-col gap-4 overflow-y-auto px-6 py-5", createStep === "history" && "hidden")}>
           <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">
             <Sparkles className="size-4 text-primary" aria-hidden />
             {t("basicInfo")}
@@ -683,326 +580,6 @@ function CattleFormDialogBody({
             </div>
           ) : null}
 
-          {/* RAKHAL-status-fold: former `CattleStatusDialog`, folded into Edit Animal so status is
-              changeable from the same modal instead of a separate row action — ported verbatim
-              (fields, conditional lactation-start-date/estimated-intake/prior-calvings sub-forms),
-              edit-mode only (a not-yet-created animal has no status to change). */}
-          {isEdit ? (
-            <>
-              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">
-                <Sparkles className="size-4 text-primary" aria-hidden />
-                {t("statusSectionTitle")}
-              </div>
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label>{tStatus("productionStatus")}</Label>
-                  <Controller
-                    control={form.control}
-                    name="productionStatus"
-                    render={({ field }) => (
-                      <Select
-                        value={field.value ?? UNSET}
-                        onValueChange={(v) => {
-                          // RAKHAL-status-fold-p4: DRY has a dedicated recorder (closes the
-                          // Lactation, opens a DryPeriod, projects the next expected end date) —
-                          // a raw status PATCH here would only flip the flag, leaving the rest of
-                          // the app blind to it. Redirect instead of writing the field.
-                          if (v === "DRY" && cattle) {
-                            setStep("dryoff");
-                            return;
-                          }
-                          field.onChange(v === UNSET ? undefined : v);
-                        }}
-                      >
-                        <LabeledSelectTrigger
-                          label={tStatus("productionStatus")}
-                          placeholder={tStatus("unassigned")}
-                        />
-                        <SelectContent>
-                          <SelectItem value={UNSET}>{tStatus("unassigned")}</SelectItem>
-                          {PRODUCTION_STATUSES.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {tStatus(`productionOptions.${s}`)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label>{tStatus("reproductiveStatus")}</Label>
-                  <Controller
-                    control={form.control}
-                    name="reproductiveStatus"
-                    render={({ field }) => (
-                      <Select
-                        value={field.value ?? UNSET}
-                        onValueChange={(v) => {
-                          // RAKHAL-status-fold-p4: BRED_AWAITING_CONFIRMATION/PREGNANT/OPEN
-                          // (heat detected) each have a dedicated recorder that captures the real
-                          // date and writes the record the rest of the app (Reproduction
-                          // dashboard, heat-detection list, lactation curve) actually reads from —
-                          // a raw status PATCH would silently diverge from that. NOT_ELIGIBLE and
-                          // POSTPARTUM_WAITING have no companion record, so they stay plain picks.
-                          const REDIRECT: Partial<Record<string, "breeding" | "pregnancy" | "heat">> = {
-                            BRED_AWAITING_CONFIRMATION: "breeding",
-                            PREGNANT: "pregnancy",
-                            OPEN: "heat",
-                          };
-                          const action = REDIRECT[v];
-                          if (action && cattle) {
-                            setStep(action);
-                            return;
-                          }
-                          field.onChange(v === UNSET ? undefined : v);
-                        }}
-                      >
-                        <LabeledSelectTrigger
-                          label={tStatus("reproductiveStatus")}
-                          placeholder={tStatus("unassigned")}
-                        />
-                        <SelectContent>
-                          <SelectItem value={UNSET}>{tStatus("unassigned")}</SelectItem>
-                          {REPRODUCTIVE_STATUSES.map((s) => (
-                            <SelectItem key={s} value={s}>
-                              {tStatus(`reproductiveOptions.${s}`)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
-                {needsLactationStartDate && (
-                  <>
-                    <label className="flex items-center gap-2 text-sm text-foreground">
-                      <Checkbox
-                        checked={useEstimatedIntake}
-                        onCheckedChange={(v) => setUseEstimatedIntake(v === true)}
-                      />
-                      {tStatus("useEstimatedIntake")}
-                    </label>
-                    {useEstimatedIntake ? (
-                      <div className="flex flex-col gap-3 rounded-lg border border-border p-3">
-                        <p className="text-muted-foreground text-xs">{tStatus("estimatedIntakeHint")}</p>
-                        <div className="flex flex-col gap-1.5">
-                          <Label htmlFor="estimatedCalvingDate">{tStatus("estimatedCalvingDate")}</Label>
-                          <Controller
-                            control={form.control}
-                            name="estimatedCalvingDate"
-                            render={({ field, fieldState }) => (
-                              <DatePicker
-                                id="estimatedCalvingDate"
-                                label={tStatus("estimatedCalvingDate")}
-                                value={field.value}
-                                onChange={field.onChange}
-                                onBlur={field.onBlur}
-                                error={fieldState.error?.message}
-                              />
-                            )}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <Label htmlFor="estimatedDaysInMilk">{tStatus("estimatedDaysInMilk")}</Label>
-                          <Input
-                            id="estimatedDaysInMilk"
-                            type="number"
-                            min={0}
-                            step={1}
-                            {...form.register("estimatedDaysInMilk", {
-                              setValueAs: (v) => (v === "" ? undefined : Number(v)),
-                            })}
-                            aria-label={tStatus("estimatedDaysInMilk")}
-                          />
-                          {form.formState.errors.estimatedDaysInMilk && (
-                            <p className="text-destructive text-xs">
-                              {form.formState.errors.estimatedDaysInMilk.message}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                          <Label htmlFor="estimatedLactationNumber">{tStatus("estimatedLactationNumber")}</Label>
-                          <Input
-                            id="estimatedLactationNumber"
-                            type="number"
-                            min={1}
-                            step={1}
-                            {...form.register("estimatedLactationNumber", {
-                              setValueAs: (v) => (v === "" ? undefined : Number(v)),
-                            })}
-                            aria-label={tStatus("estimatedLactationNumber")}
-                          />
-                          {form.formState.errors.estimatedLactationNumber && (
-                            <p className="text-destructive text-xs">
-                              {form.formState.errors.estimatedLactationNumber.message}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-1.5">
-                        <Label>{tStatus("lactationStartDate")}</Label>
-                        <Controller
-                          control={form.control}
-                          name="lactationStartDate"
-                          render={({ field, fieldState }) => (
-                            <DatePicker
-                              label={tStatus("lactationStartDate")}
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              error={fieldState.error?.message}
-                            />
-                          )}
-                        />
-                        <p className="text-muted-foreground text-xs">{tStatus("lactationStartDateHint")}</p>
-                        {form.formState.errors.lactationStartDate && (
-                          <p className="text-destructive text-xs">
-                            {form.formState.errors.lactationStartDate.message}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-                {needsPriorCalvings && (
-                  <div className="flex flex-col gap-1.5">
-                    <label className="flex items-center gap-2 text-sm text-foreground">
-                      <Checkbox
-                        checked={hasCalvedBefore}
-                        onCheckedChange={(v) =>
-                          form.setValue("statusPriorCalvings", v === true ? 1 : undefined, {
-                            shouldValidate: true,
-                          })
-                        }
-                      />
-                      {tStatus("hasCalvedBefore")}
-                    </label>
-                    {hasCalvedBefore && (
-                      <>
-                        <Label htmlFor="statusPriorCalvings">{tStatus("priorCalvings")}</Label>
-                        <Input
-                          id="statusPriorCalvings"
-                          type="number"
-                          min={1}
-                          step={1}
-                          {...form.register("statusPriorCalvings", { valueAsNumber: true })}
-                          aria-label={tStatus("priorCalvings")}
-                        />
-                      </>
-                    )}
-                    {form.formState.errors.statusPriorCalvings && (
-                      <p className="text-destructive text-xs">
-                        {form.formState.errors.statusPriorCalvings.message}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </>
-          ) : null}
-
-          {/* RAKHAL-319-F — create-mode-only, female-only intake declarations (`IntakeBreedingDto`/
-              `IntakeHeatDto`). Mutually exclusive via a 3-way toggle (none/bred/heat) rather than
-              two independent checkboxes — a cow can't be both freshly bred and currently in heat. */}
-          {!isEdit && watchedGender === "FEMALE" ? (
-            <>
-              <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">
-                <Sparkles className="size-4 text-primary" aria-hidden />
-                {t("intake.title")}
-              </div>
-              <div className="flex flex-col gap-3">
-                <Controller
-                  control={form.control}
-                  name="intakeReproductionMode"
-                  render={({ field }) => (
-                    <Select value={field.value ?? "none"} onValueChange={field.onChange}>
-                      <LabeledSelectTrigger label={t("intake.mode")} />
-                      <SelectContent>
-                        <SelectItem value="none">{t("intake.modeOptions.none")}</SelectItem>
-                        <SelectItem value="bred">{t("intake.modeOptions.bred")}</SelectItem>
-                        <SelectItem value="heat">{t("intake.modeOptions.heat")}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {watchedIntakeMode === "bred" ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <Label>{t("intake.breedingDate")}</Label>
-                      <Controller
-                        control={form.control}
-                        name="intakeBreedingDate"
-                        render={({ field }) => (
-                          <DateTimePicker
-                            label={t("intake.breedingDate")}
-                            value={field.value}
-                            onChange={field.onChange}
-                            onBlur={field.onBlur}
-                          />
-                        )}
-                      />
-                      {form.formState.errors.intakeBreedingDate ? (
-                        <p className="text-xs text-destructive">
-                          {form.formState.errors.intakeBreedingDate.message}
-                        </p>
-                      ) : null}
-                    </div>
-                    <Controller
-                      control={form.control}
-                      name="intakeBreedingMethod"
-                      render={({ field }) => (
-                        <Select value={field.value ?? "AI"} onValueChange={field.onChange}>
-                          <LabeledSelectTrigger label={tBreedingMethod("breedingMethod")} />
-                          <SelectContent>
-                            {BREEDING_METHODS.map((v) => (
-                              <SelectItem key={v} value={v}>
-                                {tBreedingMethod(`breedingMethodValue.${v}`)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    <div className="col-span-2 flex flex-col gap-1.5">
-                      <Label htmlFor="intakeBreedingNotes">{t("intake.notes")}</Label>
-                      <Textarea id="intakeBreedingNotes" {...form.register("intakeBreedingNotes")} />
-                    </div>
-                  </div>
-                ) : null}
-                {watchedIntakeMode === "heat" ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="col-span-2 flex flex-col gap-1.5">
-                      <Label>{t("intake.heatDateTime")}</Label>
-                      <Controller
-                        control={form.control}
-                        name="intakeHeatDateTime"
-                        render={({ field }) => (
-                          <DateTimePicker
-                            label={t("intake.heatDateTime")}
-                            value={field.value}
-                            onChange={field.onChange}
-                            onBlur={field.onBlur}
-                          />
-                        )}
-                      />
-                      {form.formState.errors.intakeHeatDateTime ? (
-                        <p className="text-xs text-destructive">
-                          {form.formState.errors.intakeHeatDateTime.message}
-                        </p>
-                      ) : null}
-                    </div>
-                    <div className="col-span-2 flex flex-col gap-1.5">
-                      <Label htmlFor="intakeHeatNotes">{t("intake.notes")}</Label>
-                      <Textarea id="intakeHeatNotes" {...form.register("intakeHeatNotes")} />
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </>
-          ) : null}
-
           {/* Not pictured in Figma (only "Basic Info" is designed) — same visual language,
                 covers the remaining CreateCattleDto fields per PRD §8 rather than dropping them. */}
           <div className="flex items-center gap-2 rounded-xl border border-border bg-muted px-4 py-2.5 text-sm font-semibold text-foreground">
@@ -1084,23 +661,53 @@ function CattleFormDialogBody({
           </div>
         </div>
 
+        {!isEdit && createStep === "history" ? (
+          <HistoryStep
+            gender={watchedGender}
+            values={historyValues}
+            onChange={(patch) => setHistoryValues((previous) => ({ ...previous, ...patch }))}
+            today={today}
+          />
+        ) : null}
+
         <div className="border-t border-border" />
-        <div className="flex gap-3 px-6 py-5">
-          <Button
-            type="button"
-            variant="secondary"
-            className="h-12 flex-1"
-            onClick={() => onOpenChange(false)}
-            disabled={pending}
-          >
-            {t("cancel")}
-          </Button>
-          <Button type="submit" className="h-12 flex-1" disabled={pending}>
-            {pending ? "…" : t("save")}
-          </Button>
+        <div className="flex flex-wrap gap-3 px-6 py-5">
+          {isEdit ? (
+            <>
+              <Button type="button" variant="secondary" className="h-12 flex-1" onClick={() => onOpenChange(false)} disabled={pending}>
+                {t("cancel")}
+              </Button>
+              <Button type="submit" className="h-12 flex-1" disabled={pending}>
+                {pending ? "…" : t("save")}
+              </Button>
+            </>
+          ) : createStep === "basic" ? (
+            <>
+              <Button type="button" variant="secondary" className="h-12 flex-1" onClick={() => onOpenChange(false)} disabled={pending}>
+                {t("cancel")}
+              </Button>
+              <Button type="button" variant="outline" className="h-12 flex-1" onClick={() => void form.handleSubmit((values) => onSubmit(values, false))()} disabled={pending}>
+                {pending ? "…" : t("history.saveWithout")}
+              </Button>
+              <Button type="button" className="h-12 w-full sm:flex-1" onClick={() => void goToHistory()} disabled={pending}>
+                {t(watchedGender === "FEMALE" ? "history.nextFemale" : "history.nextMale")}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button type="button" variant="secondary" className="h-12 flex-1" onClick={() => setCreateStep("basic")} disabled={pending}>
+                {tCommon("back")}
+              </Button>
+              <Button type="button" variant="outline" className="h-12 flex-1" onClick={() => void form.handleSubmit((values) => onSubmit(values, false))()} disabled={pending}>
+                {t("history.skip")}
+              </Button>
+              <Button type="submit" className="h-12 w-full sm:flex-1" disabled={pending}>
+                {pending ? "…" : t("history.save")}
+              </Button>
+            </>
+          )}
         </div>
       </form>
-      )}
     </SheetContent>
     <AddBreedDialog
       open={addBreedOpen}

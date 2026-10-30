@@ -1,11 +1,13 @@
 import type { EventKey } from "../types";
 
-export type FieldKind = "segmented" | "select" | "number" | "text" | "textarea" | "date" | "bool" | "shed" | "group";
+export type FieldKind = "segmented" | "select" | "medicine" | "number" | "text" | "textarea" | "date" | "bool" | "shed" | "group";
 
 export interface FieldDef {
   name: string;
   kind: FieldKind;
   required?: boolean;
+  /** Required unless the entry is a past record (HISTORICAL): a live health entry deducts stock and needs the full dose. */
+  requiredWhenLive?: boolean;
   /** Listed under "More details" (collapsed by default); required fields are never details. */
   detail?: boolean;
   /** `segmented` / `select`: the allowed values; labels come from `events.options.<name>.<value>`. */
@@ -46,6 +48,8 @@ export interface EventRequest {
   notes?: string;
   sourceEventId?: string;
   payload: Record<string, unknown>;
+  /** "What happens next" switches that differ from the server's defaults (RAKHAL-481 follow-up contract). */
+  followUps?: { ruleKey: string; enabled: boolean }[];
 }
 
 export interface Finding {
@@ -63,6 +67,9 @@ export interface FollowUpPreview {
   /** `YYYY-MM-DD`, or null when the server decides. */
   dueDate: string | null;
   pastDue: boolean;
+  /** From the server preview (`{ruleKey, title, dueDate, defaultOn}`): its own label and its default switch. */
+  title?: string;
+  defaultOn?: boolean;
 }
 
 /** Result of a dry run, from the real route or computed on the client. */

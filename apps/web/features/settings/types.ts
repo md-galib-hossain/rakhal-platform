@@ -1,6 +1,6 @@
 /** Settings tab-rail (Figma `1039:51236`). `billing` (RFE-036) and `team` (this pass) have real
  * content; `workspace`/`modules` are the rest of RFE-045 and render a placeholder for now. */
-export const SETTINGS_TABS = ["workspace", "team", "modules", "billing", "notifications"] as const;
+export const SETTINGS_TABS = ["workspace", "team", "modules", "billing", "notifications", "followUps"] as const;
 
 export type SettingsTabKey = (typeof SETTINGS_TABS)[number];
 

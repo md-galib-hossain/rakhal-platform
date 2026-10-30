@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useAnimalGroups, useSheds } from "@/features/cattle/hooks/use-cattle";
+import { useMedicineInfiniteList } from "@/features/inventory/hooks/use-inventory";
 import type { FieldDef, FormValues } from "../../forms/types";
 import type { FieldError } from "../../forms/definitions";
 
@@ -134,6 +135,9 @@ export function FieldRenderer({
           {label}
         </label>
       );
+    case "medicine":
+      control = <MedicineSelect id={id} value={value} onChange={onChange} describedBy={describedBy} />;
+      break;
     case "shed":
       control = <LookupSelect id={id} kind="shed" value={value} onChange={onChange} describedBy={describedBy} />;
       break;
@@ -169,6 +173,38 @@ export function FieldRenderer({
         </p>
       ) : null}
     </div>
+  );
+}
+
+/** Inventory medicine picker: a live health entry deducts stock, so the server needs the medicine id. */
+function MedicineSelect({
+  id,
+  value,
+  onChange,
+  describedBy,
+}: {
+  id: string;
+  value: FormValues[string];
+  onChange: (value: FormValues[string]) => void;
+  describedBy?: string;
+}) {
+  const tForm = useTranslations("events.form");
+  const list = useMedicineInfiniteList({});
+  return (
+    <select
+      id={id}
+      value={typeof value === "string" ? value : ""}
+      onChange={(event) => onChange(event.target.value || undefined)}
+      aria-describedby={describedBy}
+      className={INPUT}
+    >
+      <option value="">{tForm("choose")}</option>
+      {list.items.map((medicine) => (
+        <option key={medicine.id} value={medicine.id}>
+          {medicine.name}
+        </option>
+      ))}
+    </select>
   );
 }
 

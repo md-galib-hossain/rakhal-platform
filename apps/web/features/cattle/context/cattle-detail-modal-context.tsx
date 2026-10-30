@@ -31,7 +31,8 @@ const RecordSaleDialog = dynamic(
 interface CattleDetailModalContextValue {
   cattleId: string | null;
   isOpen: boolean;
-  openCattleDetail: (id: string) => void;
+  /** `options.record` opens that event form on arrival (`?record=<key>&ref=<id>`, RFE-160). */
+  openCattleDetail: (id: string, options?: { record?: string; ref?: string }) => void;
   closeCattleDetail: () => void;
 }
 
@@ -39,6 +40,8 @@ const CattleDetailModalContext = createContext<CattleDetailModalContextValue | n
 
 export function CattleDetailModalProvider({ children }: { children: React.ReactNode }) {
   const [viewId, setViewId] = useQueryState("view", parseAsString);
+  const [, setRecordParam] = useQueryState("record", parseAsString);
+  const [, setRefParam] = useQueryState("ref", parseAsString);
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
   const [formOpen, setFormOpen] = useState(false);
   const [disposeTarget, setDisposeTarget] = useState<CattleListItem | CattleDetail | null>(null);
@@ -48,10 +51,14 @@ export function CattleDetailModalProvider({ children }: { children: React.ReactN
   const editingDetail = useCattleDetail(editingId);
 
   const openCattleDetail = useCallback(
-    (id: string) => {
+    (id: string, options?: { record?: string; ref?: string }) => {
       void setViewId(id);
+      if (options?.record) {
+        void setRecordParam(options.record);
+        void setRefParam(options.ref ?? null);
+      }
     },
-    [setViewId],
+    [setViewId, setRecordParam, setRefParam],
   );
 
   const closeCattleDetail = useCallback(() => {
@@ -135,6 +142,11 @@ export function CattleDetailModalProvider({ children }: { children: React.ReactN
       )}
     </CattleDetailModalContext.Provider>
   );
+}
+
+/** Like `useCattleDetailModal` but `null` outside the provider (list cells rendered in isolation, tests). */
+export function useOptionalCattleDetailModal(): CattleDetailModalContextValue | null {
+  return useContext(CattleDetailModalContext);
 }
 
 export function useCattleDetailModal(): CattleDetailModalContextValue {

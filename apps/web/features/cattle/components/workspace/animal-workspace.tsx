@@ -180,7 +180,17 @@ export function AnimalWorkspace({
                 <Card className="border-warning/40 bg-warning-tint p-3 text-sm font-medium text-warning">{t("leftHerd")}</Card>
               ) : null}
               <SectionSwitcher value={section} canSeeMoney={canSeeMoney} onChange={selectSection} />
-              <SectionBody section={section} cattle={cattle} drill={drill} onDrill={setDrill} />
+              <SectionBody
+                section={section}
+                cattle={cattle}
+                drill={drill}
+                onDrill={setDrill}
+                canRecord={canRecord}
+                onRecord={(key, ref) => {
+                  void setRef(ref);
+                  void setRecord(key);
+                }}
+              />
             </>
           )}
         </div>

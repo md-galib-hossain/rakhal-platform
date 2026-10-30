@@ -18,6 +18,9 @@ globalThis.ResizeObserver ??= class {
 
 const mutateAsync = vi.fn();
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock("@/features/inventory/hooks/use-inventory", () => ({
+  useMedicineInfiniteList: () => ({ items: [{ id: "m1", name: "FMD" }], isLoading: false }),
+}));
 vi.mock("../../hooks/use-record-event", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../hooks/use-record-event")>()),
   useEventDryRun: () => ({ data: undefined, error: null }),
@@ -126,26 +129,36 @@ describe("EventFormPanel", () => {
 });
 
 describe("health forms in the panel", () => {
-  it("vaccination: product is required, next dose days adds a reminder, and it saves", async () => {
+  /** The four fields a live health entry needs (server validation): medicine from stock, dose, unit, route. */
+  function fillDose(opts: { nextDoseDays?: string } = {}) {
+    fireEvent.change(screen.getByLabelText(/Medicine \(from stock\)/), { target: { value: "m1" } });
+    fireEvent.change(screen.getByLabelText(/^Dose/), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText(/^Unit/), { target: { value: "ml" } });
+    fireEvent.change(screen.getByLabelText(/^Route/), { target: { value: "IM" } });
+    if (opts.nextDoseDays) {
+      fireEvent.click(screen.getByRole("button", { name: /More details/ }));
+      fireEvent.change(screen.getByLabelText(/Next dose in/), { target: { value: opts.nextDoseDays } });
+    }
+  }
+
+  it("vaccination: marks the four required fields, asks for them, then saves with the next-dose reminder", async () => {
     const { onDone } = renderForm("VACCINATION");
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    expect(await screen.findByText("Required")).toBeInTheDocument();
+    expect(await screen.findAllByText("Required")).toHaveLength(4);
     expect(mutateAsync).not.toHaveBeenCalled();
 
-    fireEvent.change(screen.getByLabelText(/Medicine \/ product/), { target: { value: "FMD" } });
-    fireEvent.click(screen.getByRole("button", { name: /More details/ }));
-    fireEvent.change(screen.getByLabelText(/Next dose in/), { target: { value: "180" } });
+    fillDose({ nextDoseDays: "180" });
     expect(await screen.findByRole("checkbox", { name: /Next dose reminder/ })).toBeChecked();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
     const { request } = mutateAsync.mock.calls[0][0] as { request: Record<string, unknown> };
-    expect(request).toMatchObject({ type: "VACCINATION", payload: { medicineName: "FMD", nextDoseDays: 180 } });
+    expect(request).toMatchObject({ type: "VACCINATION", payload: { medicineId: "m1", doseAmount: 2, doseUnit: "ml", route: "IM", nextDoseDays: 180 } });
     await waitFor(() => expect(onDone).toHaveBeenCalled());
   });
 
-  it("deworming: saves with just a product", async () => {
+  it("deworming: saves once the required fields are filled", async () => {
     renderForm("DEWORMING");
-    fireEvent.change(screen.getByLabelText(/Medicine \/ product/), { target: { value: "Ivermectin" } });
+    fillDose();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
     expect((mutateAsync.mock.calls[0][0] as { request: { type: string } }).request.type).toBe("DEWORMING");
@@ -164,23 +177,23 @@ describe("health forms in the panel", () => {
     });
   });
 
-  it("treatment: needs a medicine and saves it", async () => {
+  it("treatment: needs the medicine, dose, unit and route, then saves", async () => {
     renderForm("TREATMENT");
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    expect(await screen.findByText("Required")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/Medicine/), { target: { value: "Oxytetracycline" } });
+    expect(await screen.findAllByText("Required")).toHaveLength(4);
+    fillDose();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
     expect((mutateAsync.mock.calls[0][0] as { request: Record<string, unknown> }).request).toMatchObject({
       type: "TREATMENT",
-      payload: { medicineName: "Oxytetracycline" },
+      payload: { medicineId: "m1", doseAmount: 2, doseUnit: "ml", route: "IM" },
     });
   });
 
   it("while the server has no handler, shows a clear message and a Healthcare link instead of a dead form", async () => {
     mutateAsync.mockRejectedValueOnce(new ApiError("VALIDATION_ERROR", "cannot be recorded through this API yet", 422, undefined, { eventCode: "EVENT_TYPE_NOT_SUPPORTED" }));
     renderForm("TREATMENT");
-    fireEvent.change(screen.getByLabelText(/Medicine/), { target: { value: "Oxytetracycline" } });
+    fillDose();
     fireEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(await screen.findByText("Not available here yet")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open Healthcare" })).toHaveAttribute("href", "/healthcare");

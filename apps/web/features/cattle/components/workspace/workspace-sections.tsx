@@ -2,7 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { UpcomingStrip } from "../detail/upcoming-strip";
+import { NextUp } from "@/features/events/components/next-up/next-up";
+import type { EventKey } from "@/features/events/types";
 // eslint-disable-next-line import/no-cycle -- feeding/family tabs link to other animals through the detail-modal provider
 import { FeedingTab } from "../detail/feeding-tab";
 import { PedigreeTab } from "../detail/pedigree-tab";
@@ -52,17 +53,22 @@ export function SectionBody({
   cattle,
   drill,
   onDrill,
+  canRecord,
+  onRecord,
 }: {
   section: SectionKey;
   cattle: CattleDetail;
   drill: DrillKey | null;
   onDrill: (key: DrillKey | null) => void;
+  canRecord: boolean;
+  /** Record on a Next-up card: opens that event form (`?record=<key>&ref=<id>`). */
+  onRecord: (key: EventKey, ref: string) => void;
 }) {
   return (
     <div id="workspace-panel" role="tabpanel" aria-labelledby={`workspace-tab-${section}`} className="flex flex-col gap-4">
       {section === "timeline" ? (
         <>
-          <UpcomingStrip cattleId={cattle.id} />
+          <NextUp cattleId={cattle.id} canRecord={canRecord} onRecord={onRecord} />
           <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
             <div className="order-last lg:order-none">
               <AnimalTimeline cattleId={cattle.id} gender={cattle.gender} animalCategory={cattle.animalCategory} />

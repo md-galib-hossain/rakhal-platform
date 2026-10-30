@@ -1,6 +1,8 @@
+import { todayLocalIso } from "@/lib/local-date";
 import type { EventKey } from "../types";
 import type { EventRequest, FieldDef, FormDef, FormValues } from "./types";
 
+const MEDICINE_ROUTES = ["IM", "IV", "SC", "ORAL", "TOPICAL", "OTHER"];
 const notes: FieldDef = { name: "notes", kind: "textarea", detail: true, target: "notes" };
 const bool = (name: string): FieldDef => ({ name, kind: "bool", detail: true });
 
@@ -122,9 +124,11 @@ export const FORM_DEFS: Partial<Record<EventKey, FormDef>> = {
     backendType: "TREATMENT",
     fallbackHref: "/healthcare",
     fields: [
-      { name: "medicineName", kind: "text", required: true },
-      { name: "doseAmount", kind: "number", detail: true, min: 0, step: 0.1 },
-      { name: "doseUnit", kind: "text", detail: true },
+      { name: "medicineId", kind: "medicine", requiredWhenLive: true },
+      { name: "doseAmount", kind: "number", requiredWhenLive: true, min: 0.01, step: 0.1 },
+      { name: "doseUnit", kind: "text", requiredWhenLive: true },
+      { name: "route", kind: "select", requiredWhenLive: true, options: MEDICINE_ROUTES },
+      { name: "medicineName", kind: "text", detail: true },
       { name: "vetCost", kind: "number", detail: true, min: 0, step: 1, unit: "৳" },
       notes,
     ],
@@ -134,10 +138,11 @@ export const FORM_DEFS: Partial<Record<EventKey, FormDef>> = {
     backendType: "VACCINATION",
     fallbackHref: "/healthcare",
     fields: [
-      { name: "medicineName", kind: "text", required: true },
-      { name: "doseAmount", kind: "number", detail: true, min: 0, step: 0.1 },
-      { name: "doseUnit", kind: "text", detail: true },
-      { name: "route", kind: "text", detail: true },
+      { name: "medicineId", kind: "medicine", requiredWhenLive: true },
+      { name: "doseAmount", kind: "number", requiredWhenLive: true, min: 0.01, step: 0.1 },
+      { name: "doseUnit", kind: "text", requiredWhenLive: true },
+      { name: "route", kind: "select", requiredWhenLive: true, options: MEDICINE_ROUTES },
+      { name: "medicineName", kind: "text", detail: true },
       { name: "nextDoseDays", kind: "number", detail: true, min: 1, max: 730, step: 1 },
       notes,
     ],
@@ -147,10 +152,11 @@ export const FORM_DEFS: Partial<Record<EventKey, FormDef>> = {
     backendType: "DEWORMING",
     fallbackHref: "/healthcare",
     fields: [
-      { name: "medicineName", kind: "text", required: true },
-      { name: "doseAmount", kind: "number", detail: true, min: 0, step: 0.1 },
-      { name: "doseUnit", kind: "text", detail: true },
-      { name: "route", kind: "text", detail: true },
+      { name: "medicineId", kind: "medicine", requiredWhenLive: true },
+      { name: "doseAmount", kind: "number", requiredWhenLive: true, min: 0.01, step: 0.1 },
+      { name: "doseUnit", kind: "text", requiredWhenLive: true },
+      { name: "route", kind: "select", requiredWhenLive: true, options: MEDICINE_ROUTES },
+      { name: "medicineName", kind: "text", detail: true },
       { name: "nextDoseDays", kind: "number", detail: true, min: 1, max: 730, step: 1 },
       notes,
     ],
@@ -201,7 +207,7 @@ function isFilled(value: unknown): boolean {
 }
 
 /** Required fields, `requireOneOf`, and numeric ranges. Returns an error code per failing field name. */
-export function validateValues(def: FormDef, values: FormValues): Record<string, FieldError> {
+export function validateValues(def: FormDef, values: FormValues, opts: { historical?: boolean } = {}): Record<string, FieldError> {
   const errors: Record<string, FieldError> = {};
   const oneOf = new Set(def.requireOneOf ?? []);
   const oneOfOk = oneOf.size === 0 || [...oneOf].some((name) => isFilled(values[name]));
@@ -211,7 +217,8 @@ export function validateValues(def: FormDef, values: FormValues): Record<string,
       if (!oneOfOk) errors[field.name] = "required";
       continue;
     }
-    if (field.required && !isFilled(value) && field.kind !== "bool") errors[field.name] = "required";
+    const required = field.required || (field.requiredWhenLive && !opts.historical);
+    if (required && !isFilled(value) && field.kind !== "bool") errors[field.name] = "required";
     if (field.kind === "number" && isFilled(value)) {
       const n = Number(value);
       if ((field.min !== undefined && n < field.min) || (field.max !== undefined && n > field.max)) errors[field.name] = "range";
@@ -228,6 +235,8 @@ export function defaultValues(def: FormDef): FormValues {
 
 /** Combines the picked day and time into an instant. Without a time the event is stamped at local noon so no timezone moves it to another day. */
 export function toEventAt(date: string, time: string | undefined): string {
+  // Today without a time is "now": local noon would be in the future before midday and the server blocks future dates.
+  if (!time && date === todayLocalIso()) return new Date().toISOString();
   return new Date(`${date}T${time || "12:00"}:00`).toISOString();
 }
 

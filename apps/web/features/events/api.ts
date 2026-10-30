@@ -5,6 +5,10 @@ import type { CursorPage } from "@/types/api";
 import type { EventRequest, Finding, FollowUpPreview } from "./forms/types";
 import type { TimelineEvent, TimelineGroup } from "./timeline-model";
 
+/** `POST /cattle/:id/events/:ref/void` ships with RAKHAL-488 (Wave 5); until then there is no Undo toast and no Void
+ * button anywhere. Flip to `true` when the route exists. */
+export const EVENT_VOID_AVAILABLE = false;
+
 /** Server rule keys (04 §3.6) → `events.form.followUp.*` label keys. */
 const RULE_LABEL: Record<string, string> = {
   PREG_CHECK_AFTER_BREEDING: "pregCheck",
@@ -14,6 +18,9 @@ const RULE_LABEL: Record<string, string> = {
   CALVING_DUE: "calvingDue",
   FRESH_CHECK_AFTER_CALVING: "freshCheck",
   NEXT_DOSE: "nextDose",
+  BREEDING_TO_PREG_CHECK: "pregCheck",
+  PREG_POSITIVE_TO_DRY_OFF: "dryOff",
+  PREG_POSITIVE_TO_CALVING_WATCH: "calvingDue",
 };
 
 /** The dry-run body is `{ findings, followUpsPreview }` (RAKHAL-481); read it defensively since its item shapes are not published. */
@@ -30,12 +37,19 @@ export function normaliseDryRun(body: unknown, today: string): { findings: Findi
     .filter((f): f is Finding => f !== null);
   const followUps: FollowUpPreview[] = (Array.isArray(record.followUpsPreview) ? record.followUpsPreview : [])
     .map((raw): FollowUpPreview | null => {
-      const f = raw as { ruleKey?: unknown; key?: unknown; dueAt?: unknown; dueDate?: unknown; pastDue?: unknown };
+      const f = raw as { ruleKey?: unknown; key?: unknown; dueAt?: unknown; dueDate?: unknown; pastDue?: unknown; title?: unknown; defaultOn?: unknown };
       const key = typeof f?.ruleKey === "string" ? f.ruleKey : typeof f?.key === "string" ? f.key : null;
       if (!key) return null;
       const due = typeof f.dueAt === "string" ? f.dueAt : typeof f.dueDate === "string" ? f.dueDate : null;
       const dueDate = due ? due.slice(0, 10) : null;
-      return { key, labelKey: RULE_LABEL[key] ?? "generic", dueDate, pastDue: typeof f.pastDue === "boolean" ? f.pastDue : dueDate !== null && dueDate < today };
+      return {
+        key,
+        labelKey: RULE_LABEL[key] ?? "generic",
+        dueDate,
+        pastDue: typeof f.pastDue === "boolean" ? f.pastDue : dueDate !== null && dueDate < today,
+        ...(typeof f.title === "string" ? { title: f.title } : {}),
+        ...(typeof f.defaultOn === "boolean" ? { defaultOn: f.defaultOn } : {}),
+      };
     })
     .filter((f): f is FollowUpPreview => f !== null);
   return { findings, followUps };

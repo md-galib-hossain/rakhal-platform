@@ -15,6 +15,9 @@ import {
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { recordKeyFor } from "@/features/events/next-up-model";
+import type { EventKey } from "@/features/events/types";
 import type { UpcomingEvent, UpcomingEventKind } from "../types";
 import { eventDue, eventLabel, eventVariant } from "../upcoming-events";
 
@@ -58,11 +61,16 @@ export function useEventText(event: UpcomingEvent) {
 export function UpcomingEventRow({
   event,
   detailed = false,
+  onRecord,
 }: {
   event: UpcomingEvent;
   detailed?: boolean;
+  /** RFE-160 — shows a Record button on rows that map to an event form. */
+  onRecord?: (key: EventKey) => void;
 }) {
   const t = useTranslations("cattle");
+  const tNext = useTranslations("events.nextUp");
+  const recordKey = onRecord ? recordKeyFor(event) : null;
   const text = useEventText(event);
   const Icon = KIND_ICON[event.kind];
   const kindLabel = t(`upcoming.kinds.${event.kind}`);
@@ -102,6 +110,11 @@ export function UpcomingEventRow({
             ) : null}
           </div>
         </div>
+        {recordKey && onRecord ? (
+          <Button type="button" size="sm" variant="outline" className="h-9 shrink-0" onClick={() => onRecord(recordKey)}>
+            {tNext("recordOnList")}
+          </Button>
+        ) : null}
       </li>
     );
   }

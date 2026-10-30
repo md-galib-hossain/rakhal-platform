@@ -1226,11 +1226,12 @@ Spec hub (workspace root): `docs/EPIC_EVENTS_CORE.md`; wireframes, lanes and acc
 | RFE-157 | Event picker (command palette / phone bottom sheet) — **DONE 2026-10-29** (see IN_FLIGHT Recently Done) | none |
 | RFE-158 | Event form framework + repro forms (no chain blocks) — **DONE 2026-10-30** (real route; see IN_FLIGHT Recently Done for gaps) | RAKHAL-481/482 |
 | RFE-159 | Remaining event forms — **DONE 2026-10-30** (treatment/vaccine/deworm/castrate/move wait on backend handlers) | RAKHAL-481 |
-| RFE-160 | Next up strip (Record / Snooze / Skip) | RAKHAL-484 |
+| RFE-160 | Next up strip (Record / Snooze / Skip) — **DONE 2026-10-30** (backend contracts untested; see IN_FLIGHT Recently Done) | RAKHAL-484 |
 | RFE-161 | Edit / void from timeline | RAKHAL-488 |
-| RFE-162 | Add-animal "Her history" step; remove status selects/redirects | RAKHAL-483 |
+| RFE-162 | Add-animal "Her history" step; remove status selects/redirects — **DONE 2026-10-30** (backend contracts untested; see IN_FLIGHT Recently Done) | RAKHAL-483 |
 | RFE-163 | Bulk event flow from Animals list — layout per `docs/epic-events-core/04-event-model-and-flows.md` §6 (scrolling chips with counts incl. Fattening, per-animal value grid for weight/BCS/preg check, confirm with skipped list) | RAKHAL-489, 480 |
 | RFE-164 | Custom reminders | RAKHAL-487 |
 | RFE-165 | Notification deep links | RAKHAL-485 |
 | RFE-166 | Remove old tabs, `*-step.tsx`, duplicate dialogs; rewire Reproduction/Healthcare | all above |
 | RFE-167 | QA pass (375 px, bn, keyboard, roles) | — |
+| RFE-168 | Settings → Follow-up reminders: each rule from `GET /settings/follow-up-rules` with a switch and day offset, one `PUT`, per-rule reset to default; read-only without `settings.update` — **DONE 2026-10-30** (en + bn; live-checked as owner at 1440 and 375, worker only by unit test) | RAKHAL-484 |

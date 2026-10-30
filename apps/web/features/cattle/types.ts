@@ -291,7 +291,27 @@ export interface CattleFormPayload {
    * `toPayload()` based on the local `intakeReproductionMode` toggle. */
   intakeBreeding?: { breedingDate: string; breedingMethod?: "AI" | "NATURAL" | "EMBRYO_TRANSFER"; notes?: string };
   intakeHeat?: { heatDateTime: string; notes?: string };
+  /** MILESTONE 31 / RFE-162 — what the "Her history" step collected; the server turns each answer into a backdated
+   * HISTORICAL event. Create-only. Until the server accepts it the dialog sends the fields below instead. */
+  history?: HistoryPayload;
+  /** Existing intake fields (`CreateCattleDto`) the history step falls back to; see `toLegacyIntake`. */
+  productionStatus?: "MILKING" | "DRY";
+  lactationStartDate?: string;
+  dryOffStartDate?: string;
+  intakePregnancy?: { conceptionDate?: string; expectedCalvingDate?: string };
 }
+
+/** RFE-162 — one `history` entry of `POST /cattle` (`HistoryItemDto`, backend `intake.dto.ts`): the server accepts exactly these
+ * properties, so there is no `approx` flag; a month-only answer is sent as the middle of that month. */
+export type HistoryItem =
+  | { kind: "LAST_CALVING"; date: string; calvingNumber?: number }
+  | { kind: "LAST_BREEDING"; date: string; method?: "AI" | "NATURAL" | "EMBRYO_TRANSFER"; bull?: string }
+  | { kind: "PREGNANT"; expectedCalvingDate?: string; monthsPregnant?: number }
+  | { kind: "MILKING_SINCE"; date: string }
+  | { kind: "DRY_SINCE"; date: string }
+  | { kind: "LAST_VACCINATION"; date: string; product?: string };
+
+export type HistoryPayload = HistoryItem[];
 
 // ---- RFE-023 follow-up: BCS + weight recording (`cattle.constants.ts#BCS_ALLOWED_SCORES`) --------
 

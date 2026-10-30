@@ -1155,7 +1155,59 @@
       "animalGroup": "Animal Group",
       "addGroup": "Create new group",
       "addGroupError": "Could not create group.",
-      "groupNamePlaceholder": "Group name"
+      "groupNamePlaceholder": "Group name",
+      "history": {
+        "titleFemale": "Her history (optional)",
+        "titleMale": "His history (optional)",
+        "intro": "Tell us what you know about the past. Leave out anything you do not know.",
+        "yes": "Yes",
+        "no": "No",
+        "calvedBefore": "Has she calved before?",
+        "lastCalving": "Last calving",
+        "calvingNumber": "Number of calvings",
+        "milkingNow": "Is she milking now?",
+        "milkingSince": "Milking since",
+        "drySince": "Dry since",
+        "pregnant": "Is she pregnant?",
+        "pregnantHint": "Give one: months pregnant, or the expected calving date.",
+        "monthsPregnant": "Months pregnant",
+        "or": "or",
+        "expectedCalving": "Expected calving date",
+        "lastService": "Last AI / service (optional)",
+        "serviceMethod": "Method",
+        "method": {
+          "AI": "AI",
+          "NATURAL": "Natural",
+          "EMBRYO_TRANSFER": "Embryo transfer"
+        },
+        "bull": "Bull / semen (optional)",
+        "lastVaccination": "Last vaccination (optional)",
+        "vaccineProduct": "Vaccine",
+        "monthOnly": "I only know the month",
+        "previewTitle": "We will set up",
+        "previewEmpty": "Nothing to set up yet. Answer above, or skip.",
+        "preview": {
+          "calving": "Calving {date}",
+          "milking": "Milking since {date}",
+          "dry": "Dry since {date}",
+          "service": "AI / service {date}",
+          "pregnant": "Pregnant, calving due {date}",
+          "vaccination": "Vaccination {date}",
+          "reminderDryOff": "Dry-off reminder {date}",
+          "reminderPregCheck": "Pregnancy check reminder {date}"
+        },
+        "historyTag": "history",
+        "nextFemale": "Next: her history",
+        "nextMale": "Next: his history",
+        "saveWithout": "Save without history",
+        "skip": "Skip and save",
+        "save": "Save animal",
+        "droppedNote": "Saved. These could not be kept yet: {items}.",
+        "dropped": {
+          "vaccination": "last vaccination",
+          "service": "last AI / service"
+        }
+      }
     },
     "statusDialog": {
       "title": "Change status — {name}",
@@ -7017,7 +7069,8 @@
       "team": "Team, Roles & Permissions",
       "modules": "Module Settings",
       "billing": "Billing & Subscription",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "followUps": "Follow-up reminders"
     },
     "comingSoon": "Coming soon",
     "comingSoonDescription": "This settings tab isn't built yet — check back soon.",
@@ -7300,6 +7353,26 @@
       "emptyDescription": "Built-in roles should appear here. Try refreshing.",
       "noPermissions": "No permissions available.",
       "toggleResource": "Toggle all {resource} permissions"
+    },
+    "followUps": {
+      "title": "Follow-up reminders",
+      "description": "These reminders are created for you when you record an event, for example a pregnancy check after an AI. Switch one off, or change how many days it waits.",
+      "readOnly": "Only managers can change these.",
+      "days": "days",
+      "defaultHint": "Default: {days} days",
+      "offsetLabel": "Days for {rule}",
+      "reset": "Reset to default",
+      "save": "Save changes",
+      "saving": "Saving…",
+      "saved": "Reminder settings saved",
+      "error": "Could not load or save the reminder settings.",
+      "forbidden": "You do not have access to these settings.",
+      "empty": "No follow-up rules found.",
+      "rules": {
+        "BREEDING_TO_PREG_CHECK": "Pregnancy check reminder",
+        "PREG_POSITIVE_TO_DRY_OFF": "Dry-off reminder",
+        "PREG_POSITIVE_TO_CALVING_WATCH": "Calving watch reminder"
+      }
     }
   },
   "billing": {
@@ -9257,7 +9330,8 @@
       "severity": "How serious",
       "medicineName": "Medicine / product",
       "doseAmount": "Dose",
-      "symptoms": "Symptoms"
+      "symptoms": "Symptoms",
+      "medicineId": "Medicine (from stock)"
     },
     "options": {
       "detectionMethod": {
@@ -9321,7 +9395,39 @@
         "MEDIUM": "Medium",
         "HIGH": "High",
         "CRITICAL": "Critical"
+      },
+      "route": {
+        "IM": "Muscle (IM)",
+        "IV": "Vein (IV)",
+        "SC": "Under skin (SC)",
+        "ORAL": "By mouth",
+        "TOPICAL": "On the skin",
+        "OTHER": "Other"
       }
+    },
+    "nextUp": {
+      "title": "Next up",
+      "loading": "Loading…",
+      "error": "Could not load what is due.",
+      "retry": "Try again",
+      "nothingDue": "Nothing due",
+      "more": "+{count} more",
+      "infoOnly": "Information only",
+      "record": "Record",
+      "snooze": "Snooze",
+      "skip": "Skip",
+      "snoozeDays": {
+        "1": "Tomorrow",
+        "3": "In 3 days",
+        "7": "In 7 days"
+      },
+      "pickDate": "Pick date",
+      "snoozedToast": "Snoozed to {date}",
+      "skipReason": "Why skip it? (optional)",
+      "skipConfirm": "Skip it",
+      "skippedToast": "Skipped",
+      "failed": "Could not update the reminder.",
+      "recordOnList": "Record"
     }
   }
 }

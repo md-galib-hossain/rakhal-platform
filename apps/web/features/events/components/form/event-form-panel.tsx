@@ -11,6 +11,7 @@ import { todayLocalIso } from "@/lib/local-date";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { CattleDetail } from "@/features/cattle/types";
+import { EVENT_VOID_AVAILABLE } from "../../api";
 import { buildRequest, defaultValues, FORM_DEFS, validateValues, type FieldError } from "../../forms/definitions";
 import { clientFindings, findingMessageKey, isPastRecord, previewFollowUps } from "../../forms/followups";
 import type { Finding, FollowUpPreview, FormDef, FormValues } from "../../forms/types";
@@ -85,7 +86,7 @@ export function EventFormPanel({
     titleRef.current?.focus();
   }, []);
 
-  const liveErrors = useMemo(() => validateValues(def, values), [def, values]);
+  const liveErrors = useMemo(() => validateValues(def, values, { historical }), [def, values, historical]);
   const dryRequest = useMemo(
     () => (Object.keys(liveErrors).length === 0 && date <= today ? buildRequest(def, values, { date, time, historical }) : null),
     [def, values, date, time, historical, liveErrors, today],
@@ -105,7 +106,8 @@ export function EventFormPanel({
   // Instant client-side answers while (or instead of) the server dry run, so the block never flickers empty.
   const findings: Finding[] = dry.data?.findings ?? clientFindings(eventKey, cattle, date, today);
   const followUps: FollowUpPreview[] = dry.data?.followUps ?? previewFollowUps(eventKey, values, date, today);
-  const isOn = (item: FollowUpPreview) => toggles[item.key] ?? !item.pastDue;
+  const defaultOn = (item: FollowUpPreview) => item.defaultOn ?? !item.pastDue;
+  const isOn = (item: FollowUpPreview) => toggles[item.key] ?? defaultOn(item);
   // The server has no handler for this event type yet (422 EVENT_TYPE_NOT_SUPPORTED): say so instead of showing a dead form.
   const dryUnsupported = dry.error instanceof ApiError && dry.error.details?.eventCode === "EVENT_TYPE_NOT_SUPPORTED";
   const unsupported = unsupportedAtSave || dryUnsupported;
@@ -149,17 +151,20 @@ export function EventFormPanel({
   }
 
   async function submit(another: boolean) {
-    const found = validateValues(def, values);
+    const found = validateValues(def, values, { historical });
     setErrors(found);
     if (Object.keys(found).length > 0 || date > today || blocked) return;
-    // `RecordEventDto` has no follow-up toggles yet (forbidNonWhitelisted would reject one), so the server decides which
-    // reminders to create and never creates one already past due; the toggles below only describe what the user expects.
     const request = buildRequest(def, values, { date, time, historical });
+    // Send the switches only when the user changed one and the preview came from the server (its rule keys are the ones it
+    // understands); a server that does not take the field yet is retried without it in `useRecordEvent`.
+    if (dry.data?.source === "route" && followUps.some((item) => isOn(item) !== defaultOn(item))) {
+      request.followUps = followUps.map((item) => ({ ruleKey: item.key, enabled: isOn(item) }));
+    }
     try {
       const result = await record.mutateAsync({ request, idempotencyKey });
       const ref = result.via === "route" ? extractRef(result.body) : null;
       const message = t("saved", { event: tCatalogue(`${eventKey}.label`), count: followUps.filter(isOn).length });
-      if (ref) toast.success(message, { duration: 5000, action: { label: t("undo"), onClick: () => void undo(ref) } });
+      if (ref && EVENT_VOID_AVAILABLE) toast.success(message, { duration: 5000, action: { label: t("undo"), onClick: () => void undo(ref) } });
       else toast.success(message);
       if (another) {
         setValues(defaultValues(def));
@@ -313,10 +318,10 @@ export function EventFormPanel({
         </div>
 
         <div className="flex flex-col gap-2 border-t border-border bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row-reverse">
-          <Button type="submit" className="h-12 flex-1" disabled={record.isPending || blocked}>
+          <Button type="submit" className="h-12 w-full sm:w-auto sm:flex-1" disabled={record.isPending || blocked}>
             {record.isPending ? t("saving") : t("save")}
           </Button>
-          <Button type="button" variant="outline" className="h-12 flex-1" disabled={record.isPending || blocked} onClick={() => void submit(true)}>
+          <Button type="button" variant="outline" className="h-12 w-full sm:w-auto sm:flex-1" disabled={record.isPending || blocked} onClick={() => void submit(true)}>
             {t("saveAnother")}
           </Button>
         </div>

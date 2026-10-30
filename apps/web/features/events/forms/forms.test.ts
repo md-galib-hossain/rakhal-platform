@@ -12,9 +12,9 @@ const cow = (over: Partial<AnimalFacts> = {}): AnimalFacts => ({
 });
 
 describe("form definitions", () => {
-  it("every form has at most 3 required fields so it fits one phone screen with details closed", () => {
+  it("every form shows at most 4 non-detail fields (a live health entry needs medicine, dose, unit and route) so it stays one phone screen", () => {
     for (const [key, d] of Object.entries(FORM_DEFS)) {
-      expect(d!.fields.filter((f) => !f.detail).length, key).toBeLessThanOrEqual(3);
+      expect(d!.fields.filter((f) => !f.detail).length, key).toBeLessThanOrEqual(4);
     }
   });
   it("covers every RFE-158 and RFE-159 event except the dispose ones", () => {
@@ -135,27 +135,42 @@ describe("client findings", () => {
 });
 
 describe("health forms", () => {
+  const liveRequired = { medicineId: "required", doseAmount: "required", doseUnit: "required", route: "required" };
+  const filled = { medicineId: "m1", doseAmount: 2, doseUnit: "ml", route: "IM" };
+
   it("illness needs a condition and defaults severity to medium", () => {
     expect(validateValues(def("ILLNESS"), { severity: "MEDIUM" })).toEqual({ condition: "required" });
     const request = buildRequest(def("ILLNESS"), { ...defaultValues(def("ILLNESS")), condition: "MASTITIS", notes: "left hind quarter" }, when);
     expect(request).toMatchObject({ type: "ILLNESS", notes: "left hind quarter", payload: { condition: "MASTITIS", severity: "MEDIUM" } });
   });
-  it("treatment needs a medicine and carries dose and vet cost", () => {
-    expect(validateValues(def("TREATMENT"), {})).toEqual({ medicineName: "required" });
-    expect(buildRequest(def("TREATMENT"), { medicineName: "Oxytetracycline", doseAmount: 10, doseUnit: "ml", vetCost: 500 }, when)).toMatchObject({
-      type: "TREATMENT",
-      payload: { medicineName: "Oxytetracycline", doseAmount: 10, doseUnit: "ml", vetCost: 500 },
-    });
+  it("a live vaccination, deworming or treatment needs the medicine, a dose of at least 0.01, a unit and a route (server validation)", () => {
+    for (const key of ["VACCINATION", "DEWORMING", "TREATMENT"] as const) {
+      expect(validateValues(def(key), {}), key).toEqual(liveRequired);
+      expect(validateValues(def(key), filled), key).toEqual({});
+      expect(validateValues(def(key), { ...filled, doseAmount: 0 }), key).toEqual({ doseAmount: "range" });
+    }
   });
-  it("vaccination and deworming need a product and send dose, route and next dose days", () => {
+  it("route is one of the server's values", () => {
+    const route = def("VACCINATION").fields.find((f) => f.name === "route")!;
+    expect(route.options).toEqual(["IM", "IV", "SC", "ORAL", "TOPICAL", "OTHER"]);
+  });
+  it("a past record (HISTORICAL) needs none of them", () => {
+    for (const key of ["VACCINATION", "DEWORMING", "TREATMENT"] as const) {
+      expect(validateValues(def(key), {}, { historical: true }), key).toEqual({});
+    }
+  });
+  it("sends the medicine, dose, route, vet cost and next dose days under the server's names", () => {
+    expect(buildRequest(def("TREATMENT"), { ...filled, vetCost: 500 }, when)).toMatchObject({
+      type: "TREATMENT",
+      payload: { medicineId: "m1", doseAmount: 2, doseUnit: "ml", route: "IM", vetCost: 500 },
+    });
     for (const key of ["VACCINATION", "DEWORMING"] as const) {
-      expect(validateValues(def(key), {})).toEqual({ medicineName: "required" });
-      expect(buildRequest(def(key), { medicineName: "FMD", doseAmount: 2, doseUnit: "ml", route: "IM", nextDoseDays: 180 }, when)).toMatchObject({
+      expect(buildRequest(def(key), { ...filled, nextDoseDays: 180 }, when)).toMatchObject({
         type: key,
-        payload: { medicineName: "FMD", doseAmount: 2, doseUnit: "ml", route: "IM", nextDoseDays: 180 },
+        payload: { medicineId: "m1", doseAmount: 2, doseUnit: "ml", route: "IM", nextDoseDays: 180 },
       });
     }
-    expect(validateValues(def("VACCINATION"), { medicineName: "FMD", nextDoseDays: 0 })).toEqual({ nextDoseDays: "range" });
+    expect(validateValues(def("VACCINATION"), { ...filled, nextDoseDays: 0 })).toEqual({ nextDoseDays: "range" });
   });
   it("next dose days feeds What happens next, and a backdated dose can already be past", () => {
     const today = "2026-10-30";

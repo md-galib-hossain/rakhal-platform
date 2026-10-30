@@ -30,7 +30,7 @@ export function WhatHappensNext({
         <label key={item.key} className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-foreground">
           <Checkbox checked={isOn(item)} onCheckedChange={(checked) => onToggle(item, checked === true)} />
           <span className="flex flex-wrap gap-x-2">
-            <span>{tLabel(item.labelKey)}</span>
+            <span>{item.labelKey === "generic" && item.title ? item.title : tLabel(item.labelKey)}</span>
             {item.dueDate ? <DateText date={`${item.dueDate}T00:00:00`} className="text-muted-foreground" /> : null}
             {item.pastDue ? <span className="text-muted-foreground">({t("alreadyPast")})</span> : null}
           </span>

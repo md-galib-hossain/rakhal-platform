@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useUpcomingEvents } from "../hooks/use-cattle";
+import { useOptionalCattleDetailModal } from "../context/cattle-detail-modal-context";
 import type { CattleListItem, UpcomingEvent } from "../types";
 import { KIND_ICON, UpcomingEventRow, useEventText } from "./upcoming-event-row";
 
@@ -84,6 +85,7 @@ function UpcomingEventsList({
 }) {
   const t = useTranslations("cattle");
   const query = useUpcomingEvents(cattle.id, open);
+  const modal = useOptionalCattleDetailModal();
   const count = query.data?.total ?? cattle.upcoming_event_count;
 
   return (
@@ -121,6 +123,10 @@ function UpcomingEventsList({
               key={`${event.ref.type}:${event.ref.id}:${event.labelKey}`}
               event={event}
               detailed
+              onRecord={(key) => {
+                onView(cattle);
+                modal?.openCattleDetail(cattle.id, { record: key, ref: event.ref.id });
+              }}
             />
           ))}
         </ul>
