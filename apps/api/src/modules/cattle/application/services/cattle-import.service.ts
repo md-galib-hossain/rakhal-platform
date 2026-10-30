@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Workbook, type CellValue } from 'exceljs';
 import {
+  BreedingMethod,
   CattleGender,
   CattleSourceType,
   LactationStartReason,
@@ -14,6 +15,8 @@ import {
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { CacheService } from 'src/core/cache/cache.service';
+import { txStore } from 'src/core/database/prisma/tx-context';
+import { AnimalEventWriteService } from 'src/modules/animal-events/application/services/animal-event-write.service';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 // RAKHAL-308: end each imported cow's intake with the same recompute every
 // other reproduction/lactation write uses (mirrors `CattleService.create()`'s
@@ -22,6 +25,8 @@ import { AqrService } from 'src/modules/activity/application/services/aqr.servic
 import { ReproductionDerivationService } from 'src/modules/reproduction/application/services/reproduction-derivation.service';
 import { BCS_ALLOWED_SCORES } from '../../domain/cattle.constants';
 import { ImportConfirmDto } from '../../presentation/dto/import-cattle.dto';
+import { type HistoryItemDto } from '../../presentation/dto/intake.dto';
+import { historyEvent } from '../../domain/history-event';
 
 /** Canonical CSV columns (PRD §8.4, RAKHAL-308's real-state columns). Headers
  * are matched case-insensitively. */
@@ -47,7 +52,16 @@ type CanonicalField =
   | 'weight_kg'
   | 'source_type'
   | 'mother_tag'
-  | 'father_tag';
+  | 'father_tag'
+  // RAKHAL-483: "her history" columns, same meaning as `history[]` on POST /cattle.
+  | 'last_calving_date'
+  | 'last_calving_number'
+  | 'last_breeding_date'
+  | 'last_breeding_method'
+  | 'last_breeding_bull'
+  | 'months_pregnant'
+  | 'last_vaccination_date'
+  | 'last_vaccination_product';
 
 const SOURCE_TYPE_ALIASES: Record<string, CattleSourceType> = {
   purchased: CattleSourceType.PURCHASED,
@@ -119,6 +133,8 @@ interface ImportRowData {
   sourceType: CattleSourceType;
   motherTag: string | null;
   fatherTag: string | null;
+  /** RAKHAL-483: recorded as HISTORICAL events in the row's transaction. */
+  history: HistoryItemDto[];
 }
 
 interface PreviewRow {
@@ -152,6 +168,8 @@ export class CattleImportService {
     private readonly aqrService: AqrService,
     private readonly derivation: ReproductionDerivationService,
     private readonly logger: LoggerService,
+    // RAKHAL-483: history columns are recorded through the event write API.
+    private readonly eventWriter?: AnimalEventWriteService,
   ) {
     this.log = this.logger.setContext(CattleImportService.name);
   }
@@ -385,6 +403,21 @@ export class CattleImportService {
               startDate: new Date(r.data.dryOffStartDate!),
             },
           });
+        }
+
+        // RAKHAL-483: history columns go through the event write API as HISTORICAL,
+        // inside this row's transaction (same path as `history[]` on POST /cattle).
+        for (const h of r.data.history) {
+          const ev = historyEvent(h);
+          if (!ev || !this.eventWriter) continue;
+          await txStore.run({ tx }, () =>
+            this.eventWriter!.record(farmId, userId, cattle.id, {
+              type: ev.type,
+              eventAt: ev.eventAt,
+              provenance: 'HISTORICAL',
+              payload: ev.payload,
+            }),
+          );
         }
 
         created.push({
@@ -752,6 +785,92 @@ export class CattleImportService {
     const motherTag = read('mother_tag');
     const fatherTag = read('father_tag');
 
+    // RAKHAL-483: history columns. `lactation_start_date` / `dry_off_start_date` above already
+    // stand for "milking since" / "dry since".
+    const history: HistoryItemDto[] = [];
+    const readDate = (field: CanonicalField) => {
+      const raw = read(field);
+      if (!raw) return { iso: null as string | null, bad: false };
+      const parsed = new Date(raw);
+      return Number.isNaN(parsed.getTime())
+        ? { iso: null as string | null, bad: true }
+        : { iso: parsed.toISOString(), bad: false };
+    };
+    const lastCalvingD = readDate('last_calving_date');
+    const lastBreedingD = readDate('last_breeding_date');
+    const lastVaccinationD = readDate('last_vaccination_date');
+    for (const [field, d] of [
+      ['last_calving_date', lastCalvingD],
+      ['last_breeding_date', lastBreedingD],
+      ['last_vaccination_date', lastVaccinationD],
+    ] as const) {
+      if (d.bad) {
+        return { ...base, error: `Invalid ${field}: "${read(field)}"` };
+      }
+    }
+    const lastCalving = lastCalvingD.iso;
+    const lastBreeding = lastBreedingD.iso;
+    const lastVaccination = lastVaccinationD.iso;
+    if (lastCalving) {
+      const n = Number(read('last_calving_number'));
+      history.push({
+        kind: 'LAST_CALVING',
+        date: lastCalving,
+        ...(Number.isInteger(n) && n >= 1 && n <= 20
+          ? { calvingNumber: n }
+          : {}),
+      });
+    }
+    if (lastBreeding) {
+      const methodRaw = read('last_breeding_method');
+      const method = methodRaw
+        ? (BreedingMethod as Record<string, BreedingMethod>)[
+            methodRaw.toUpperCase()
+          ]
+        : undefined;
+      if (methodRaw && !method) {
+        return {
+          ...base,
+          error: `Invalid last_breeding_method: "${methodRaw}" (must be one of ${Object.values(BreedingMethod).join(', ')})`,
+        };
+      }
+      history.push({
+        kind: 'LAST_BREEDING',
+        date: lastBreeding,
+        ...(method ? { method } : {}),
+        ...(read('last_breeding_bull')
+          ? { bull: read('last_breeding_bull')! }
+          : {}),
+      });
+    }
+    const monthsRaw = read('months_pregnant');
+    if (monthsRaw) {
+      const months = Number(monthsRaw);
+      if (!Number.isInteger(months) || months < 1 || months > 9) {
+        return {
+          ...base,
+          error: `Invalid months_pregnant: "${monthsRaw}" (whole number 1 to 9)`,
+        };
+      }
+      if (isPregnant) {
+        return {
+          ...base,
+          error:
+            'Use either is_pregnant (with a date) or months_pregnant, not both',
+        };
+      }
+      history.push({ kind: 'PREGNANT', monthsPregnant: months });
+    }
+    if (lastVaccination) {
+      history.push({
+        kind: 'LAST_VACCINATION',
+        date: lastVaccination,
+        ...(read('last_vaccination_product')
+          ? { product: read('last_vaccination_product')! }
+          : {}),
+      });
+    }
+
     ctx.seenInFile.add(tagKey);
 
     return {
@@ -782,6 +901,7 @@ export class CattleImportService {
         sourceType,
         motherTag,
         fatherTag,
+        history,
       },
     };
   }
@@ -896,6 +1016,14 @@ export class CattleImportService {
       'source_type',
       'mother_tag',
       'father_tag',
+      'last_calving_date',
+      'last_calving_number',
+      'last_breeding_date',
+      'last_breeding_method',
+      'last_breeding_bull',
+      'months_pregnant',
+      'last_vaccination_date',
+      'last_vaccination_product',
     ];
     sheet.addRow(headers);
     sheet.addRow([
@@ -921,6 +1049,14 @@ export class CattleImportService {
       'PURCHASED',
       '',
       '',
+      '2026-06-01',
+      '2',
+      '',
+      '',
+      '',
+      '',
+      '2026-08-01',
+      'FMD',
     ]);
     return (await workbook.xlsx.writeBuffer()) as unknown as Buffer;
   }

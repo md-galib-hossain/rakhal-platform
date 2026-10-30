@@ -953,7 +953,7 @@ export class FeedRequirementsService {
       where: { id: profile.currentPregnancyId, status: 'ACTIVE' },
       select: { conceptionDate: true },
     });
-    if (!pregnancy) return null;
+    if (!pregnancy?.conceptionDate) return null;
     return Math.max(
       0,
       Math.floor(

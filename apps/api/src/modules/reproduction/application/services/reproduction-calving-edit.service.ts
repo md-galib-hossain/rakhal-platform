@@ -109,10 +109,9 @@ export class ReproductionCalvingEditService {
           where: { id: pregnancy.id },
           data: {
             actualCalvingDate: newCalvingDate,
-            gestationDays: this.daysBetween(
-              pregnancy.conceptionDate,
-              newCalvingDate,
-            ),
+            gestationDays: pregnancy.conceptionDate
+              ? this.daysBetween(pregnancy.conceptionDate, newCalvingDate)
+              : null,
           },
         });
       }

@@ -191,12 +191,24 @@ model PregnancyDiagnosis {
   animalEventId String? @unique
 }
 
+/// RAKHAL-482: how `Pregnancy.conceptionDate` was obtained.
+enum ConceptionConfidence {
+  /// From a recorded breeding date.
+  RECORDED
+  /// Derived from gestation day or expected calving.
+  ESTIMATED
+  /// Nothing to derive it from; `conceptionDate` is null.
+  UNKNOWN
+}
+
 model Pregnancy {
   id              String  @id @default(cuid())
   cattleId        String
   breedingEventId String?
 
-  conceptionDate      DateTime
+  /// RAKHAL-482: null when nothing lets us estimate it (`conceptionConfidence = UNKNOWN`).
+  conceptionDate       DateTime?
+  conceptionConfidence ConceptionConfidence @default(RECORDED)
   expectedCalvingDate DateTime?
   actualCalvingDate   DateTime?
   gestationDays       Int?

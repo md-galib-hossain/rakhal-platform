@@ -13,6 +13,11 @@ import { FarmSettingsModule } from '../farm-settings/farm-settings.module';
 import { EligibilityService } from './application/services/eligibility.service';
 import { AnimalEventWriteService } from './application/services/animal-event-write.service';
 import { EventHandlerRegistry } from './application/event-handler';
+import { TaskModule } from '../task/task.module';
+import { CustomEventTypeService } from './application/services/custom-event-type.service';
+import { CustomTypesController } from './presentation/controllers/custom-types.controller';
+import { FollowUpService } from './application/services/follow-up.service';
+import { FollowUpRulesController } from './presentation/controllers/follow-up-rules.controller';
 import { TimelineService } from './application/services/timeline.service';
 import { AnimalEventsController } from './presentation/controllers/animal-events.controller';
 import { CattleEventsController } from './presentation/controllers/cattle-events.controller';
@@ -25,13 +30,19 @@ import { CattleEventsController } from './presentation/controllers/cattle-events
 @Module({
   imports: [
     LoggerModule,
+    TaskModule,
     FarmSettingsModule,
     AuthModule,
     TenantAccessModule,
     PermissionModule,
     SubscriptionModule,
   ],
-  controllers: [AnimalEventsController, CattleEventsController],
+  controllers: [
+    AnimalEventsController,
+    CattleEventsController,
+    FollowUpRulesController,
+    CustomTypesController,
+  ],
   providers: [
     {
       provide: EVENT_REGISTRY,
@@ -42,6 +53,8 @@ import { CattleEventsController } from './presentation/controllers/cattle-events
     EligibilityService,
     EventHandlerRegistry,
     AnimalEventWriteService,
+    FollowUpService,
+    CustomEventTypeService,
   ],
   exports: [
     EVENT_REGISTRY,
@@ -49,6 +62,8 @@ import { CattleEventsController } from './presentation/controllers/cattle-events
     TimelineService,
     EligibilityService,
     EventHandlerRegistry,
+    AnimalEventWriteService,
+    FollowUpService,
   ],
 })
 export class AnimalEventsModule {}

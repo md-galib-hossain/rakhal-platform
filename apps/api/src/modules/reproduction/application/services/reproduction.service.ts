@@ -671,6 +671,8 @@ export class ReproductionService {
 
     // Task Hub: schedule the pregnancy check for this service (PRD §9.3, §17.6).
     // RAKHAL-322: guarded against duplicates — see createBreedingTaskUnlessDuplicate.
+    // RAKHAL-484: through the event API the BREEDING_TO_PREG_CHECK follow-up rule makes this task.
+    if (!eventApiContext())
     await this.createBreedingTaskUnlessDuplicate(
       {
         farmId,
@@ -843,6 +845,7 @@ export class ReproductionService {
             cattleId: dto.cattleId,
             breedingEventId: dto.breedingEventId,
             conceptionDate,
+            conceptionConfidence: estimate.confidence,
             calculatedCalvingDate,
             expectedCalvingDate: dto.expectedCalvingDate
               ? new Date(dto.expectedCalvingDate)
@@ -1149,10 +1152,9 @@ export class ReproductionService {
           data: {
             status: PregnancyStatus.CALVED,
             actualCalvingDate: calvingDate,
-            gestationDays: this.daysBetween(
-              pregnancy.conceptionDate,
-              calvingDate,
-            ),
+            gestationDays: pregnancy.conceptionDate
+              ? this.daysBetween(pregnancy.conceptionDate, calvingDate)
+              : null,
           },
         });
 
@@ -1771,6 +1773,18 @@ export class ReproductionService {
         pregnancy.status === PregnancyStatus.ACTIVE ||
         pregnancy.status === PregnancyStatus.CALVED,
     ).length;
+    // RAKHAL-482: rate KPIs leave out history entries.
+    const excluded = await this.historicalKpiExclusions({ cattleId });
+    const kpiBreedings = breedings.filter(
+      (b) => !b.animalEventId || !excluded.eventIds.includes(b.animalEventId),
+    ).length;
+    const kpiPregnancies = pregnancies.filter(
+      (p) =>
+        (p.status === PregnancyStatus.ACTIVE ||
+          p.status === PregnancyStatus.CALVED) &&
+        (!p.sourceDiagnosisId ||
+          !excluded.diagnosisIds.includes(p.sourceDiagnosisId)),
+    ).length;
 
     const lastBreeding = breedings.at(-1) ?? null;
     const reproductionState =
@@ -1859,15 +1873,12 @@ export class ReproductionService {
       totalCalvings: calvings.length,
       totalPregnancies: successfulPregnancies,
       totalAbortions: abortions.length,
-      conceptionRate:
-        breedings.length > 0 ? successfulPregnancies / breedings.length : null,
+      conceptionRate: kpiBreedings > 0 ? kpiPregnancies / kpiBreedings : null,
       servicesPerConception:
-        successfulPregnancies > 0
-          ? breedings.length / successfulPregnancies
-          : null,
+        kpiPregnancies > 0 ? kpiBreedings / kpiPregnancies : null,
       averageCalvingInterval: this.averageCalvingInterval(calvings),
       expectedCalvingDate: currentPregnancy?.expectedCalvingDate ?? null,
-      daysPregnant: currentPregnancy
+      daysPregnant: currentPregnancy?.conceptionDate
         ? this.daysBetween(currentPregnancy.conceptionDate, new Date())
         : null,
       lastBreeding: profile?.lastBreedingDate ?? null,
@@ -1896,6 +1907,8 @@ export class ReproductionService {
     const heatWindowDays = await this.farmSettings.reproHeatWindowDays(farmId);
 
     // ---- Farm-level KPIs (rolling 12 months) ----------------------------
+    // RAKHAL-482: history entries are excluded from the rate KPIs.
+    const excludedHistory = await this.historicalKpiExclusions({ farmId });
     const [
       totalActiveFemaleCows,
       heatCount12mo,
@@ -1926,6 +1939,10 @@ export class ReproductionService {
           cattle: { farmId },
           breedingDate: { gte: twelveMonthsAgo },
           voidedAt: null,
+          OR: [
+            { animalEventId: null },
+            { animalEventId: { notIn: excludedHistory.eventIds } },
+          ],
         },
       }),
       // Pregnancies confirmed (conception date in last 12 months)
@@ -1934,6 +1951,10 @@ export class ReproductionService {
           cattle: { farmId },
           conceptionDate: { gte: twelveMonthsAgo },
           status: { in: [PregnancyStatus.ACTIVE, PregnancyStatus.CALVED] },
+          OR: [
+            { sourceDiagnosisId: null },
+            { sourceDiagnosisId: { notIn: excludedHistory.diagnosisIds } },
+          ],
         },
       }),
       // All calving pairs per cow (for calving interval)
@@ -2335,7 +2356,7 @@ export class ReproductionService {
           days_open: profile?.lastCalvingDate
             ? this.daysBetween(profile.lastCalvingDate, now)
             : null,
-          days_pregnant: activePregnancy
+          days_pregnant: activePregnancy?.conceptionDate
             ? this.daysBetween(activePregnancy.conceptionDate, now)
             : null,
           expected_calving_date: activePregnancy?.expectedCalvingDate ?? null,
@@ -2690,6 +2711,29 @@ export class ReproductionService {
    * creating a second row. No key supplied → `fn()` just runs, unguarded, as
    * every caller behaved before this ticket.
    */
+  /**
+   * RAKHAL-482: HISTORICAL entries (intake / back-dated history) feed state but
+   * not the rate KPIs. Returns the HISTORICAL header ids and the diagnosis ids
+   * they belong to, scoped to one cow or a whole farm.
+   */
+  private async historicalKpiExclusions(scope: {
+    farmId?: string;
+    cattleId?: string;
+  }) {
+    const events = await this.prisma.animalEvent.findMany({
+      where: { ...scope, provenance: 'HISTORICAL', status: 'ACTIVE' },
+      select: { id: true },
+    });
+    const eventIds = events.map((e) => e.id);
+    const diagnoses = eventIds.length
+      ? await this.prisma.pregnancyDiagnosis.findMany({
+          where: { animalEventId: { in: eventIds } },
+          select: { id: true },
+        })
+      : [];
+    return { eventIds, diagnosisIds: diagnoses.map((d) => d.id) };
+  }
+
   private async withIdempotency<T>(
     farmId: string,
     key: string | undefined,
@@ -2880,20 +2924,24 @@ export class ReproductionService {
 
   private daysOpen(
     calvings: Array<{ calvingDate: Date }>,
-    pregnancies: Array<{ conceptionDate: Date; status: PregnancyStatus }>,
+    pregnancies: Array<{
+      conceptionDate: Date | null;
+      status: PregnancyStatus;
+    }>,
   ) {
     const lastCalving = calvings.at(-1);
     if (!lastCalving) return null;
 
     const conceptionAfterCalving = pregnancies.find(
       (pregnancy) =>
+        pregnancy.conceptionDate !== null &&
         pregnancy.conceptionDate.getTime() >
           lastCalving.calvingDate.getTime() &&
         (pregnancy.status === PregnancyStatus.ACTIVE ||
           pregnancy.status === PregnancyStatus.CALVED),
     );
 
-    if (!conceptionAfterCalving) return null;
+    if (!conceptionAfterCalving?.conceptionDate) return null;
     return this.daysBetween(
       lastCalving.calvingDate,
       conceptionAfterCalving.conceptionDate,

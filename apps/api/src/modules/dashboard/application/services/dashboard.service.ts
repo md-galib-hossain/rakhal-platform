@@ -259,7 +259,6 @@ export class DashboardService {
     return this.feedDistribution.getFarmFeedCostSummary(farmId, 7);
   }
 
-
   // ---- Headline KPI bar (§7.2) --------------------------------------------
 
   async kpis(farmId: string) {
@@ -756,11 +755,25 @@ export class DashboardService {
   async conceptionRate(farmId: string) {
     const months = this.lastNMonths(12);
     const rangeStart = months[0].start;
+    // RAKHAL-482: history entries are not part of the rate.
+    const history = await this.prisma.animalEvent.findMany({
+      where: {
+        farmId,
+        type: 'BREEDING',
+        provenance: 'HISTORICAL',
+        status: 'ACTIVE',
+      },
+      select: { id: true },
+    });
     const events = await this.prisma.breedingEvent.findMany({
       where: {
         breedingDate: { gte: rangeStart },
         cattle: activeHerd(farmId),
         voidedAt: null,
+        OR: [
+          { animalEventId: null },
+          { animalEventId: { notIn: history.map((h) => h.id) } },
+        ],
       },
       select: { breedingDate: true, status: true },
     });

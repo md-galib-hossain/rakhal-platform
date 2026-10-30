@@ -16,12 +16,44 @@ const SERVICE_SELECT = {
   expectedPregnancyCheckDate: true,
 } as const;
 
+/**
+ * RAKHAL-482: HISTORICAL entries (intake / back-dated history) feed state but not
+ * the rate metrics. Spread into a breeding / calving / abortion `where`.
+ */
+export type NotHistorical =
+  | { OR: [{ animalEventId: null }, { animalEventId: { notIn: string[] } }] }
+  | Record<string, never>;
+
+/** One look-up per report: the clause that leaves HISTORICAL events out (empty when there are none). */
+export async function notHistoricalClause(
+  db: ReportDb,
+  farmId: string,
+): Promise<NotHistorical> {
+  const rows = await db.animalEvent.findMany({
+    where: {
+      farmId,
+      provenance: 'HISTORICAL',
+      status: 'ACTIVE',
+      type: { in: ['BREEDING', 'CALVING', 'ABORTION'] },
+    },
+    select: { id: true },
+  });
+  if (rows.length === 0) return {};
+  return {
+    OR: [
+      { animalEventId: null },
+      { animalEventId: { notIn: rows.map((r) => r.id) } },
+    ],
+  };
+}
+
 /** Events have no farmId: scope is `cattleId in cattleIds` AND `cattle.farmId` (defence in depth). */
 export async function fetchCohortServices(
   db: ReportDb,
   farmId: string,
   cattleIds: readonly string[],
   period: ReportPeriod,
+  notHistorical: NotHistorical = {},
 ): Promise<ServiceRow[]> {
   if (cattleIds.length === 0) return [];
   const rows = await db.breedingEvent.findMany({
@@ -30,6 +62,7 @@ export async function fetchCohortServices(
       cattle: { farmId },
       voidedAt: null,
       breedingDate: range(period),
+      ...notHistorical,
     },
     select: SERVICE_SELECT,
   });
@@ -41,6 +74,7 @@ export async function fetchPendingServices(
   db: ReportDb,
   farmId: string,
   cattleIds: readonly string[],
+  notHistorical: NotHistorical = {},
 ): Promise<ServiceRow[]> {
   if (cattleIds.length === 0) return [];
   const rows = await db.breedingEvent.findMany({
@@ -49,6 +83,7 @@ export async function fetchPendingServices(
       cattle: { farmId },
       voidedAt: null,
       status: 'PENDING_CHECK',
+      ...notHistorical,
     },
     select: SERVICE_SELECT,
   });
@@ -65,6 +100,7 @@ export async function fetchCalvings(
   farmId: string,
   cattleIds: readonly string[],
   period: ReportPeriod,
+  notHistorical: NotHistorical = {},
 ): Promise<CalvingCounts> {
   if (cattleIds.length === 0) return { calvings: 0, calves: 0 };
   const rows = await db.calvingEvent.findMany({
@@ -72,6 +108,7 @@ export async function fetchCalvings(
       cattleId: { in: [...cattleIds] },
       cattle: { farmId },
       calvingDate: range(period),
+      ...notHistorical,
     },
     select: { calfCount: true },
   });
@@ -86,6 +123,7 @@ export async function fetchAbortions(
   farmId: string,
   cattleIds: readonly string[],
   period: ReportPeriod,
+  notHistorical: NotHistorical = {},
 ): Promise<number> {
   if (cattleIds.length === 0) return 0;
   return db.abortionEvent.count({
@@ -93,6 +131,7 @@ export async function fetchAbortions(
       cattleId: { in: [...cattleIds] },
       cattle: { farmId },
       abortionDate: range(period),
+      ...notHistorical,
     },
   });
 }

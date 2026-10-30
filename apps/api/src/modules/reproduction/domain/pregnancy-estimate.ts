@@ -4,12 +4,11 @@
  *   1. linked breeding event: conception = breedingDate
  *   2. `gestationDay` recorded at the check: conception = check - gestationDay
  *   3. `expectedCalvingDate` known: conception = expected - 280
- *   4. nothing known: conception = check - 90 d (mid-gestation guess).
- *      Never the check date itself: that put calving as late as the cow's
- *      gestation age at the check.
+ *   4. nothing known: conception stays UNKNOWN (null) with no calving date
+ *      (RAKHAL-482; was check - 90 d in RAKHAL-476). Never the check date
+ *      itself: that put calving as late as the cow's gestation age at the check.
  */
 export const ESTIMATE_GESTATION_DAYS = 280;
-export const ESTIMATE_FALLBACK_GESTATION_AT_CHECK_DAYS = 90;
 
 export type ConceptionEstimateSource =
   | 'BREEDING'
@@ -24,11 +23,15 @@ export interface PregnancyEstimateInput {
   expectedCalvingDate?: Date | null;
 }
 
+export type ConceptionConfidence = 'RECORDED' | 'ESTIMATED' | 'UNKNOWN';
+
 export interface PregnancyEstimate {
-  conceptionDate: Date;
+  /** Null only when `confidence` is UNKNOWN. */
+  conceptionDate: Date | null;
   /** conception + 280 d: the system's own estimate. */
-  calculatedCalvingDate: Date;
+  calculatedCalvingDate: Date | null;
   source: ConceptionEstimateSource;
+  confidence: ConceptionConfidence;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -37,7 +40,7 @@ const addDays = (d: Date, n: number) => new Date(d.getTime() + n * DAY_MS);
 export function estimatePregnancyDates(
   input: PregnancyEstimateInput,
 ): PregnancyEstimate {
-  let conceptionDate: Date;
+  let conceptionDate: Date | null;
   let source: ConceptionEstimateSource;
   if (input.breedingDate) {
     conceptionDate = input.breedingDate;
@@ -52,15 +55,20 @@ export function estimatePregnancyDates(
     );
     source = 'EXPECTED_CALVING';
   } else {
-    conceptionDate = addDays(
-      input.diagnosisDate,
-      -ESTIMATE_FALLBACK_GESTATION_AT_CHECK_DAYS,
-    );
+    conceptionDate = null;
     source = 'FALLBACK';
   }
   return {
     conceptionDate,
-    calculatedCalvingDate: addDays(conceptionDate, ESTIMATE_GESTATION_DAYS),
+    calculatedCalvingDate: conceptionDate
+      ? addDays(conceptionDate, ESTIMATE_GESTATION_DAYS)
+      : null,
     source,
+    confidence:
+      source === 'BREEDING'
+        ? 'RECORDED'
+        : source === 'FALLBACK'
+          ? 'UNKNOWN'
+          : 'ESTIMATED',
   };
 }

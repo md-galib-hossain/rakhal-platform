@@ -1,15 +1,29 @@
+import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
   IsIn,
   IsISO8601,
   IsObject,
   IsOptional,
   IsString,
   MaxLength,
+  ValidateNested,
 } from 'class-validator';
 import {
   ANIMAL_EVENT_TYPES,
   type AnimalEventTypeKey,
 } from '../../domain/catalogue';
+
+/** One "What happens next" switch the client sends back (RAKHAL-484). */
+export class FollowUpToggleDto {
+  @IsString()
+  ruleKey!: string;
+
+  @IsBoolean()
+  enabled!: boolean;
+}
 
 /** Body of `POST /cattle/:id/events` (RAKHAL-481). No `farmId`, no `cattleId`. */
 export class RecordEventDto {
@@ -30,6 +44,11 @@ export class RecordEventDto {
   @MaxLength(2000)
   notes?: string;
 
+  /** Required when `type` is CUSTOM: the farm's `AnimalEventTypeDef` id. */
+  @IsOptional()
+  @IsString()
+  customTypeId?: string;
+
   /** Optional link, e.g. a preg check -> the AI it checks. */
   @IsOptional()
   @IsString()
@@ -39,4 +58,12 @@ export class RecordEventDto {
   @IsOptional()
   @IsObject()
   payload?: Record<string, unknown>;
+
+  /** Switch individual follow-ups on or off for this save; others keep their default. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => FollowUpToggleDto)
+  followUps?: FollowUpToggleDto[];
 }

@@ -160,7 +160,10 @@ interface FakeWhere {
   breedingDate?: { gte: Date; lt: Date };
 }
 
-function fakeDb(events: (ServiceRow & { breedingDate: Date })[]) {
+function fakeDb(
+  events: (ServiceRow & { breedingDate: Date })[],
+  historicalIds: string[] = [],
+) {
   const breedingEvent = {
     findMany: jest.fn(({ where }: { where: FakeWhere }): Promise<unknown[]> => {
       return Promise.resolve(
@@ -178,6 +181,12 @@ function fakeDb(events: (ServiceRow & { breedingDate: Date })[]) {
     }),
   };
   return {
+    // RAKHAL-482: HISTORICAL headers (ids only).
+    animalEvent: {
+      findMany: jest
+        .fn()
+        .mockResolvedValue(historicalIds.map((id) => ({ id }))),
+    },
     breedingEvent,
     calvingEvent: { findMany: jest.fn().mockResolvedValue([{ calfCount: 2 }]) },
     abortionEvent: { count: jest.fn().mockResolvedValue(1) },
@@ -328,6 +337,36 @@ describe('reproMetricModule.compute', () => {
       db.pregnancy.count.mock.calls as [{ where: unknown }][]
     )[0][0];
     expect(preg.where).toMatchObject({ ...scope, status: 'ACTIVE' });
+  });
+
+  it('leaves HISTORICAL events out of services, calvings and abortions (RAKHAL-482)', async () => {
+    const db = fakeDb([ev('a', '2026-10-05T00:00:00Z')], ['h1', 'h2']);
+    await reproMetricModule.compute(ctx(db, { includeFinance: true }));
+    const clause = {
+      OR: [{ animalEventId: null }, { animalEventId: { notIn: ['h1', 'h2'] } }],
+    };
+    for (const call of db.breedingEvent.findMany.mock.calls as [
+      { where: unknown },
+    ][]) {
+      expect(call[0].where).toMatchObject(clause);
+    }
+    expect(
+      (db.calvingEvent.findMany.mock.calls as [{ where: unknown }][])[0][0]
+        .where,
+    ).toMatchObject(clause);
+    expect(
+      (db.abortionEvent.count.mock.calls as [{ where: unknown }][])[0][0].where,
+    ).toMatchObject(clause);
+  });
+
+  it('adds no clause when the farm has no HISTORICAL events', async () => {
+    const db = fakeDb([ev('a', '2026-10-05T00:00:00Z')]);
+    await reproMetricModule.compute(ctx(db, { includeFinance: true }));
+    for (const call of db.breedingEvent.findMany.mock.calls as [
+      { where: Record<string, unknown> },
+    ][]) {
+      expect(call[0].where).not.toHaveProperty('OR');
+    }
   });
 
   it('empty scope: zero counts, no queries, scopeEmpty note', async () => {

@@ -311,7 +311,9 @@ export class ReproProtocolService {
       });
       for (const step of protocol.steps) {
         const override = dto.stepOverrides?.find(
-          (o) => (o.stepId && o.stepId === step.id) || o.dayNumber === step.dayNumber,
+          (o) =>
+            (o.stepId && o.stepId === step.id) ||
+            o.dayNumber === step.dayNumber,
         );
         let dueAt = override?.dueAt
           ? new Date(override.dueAt)

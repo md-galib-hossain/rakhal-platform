@@ -1,4 +1,5 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
+import { CurrentFarmId } from 'src/common/decorators';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
@@ -23,7 +24,7 @@ export class AnimalEventsController {
   /** The event catalogue with chip eligibility (worker can read). */
   @Get('types')
   @RequirePermission('cattle.read')
-  listTypes() {
-    return this.types.list();
+  listTypes(@CurrentFarmId() farmId: string) {
+    return this.types.list(farmId);
   }
 }

@@ -38,7 +38,10 @@ describe('GET /animal-events/types (e2e)', () => {
         type: string;
         appliesTo: Record<string, string>;
       }[];
-      expect(types.length).toBe(24);
+      // 24 catalogue types, plus any custom types this farm has defined.
+      expect(
+        types.filter((t) => !(t as { customTypeId?: string }).customTypeId),
+      ).toHaveLength(24);
       const heat = types.find((t) => t.type === 'HEAT')!;
       expect(heat.appliesTo.MALE).toBe('BLOCK');
       expect(heat.appliesTo.PREGNANT).toBe('WARN');

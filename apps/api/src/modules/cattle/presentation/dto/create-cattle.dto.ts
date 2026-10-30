@@ -1,5 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsDateString,
   IsEnum,
   IsIn,
@@ -21,6 +23,7 @@ import {
 import { BCS_ALLOWED_SCORES } from '../../domain/cattle.constants';
 import { trimString } from './common.dto';
 import {
+  HistoryItemDto,
   IntakeBreedingDto,
   IntakeHealthConditionDto,
   IntakeHeatDto,
@@ -91,6 +94,15 @@ export class CreateCattleDto {
   @ValidateNested()
   @Type(() => IntakeHealthConditionDto)
   intakeHealthCondition?: IntakeHealthConditionDto;
+
+  /** RAKHAL-483: "her history" entries, recorded as HISTORICAL events in the
+   * create transaction. See `HistoryItemDto` for the shape. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => HistoryItemDto)
+  history?: HistoryItemDto[];
 
   /** RAKHAL-319: "she was AI'd/served but pregnancy result is unknown" at
    * intake — creates a real `BreedingEvent` via `createBreedingEvent` itself

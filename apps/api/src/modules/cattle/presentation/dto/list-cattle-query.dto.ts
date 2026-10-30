@@ -76,7 +76,7 @@ export class ListCattleQueryDto extends CursorPaginationQueryDto {
    * heifer, weaned, calf, pregnant, milking, dry, fresh, open, fattening),
    * generated from the same table as event eligibility. Case-insensitive. */
   @IsOptional()
-  @Transform(({ value }) =>
+  @Transform(({ value }: { value: unknown }): unknown =>
     typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
   @IsIn(CATTLE_CATEGORIES)

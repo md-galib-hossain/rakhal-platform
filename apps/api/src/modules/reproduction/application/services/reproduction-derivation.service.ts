@@ -12,6 +12,8 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { deriveBreedingStatus } from '../../domain/breeding-status';
+import { foldReproduction } from '../../domain/reproduction-fold';
+import { loadFoldFacts } from './reproduction-fold-facts';
 import { computeDryOffProjection } from '../../domain/lactation-dry-off-projection';
 
 /** ~15 months — typical heifer breeding-readiness threshold (PRD §9). Moved
@@ -450,6 +452,8 @@ export class ReproductionDerivationService {
 
     const { breedingAgeDays } =
       await this.farmSettings.lifecycleBoundaries(farmId);
+    const foldFacts = await loadFoldFacts(this.prisma, cattleId);
+    const fold = foldFacts.length ? foldReproduction(foldFacts) : null;
     const status = deriveReproductionState({
       breedingAgeDays,
       now: new Date(),
@@ -457,11 +461,25 @@ export class ReproductionDerivationService {
       dateOfBirth: cattle?.dateOfBirth ?? null,
       hasBreedingHistory:
         totalBreedings > 0 || pregnancies.length > 0 || totalCalvings > 0,
-      hasActivePregnancy: Boolean(currentPregnancy),
-      lastBreeding: lastBreeding ? { status: lastBreeding.status } : null,
-      lastCalving: lastCalving
-        ? { calvingDate: lastCalving.calvingDate }
-        : null,
+      // RAKHAL-482: with event headers the state is a pure fold over them (any
+      // single fact is enough); cows with no headers keep the table-based inputs.
+      ...(fold
+        ? {
+            hasActivePregnancy: fold.hasActivePregnancy,
+            lastBreeding: fold.pendingBreeding
+              ? { status: BreedingStatus.PENDING_CHECK }
+              : null,
+            lastCalving: fold.lastCalvingAt
+              ? { calvingDate: fold.lastCalvingAt }
+              : null,
+          }
+        : {
+            hasActivePregnancy: Boolean(currentPregnancy),
+            lastBreeding: lastBreeding ? { status: lastBreeding.status } : null,
+            lastCalving: lastCalving
+              ? { calvingDate: lastCalving.calvingDate }
+              : null,
+          }),
       vwpDays,
     });
 

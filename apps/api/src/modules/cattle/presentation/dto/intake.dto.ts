@@ -2,9 +2,11 @@ import { Transform } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
+  Max,
   Min,
   ValidateIf,
 } from 'class-validator';
@@ -126,4 +128,65 @@ export class IntakeHeatDto {
   @Transform(trimString)
   @IsString()
   notes?: string;
+}
+
+export const HISTORY_KINDS = [
+  'LAST_CALVING',
+  'LAST_BREEDING',
+  'PREGNANT',
+  'MILKING_SINCE',
+  'DRY_SINCE',
+  'LAST_VACCINATION',
+] as const;
+export type HistoryKind = (typeof HISTORY_KINDS)[number];
+
+/**
+ * RAKHAL-483: one "her history" entry given when an animal joins. Each entry is
+ * recorded as a HISTORICAL event through the event API handlers, in the
+ * cow-create transaction (no stock, finance, AQR or reminders).
+ *
+ * - LAST_CALVING:     `date`, optional `calvingNumber`
+ * - LAST_BREEDING:    `date`, optional `method` (default AI), `bull` (name or code)
+ * - PREGNANT:         optional `expectedCalvingDate` or `monthsPregnant` (check date = today)
+ * - MILKING_SINCE:    `date` (start of the current lactation)
+ * - DRY_SINCE:        `date`
+ * - LAST_VACCINATION: `date`, optional `product`
+ */
+export class HistoryItemDto {
+  @IsIn(HISTORY_KINDS)
+  kind!: HistoryKind;
+
+  @ValidateIf((o: HistoryItemDto) => o.kind !== 'PREGNANT')
+  @IsDateString()
+  date?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  calvingNumber?: number;
+
+  @IsOptional()
+  @IsEnum(BreedingMethod)
+  method?: BreedingMethod;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  bull?: string;
+
+  @IsOptional()
+  @IsDateString()
+  expectedCalvingDate?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(9)
+  monthsPregnant?: number;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  product?: string;
 }

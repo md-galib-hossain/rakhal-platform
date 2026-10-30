@@ -1,7 +1,4 @@
-import {
-  ESTIMATE_FALLBACK_GESTATION_AT_CHECK_DAYS,
-  estimatePregnancyDates,
-} from './pregnancy-estimate';
+import { estimatePregnancyDates } from './pregnancy-estimate';
 
 const d = (s: string) => new Date(`${s}T00:00:00.000Z`);
 const iso = (x: Date) => x.toISOString().slice(0, 10);
@@ -12,8 +9,8 @@ describe('estimatePregnancyDates (RAKHAL-476)', () => {
       diagnosisDate: d('2026-10-01'),
       breedingDate: d('2026-08-27'),
     });
-    expect(iso(r.conceptionDate)).toBe('2026-08-27');
-    expect(iso(r.calculatedCalvingDate)).toBe('2027-06-03');
+    expect(iso(r.conceptionDate!)).toBe('2026-08-27');
+    expect(iso(r.calculatedCalvingDate!)).toBe('2027-06-03');
     expect(r.source).toBe('BREEDING');
   });
 
@@ -22,8 +19,8 @@ describe('estimatePregnancyDates (RAKHAL-476)', () => {
       diagnosisDate: d('2026-10-01'),
       gestationDay: 60,
     });
-    expect(iso(r.conceptionDate)).toBe('2026-08-02');
-    expect(iso(r.calculatedCalvingDate)).toBe('2027-05-09');
+    expect(iso(r.conceptionDate!)).toBe('2026-08-02');
+    expect(iso(r.calculatedCalvingDate!)).toBe('2027-05-09');
     expect(r.source).toBe('GESTATION_DAY');
   });
 
@@ -32,7 +29,7 @@ describe('estimatePregnancyDates (RAKHAL-476)', () => {
       diagnosisDate: d('2026-10-01'),
       expectedCalvingDate: d('2027-03-20'),
     });
-    expect(iso(r.conceptionDate)).toBe('2026-06-13');
+    expect(iso(r.conceptionDate!)).toBe('2026-06-13');
     expect(r.source).toBe('EXPECTED_CALVING');
   });
 
@@ -43,13 +40,29 @@ describe('estimatePregnancyDates (RAKHAL-476)', () => {
       expectedCalvingDate: d('2027-03-20'),
     });
     expect(r.source).toBe('GESTATION_DAY');
-    expect(iso(r.conceptionDate)).toBe('2026-07-03');
+    expect(iso(r.conceptionDate!)).toBe('2026-07-03');
   });
 
-  it('with no data at all falls back to check minus 90 days, never the check date', () => {
+  it('with no data at all conception is UNKNOWN (null), never the check date', () => {
     const r = estimatePregnancyDates({ diagnosisDate: d('2026-10-01') });
-    expect(ESTIMATE_FALLBACK_GESTATION_AT_CHECK_DAYS).toBe(90);
-    expect(iso(r.conceptionDate)).toBe('2026-07-03');
+    expect(r.conceptionDate).toBeNull();
+    expect(r.calculatedCalvingDate).toBeNull();
     expect(r.source).toBe('FALLBACK');
+    expect(r.confidence).toBe('UNKNOWN');
+  });
+
+  it('confidence: RECORDED from a breeding, ESTIMATED otherwise', () => {
+    expect(
+      estimatePregnancyDates({
+        diagnosisDate: d('2026-10-01'),
+        breedingDate: d('2026-08-01'),
+      }).confidence,
+    ).toBe('RECORDED');
+    expect(
+      estimatePregnancyDates({
+        diagnosisDate: d('2026-10-01'),
+        gestationDay: 60,
+      }).confidence,
+    ).toBe('ESTIMATED');
   });
 });

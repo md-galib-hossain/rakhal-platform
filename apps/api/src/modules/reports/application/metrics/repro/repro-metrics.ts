@@ -27,6 +27,7 @@ import {
   fetchExpectedCalvings,
   fetchLinkedExpenses,
   fetchPendingServices,
+  notHistoricalClause,
 } from './repro-fetch';
 
 const DAY_MS = 86_400_000;
@@ -192,11 +193,14 @@ export const reproMetricModule: DomainMetricModule = {
   definitions: REPRO_DEFINITIONS,
   async compute(ctx: MetricContext): Promise<DomainMetricOutput> {
     const { db, period, generatedAt } = ctx;
+    // RAKHAL-482: history entries are left out of every rate below.
+    const notHistorical = await notHistoricalClause(db, ctx.farmId);
     const cohortRows = await fetchCohortServices(
       db,
       ctx.farmId,
       ctx.cattleIds,
       period,
+      notHistorical,
     );
     const cur = aggregateServices(cohortRows, generatedAt);
 
@@ -210,6 +214,7 @@ export const reproMetricModule: DomainMetricModule = {
           ctx.farmId,
           ctx.previousCattleIds,
           ctx.previousPeriod,
+          notHistorical,
         ),
         generatedAt,
       );
@@ -218,19 +223,33 @@ export const reproMetricModule: DomainMetricModule = {
         ctx.farmId,
         ctx.previousCattleIds,
         ctx.previousPeriod,
+        notHistorical,
       );
       prevAbort = await fetchAbortions(
         db,
         ctx.farmId,
         ctx.previousCattleIds,
         ctx.previousPeriod,
+        notHistorical,
       );
     }
 
-    const calv = await fetchCalvings(db, ctx.farmId, ctx.cattleIds, period);
-    const aborts = await fetchAbortions(db, ctx.farmId, ctx.cattleIds, period);
+    const calv = await fetchCalvings(
+      db,
+      ctx.farmId,
+      ctx.cattleIds,
+      period,
+      notHistorical,
+    );
+    const aborts = await fetchAbortions(
+      db,
+      ctx.farmId,
+      ctx.cattleIds,
+      period,
+      notHistorical,
+    );
     const pending = aggregateServices(
-      await fetchPendingServices(db, ctx.farmId, ctx.cattleIds),
+      await fetchPendingServices(db, ctx.farmId, ctx.cattleIds, notHistorical),
       generatedAt,
     );
     const expectedCalvings = await fetchExpectedCalvings(

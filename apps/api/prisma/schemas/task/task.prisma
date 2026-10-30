@@ -40,6 +40,10 @@ model Task {
   /// discriminator avoids importing every module's enums into this shared model.
   sourceEventType String?
   sourceEventId   String?
+  /// RAKHAL-484: set on tasks made by a follow-up rule: `<ruleKey>:<sourceEventId>`, unique while the
+  /// task is open (partial unique index in the migration).
+  followUpKey     String?
+  ruleKey         String?
 
   assignedToId       String?
   completionPhotoUrl String?

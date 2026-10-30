@@ -38,6 +38,10 @@ import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.ser
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { AnimalHoldService } from './animal-hold.service';
 import { AnimalUpcomingEventsService } from './animal-upcoming-events.service';
+import { type HistoryItemDto } from '../../presentation/dto/intake.dto';
+import { historyEvent } from '../../domain/history-event';
+import { AnimalEventWriteService } from 'src/modules/animal-events/application/services/animal-event-write.service';
+import { txStore } from 'src/core/database/prisma/tx-context';
 import { EligibilityService } from 'src/modules/animal-events/application/services/eligibility.service';
 import {
   MediaService,
@@ -201,6 +205,8 @@ export class CattleService {
     private readonly upcomingEventsService: AnimalUpcomingEventsService,
     // RAKHAL-480: trailing for the same reason; only `findAll`'s `?category=` uses it.
     private readonly eligibility?: EligibilityService,
+    // RAKHAL-483: history[] items are recorded through the event write API.
+    private readonly eventWriter?: AnimalEventWriteService,
   ) {
     this.log = this.logger.setContext(CattleService.name);
   }
@@ -214,6 +220,29 @@ export class CattleService {
 
     await this.validateReferences(farmId, dto);
     await this.validateParentRules(farmId, undefined, dto);
+
+    // RAKHAL-483: lactation state in `history[]` maps onto the intake fields
+    // the transaction below already backs with a real Lactation / DryPeriod.
+    for (const h of dto.history ?? []) {
+      if (h.kind === 'MILKING_SINCE' && h.date) {
+        dto.productionStatus ??= ProductionStatus.MILKING;
+        dto.priorCalvings ??= 1;
+        dto.intakeLactation ??= { estimatedCalvingDate: h.date };
+      }
+      if (h.kind === 'DRY_SINCE' && h.date) {
+        dto.productionStatus ??= ProductionStatus.DRY;
+        dto.dryOffStartDate ??= h.date;
+      }
+    }
+    // RAKHAL-319 field mapped onto history (fixes C7: an intake AI no longer needs a cost).
+    const historyItems: HistoryItemDto[] = [...(dto.history ?? [])];
+    if (dto.intakeBreeding) {
+      historyItems.push({
+        kind: 'LAST_BREEDING',
+        date: dto.intakeBreeding.breedingDate,
+        method: dto.intakeBreeding.breedingMethod,
+      });
+    }
 
     // RAKHAL-291/307: registering straight into MILKING needs the same
     // guarantee `updateStatus()` enforces — a fresh cattle row never has a
@@ -433,6 +462,23 @@ export class CattleService {
           });
         }
 
+        // RAKHAL-483: each history item goes through the event write API as
+        // HISTORICAL, inside this transaction (the store makes the handlers join it).
+        if (historyItems.some((h) => historyEvent(h)) && this.eventWriter) {
+          for (const h of historyItems) {
+            const ev = historyEvent(h);
+            if (!ev) continue;
+            await txStore.run({ tx }, () =>
+              this.eventWriter!.record(farmId, userId, cattle.id, {
+                type: ev.type,
+                eventAt: ev.eventAt,
+                provenance: 'HISTORICAL',
+                payload: ev.payload,
+              }),
+            );
+          }
+        }
+
         return cattle.id;
       });
 
@@ -443,15 +489,7 @@ export class CattleService {
       // same as if recorded any other way. Runs after the cattle row commits
       // (both need a real cattleId FK) — each method does its own recompute
       // internally, so this can't race the final refreshDerivedState below.
-      if (dto.intakeBreeding) {
-        await this.reproductionService.createBreedingEvent(farmId, userId, {
-          cattleId: created,
-          breedingDate: dto.intakeBreeding.breedingDate,
-          breedingMethod:
-            dto.intakeBreeding.breedingMethod ?? BreedingMethod.AI,
-          notes: dto.intakeBreeding.notes,
-        });
-      }
+      // (`intakeBreeding` is now a history item, recorded in the transaction above.)
       if (dto.intakeHeat) {
         await this.reproductionService.createHeatEvent(farmId, {
           cattleId: created,
@@ -1924,7 +1962,7 @@ export class CattleService {
         expectedPregnancyCheckDate: Date | null;
       }[];
       pregnancies?: {
-        conceptionDate: Date;
+        conceptionDate: Date | null;
         expectedCalvingDate: Date | null;
       }[];
       dryPeriods?: { id: string }[];

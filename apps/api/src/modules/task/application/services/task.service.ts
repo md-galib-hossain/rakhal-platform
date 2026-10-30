@@ -43,6 +43,9 @@ export interface CreateTaskInternalInput {
    * `rescheduleBySourceEvent` find it when that event is later edited. */
   sourceEventType?: string;
   sourceEventId?: string;
+  /** RAKHAL-484: `<ruleKey>:<sourceEventId>`; unique while the task is open. */
+  followUpKey?: string;
+  ruleKey?: string;
 }
 
 type TaskWithAssignee = Task & {
@@ -112,7 +115,8 @@ export class TaskService {
   async createInternal(input: CreateTaskInternalInput): Promise<Task> {
     // RAKHAL-481: a HISTORICAL entry creates no reminder (hub §3.5). Callers
     // of this seam ignore the row, so a placeholder keeps the signature.
-    if (eventApiContext()?.historical) return { id: 'historical-skipped' } as Task;
+    if (eventApiContext()?.historical)
+      return { id: 'historical-skipped' } as Task;
     await this.assertAssignee(input.farmId, input.assignedToId);
     return this.insert({
       farmId: input.farmId,
@@ -131,6 +135,8 @@ export class TaskService {
       assignedToId: input.assignedToId,
       sourceEventType: input.sourceEventType,
       sourceEventId: input.sourceEventId,
+      followUpKey: input.followUpKey,
+      ruleKey: input.ruleKey,
     });
   }
 
@@ -604,6 +610,8 @@ export class TaskService {
     assignedToId?: string;
     sourceEventType?: string;
     sourceEventId?: string;
+    followUpKey?: string;
+    ruleKey?: string;
   }): Promise<Task & { cattles: { cattleId: string }[] }> {
     // Sequential per-farm reference with a small retry on the unique race.
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -631,6 +639,8 @@ export class TaskService {
             assignedToId: data.assignedToId,
             sourceEventType: data.sourceEventType,
             sourceEventId: data.sourceEventId,
+            followUpKey: data.followUpKey,
+            ruleKey: data.ruleKey,
             createdBy: data.createdBy,
           },
         });
@@ -649,6 +659,9 @@ export class TaskService {
           cattles: (data.cattleIds ?? []).map((cattleId) => ({ cattleId })),
         };
       } catch (error) {
+        // RAKHAL-484: a duplicate open follow-up is not a reference race; let the caller see it.
+        if (data.followUpKey && JSON.stringify(error).includes('followUpKey'))
+          throw error;
         if (this.isUniqueError(error)) continue;
         throw error;
       }
