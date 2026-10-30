@@ -48,6 +48,8 @@ export function GlobalSearch() {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        // MILESTONE 31 (RFE-157): while the Animal Workspace is open, Ctrl/Cmd+K belongs to its event picker.
+        if (document.querySelector("[data-animal-workspace]")) return;
         event.preventDefault();
         setOpen((prev) => !prev);
       }

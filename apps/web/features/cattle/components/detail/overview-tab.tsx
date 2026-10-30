@@ -52,6 +52,7 @@ export function OverviewTab({ cattleId, animalCategory }: { cattleId: string; an
 function NonCalfSnapshot({ cattleId }: { cattleId: string }) {
   const t = useTranslations("cattle.detail.snapshot");
   const tCondition = useTranslations("health.reportSickness");
+  const tWithdrawal = useTranslations("events.cards.health");
   const overview = useCattleOverview(cattleId);
   const health = useCattleHealthSummary(cattleId);
 
@@ -89,7 +90,7 @@ function NonCalfSnapshot({ cattleId }: { cattleId: string }) {
                 </p>
               </Card>
             ) : null}
-            {healthData?.safetyWithdrawalWarning ? <AlertBanner>{t("alerts")}</AlertBanner> : null}
+            {healthData?.safetyWithdrawalWarning ? <AlertBanner>{tWithdrawal("withdrawalAlert")}</AlertBanner> : null}
             {(healthData?.activeCases.length ?? 0) > 0 ? (
               <AlertBanner>{healthData!.activeCases.map((c) => caseTitle(c, (condition) => tCondition(`conditionValue.${condition}`))).join(", ")}</AlertBanner>
             ) : null}

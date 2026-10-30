@@ -7,6 +7,7 @@ import { useCattleDetail } from "../hooks/use-cattle";
 import type { CattleDetail, CattleListItem } from "../types";
 
 const CattleDetailSheet = dynamic(
+  // eslint-disable-next-line import/no-cycle -- the workspace sections call back into this provider (MILESTONE 31)
   () => import("../components/detail/cattle-detail-sheet").then((m) => m.CattleDetailSheet),
   { ssr: false },
 );

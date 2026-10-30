@@ -1210,3 +1210,27 @@ Companion to the backend board's MILESTONE 24 (`D:\Projects\Rakhal\docs\PROJECT_
 | RFE-150 | Needs-attention strip on Healthcare (`round-attention-strip.tsx`), `?round=` opens a round, delete `protocol-runs-list.tsx` + 8 unused i18n keys | `features/health/components/{round-attention-strip,healthcare-view,health-management-center-card,health-plan-tab}.tsx`, `i18n/messages/{en,bn}.json` | RFE-146 | `DONE 2026-10-03` |
 | RFE-151 | Animals list "Next event" column (MILESTONE 30, `docs/EPIC_ANIMAL_UPCOMING_EVENTS.md` in the workspace root): icon + label + relative date coloured by urgency, `+N` chip, lazy popover from `GET /cattle/:id/upcoming-events`, Due filter, column-visibility toggle (Lactation hidden by default), breed folded under the name, age + weight merged, phone-card chip, en + bn, worker read-only | `features/cattle/components/{cattle-columns,cattle-filters,cattle-table,next-event-cell}.tsx`, `features/cattle/{api,types,hooks}`, `i18n/messages/{en,bn}.json` | RAKHAL-475 | `DONE 2026-10-11` (live-checked as owner in bn; column-visibility toggle, Age/Weight merge and default-hidden Lactation NOT done - `DataTable` has no column-visibility support, Breed folded under the name instead; worker, en locale live and real 375px not checked) |
 | RFE-152 | (optional) "Upcoming" strip on the animal detail page using the same endpoint | `features/cattle/components/` detail header | RFE-151 | `DONE 2026-10-11` (placed on the Overview tab, replacing "Next task"; live-checked in bn; calves, links, English/worker/375px not done) |
+
+---
+
+## MILESTONE 31 — Events Core / Animal Workspace (specced 2026-10-28, nothing built)
+
+Spec hub (workspace root): `docs/EPIC_EVENTS_CORE.md`; wireframes, lanes and acceptance criteria per ticket in `docs/epic-events-core/03-ux-layout.md` §11. Backend twins RAKHAL-476…490. Order: 153 → 154 → (155, 156, 157) → 158 → (159, 160, 161, 162) → 163 → 164 → 165 → 166 → 167. RFE-153/154/156/157 need no backend.
+
+| RFE | Scope | Needs backend |
+|---|---|---|
+| RFE-153 | Client event catalogue + 12 category chips derivation — **DONE 2026-10-29** (see IN_FLIGHT Recently Done) | none (fallback) |
+| RFE-154 | Animal Workspace shell (concentration-detail-sheet geometry, 4 sections) — **DONE 2026-10-29** (see IN_FLIGHT Recently Done) | none |
+| RFE-155 | Unified timeline — **DONE 2026-10-29** (real route with a per-domain fallback on 404; see IN_FLIGHT Recently Done) | RAKHAL-479 |
+| RFE-156 | State cards + drill panels (fixes `overview-tab.tsx:92`) — **DONE 2026-10-29** (see IN_FLIGHT Recently Done) | none (fallback) |
+| RFE-157 | Event picker (command palette / phone bottom sheet) — **DONE 2026-10-29** (see IN_FLIGHT Recently Done) | none |
+| RFE-158 | Event form framework + repro forms (no chain blocks) — **DONE 2026-10-30** (real route; see IN_FLIGHT Recently Done for gaps) | RAKHAL-481/482 |
+| RFE-159 | Remaining event forms — **DONE 2026-10-30** (treatment/vaccine/deworm/castrate/move wait on backend handlers) | RAKHAL-481 |
+| RFE-160 | Next up strip (Record / Snooze / Skip) | RAKHAL-484 |
+| RFE-161 | Edit / void from timeline | RAKHAL-488 |
+| RFE-162 | Add-animal "Her history" step; remove status selects/redirects | RAKHAL-483 |
+| RFE-163 | Bulk event flow from Animals list — layout per `docs/epic-events-core/04-event-model-and-flows.md` §6 (scrolling chips with counts incl. Fattening, per-animal value grid for weight/BCS/preg check, confirm with skipped list) | RAKHAL-489, 480 |
+| RFE-164 | Custom reminders | RAKHAL-487 |
+| RFE-165 | Notification deep links | RAKHAL-485 |
+| RFE-166 | Remove old tabs, `*-step.tsx`, duplicate dialogs; rewire Reproduction/Healthcare | all above |
+| RFE-167 | QA pass (375 px, bn, keyboard, roles) | — |

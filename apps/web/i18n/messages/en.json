@@ -8853,5 +8853,475 @@
       "title": "Cash figures are not in this report",
       "body": "This report was made without cash and cost figures, so none are shown here."
     }
+  },
+  "events": {
+    "chip": {
+      "female": "Female",
+      "male": "Male",
+      "calves": "Calf",
+      "weaned": "Weaned",
+      "heifers": "Heifer",
+      "cows": "Cow",
+      "pregnant": "Pregnant",
+      "open": "Open",
+      "milking": "Milking",
+      "dry": "Dry",
+      "fresh": "Fresh",
+      "fattening": "Fattening"
+    },
+    "group": {
+      "reproduction": "Reproduction",
+      "health": "Health",
+      "milk": "Milk / lactation",
+      "growth": "Growth",
+      "movement": "Movement / status",
+      "custom": "Custom"
+    },
+    "catalogue": {
+      "HEAT": {
+        "label": "Heat",
+        "hint": "Standing heat or signs",
+        "synonyms": "heat, estrus, oestrus, in heat, গরম, হিট, গরমে এসেছে"
+      },
+      "SERVICE": {
+        "label": "AI / service",
+        "hint": "Insemination or natural service",
+        "synonyms": "ai, insemination, breeding, service, bull, কৃত্রিম প্রজনন, বীজ দেওয়া, প্রজনন"
+      },
+      "PREG_CHECK": {
+        "label": "Pregnancy check",
+        "hint": "Result of a pregnancy test",
+        "synonyms": "pregnancy, preg check, diagnosis, pregnant, গর্ভ পরীক্ষা, গর্ভবতী"
+      },
+      "CALVING": {
+        "label": "Gives birth",
+        "hint": "Calving and calves born",
+        "synonyms": "calving, calve, birth, delivery, বাচ্চা প্রসব, প্রসব, বাছুর জন্ম"
+      },
+      "ABORTION": {
+        "label": "Abortion / loss",
+        "hint": "Pregnancy lost",
+        "synonyms": "abortion, miscarriage, loss, গর্ভপাত"
+      },
+      "DRY_OFF": {
+        "label": "Dry off",
+        "hint": "Stop milking before calving",
+        "synonyms": "dry, dry off, stop milking, শুকানো, দুধ বন্ধ"
+      },
+      "TREATMENT": {
+        "label": "Treatment",
+        "hint": "Medicine given to a sick animal",
+        "synonyms": "treatment, medicine, injection, drug, antibiotic, চিকিৎসা, ওষুধ, ইনজেকশন"
+      },
+      "VACCINATION": {
+        "label": "Vaccination",
+        "hint": "Vaccine given",
+        "synonyms": "vaccine, vaccination, fmd, injection, টিকা, ভ্যাকসিন"
+      },
+      "DEWORMING": {
+        "label": "Deworming",
+        "hint": "Antiparasitic given",
+        "synonyms": "deworm, worm, parasite, কৃমি, কৃমিনাশক"
+      },
+      "WEIGHT": {
+        "label": "Weighed",
+        "hint": "Body weight",
+        "synonyms": "weight, weigh, kg, scale, ওজন"
+      },
+      "BCS": {
+        "label": "Body condition",
+        "hint": "BCS score",
+        "synonyms": "bcs, body condition, condition score, শরীরের অবস্থা"
+      },
+      "WEAN": {
+        "label": "Weaned",
+        "hint": "Calf off milk",
+        "synonyms": "wean, weaning, calf, দুধ ছাড়ানো"
+      },
+      "CASTRATE": {
+        "label": "Castrated",
+        "hint": "Bull castrated to steer",
+        "synonyms": "castrate, steer, neuter, খাসি, খাসি করা"
+      },
+      "ENTER_FATTENING": {
+        "label": "Start fattening",
+        "hint": "Move to fattening",
+        "synonyms": "fattening, fatten, beef, মোটাতাজা"
+      },
+      "LEAVE_FATTENING": {
+        "label": "End fattening",
+        "hint": "Leave fattening",
+        "synonyms": "fattening, end fattening, মোটাতাজা শেষ"
+      },
+      "MOVE": {
+        "label": "Move shed / group",
+        "hint": "Change shed or group",
+        "synonyms": "move, shed, group, transfer, স্থানান্তর, শেড"
+      },
+      "SELL": {
+        "label": "Sold",
+        "hint": "Sold out of the herd",
+        "synonyms": "sell, sale, sold, বিক্রি"
+      },
+      "DEATH": {
+        "label": "Died",
+        "hint": "Death",
+        "synonyms": "death, died, dead, মৃত্যু, মারা গেছে"
+      },
+      "CULL": {
+        "label": "Culled",
+        "hint": "Removed from the herd",
+        "synonyms": "cull, culled, remove, বাদ"
+      },
+      "NOTE": {
+        "label": "Note",
+        "hint": "Free note",
+        "synonyms": "note, remark, comment, নোট, মন্তব্য"
+      },
+      "REMINDER": {
+        "label": "Reminder",
+        "hint": "Custom reminder",
+        "synonyms": "reminder, task, remind, স্মরণ, রিমাইন্ডার"
+      },
+      "ILLNESS": {
+        "label": "Sickness report",
+        "hint": "Report an illness and open a case",
+        "synonyms": "sick, illness, disease, report, case, mastitis, fever, অসুস্থ, রোগ, অসুস্থতার রিপোর্ট"
+      }
+    },
+    "reason": {
+      "notFor": "Not for {chip, select, calves {calves} heifers {heifers} cows {cows} pregnant {pregnant animals} open {open animals} milking {milking animals} dry {dry animals} fattening {fattening animals} other {this animal}}",
+      "onlyFor": "Only for {chips}",
+      "alreadyCastrated": "Already castrated",
+      "notFattening": "Not in fattening",
+      "alreadyFattening": "Already in fattening",
+      "leftHerd": "This animal has left the herd"
+    },
+    "warn": {
+      "unusualFor": "Unusual for: {chips}"
+    },
+    "picker": {
+      "title": "Record event for {name}",
+      "titleGeneric": "Record event",
+      "searchPlaceholder": "Search events (heat, AI, vaccine, weight…)",
+      "animal": "Animal",
+      "suggested": "Suggested for her",
+      "suggestedGeneric": "Suggested",
+      "recent": "Recent",
+      "showAll": "Show all events",
+      "hideUnavailable": "Hide unavailable",
+      "noResults": "No event matches your search.",
+      "keys": "↑↓ move · ↵ choose · Esc close",
+      "unavailable": "Not available",
+      "placeholderTitle": "{event} · {name}",
+      "placeholderBody": "The form for this event arrives with RFE-158. Nothing was saved.",
+      "back": "Back to events",
+      "dueHint": "Due {when}"
+    },
+    "workspace": {
+      "title": "Animal workspace",
+      "recordEvent": "Record event",
+      "edit": "Edit",
+      "more": "More actions",
+      "close": "Close",
+      "back": "Back",
+      "sections": {
+        "timeline": "Timeline",
+        "feeding": "Feeding",
+        "family": "Family",
+        "money": "Money"
+      },
+      "sectionsLabel": "Workspace sections",
+      "nextUp": "Next up",
+      "nothingDue": "Nothing due",
+      "timeline": "Timeline",
+      "timelineEmpty": "No events yet.",
+      "timelineFallback": "Showing reproduction and treatment history. The full timeline arrives with RFE-155.",
+      "leftHerd": "This animal has left the herd. Only notes can be added.",
+      "moreChips": "+{count}",
+      "moreChipsLabel": "{count} more status chips",
+      "milkHold": "Milk hold",
+      "dim": "DIM {days}",
+      "pregnantDay": "Pregnant · day {days}",
+      "pregnant": "Pregnant",
+      "ageValue": "{years}y {months}m",
+      "error": "Could not load this animal."
+    },
+    "cards": {
+      "view": "View",
+      "error": "Could not load.",
+      "retry": "Retry",
+      "reproduction": {
+        "title": "Reproduction",
+        "pregnantDay": "Pregnant · day {days}",
+        "open": "Open",
+        "status": "Status: {status}",
+        "due": "Due {date}",
+        "lastService": "Last service {date}",
+        "calvings": "Calvings {count}",
+        "none": "No reproduction records yet"
+      },
+      "milk": {
+        "title": "Milk",
+        "perDay": "{value} L/day (7-day average)",
+        "dim": "DIM {days}",
+        "hold": "Milk held back",
+        "noData": "No milk records yet"
+      },
+      "health": {
+        "title": "Health",
+        "noCase": "No open case",
+        "openCases": "{count, plural, one {# open case} other {# open cases}}",
+        "inTreatment": "In treatment",
+        "milkWithdrawal": "Milk withdrawal until {date}",
+        "meatWithdrawal": "Meat withdrawal until {date}",
+        "withdrawalAlert": "Medicine withdrawal is active. Do not sell this animal's milk or meat."
+      },
+      "growth": {
+        "title": "Growth",
+        "weight": "{kg} kg",
+        "bcs": "BCS {score}",
+        "noData": "No weight recorded yet"
+      }
+    },
+    "timeline": {
+      "title": "Timeline",
+      "filterLabel": "Filter events",
+      "filter": {
+        "all": "All",
+        "REPRODUCTION": "Repro",
+        "HEALTH": "Health",
+        "GROWTH": "Growth",
+        "MOVEMENT": "Moves",
+        "OTHER": "Notes"
+      },
+      "showVoided": "Show voided",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "history": "History",
+      "voided": "Voided",
+      "warning": "Check",
+      "warningHint": "Saved with a warning",
+      "linked": "Follows from an earlier event",
+      "loadOlder": "Load older",
+      "loadingOlder": "Loading…",
+      "olderError": "Could not load older events.",
+      "retry": "Try again",
+      "empty": "No events yet.",
+      "emptyGroup": "No events in this group.",
+      "error": "Could not load the timeline.",
+      "fallbackNote": "Showing recent history from each record. Some events may be missing.",
+      "summary": {
+        "weight": "{kg} kg",
+        "bcs": "BCS {score}"
+      },
+      "type": {
+        "HEAT": "Heat",
+        "BREEDING": "AI / service",
+        "PREG_CHECK": "Pregnancy check",
+        "CALVING": "Gave birth",
+        "ABORTION": "Abortion / loss",
+        "DRY_OFF": "Dried off",
+        "ILLNESS": "Illness",
+        "TREATMENT": "Treatment",
+        "VACCINATION": "Vaccination",
+        "DEWORMING": "Deworming",
+        "WEIGHT": "Weighed",
+        "BCS": "Body condition",
+        "WEANING": "Weaned",
+        "CASTRATION": "Castrated",
+        "ENTER_FATTENING": "Started fattening",
+        "LEAVE_FATTENING": "Ended fattening",
+        "MOVE": "Moved",
+        "SOLD": "Sold",
+        "DIED": "Died",
+        "CULLED": "Culled",
+        "NOTE": "Note",
+        "HOOF_TRIM": "Hoof trim",
+        "DEHORN": "Dehorned",
+        "CUSTOM": "Event"
+      }
+    },
+    "form": {
+      "when": "When",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "pickDate": "Pick date",
+      "time": "Time",
+      "pastEntryTag": "Past entry",
+      "pastRecord": "This is a past record",
+      "moreDetails": "More details",
+      "lessDetails": "Fewer details",
+      "whatNext": "What happens next",
+      "alreadyPast": "already past",
+      "saveAnyway": "You can still save.",
+      "save": "Save",
+      "saving": "Saving…",
+      "saveAnother": "Save & record another",
+      "saved": "{event} saved · {count, plural, =0 {no reminders set} one {# reminder set} other {# reminders set}}",
+      "undo": "Undo",
+      "undone": "Event undone",
+      "back": "Back",
+      "unavailable": "This event cannot be recorded yet: the event service is not available on the server.",
+      "forbidden": "You can't record this. Ask a manager.",
+      "genericError": "Something went wrong. Your entries are kept; try again.",
+      "errorRequired": "Required",
+      "errorRange": "Check this number",
+      "choose": "Choose…",
+      "requireOneOf": "Pick a shed or a group.",
+      "followUp": {
+        "pregCheck": "Pregnancy check reminder",
+        "returnHeatWatch": "Watch for return heat",
+        "dryOff": "Dry-off reminder",
+        "calvingDue": "Calving due",
+        "freshCheck": "Fresh-cow check",
+        "generic": "Follow-up reminder",
+        "nextDose": "Next dose reminder"
+      },
+      "finding": {
+        "UNUSUAL_FOR_STATE": "Unusual for this animal: {chips}.",
+        "DATE_IN_FUTURE": "This date is in the future.",
+        "DATE_BEFORE_BIRTH": "This date is before the animal was born.",
+        "HEAT_ON_PREGNANT": "She is recorded pregnant. Heat in pregnancy is uncommon.",
+        "BREEDING_ON_ACTIVE_PREGNANCY": "She is recorded pregnant. Service during pregnancy is unusual.",
+        "BREEDING_IN_VWP": "This is inside the voluntary waiting period.",
+        "CHECK_TOO_EARLY": "Early check: results this soon after service are often wrong.",
+        "GESTATION_SHORT": "The pregnancy is shorter than usual.",
+        "CALVING_INTERVAL_SHORT": "The calving interval is shorter than usual.",
+        "CALVING_NO_PREGNANCY": "No pregnancy is on record for this calving.",
+        "DRY_OFF_NOT_MILKING": "She is not recorded as milking.",
+        "POSSIBLE_DUPLICATE": "The same event is already recorded for this day.",
+        "WEIGHT_JUMP": "Weight changed a lot since the last record. Check the number.",
+        "BCS_JUMP": "Body condition changed a lot since the last record. Check the score.",
+        "HEAT_WHILE_PREGNANT": "She is recorded pregnant. Heat in pregnancy is uncommon.",
+        "BREEDING_WHILE_PREGNANT": "She is recorded pregnant. Service in pregnancy is unusual.",
+        "DRY_OFF_NO_LACTATION": "No milking period is on record, so there is nothing to dry off.",
+        "DRY_OFF_ALREADY_DRY": "She is already recorded as dry.",
+        "PREG_CHECK_NO_BREEDING": "No service is on record for this check. It can still be saved.",
+        "PREG_CHECK_AFTER_BREEDING": "This check follows a recent service.",
+        "ALREADY_IN_FATTENING": "She is already in fattening.",
+        "OPEN_CASE_EXISTS": "An open case already exists. This treatment will be added to it.",
+        "TREATMENT_NEW_CASE": "There is no open case, so a new case will be opened for this treatment.",
+        "EVENT_WRONG_SEX": "This event does not apply to this animal's sex.",
+        "EVENT_DATE_IN_FUTURE": "This date is in the future.",
+        "EVENT_DATE_BEFORE_BIRTH": "This date is before the animal was born.",
+        "EVENT_AFTER_EXIT": "The animal had already left the herd on this date.",
+        "EVENT_PRECONDITION_FAILED": "This cannot be recorded in the animal's current state.",
+        "UNUSUAL_PATTERN": "This is unusual for this animal.",
+        "GENERIC_WARN": "Please check this entry before saving.",
+        "GENERIC_BLOCK": "This cannot be saved as entered."
+      },
+      "unsupportedTitle": "Not available here yet",
+      "unsupportedBody": "This event cannot be recorded from the animal page yet. Nothing was saved.",
+      "openHealthcare": "Open Healthcare"
+    },
+    "fields": {
+      "detectionMethod": "How was it noticed",
+      "standingHeat": "Standing heat",
+      "mucusDischarge": "Mucus discharge",
+      "mountingBehavior": "Mounting",
+      "restlessness": "Restless",
+      "notes": "Notes",
+      "method": "Method",
+      "sireNameOrCode": "Bull / semen",
+      "inseminator": "Inseminator",
+      "result": "Result",
+      "monthsPregnant": "Months pregnant",
+      "expectedCalvingDate": "Expected calving",
+      "calvingEase": "How did it go",
+      "calfCount": "Calves born",
+      "calfGender": "Calf sex",
+      "calfTagNumber": "Calf tag",
+      "birthWeight": "Birth weight",
+      "gestationDay": "Days pregnant",
+      "suspectedCause": "Suspected cause",
+      "reason": "Reason",
+      "productName": "Medicine / product",
+      "condition": "Condition",
+      "doseUnit": "Unit",
+      "route": "Route",
+      "batchCode": "Batch",
+      "weightKg": "Weight",
+      "score": "Score (1–5)",
+      "shedId": "Shed",
+      "groupId": "Group",
+      "breedingMethod": "Method",
+      "diagnosisMethod": "How was it checked",
+      "semenSource": "Semen from",
+      "serviceCost": "Service cost",
+      "paymentMethod": "Paid by",
+      "text": "Note",
+      "weaningWeightKg": "Weaning weight",
+      "vetCost": "Vet cost",
+      "nextDoseDays": "Next dose in (days)",
+      "severity": "How serious",
+      "medicineName": "Medicine / product",
+      "doseAmount": "Dose",
+      "symptoms": "Symptoms"
+    },
+    "options": {
+      "detectionMethod": {
+        "VISUAL": "Seen",
+        "MANUAL": "Manual check",
+        "COLLAR_SENSOR": "Collar",
+        "PEDOMETER": "Pedometer"
+      },
+      "method": {
+        "AI": "AI",
+        "NATURAL": "Natural",
+        "EMBRYO_TRANSFER": "Embryo transfer",
+        "DECLARED": "Farmer says so",
+        "PALPATION": "Palpation",
+        "ULTRASOUND": "Ultrasound",
+        "LAB": "Lab"
+      },
+      "result": {
+        "PREGNANT": "Pregnant",
+        "NOT_PREGNANT": "Not pregnant",
+        "SUSPECTED": "Not sure"
+      },
+      "calvingEase": {
+        "NORMAL": "Normal",
+        "ASSISTED": "Assisted",
+        "DIFFICULT": "Difficult",
+        "CESAREAN": "Cesarean"
+      },
+      "calfGender": {
+        "FEMALE": "Female",
+        "MALE": "Male"
+      },
+      "reason": {
+        "SCHEDULED": "Scheduled",
+        "LOW_PRODUCTION": "Low production",
+        "HEALTH": "Health",
+        "PREGNANCY": "Pregnancy",
+        "MANAGEMENT_DECISION": "My decision"
+      },
+      "breedingMethod": {
+        "AI": "AI",
+        "NATURAL": "Natural",
+        "EMBRYO_TRANSFER": "Embryo transfer"
+      },
+      "diagnosisMethod": {
+        "PALPATION": "Palpation",
+        "ULTRASOUND": "Ultrasound",
+        "LAB": "Lab"
+      },
+      "semenSource": {
+        "TECHNICIAN_SUPPLIED": "Technician",
+        "EXTERNAL": "Outside / other"
+      },
+      "paymentMethod": {
+        "CASH": "Cash",
+        "BANK_TRANSFER": "Bank",
+        "MFS": "Mobile money"
+      },
+      "severity": {
+        "LOW": "Low",
+        "MEDIUM": "Medium",
+        "HIGH": "High",
+        "CRITICAL": "Critical"
+      }
+    }
   }
 }

@@ -8853,5 +8853,475 @@
       "title": "এই রিপোর্টে নগদ হিসাব নেই",
       "body": "এই রিপোর্ট নগদ ও খরচের হিসাব ছাড়া তৈরি হয়েছে, তাই এখানে সেগুলো দেখানো হয়নি।"
     }
+  },
+  "events": {
+    "chip": {
+      "female": "স্ত্রী",
+      "male": "পুরুষ",
+      "calves": "বাছুর",
+      "weaned": "দুধ ছাড়ানো",
+      "heifers": "বকনা",
+      "cows": "গাভী",
+      "pregnant": "গর্ভবতী",
+      "open": "খালি",
+      "milking": "দুধেল",
+      "dry": "শুকনা",
+      "fresh": "নতুন প্রসূতি",
+      "fattening": "মোটাতাজা"
+    },
+    "group": {
+      "reproduction": "প্রজনন",
+      "health": "স্বাস্থ্য",
+      "milk": "দুধ / দুগ্ধকাল",
+      "growth": "বৃদ্ধি",
+      "movement": "স্থানান্তর / অবস্থা",
+      "custom": "অন্যান্য"
+    },
+    "catalogue": {
+      "HEAT": {
+        "label": "গরম (হিট)",
+        "hint": "গরমের লক্ষণ",
+        "synonyms": "heat, estrus, in heat, গরম, হিট, গরমে এসেছে"
+      },
+      "SERVICE": {
+        "label": "কৃত্রিম প্রজনন / সার্ভিস",
+        "hint": "বীজ দেওয়া বা প্রাকৃতিক প্রজনন",
+        "synonyms": "ai, insemination, breeding, service, কৃত্রিম প্রজনন, বীজ দেওয়া, প্রজনন"
+      },
+      "PREG_CHECK": {
+        "label": "গর্ভ পরীক্ষা",
+        "hint": "গর্ভধারণ পরীক্ষার ফলাফল",
+        "synonyms": "pregnancy, preg check, diagnosis, গর্ভ পরীক্ষা, গর্ভবতী"
+      },
+      "CALVING": {
+        "label": "বাচ্চা প্রসব",
+        "hint": "প্রসব ও জন্ম নেওয়া বাছুর",
+        "synonyms": "calving, birth, delivery, বাচ্চা প্রসব, প্রসব, বাছুর জন্ম"
+      },
+      "ABORTION": {
+        "label": "গর্ভপাত",
+        "hint": "গর্ভ নষ্ট হয়েছে",
+        "synonyms": "abortion, miscarriage, গর্ভপাত"
+      },
+      "DRY_OFF": {
+        "label": "দুধ শুকানো",
+        "hint": "প্রসবের আগে দুধ দোহানো বন্ধ",
+        "synonyms": "dry, dry off, শুকানো, দুধ বন্ধ"
+      },
+      "TREATMENT": {
+        "label": "চিকিৎসা",
+        "hint": "অসুস্থ পশুকে ওষুধ দেওয়া",
+        "synonyms": "treatment, medicine, injection, drug, antibiotic, চিকিৎসা, ওষুধ, ইনজেকশন"
+      },
+      "VACCINATION": {
+        "label": "টিকা",
+        "hint": "টিকা দেওয়া হয়েছে",
+        "synonyms": "vaccine, vaccination, fmd, টিকা, ভ্যাকসিন"
+      },
+      "DEWORMING": {
+        "label": "কৃমিনাশক",
+        "hint": "কৃমির ওষুধ দেওয়া",
+        "synonyms": "deworm, worm, কৃমি, কৃমিনাশক"
+      },
+      "WEIGHT": {
+        "label": "ওজন",
+        "hint": "শরীরের ওজন",
+        "synonyms": "weight, weigh, kg, ওজন"
+      },
+      "BCS": {
+        "label": "শরীরের অবস্থা (BCS)",
+        "hint": "বডি কন্ডিশন স্কোর",
+        "synonyms": "bcs, body condition, শরীরের অবস্থা"
+      },
+      "WEAN": {
+        "label": "দুধ ছাড়ানো",
+        "hint": "বাছুর দুধ ছেড়েছে",
+        "synonyms": "wean, weaning, দুধ ছাড়ানো"
+      },
+      "CASTRATE": {
+        "label": "খাসি করা",
+        "hint": "ষাঁড় থেকে খাসি",
+        "synonyms": "castrate, steer, খাসি, খাসি করা"
+      },
+      "ENTER_FATTENING": {
+        "label": "মোটাতাজা শুরু",
+        "hint": "মোটাতাজা করণে নেওয়া",
+        "synonyms": "fattening, fatten, মোটাতাজা"
+      },
+      "LEAVE_FATTENING": {
+        "label": "মোটাতাজা শেষ",
+        "hint": "মোটাতাজা থেকে বের করা",
+        "synonyms": "fattening, মোটাতাজা শেষ"
+      },
+      "MOVE": {
+        "label": "শেড / গ্রুপ পরিবর্তন",
+        "hint": "শেড বা গ্রুপ বদল",
+        "synonyms": "move, shed, group, স্থানান্তর, শেড"
+      },
+      "SELL": {
+        "label": "বিক্রি",
+        "hint": "খামার থেকে বিক্রি",
+        "synonyms": "sell, sale, sold, বিক্রি"
+      },
+      "DEATH": {
+        "label": "মৃত্যু",
+        "hint": "মারা গেছে",
+        "synonyms": "death, died, মৃত্যু, মারা গেছে"
+      },
+      "CULL": {
+        "label": "বাদ দেওয়া",
+        "hint": "খামার থেকে বাদ",
+        "synonyms": "cull, culled, বাদ"
+      },
+      "NOTE": {
+        "label": "নোট",
+        "hint": "মুক্ত নোট",
+        "synonyms": "note, remark, নোট, মন্তব্য"
+      },
+      "REMINDER": {
+        "label": "রিমাইন্ডার",
+        "hint": "নিজের রিমাইন্ডার",
+        "synonyms": "reminder, task, স্মরণ, রিমাইন্ডার"
+      },
+      "ILLNESS": {
+        "label": "অসুস্থতার রিপোর্ট",
+        "hint": "অসুস্থতা জানিয়ে কেস খুলুন",
+        "synonyms": "sick, illness, disease, report, case, mastitis, fever, অসুস্থ, রোগ, অসুস্থতার রিপোর্ট"
+      }
+    },
+    "reason": {
+      "notFor": "{chip, select, calves {বাছুরের জন্য নয়} heifers {বকনার জন্য নয়} cows {গাভীর জন্য নয়} pregnant {গর্ভবতীর জন্য নয়} open {খালি গরুর জন্য নয়} milking {দুধেল গরুর জন্য নয়} dry {শুকনা গরুর জন্য নয়} fattening {মোটাতাজা গরুর জন্য নয়} other {এই পশুর জন্য নয়}}",
+      "onlyFor": "কেবল {chips} পশুর জন্য",
+      "alreadyCastrated": "আগেই খাসি করা হয়েছে",
+      "notFattening": "মোটাতাজায় নেই",
+      "alreadyFattening": "আগেই মোটাতাজায় আছে",
+      "leftHerd": "এই পশু খামার ছেড়ে গেছে"
+    },
+    "warn": {
+      "unusualFor": "অস্বাভাবিক: {chips}"
+    },
+    "picker": {
+      "title": "{name}-এর ঘটনা লিখুন",
+      "titleGeneric": "ঘটনা লিখুন",
+      "searchPlaceholder": "ঘটনা খুঁজুন (গরম, কৃত্রিম প্রজনন, টিকা, ওজন…)",
+      "animal": "পশু",
+      "suggested": "এর জন্য প্রস্তাবিত",
+      "suggestedGeneric": "প্রস্তাবিত",
+      "recent": "সাম্প্রতিক",
+      "showAll": "সব ঘটনা দেখান",
+      "hideUnavailable": "অনুপলব্ধ লুকান",
+      "noResults": "কোনো ঘটনা মেলেনি।",
+      "keys": "↑↓ সরান · ↵ বেছে নিন · Esc বন্ধ",
+      "unavailable": "পাওয়া যাচ্ছে না",
+      "placeholderTitle": "{event} · {name}",
+      "placeholderBody": "এই ঘটনার ফর্ম RFE-158-এ আসছে। কিছু সংরক্ষণ হয়নি।",
+      "back": "ঘটনার তালিকায় ফিরুন",
+      "dueHint": "নির্ধারিত {when}"
+    },
+    "workspace": {
+      "title": "পশুর ওয়ার্কস্পেস",
+      "recordEvent": "ঘটনা লিখুন",
+      "edit": "সম্পাদনা",
+      "more": "আরও কাজ",
+      "close": "বন্ধ করুন",
+      "back": "ফিরে যান",
+      "sections": {
+        "timeline": "টাইমলাইন",
+        "feeding": "খাদ্য",
+        "family": "বংশ",
+        "money": "অর্থ"
+      },
+      "sectionsLabel": "ওয়ার্কস্পেসের অংশ",
+      "nextUp": "এরপর করণীয়",
+      "nothingDue": "কিছু বাকি নেই",
+      "timeline": "টাইমলাইন",
+      "timelineEmpty": "এখনও কোনো ঘটনা নেই।",
+      "timelineFallback": "প্রজনন ও চিকিৎসার ইতিহাস দেখানো হচ্ছে। পূর্ণ টাইমলাইন RFE-155-এ আসছে।",
+      "leftHerd": "এই পশু খামার ছেড়ে গেছে। শুধু নোট যোগ করা যাবে।",
+      "moreChips": "+{count}",
+      "moreChipsLabel": "আরও {count}টি অবস্থা",
+      "milkHold": "দুধ আটক",
+      "dim": "দুগ্ধকাল {days} দিন",
+      "pregnantDay": "গর্ভবতী · {days} দিন",
+      "pregnant": "গর্ভবতী",
+      "ageValue": "{years} বছর {months} মাস",
+      "error": "এই পশুর তথ্য আনা যায়নি।"
+    },
+    "cards": {
+      "view": "দেখুন",
+      "error": "লোড করা যায়নি।",
+      "retry": "আবার চেষ্টা",
+      "reproduction": {
+        "title": "প্রজনন",
+        "pregnantDay": "গর্ভবতী · {days} দিন",
+        "open": "খালি",
+        "status": "অবস্থা: {status}",
+        "due": "প্রসবের সম্ভাব্য তারিখ {date}",
+        "lastService": "সর্বশেষ সার্ভিস {date}",
+        "calvings": "প্রসব {count}টি",
+        "none": "এখনও প্রজননের তথ্য নেই"
+      },
+      "milk": {
+        "title": "দুধ",
+        "perDay": "দিনে {value} লিটার (৭ দিনের গড়)",
+        "dim": "দুগ্ধকাল {days} দিন",
+        "hold": "দুধ আটকে রাখা",
+        "noData": "এখনও দুধের তথ্য নেই"
+      },
+      "health": {
+        "title": "স্বাস্থ্য",
+        "noCase": "কোনো চলমান কেস নেই",
+        "openCases": "{count}টি চলমান কেস",
+        "inTreatment": "চিকিৎসাধীন",
+        "milkWithdrawal": "{date} পর্যন্ত দুধ বিক্রি নিষেধ",
+        "meatWithdrawal": "{date} পর্যন্ত মাংস বিক্রি নিষেধ",
+        "withdrawalAlert": "ওষুধের নিরাপদ সময় চলছে। এই পশুর দুধ বা মাংস বিক্রি করবেন না।"
+      },
+      "growth": {
+        "title": "বৃদ্ধি",
+        "weight": "{kg} কেজি",
+        "bcs": "BCS {score}",
+        "noData": "এখনও ওজন লেখা হয়নি"
+      }
+    },
+    "timeline": {
+      "title": "টাইমলাইন",
+      "filterLabel": "ঘটনা ছাঁকুন",
+      "filter": {
+        "all": "সব",
+        "REPRODUCTION": "প্রজনন",
+        "HEALTH": "স্বাস্থ্য",
+        "GROWTH": "বৃদ্ধি",
+        "MOVEMENT": "স্থানান্তর",
+        "OTHER": "নোট"
+      },
+      "showVoided": "বাতিল ঘটনাও দেখান",
+      "today": "আজ",
+      "yesterday": "গতকাল",
+      "history": "পুরনো তথ্য",
+      "voided": "বাতিল",
+      "warning": "দেখুন",
+      "warningHint": "সতর্কতাসহ সংরক্ষিত",
+      "linked": "আগের একটি ঘটনার ধারাবাহিকতা",
+      "loadOlder": "আরও পুরনো দেখুন",
+      "loadingOlder": "লোড হচ্ছে…",
+      "olderError": "পুরনো ঘটনা আনা যায়নি।",
+      "retry": "আবার চেষ্টা",
+      "empty": "এখনও কোনো ঘটনা নেই।",
+      "emptyGroup": "এই ধরনের কোনো ঘটনা নেই।",
+      "error": "টাইমলাইন আনা যায়নি।",
+      "fallbackNote": "প্রতিটি রেকর্ড থেকে সাম্প্রতিক ইতিহাস দেখানো হচ্ছে। কিছু ঘটনা বাদ থাকতে পারে।",
+      "summary": {
+        "weight": "{kg} কেজি",
+        "bcs": "BCS {score}"
+      },
+      "type": {
+        "HEAT": "গরম (হিট)",
+        "BREEDING": "কৃত্রিম প্রজনন / সার্ভিস",
+        "PREG_CHECK": "গর্ভ পরীক্ষা",
+        "CALVING": "বাচ্চা প্রসব",
+        "ABORTION": "গর্ভপাত",
+        "DRY_OFF": "দুধ শুকানো",
+        "ILLNESS": "অসুস্থতা",
+        "TREATMENT": "চিকিৎসা",
+        "VACCINATION": "টিকা",
+        "DEWORMING": "কৃমিনাশক",
+        "WEIGHT": "ওজন",
+        "BCS": "শরীরের অবস্থা",
+        "WEANING": "দুধ ছাড়ানো",
+        "CASTRATION": "খাসি করা",
+        "ENTER_FATTENING": "মোটাতাজা শুরু",
+        "LEAVE_FATTENING": "মোটাতাজা শেষ",
+        "MOVE": "স্থানান্তর",
+        "SOLD": "বিক্রি",
+        "DIED": "মৃত্যু",
+        "CULLED": "বাদ দেওয়া",
+        "NOTE": "নোট",
+        "HOOF_TRIM": "খুর ছাঁটা",
+        "DEHORN": "শিং কাটা",
+        "CUSTOM": "ঘটনা"
+      }
+    },
+    "form": {
+      "when": "কখন",
+      "today": "আজ",
+      "yesterday": "গতকাল",
+      "pickDate": "তারিখ বাছুন",
+      "time": "সময়",
+      "pastEntryTag": "পুরনো তথ্য",
+      "pastRecord": "এটি পুরনো রেকর্ড",
+      "moreDetails": "আরও তথ্য",
+      "lessDetails": "কম তথ্য",
+      "whatNext": "এরপর কী হবে",
+      "alreadyPast": "সময় পেরিয়ে গেছে",
+      "saveAnyway": "তবুও সংরক্ষণ করা যাবে।",
+      "save": "সংরক্ষণ",
+      "saving": "সংরক্ষণ হচ্ছে…",
+      "saveAnother": "সংরক্ষণ করে আরেকটি লিখুন",
+      "saved": "{event} সংরক্ষিত · {count, plural, =0 {কোনো রিমাইন্ডার নেই} other {#টি রিমাইন্ডার}}",
+      "undo": "বাতিল করুন",
+      "undone": "ঘটনা বাতিল হয়েছে",
+      "back": "ফিরে যান",
+      "unavailable": "এই ঘটনা এখনও লেখা যাচ্ছে না: সার্ভারে ইভেন্ট সেবা চালু নেই।",
+      "forbidden": "আপনি এটি লিখতে পারবেন না। ম্যানেজারকে বলুন।",
+      "genericError": "কিছু ভুল হয়েছে। আপনার লেখা রাখা আছে; আবার চেষ্টা করুন।",
+      "errorRequired": "আবশ্যক",
+      "errorRange": "সংখ্যাটি দেখুন",
+      "choose": "বাছুন…",
+      "requireOneOf": "একটি শেড বা একটি গ্রুপ বাছুন।",
+      "followUp": {
+        "pregCheck": "গর্ভ পরীক্ষার রিমাইন্ডার",
+        "returnHeatWatch": "আবার গরমে আসে কি না লক্ষ রাখুন",
+        "dryOff": "দুধ শুকানোর রিমাইন্ডার",
+        "calvingDue": "প্রসবের সময়",
+        "freshCheck": "নতুন প্রসূতি গাভীর পরীক্ষা",
+        "generic": "ফলো-আপ রিমাইন্ডার",
+        "nextDose": "পরবর্তী ডোজের রিমাইন্ডার"
+      },
+      "finding": {
+        "UNUSUAL_FOR_STATE": "এই পশুর জন্য অস্বাভাবিক: {chips}।",
+        "DATE_IN_FUTURE": "তারিখটি ভবিষ্যতের।",
+        "DATE_BEFORE_BIRTH": "তারিখটি পশুর জন্মের আগের।",
+        "HEAT_ON_PREGNANT": "গাভী গর্ভবতী লেখা আছে। গর্ভাবস্থায় গরম হওয়া কম দেখা যায়।",
+        "BREEDING_ON_ACTIVE_PREGNANCY": "গাভী গর্ভবতী লেখা আছে। গর্ভাবস্থায় সার্ভিস অস্বাভাবিক।",
+        "BREEDING_IN_VWP": "এটি স্বেচ্ছা অপেক্ষার সময়ের ভেতরে।",
+        "CHECK_TOO_EARLY": "আগাম পরীক্ষা: সার্ভিসের এত তাড়াতাড়ি ফলাফল প্রায়ই ভুল হয়।",
+        "GESTATION_SHORT": "গর্ভকাল স্বাভাবিকের চেয়ে কম।",
+        "CALVING_INTERVAL_SHORT": "প্রসবের ব্যবধান স্বাভাবিকের চেয়ে কম।",
+        "CALVING_NO_PREGNANCY": "এই প্রসবের জন্য কোনো গর্ভধারণ লেখা নেই।",
+        "DRY_OFF_NOT_MILKING": "গাভী দুধেল হিসেবে লেখা নেই।",
+        "POSSIBLE_DUPLICATE": "একই দিনে একই ঘটনা আগেই লেখা আছে।",
+        "WEIGHT_JUMP": "আগের রেকর্ডের পর ওজন অনেক বদলেছে। সংখ্যাটি দেখুন।",
+        "BCS_JUMP": "আগের রেকর্ডের পর শরীরের অবস্থা অনেক বদলেছে। স্কোরটি দেখুন।",
+        "HEAT_WHILE_PREGNANT": "গাভী গর্ভবতী লেখা আছে। গর্ভাবস্থায় গরম হওয়া কম দেখা যায়।",
+        "BREEDING_WHILE_PREGNANT": "গাভী গর্ভবতী লেখা আছে। গর্ভাবস্থায় সার্ভিস অস্বাভাবিক।",
+        "DRY_OFF_NO_LACTATION": "কোনো দুধ দেওয়ার সময় লেখা নেই, তাই শুকানোর কিছু নেই।",
+        "DRY_OFF_ALREADY_DRY": "গাভী আগেই শুকনা লেখা আছে।",
+        "PREG_CHECK_NO_BREEDING": "এই পরীক্ষার জন্য কোনো সার্ভিস লেখা নেই। তবুও সংরক্ষণ করা যাবে।",
+        "PREG_CHECK_AFTER_BREEDING": "এই পরীক্ষা সাম্প্রতিক সার্ভিসের পরের।",
+        "ALREADY_IN_FATTENING": "পশুটি আগেই মোটাতাজায় আছে।",
+        "OPEN_CASE_EXISTS": "একটি চলমান কেস আছে। এই চিকিৎসা সেটির সঙ্গে যুক্ত হবে।",
+        "TREATMENT_NEW_CASE": "কোনো চলমান কেস নেই, তাই এই চিকিৎসার জন্য নতুন কেস খোলা হবে।",
+        "EVENT_WRONG_SEX": "এই ঘটনা এই পশুর লিঙ্গের জন্য প্রযোজ্য নয়।",
+        "EVENT_DATE_IN_FUTURE": "তারিখটি ভবিষ্যতের।",
+        "EVENT_DATE_BEFORE_BIRTH": "তারিখটি পশুর জন্মের আগের।",
+        "EVENT_AFTER_EXIT": "এই তারিখে পশুটি আগেই খামার ছেড়ে গেছে।",
+        "EVENT_PRECONDITION_FAILED": "পশুর বর্তমান অবস্থায় এটি লেখা যাবে না।",
+        "UNUSUAL_PATTERN": "এই পশুর জন্য এটি অস্বাভাবিক।",
+        "GENERIC_WARN": "সংরক্ষণের আগে এই তথ্য একবার দেখে নিন।",
+        "GENERIC_BLOCK": "এভাবে সংরক্ষণ করা যাবে না।"
+      },
+      "unsupportedTitle": "এখানে এখনও পাওয়া যাচ্ছে না",
+      "unsupportedBody": "এই ঘটনা এখনও পশুর পাতা থেকে লেখা যাচ্ছে না। কিছু সংরক্ষণ হয়নি।",
+      "openHealthcare": "স্বাস্থ্যসেবা খুলুন"
+    },
+    "fields": {
+      "detectionMethod": "কীভাবে বোঝা গেল",
+      "standingHeat": "স্থির দাঁড়ানো",
+      "mucusDischarge": "শ্লেষ্মা পড়া",
+      "mountingBehavior": "অন্যের ওপর চড়া",
+      "restlessness": "অস্থির",
+      "notes": "নোট",
+      "method": "পদ্ধতি",
+      "sireNameOrCode": "ষাঁড় / বীজ",
+      "inseminator": "প্রজননকারী",
+      "result": "ফলাফল",
+      "monthsPregnant": "কত মাস গর্ভবতী",
+      "expectedCalvingDate": "প্রসবের সম্ভাব্য তারিখ",
+      "calvingEase": "প্রসব কেমন হলো",
+      "calfCount": "বাছুর হয়েছে",
+      "calfGender": "বাছুরের লিঙ্গ",
+      "calfTagNumber": "বাছুরের ট্যাগ",
+      "birthWeight": "জন্ম ওজন",
+      "gestationDay": "কত দিনের গর্ভ",
+      "suspectedCause": "সন্দেহজনক কারণ",
+      "reason": "কারণ",
+      "productName": "ওষুধ / পণ্য",
+      "condition": "রোগ / অবস্থা",
+      "doseUnit": "একক",
+      "route": "দেওয়ার পথ",
+      "batchCode": "ব্যাচ",
+      "weightKg": "ওজন",
+      "score": "স্কোর (১–৫)",
+      "shedId": "শেড",
+      "groupId": "গ্রুপ",
+      "breedingMethod": "পদ্ধতি",
+      "diagnosisMethod": "কীভাবে পরীক্ষা হলো",
+      "semenSource": "বীজ এসেছে",
+      "serviceCost": "সার্ভিসের খরচ",
+      "paymentMethod": "কীভাবে দেওয়া হলো",
+      "text": "নোট",
+      "weaningWeightKg": "দুধ ছাড়ানোর ওজন",
+      "vetCost": "ডাক্তারের খরচ",
+      "nextDoseDays": "পরবর্তী ডোজ (কত দিন পর)",
+      "severity": "কতটা গুরুতর",
+      "medicineName": "ওষুধ / পণ্য",
+      "doseAmount": "মাত্রা",
+      "symptoms": "লক্ষণ"
+    },
+    "options": {
+      "detectionMethod": {
+        "VISUAL": "চোখে দেখা",
+        "MANUAL": "হাতে পরীক্ষা",
+        "COLLAR_SENSOR": "কলার সেন্সর",
+        "PEDOMETER": "পেডোমিটার"
+      },
+      "method": {
+        "AI": "কৃত্রিম প্রজনন",
+        "NATURAL": "প্রাকৃতিক",
+        "EMBRYO_TRANSFER": "ভ্রূণ স্থানান্তর",
+        "DECLARED": "খামারির কথা",
+        "PALPATION": "হাতে পরীক্ষা",
+        "ULTRASOUND": "আলট্রাসাউন্ড",
+        "LAB": "ল্যাব"
+      },
+      "result": {
+        "PREGNANT": "গর্ভবতী",
+        "NOT_PREGNANT": "গর্ভবতী নয়",
+        "SUSPECTED": "নিশ্চিত নয়"
+      },
+      "calvingEase": {
+        "NORMAL": "স্বাভাবিক",
+        "ASSISTED": "সাহায্য লেগেছে",
+        "DIFFICULT": "কঠিন",
+        "CESAREAN": "সিজার"
+      },
+      "calfGender": {
+        "FEMALE": "স্ত্রী",
+        "MALE": "পুরুষ"
+      },
+      "reason": {
+        "SCHEDULED": "নির্ধারিত",
+        "LOW_PRODUCTION": "কম দুধ",
+        "HEALTH": "স্বাস্থ্য",
+        "PREGNANCY": "গর্ভাবস্থা",
+        "MANAGEMENT_DECISION": "আমার সিদ্ধান্ত"
+      },
+      "breedingMethod": {
+        "AI": "কৃত্রিম প্রজনন",
+        "NATURAL": "প্রাকৃতিক",
+        "EMBRYO_TRANSFER": "ভ্রূণ স্থানান্তর"
+      },
+      "diagnosisMethod": {
+        "PALPATION": "হাতে পরীক্ষা",
+        "ULTRASOUND": "আলট্রাসাউন্ড",
+        "LAB": "ল্যাব"
+      },
+      "semenSource": {
+        "TECHNICIAN_SUPPLIED": "টেকনিশিয়ান",
+        "EXTERNAL": "বাইরে / অন্য"
+      },
+      "paymentMethod": {
+        "CASH": "নগদ",
+        "BANK_TRANSFER": "ব্যাংক",
+        "MFS": "মোবাইল ব্যাংকিং"
+      },
+      "severity": {
+        "LOW": "কম",
+        "MEDIUM": "মাঝারি",
+        "HIGH": "বেশি",
+        "CRITICAL": "জটিল"
+      }
+    }
   }
 }
