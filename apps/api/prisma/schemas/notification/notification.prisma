@@ -24,6 +24,10 @@ model Notification {
   /// above are then served verbatim.
   params Json?
 
+  /// RAKHAL-485 follow-up: structured payload for client deep links (cattleId, taskId, ruleKey, ...).
+  /// Not used for copy; returned by the bell feed as `data`.
+  data Json?
+
   /// Channels actually delivered (subset of the resolved preference).
   channelsSent String[] @default([])
 

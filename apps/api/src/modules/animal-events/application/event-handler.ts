@@ -21,9 +21,24 @@ export interface HandlerResult {
   headerData?: Record<string, unknown>;
 }
 
+export interface VoidInput {
+  farmId: string;
+  userId: string;
+  cattleId: string;
+  /** The AnimalEvent header id (also the detail row's `animalEventId`). */
+  animalEventId: string;
+  reason: string;
+}
+
 /** One per domain; delegates to the EXISTING domain services (RAKHAL-481). */
 export interface EventHandler {
   handle(type: AnimalEventTypeKey, input: HandlerInput): Promise<HandlerResult>;
+  /**
+   * RAKHAL-488: reverse the detail row's side effects (finance, stock, linked
+   * records) with the domain's own void. Returns false when the domain has no
+   * void for this type (the header is still voided).
+   */
+  voidEvent?(type: AnimalEventTypeKey, input: VoidInput): Promise<boolean>;
   /** Extra WARN finding codes to add before saving (dry run and real run). */
   findingsFor?(
     type: AnimalEventTypeKey,
@@ -38,6 +53,19 @@ export interface EventHandler {
 @Injectable()
 export class EventHandlerRegistry {
   private readonly handlers = new Map<string, EventHandler>();
+
+  private readonly recompute: Array<
+    (farmId: string, cattleId: string) => Promise<void>
+  > = [];
+
+  /** RAKHAL-488: domains register how to re-derive their stored state after an edit or void. */
+  onChange(fn: (farmId: string, cattleId: string) => Promise<void>): void {
+    this.recompute.push(fn);
+  }
+
+  async recomputeAll(farmId: string, cattleId: string): Promise<void> {
+    for (const fn of this.recompute) await fn(farmId, cattleId);
+  }
 
   register(types: AnimalEventTypeKey[], handler: EventHandler): void {
     for (const type of types) {

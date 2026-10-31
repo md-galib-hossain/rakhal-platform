@@ -10,6 +10,7 @@ import { HealthModule } from '../health/health.module';
 import { TaskModule } from '../task/task.module';
 import { FeedModule } from '../feed/feed.module';
 import { FarmTimeModule } from 'src/common/farm-time/farm-time.module';
+import { AnimalEventsModule } from '../animal-events/animal-events.module';
 import { SchedulerService } from './application/services/scheduler.service';
 
 /**
@@ -31,6 +32,7 @@ import { SchedulerService } from './application/services/scheduler.service';
     TaskModule,
     FeedModule,
     FarmTimeModule,
+    AnimalEventsModule,
   ],
   providers: [SchedulerService],
   exports: [SchedulerService],

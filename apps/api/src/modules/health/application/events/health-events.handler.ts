@@ -6,6 +6,7 @@ import {
   EventHandlerRegistry,
   HandlerInput,
   HandlerResult,
+  VoidInput,
 } from 'src/modules/animal-events/application/event-handler';
 import { AnimalEventTypeKey } from 'src/modules/animal-events/domain/catalogue';
 import { CreateHealthCaseDto } from '../../presentation/dto/create-health-case.dto';
@@ -55,6 +56,18 @@ export class HealthEventHandler implements EventHandler, OnModuleInit {
       orderBy: { createdAt: 'desc' },
       select: { id: true },
     });
+  }
+
+  /** RAKHAL-488: vaccination / deworming / treatment use the existing treatment-log void (stock + vet cost reversed). */
+  async voidEvent(type: AnimalEventTypeKey, i: VoidInput): Promise<boolean> {
+    if (type === 'ILLNESS') return false;
+    const log = await this.prisma.treatmentLog.findFirst({
+      where: { animalEventId: i.animalEventId },
+      select: { id: true },
+    });
+    if (!log) return false;
+    await this.health.voidTreatmentLog(i.farmId, i.userId, log.id, i.reason);
+    return true;
   }
 
   /** Warnings the write API adds before saving (dry run + real run). */

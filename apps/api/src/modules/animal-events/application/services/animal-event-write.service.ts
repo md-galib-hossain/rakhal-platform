@@ -36,6 +36,8 @@ const GENERIC_TYPES = new Set([
 export interface RecordEventOptions {
   dryRun?: boolean;
   idempotencyKey?: string;
+  /** RAKHAL-489: the `AnimalEventBatch` a bulk save belongs to; stamped on the header. */
+  batchId?: string;
 }
 
 /**
@@ -185,6 +187,7 @@ export class AnimalEventWriteService {
           payload,
           warnings,
           customTypeId,
+          batchId: opts.batchId,
         };
         const { eventId, detail } = await this.save(handler, dto, c, ruleEvent);
         const event = await this.prisma.animalEvent.findUniqueOrThrow({
@@ -319,6 +322,7 @@ export class AnimalEventWriteService {
       provenance: c.provenance,
       notes: dto.notes ?? null,
       sourceEventId: dto.sourceEventId ?? null,
+      ...(c.batchId ? { batchId: c.batchId } : {}),
       recordedById: c.userId,
       findings: c.warnings.length
         ? (c.warnings as unknown as Prisma.InputJsonValue)
@@ -374,4 +378,5 @@ interface Common {
   payload: Record<string, unknown>;
   warnings: EventFinding[];
   customTypeId?: string;
+  batchId?: string;
 }

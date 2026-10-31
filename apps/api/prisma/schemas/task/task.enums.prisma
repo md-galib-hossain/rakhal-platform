@@ -6,6 +6,8 @@ enum TaskCategory {
   MILKING
   CALF_CARE
   GENERAL
+  /// RAKHAL-487: a custom reminder (title, notes, repeat, recipients) delivered by the daily follow-up sweep.
+  REMINDER
 }
 
 enum TaskPriority {
@@ -34,6 +36,8 @@ enum TaskRecurrence {
   DAILY
   WEEKLY
   MONTHLY
+  /// RAKHAL-487: repeats every `Task.recurrenceIntervalDays` days.
+  EVERY_N_DAYS
 }
 
 /// Task Hub activity/history section (user request, no ticket #). CREATED is never stored as a row

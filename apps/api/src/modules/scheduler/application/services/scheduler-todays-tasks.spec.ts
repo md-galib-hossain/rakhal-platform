@@ -30,6 +30,7 @@ describe('SchedulerService.sweepTodaysTasksReady — farm-local day (RAKHAL-477)
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
       farmClock as never,
       logger as never,
     );

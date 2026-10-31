@@ -5,6 +5,7 @@ import {
   Headers,
   Inject,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -26,6 +27,8 @@ import { AnimalEventWriteService } from '../../application/services/animal-event
 import { EVENT_REGISTRY } from '../../application/services/animal-event-types.service';
 import { TimelineService } from '../../application/services/timeline.service';
 import { EligibilityService } from '../../application/services/eligibility.service';
+import { AnimalEventEditService } from '../../application/services/animal-event-edit.service';
+import { EditEventDto, VoidEventDto } from '../dto/edit-event.dto';
 import { RecordEventDto } from '../dto/record-event.dto';
 import {
   EligibleEventsDto,
@@ -47,6 +50,7 @@ export class CattleEventsController {
     private readonly eligibility: EligibilityService,
     private readonly writer: AnimalEventWriteService,
     private readonly permissions: PermissionService,
+    private readonly edits: AnimalEventEditService,
     @Inject(EVENT_REGISTRY) private readonly registry: EventRegistry,
   ) {}
 
@@ -79,6 +83,49 @@ export class CattleEventsController {
       dryRun: dryRun === 'true' || dryRun === '1',
       idempotencyKey,
     });
+  }
+
+  /**
+   * Edit the date or note of an event (RAKHAL-488). Author within 24 h, or a
+   * manager (`cattle.event.void`) any time.
+   */
+  @Patch(':eventId')
+  @RequirePermission('cattle.event')
+  editEvent(
+    @Req() req: Request & { auth: { user: { permissionsVersion: number } } },
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Param('eventId') eventId: string,
+    @Body() dto: EditEventDto,
+  ) {
+    return this.edits.edit(
+      farmId,
+      { userId, permissionsVersion: req.auth.user.permissionsVersion },
+      id,
+      eventId,
+      dto,
+    );
+  }
+
+  /** Void an event: reverses finance / stock where the domain can, voids the header, re-derives state. */
+  @Post(':eventId/void')
+  @RequirePermission('cattle.event')
+  voidEvent(
+    @Req() req: Request & { auth: { user: { permissionsVersion: number } } },
+    @CurrentFarmId() farmId: string,
+    @CurrentUserId() userId: string,
+    @Param('id') id: string,
+    @Param('eventId') eventId: string,
+    @Body() dto: VoidEventDto,
+  ) {
+    return this.edits.void(
+      farmId,
+      { userId, permissionsVersion: req.auth.user.permissionsVersion },
+      id,
+      eventId,
+      dto.reason,
+    );
   }
 
   /** Event types this animal can take now (`?date=` to check a past date). */

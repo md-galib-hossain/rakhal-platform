@@ -23,6 +23,7 @@ import { HealthService } from 'src/modules/health/application/services/health.se
 import { HealthReminderService } from 'src/modules/health/application/services/health-reminder.service';
 import { HealthCycleService } from 'src/modules/health/application/services/health-cycle.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
+import { FollowUpReminderService } from 'src/modules/animal-events/application/services/follow-up-reminder.service';
 import { FeedPlanFitSweepService } from 'src/modules/feed/application/services/feed-plan-fit-sweep.service';
 import { DEFAULT_SESSION_CONFIG } from 'src/modules/milk/domain/milk-anomaly';
 import { buildDailyYieldSeries } from 'src/modules/reproduction/domain/lactation-curve';
@@ -88,6 +89,7 @@ export class SchedulerService {
     private readonly feedFitSweep: FeedPlanFitSweepService,
     private readonly healthReminders: HealthReminderService,
     private readonly healthCycles: HealthCycleService,
+    private readonly followUpReminders: FollowUpReminderService,
     private readonly farmClock: FarmClockService,
     logger: LoggerService,
   ) {
@@ -98,13 +100,11 @@ export class SchedulerService {
   async runDailySweeps(): Promise<Record<string, number>> {
     const results: Record<string, number> = {};
     for (const [name, sweep] of [
-      ['calving_expected_3_days', () => this.sweepCalvingExpected()],
       ['payment_overdue', () => this.sweepPaymentOverdue()],
       ['task_overdue', () => this.sweepTasksOverdue()],
       ['medicine_expiring_30_days', () => this.sweepMedicineExpiring()],
-      ['cow_expected_in_heat', () => this.sweepHeatDue()],
-      ['pregnancy_check_due', () => this.sweepPregnancyCheckDue()],
-      ['dry_off_due_14_days', () => this.sweepDryOffDue()],
+      // RAKHAL-485: replaces the four bespoke calving / heat / pregnancy-check / dry-off sweeps.
+      ['follow_up_and_reminder_due', () => this.followUpReminders.sweepAll()],
       ['supplier_payment_due_soon', () => this.sweepSupplierPaymentDue()],
       ['survival_runway_warning', () => this.sweepSurvivalRunwayWarning()],
       ['semen_tank_low_ln2', () => this.sweepSemenTankLowLn2()],
@@ -138,43 +138,6 @@ export class SchedulerService {
   }
 
   // ---- sweeps -------------------------------------------------------------
-
-  /** Pregnancies due to calve within 3 days (PRD §20.2). Re-reminds daily. */
-  private async sweepCalvingExpected(): Promise<number> {
-    const now = new Date();
-    const horizon = new Date(now.getTime() + 3 * DAY_MS);
-    const pregnancies = await this.prisma.pregnancy.findMany({
-      where: {
-        status: 'ACTIVE',
-        expectedCalvingDate: { gte: now, lte: horizon },
-        cattle: { herdStatus: 'ACTIVE', deletedAt: null },
-      },
-      select: {
-        id: true,
-        expectedCalvingDate: true,
-        cattle: { select: { farmId: true, tagNumber: true, name: true } },
-      },
-    });
-
-    let emitted = 0;
-    for (const p of pregnancies) {
-      const label = p.cattle.name ?? p.cattle.tagNumber;
-      emitted += await this.emit({
-        farmId: p.cattle.farmId,
-        eventKey: 'calving_expected_3_days',
-        title: 'Calving Expected in 3 Days',
-        message: `${label} (${p.cattle.tagNumber}) is expected to calve on ${this.ymd(p.expectedCalvingDate!)}.`,
-        params: {
-          name: label,
-          tagNumber: p.cattle.tagNumber,
-          date: this.ymd(p.expectedCalvingDate!),
-        },
-        link: '/reproduction',
-        dedupeKey: `calving_expected_3_days:${p.id}:${this.ymd(now)}`,
-      });
-    }
-    return emitted;
-  }
 
   /**
    * Receivables past their due date (PRD §20.2). Re-reminds daily until
@@ -247,6 +210,9 @@ export class SchedulerService {
       where: {
         dueAt: { lt: now },
         status: { in: ['PENDING', 'IN_PROGRESS', 'BLOCKED'] },
+        // RAKHAL-485: follow-up rule tasks and custom reminders are nagged by the follow-up sweep.
+        ruleKey: null,
+        category: { not: 'REMINDER' },
       },
       select: { id: true, farmId: true, name: true, dueAt: true },
     });
@@ -290,126 +256,6 @@ export class SchedulerService {
         link: '/inventory/medicine',
         // No date in the key → one alert per batch (avoids a 30-day daily drip).
         dedupeKey: `medicine_expiring_30_days:${m.id}`,
-      });
-    }
-    return emitted;
-  }
-
-  /** Cows ~19 days past their last heat with no newer heat/breeding since (PRD §20.2). Once per heat. */
-  private async sweepHeatDue(): Promise<number> {
-    const now = new Date();
-    const windowStart = new Date(now.getTime() - 20 * DAY_MS);
-    const windowEnd = new Date(now.getTime() - 19 * DAY_MS);
-    const candidates = await this.prisma.heatEvent.findMany({
-      where: {
-        heatDateTime: { gte: windowStart, lt: windowEnd },
-        resolvedAt: null,
-        cattle: { herdStatus: 'ACTIVE', deletedAt: null },
-      },
-      select: {
-        id: true,
-        cattleId: true,
-        heatDateTime: true,
-        cattle: { select: { farmId: true, tagNumber: true, name: true } },
-      },
-    });
-
-    let emitted = 0;
-    for (const h of candidates) {
-      const label = h.cattle.name ?? h.cattle.tagNumber;
-      emitted += await this.emit({
-        farmId: h.cattle.farmId,
-        eventKey: 'cow_expected_in_heat',
-        title: 'Cow Expected in Heat',
-        message: `${label} (${h.cattle.tagNumber}) is expected back in heat (last heat ${this.ymd(h.heatDateTime)}).`,
-        params: {
-          name: label,
-          tagNumber: h.cattle.tagNumber,
-          date: this.ymd(h.heatDateTime),
-        },
-        link: '/reproduction',
-        dedupeKey: `cow_expected_in_heat:${h.id}`,
-      });
-    }
-    return emitted;
-  }
-
-  /** Breedings whose pregnancy-check date has arrived and are still pending (PRD §20.2). Once per breeding. */
-  private async sweepPregnancyCheckDue(): Promise<number> {
-    const now = new Date();
-    const events = await this.prisma.breedingEvent.findMany({
-      where: {
-        status: 'PENDING_CHECK',
-        expectedPregnancyCheckDate: { lte: now },
-        cattle: { herdStatus: 'ACTIVE', deletedAt: null },
-      },
-      select: {
-        id: true,
-        expectedPregnancyCheckDate: true,
-        cattle: { select: { farmId: true, tagNumber: true, name: true } },
-      },
-    });
-
-    let emitted = 0;
-    for (const e of events) {
-      const label = e.cattle.name ?? e.cattle.tagNumber;
-      emitted += await this.emit({
-        farmId: e.cattle.farmId,
-        eventKey: 'pregnancy_check_due',
-        title: 'Pregnancy Check Due',
-        message: `${label} (${e.cattle.tagNumber}) is due for a pregnancy check (expected ${this.ymd(e.expectedPregnancyCheckDate!)}).`,
-        params: {
-          name: label,
-          tagNumber: e.cattle.tagNumber,
-          date: this.ymd(e.expectedPregnancyCheckDate!),
-        },
-        link: '/reproduction',
-        dedupeKey: `pregnancy_check_due:${e.id}`,
-      });
-    }
-    return emitted;
-  }
-
-  /** Active lactations within 14 days of the farm's dry-off target DIM (PRD §20.2). Once per lactation. */
-  private async sweepDryOffDue(): Promise<number> {
-    const now = new Date();
-    const lactations = await this.prisma.lactation.findMany({
-      where: {
-        status: 'ACTIVE',
-        cattle: { herdStatus: 'ACTIVE', deletedAt: null },
-      },
-      select: {
-        id: true,
-        startDate: true,
-        cattle: { select: { farmId: true, tagNumber: true, name: true } },
-      },
-    });
-
-    const targetDaysCache = new Map<string, number>();
-    let emitted = 0;
-    for (const l of lactations) {
-      const farmId = l.cattle.farmId;
-      let targetDays = targetDaysCache.get(farmId);
-      if (targetDays === undefined) {
-        targetDays = await this.farmSettings.reproDryPeriodTargetDays(farmId);
-        targetDaysCache.set(farmId, targetDays);
-      }
-      const dim = Math.floor((now.getTime() - l.startDate.getTime()) / DAY_MS);
-      if (dim < targetDays - 14 || dim >= targetDays) continue;
-      const label = l.cattle.name ?? l.cattle.tagNumber;
-      emitted += await this.emit({
-        farmId,
-        eventKey: 'dry_off_due_14_days',
-        title: 'Dry-Off Due in 14 Days',
-        message: `${label} (${l.cattle.tagNumber}) is approaching dry-off (day ${dim} of ${targetDays}).`,
-        params: {
-          name: label,
-          tagNumber: l.cattle.tagNumber,
-          day: dim,
-          target: targetDays,
-        },
-        link: '/reproduction',
-        dedupeKey: `dry_off_due_14_days:${l.id}`,
       });
     }
     return emitted;

@@ -5,6 +5,7 @@ import {
   EventHandlerRegistry,
   HandlerInput,
   HandlerResult,
+  VoidInput,
 } from 'src/modules/animal-events/application/event-handler';
 import { AnimalEventTypeKey } from 'src/modules/animal-events/domain/catalogue';
 import { CreateAbortionEventDto } from '../../presentation/dto/create-abortion-event.dto';
@@ -14,6 +15,9 @@ import { CreateDryOffDto } from '../../presentation/dto/create-dry-off.dto';
 import { CreateHeatEventDto } from '../../presentation/dto/create-heat-event.dto';
 import { CreatePregnancyDiagnosisDto } from '../../presentation/dto/create-pregnancy-diagnosis.dto';
 import { ReproductionService } from '../services/reproduction.service';
+import { ReproductionEditService } from '../services/reproduction-edit.service';
+import { ReproductionDerivationService } from '../services/reproduction-derivation.service';
+import { PrismaService } from 'src/core/database/prisma/prisma.service';
 
 /**
  * RAKHAL-481: HEAT, BREEDING, PREG_CHECK, CALVING, ABORTION and DRY_OFF go
@@ -25,6 +29,9 @@ export class ReproductionEventHandler implements EventHandler, OnModuleInit {
   constructor(
     private readonly repro: ReproductionService,
     private readonly registry: EventHandlerRegistry,
+    private readonly edits: ReproductionEditService,
+    private readonly derivation: ReproductionDerivationService,
+    private readonly prisma: PrismaService,
   ) {}
 
   onModuleInit(): void {
@@ -32,6 +39,24 @@ export class ReproductionEventHandler implements EventHandler, OnModuleInit {
       ['HEAT', 'BREEDING', 'PREG_CHECK', 'CALVING', 'ABORTION', 'DRY_OFF'],
       this,
     );
+    // RAKHAL-488: after an edit or void the stored state is re-derived by the fold.
+    this.registry.onChange((farmId, cattleId) =>
+      this.derivation.refreshDerivedState(farmId, cattleId),
+    );
+  }
+
+  /** BREEDING has a full domain void (finance, straw, heat, task); the rest only void the header. */
+  async voidEvent(type: AnimalEventTypeKey, i: VoidInput): Promise<boolean> {
+    if (type !== 'BREEDING') return false;
+    const b = await this.prisma.breedingEvent.findFirst({
+      where: { animalEventId: i.animalEventId },
+      select: { id: true },
+    });
+    if (!b) return false;
+    await this.edits.voidBreedingEvent(i.farmId, i.userId, b.id, {
+      reason: i.reason,
+    });
+    return true;
   }
 
   async handle(

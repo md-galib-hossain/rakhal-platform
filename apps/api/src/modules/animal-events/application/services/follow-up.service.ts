@@ -182,17 +182,52 @@ export class FollowUpService {
     return res.count;
   }
 
-  /** Voiding the source event cancels its open follow-ups. */
-  async cancelForEvent(eventId: string): Promise<number> {
+  /**
+   * Voiding the source event cancels its open follow-ups. Custom reminders linked to the event
+   * (RAKHAL-487) are cancelled too on a void, but kept on an edit (`keepReminders`): they follow
+   * the event's new date through {@link moveReminders} instead.
+   */
+  async cancelForEvent(
+    eventId: string,
+    opts: { keepReminders?: boolean } = {},
+  ): Promise<number> {
     const res = await this.prisma.task.updateMany({
       where: {
         sourceEventType: 'ANIMAL_EVENT',
         sourceEventId: eventId,
         status: { in: [...OPEN] },
+        ...(opts.keepReminders
+          ? { category: { not: TaskCategory.REMINDER } }
+          : {}),
       },
       data: { status: 'CANCELLED', cancelledAt: new Date() },
     });
     return res.count;
+  }
+
+  /** The source event moved: every open linked reminder is due the new date plus its own offset. */
+  async moveReminders(eventId: string, newEventAt: Date): Promise<number> {
+    const reminders = await this.prisma.task.findMany({
+      where: {
+        sourceEventType: 'ANIMAL_EVENT',
+        sourceEventId: eventId,
+        category: TaskCategory.REMINDER,
+        reminderOffsetDays: { not: null },
+        status: { in: [...OPEN] },
+      },
+      select: { id: true, reminderOffsetDays: true },
+    });
+    for (const r of reminders) {
+      await this.prisma.task.update({
+        where: { id: r.id },
+        data: {
+          dueAt: new Date(
+            newEventAt.getTime() + (r.reminderOffsetDays ?? 0) * 86_400_000,
+          ),
+        },
+      });
+    }
+    return reminders.length;
   }
 
   // ---- farm settings (GET / PUT /settings/follow-up-rules) -----------------

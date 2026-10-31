@@ -156,25 +156,23 @@ describe('Scheduler sweeps (e2e)', () => {
     expect(result.payment_overdue).toBeGreaterThanOrEqual(1);
     expect(result.supplier_payment_due_soon).toBeGreaterThanOrEqual(1);
     expect(result.semen_tank_low_ln2).toBeGreaterThanOrEqual(1);
-    if (pregnancyId) {
-      expect(result.calving_expected_3_days).toBeGreaterThanOrEqual(1);
-    }
-    if (breedingEventId) {
-      expect(result.pregnancy_check_due).toBeGreaterThanOrEqual(1);
+    // RAKHAL-485: one follow-up sweep replaced the four bespoke reproduction sweeps.
+    expect(result.follow_up_and_reminder_due).toBeGreaterThanOrEqual(0);
+    for (const gone of [
+      'calving_expected_3_days',
+      'cow_expected_in_heat',
+      'pregnancy_check_due',
+      'dry_off_due_14_days',
+    ]) {
+      expect(result).not.toHaveProperty(gone);
     }
 
     // RAKHAL-107: the demo owner defaults to Bangla, so sweep-emitted titles
-    // are localized (`notification.{payment_overdue,calving_expected_3_days}.title`).
+    // are localized (`notification.payment_overdue.title`).
     const titles = await ownerNotifTitles();
     expect(titles).toContain('পরিশোধের মেয়াদ পার হয়ে গেছে');
     expect(titles).toContain('সরবরাহকারীর পরিশোধ শীঘ্রই');
     expect(titles).toContain('সিমেন ট্যাংকের LN2 কম');
-    if (pregnancyId) {
-      expect(titles).toContain('৩ দিনের মধ্যে বাছুর প্রসবের সম্ভাবনা');
-    }
-    if (breedingEventId) {
-      expect(titles).toContain('গর্ভধারণ পরীক্ষার সময় হয়েছে');
-    }
   });
 
   it('a second run on the same day is deduped (no new notifications)', async () => {

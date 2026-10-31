@@ -27,6 +27,22 @@ export const notificationEn = {
     title: 'Task Overdue',
     message: '"{{name}}" was due {{date}} and is not complete.',
   },
+  bulk_event_recorded: {
+    title: 'Bulk event recorded',
+    message: '{{type}}: {{saved}} of {{requested}} animals recorded.',
+  },
+  follow_up_upcoming: {
+    title: 'Coming up in {{days}} day(s): {{label}}',
+    message: '{{label}}: {{animals}}, due {{date}}.',
+  },
+  follow_up_due_today: {
+    title: 'Due today: {{label}}',
+    message: '{{label}}: {{animals}}, due today ({{date}}).',
+  },
+  follow_up_overdue: {
+    title: 'Overdue: {{label}}',
+    message: '{{label}}: {{animals}}, overdue since {{date}}.',
+  },
   health_task_reminder: {
     title: 'Health Step Due in {{days}} Days',
     message: '{{label}}: {{count}} animal(s), due {{date}}.',

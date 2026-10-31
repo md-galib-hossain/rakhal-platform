@@ -25,6 +25,23 @@ export const notificationBn: typeof notificationEn = {
     message:
       '"{{name}}" কাজটি {{date}} তারিখে শেষ হওয়ার কথা ছিল, এখনও সম্পন্ন হয়নি।',
   },
+  bulk_event_recorded: {
+    title: 'একসাথে ইভেন্ট নথিভুক্ত হয়েছে',
+    message:
+      '{{type}}: {{requested}}টির মধ্যে {{saved}}টি পশু নথিভুক্ত হয়েছে।',
+  },
+  follow_up_upcoming: {
+    title: '{{days}} দিন পর: {{label}}',
+    message: '{{label}}: {{animals}}, তারিখ {{date}}।',
+  },
+  follow_up_due_today: {
+    title: 'আজ করণীয়: {{label}}',
+    message: '{{label}}: {{animals}}, আজ ({{date}})।',
+  },
+  follow_up_overdue: {
+    title: 'সময় পেরিয়ে গেছে: {{label}}',
+    message: '{{label}}: {{animals}}, {{date}} থেকে বকেয়া।',
+  },
   health_task_reminder: {
     title: '{{days}} দিন পর স্বাস্থ্য কাজ',
     message: '{{label}}: {{count}}টি পশু, তারিখ {{date}}।',

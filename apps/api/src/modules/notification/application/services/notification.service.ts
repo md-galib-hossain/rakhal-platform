@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Notification } from '@prisma/client';
+import { Notification, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import {
@@ -46,6 +46,8 @@ export interface NotifyInput {
    * above for events not yet in the catalogue.
    */
   params?: Record<string, string | number>;
+  /** Structured payload for client deep links (ids, keys); stored as-is and returned by the feed as `data`. */
+  data?: Record<string, unknown>;
   /** Idempotency key — recipients already holding a notification with this key are skipped. */
   dedupeKey?: string;
 }
@@ -221,6 +223,7 @@ export class NotificationService {
           message,
           link: input.link,
           params: input.params,
+          data: input.data as Prisma.InputJsonValue | undefined,
           channelsSent: sent,
           dedupeKey: input.dedupeKey,
         },
@@ -311,6 +314,7 @@ export class NotificationService {
               )
             : n.message,
           link: n.link,
+          data: n.data ?? null,
           read: n.isRead,
           created_at: n.createdAt,
         };

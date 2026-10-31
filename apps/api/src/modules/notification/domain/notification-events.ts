@@ -120,41 +120,11 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     ch({ sms: true }),
   ),
   // ── Reproduction ──────────────────────────────────────────────────────────
-  evt(
-    'calving_expected_3_days',
-    'Calving Expected in 3 Days',
-    'reproduction',
-    'high',
-    true,
-    ch({ sms: true }),
-  ),
-  evt(
-    'cow_expected_in_heat',
-    'Cow Expected in Heat',
-    'reproduction',
-    'medium',
-    true,
-    ch(),
-  ),
-  evt(
-    'pregnancy_check_due',
-    'Pregnancy Check Due',
-    'reproduction',
-    'medium',
-    true,
-    ch(),
-  ),
+  // RAKHAL-485: calving / heat / pregnancy-check / dry-off reminders are Task Hub follow-ups now; the
+  // `follow_up_*` events below carry them (the old four keys were retired and their preferences migrated).
   evt(
     'vwp_complete_ready_ai',
     'VWP Complete — Ready for AI',
-    'reproduction',
-    'medium',
-    true,
-    ch(),
-  ),
-  evt(
-    'dry_off_due_14_days',
-    'Dry-Off Due in 14 Days',
     'reproduction',
     'medium',
     true,
@@ -194,6 +164,40 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'low',
     true,
     ch(),
+  ),
+  // RAKHAL-489 — one grouped notice for a bulk animal event.
+  evt(
+    'bulk_event_recorded',
+    'Bulk Event Recorded',
+    'operational',
+    'low',
+    true,
+    ch(),
+  ),
+  // RAKHAL-485 — follow-up tasks and custom reminders (one daily sweep, farm-local day).
+  evt(
+    'follow_up_upcoming',
+    'Follow-up Coming Up',
+    'operational',
+    'medium',
+    true,
+    ch(),
+  ),
+  evt(
+    'follow_up_due_today',
+    'Follow-up Due Today',
+    'operational',
+    'high',
+    true,
+    ch({ sms: true }),
+  ),
+  evt(
+    'follow_up_overdue',
+    'Follow-up Overdue',
+    'operational',
+    'high',
+    true,
+    ch({ sms: true }),
   ),
   // RAKHAL-465 — scheduled health steps (protocol doses/vaccinations). Split by urgency band so only the close-in
   // reminders and the overdue nag are SMS-eligible once a provider is live; T-7/T-3 stay in-app + push.
@@ -299,7 +303,13 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'operational',
     'high',
     false,
-    ch({ telegram: true, push: true, sms: false, whatsapp: false, email: false }),
+    ch({
+      telegram: true,
+      push: true,
+      sms: false,
+      whatsapp: false,
+      email: false,
+    }),
   ),
 ];
 

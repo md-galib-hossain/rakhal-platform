@@ -14,9 +14,15 @@ import { EligibilityService } from './application/services/eligibility.service';
 import { AnimalEventWriteService } from './application/services/animal-event-write.service';
 import { EventHandlerRegistry } from './application/event-handler';
 import { TaskModule } from '../task/task.module';
+import { ActivityModule } from '../activity/activity.module';
+import { AnimalEventEditService } from './application/services/animal-event-edit.service';
 import { CustomEventTypeService } from './application/services/custom-event-type.service';
 import { CustomTypesController } from './presentation/controllers/custom-types.controller';
 import { FollowUpService } from './application/services/follow-up.service';
+import { FollowUpReminderService } from './application/services/follow-up-reminder.service';
+import { BulkEventService } from './application/services/bulk-event.service';
+import { NotificationModule } from '../notification/notification.module';
+import { FarmTimeModule } from 'src/common/farm-time/farm-time.module';
 import { FollowUpRulesController } from './presentation/controllers/follow-up-rules.controller';
 import { TimelineService } from './application/services/timeline.service';
 import { AnimalEventsController } from './presentation/controllers/animal-events.controller';
@@ -30,12 +36,15 @@ import { CattleEventsController } from './presentation/controllers/cattle-events
 @Module({
   imports: [
     LoggerModule,
+    ActivityModule,
     TaskModule,
     FarmSettingsModule,
     AuthModule,
     TenantAccessModule,
     PermissionModule,
     SubscriptionModule,
+    NotificationModule,
+    FarmTimeModule,
   ],
   controllers: [
     AnimalEventsController,
@@ -54,9 +63,13 @@ import { CattleEventsController } from './presentation/controllers/cattle-events
     EventHandlerRegistry,
     AnimalEventWriteService,
     FollowUpService,
+    FollowUpReminderService,
     CustomEventTypeService,
+    AnimalEventEditService,
+    BulkEventService,
   ],
   exports: [
+    FollowUpReminderService,
     EVENT_REGISTRY,
     AnimalEventTypesService,
     TimelineService,

@@ -45,6 +45,17 @@ model Task {
   followUpKey     String?
   ruleKey         String?
 
+  /// RAKHAL-487 (category REMINDER): lead-time notice in days before `dueAt` (null = none besides the day itself).
+  remindDaysBefore Int?
+  /// Roles notified when the reminder has no assignee and no named users (empty = Owner + Manager).
+  notifyRoleNames  String[] @default([])
+  /// Linked to a source event: `dueAt` = the event date + this many days, and follows the event when it is edited.
+  reminderOffsetDays Int?
+  /// `recurrenceType = EVERY_N_DAYS` repeats on this interval.
+  recurrenceIntervalDays Int?
+  /// Set (atomically, once) when the sweep spawned the next occurrence of a repeating reminder.
+  spawnedNextAt DateTime?
+
   assignedToId       String?
   completionPhotoUrl String?
   completedById      String?
@@ -62,6 +73,7 @@ model Task {
   assignedTo User?          @relation("TaskAssignee", fields: [assignedToId], references: [id])
   cattles    TaskCattle[]
   history    TaskAuditLog[]
+  recipients TaskRecipient[]
 
   @@unique([farmId, reference])
   @@index([farmId, status])
@@ -103,4 +115,19 @@ model TaskCattle {
 
   @@unique([taskId, cattleId])
   @@index([cattleId])
+}
+
+/// RAKHAL-487: named users notified by a reminder (Q8). `userId` is a plain scalar (same precedent as
+/// `TaskCattle.cattleId`); farm membership is validated at write time.
+model TaskRecipient {
+  id     String @id @default(cuid())
+  taskId String
+  userId String
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([taskId, userId])
+  @@index([userId])
 }
