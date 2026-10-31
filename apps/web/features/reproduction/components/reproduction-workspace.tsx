@@ -19,29 +19,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCan } from "@/lib/auth/permissions";
+import { useCattleDetailModal } from "@/features/cattle/context/cattle-detail-modal-context";
+import type { EventKey } from "@/features/events/types";
 import { ReproductionKpiCards } from "./reproduction-kpi-cards";
 import { ReproductionActionPanels } from "./reproduction-action-panels";
 import { ReproductionCalvingForecast } from "./reproduction-calving-forecast";
 import { ReproductionCowList } from "./reproduction-cow-list";
 import { ReproductionEventsFeed } from "./reproduction-events-feed";
 import { ProtocolsPanel } from "./protocols/protocols-panel";
-import { HeatEventDialog } from "./dialogs/heat-event-dialog";
-import { BreedingEventDialog } from "./dialogs/breeding-event-dialog";
-import { PregnancyDiagnosisDialog } from "./dialogs/pregnancy-diagnosis-dialog";
-import { CalvingEventDialog } from "./dialogs/calving-event-dialog";
-import { AbortionEventDialog } from "./dialogs/abortion-event-dialog";
-import { DryOffDialog } from "./dialogs/dry-off-dialog";
-import { ReturnToHeatDialog } from "./dialogs/return-to-heat-dialog";
-
-type DialogKind =
-  | "heat"
-  | "breeding"
-  | "pregnancyDiagnosis"
-  | "calving"
-  | "abortion"
-  | "dryOff"
-  | "returnToHeat"
-  | null;
+import { RecordEventLauncher } from "@/features/events/components/record-event-launcher";
 
 export type SectionId = "kpis" | "operations" | "cows" | "events" | "protocols";
 
@@ -57,33 +43,19 @@ const BALANCED_PAIR = "grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2";
 
 export function ReproductionWorkspace() {
   const t = useTranslations("reproduction");
-  const [dialog, setDialog] = useState<DialogKind>(null);
-  const [cattleId, setCattleId] = useState<string | undefined>(undefined);
-  const [calvingPregnancyId, setCalvingPregnancyId] = useState<string | undefined>(undefined);
+  const [chooseFor, setChooseFor] = useState<EventKey | null>(null);
+  const { openCattleDetail } = useCattleDetailModal();
 
-  function open(kind: DialogKind, forCattleId?: string) {
-    setCattleId(forCattleId);
-    setDialog(kind);
-  }
-
-  function openCalving(forCattleId?: string, forPregnancyId?: string) {
-    setCalvingPregnancyId(forPregnancyId);
-    open("calving", forCattleId);
-  }
-
-  function close() {
-    setDialog(null);
-    setCattleId(undefined);
-    setCalvingPregnancyId(undefined);
-  }
+  // Row buttons know the animal: open her workspace with the shared form (`?record=`, RFE-160).
+  const recordFor = (key: EventKey, cattleId: string) => openCattleDetail(cattleId, { record: key });
 
   const can = useCan();
   const recordItems = [
-    { key: "heat", icon: Heart, perm: "reproduction.heat", label: t("actions.recordHeat"), hint: t("actions.recordHeatHint"), run: () => open("heat") },
-    { key: "ai", icon: Syringe, perm: "reproduction.create", label: t("actions.recordAi"), hint: t("actions.recordAiHint"), run: () => open("breeding") },
-    { key: "check", icon: Microscope, perm: "reproduction.create", label: t("actions.recordPregnancyCheck"), hint: t("actions.recordPregnancyCheckHint"), run: () => open("pregnancyDiagnosis") },
-    { key: "calving", icon: Baby, perm: "reproduction.create", label: t("actions.recordCalving"), hint: t("actions.recordCalvingHint"), run: () => openCalving() },
-    { key: "abortion", icon: HeartCrack, perm: "reproduction.create", label: t("actions.recordAbortion"), hint: t("actions.recordAbortionHint"), run: () => open("abortion") },
+    { key: "heat", icon: Heart, perm: "reproduction.heat", label: t("actions.recordHeat"), hint: t("actions.recordHeatHint"), run: () => setChooseFor("HEAT") },
+    { key: "ai", icon: Syringe, perm: "reproduction.create", label: t("actions.recordAi"), hint: t("actions.recordAiHint"), run: () => setChooseFor("SERVICE") },
+    { key: "check", icon: Microscope, perm: "reproduction.create", label: t("actions.recordPregnancyCheck"), hint: t("actions.recordPregnancyCheckHint"), run: () => setChooseFor("PREG_CHECK") },
+    { key: "calving", icon: Baby, perm: "reproduction.create", label: t("actions.recordCalving"), hint: t("actions.recordCalvingHint"), run: () => setChooseFor("CALVING") },
+    { key: "abortion", icon: HeartCrack, perm: "reproduction.create", label: t("actions.recordAbortion"), hint: t("actions.recordAbortionHint"), run: () => setChooseFor("ABORTION") },
   ].filter((item) => can(item.perm));
 
   const renderSectionContent = (id: SectionId) => {
@@ -94,11 +66,11 @@ export function ReproductionWorkspace() {
         return (
           <div className={BALANCED_PAIR}>
             <ReproductionActionPanels
-              onRecordAi={(id) => open("breeding", id)}
-              onRecordPregnancyCheck={(id) => open("pregnancyDiagnosis", id)}
-              onReturnToHeat={(breedingEventId) => open("returnToHeat", breedingEventId)}
-              onRecordCalving={(id, pregnancyId) => openCalving(id, pregnancyId)}
-              onRecordDryOff={(id) => open("dryOff", id)}
+              onRecordAi={(id) => recordFor("SERVICE", id)}
+              onRecordPregnancyCheck={(id) => recordFor("PREG_CHECK", id)}
+              onReturnToHeat={(id) => recordFor("HEAT", id)}
+              onRecordCalving={(id) => recordFor("CALVING", id)}
+              onRecordDryOff={(id) => recordFor("DRY_OFF", id)}
             />
             <ReproductionCalvingForecast />
           </div>
@@ -155,37 +127,7 @@ export function ReproductionWorkspace() {
         </div>
       </div>
 
-      <HeatEventDialog open={dialog === "heat"} onOpenChange={(next) => !next && close()} defaultCattleId={cattleId} />
-      <BreedingEventDialog
-        open={dialog === "breeding"}
-        onOpenChange={(next) => !next && close()}
-        defaultCattleId={cattleId}
-      />
-      <PregnancyDiagnosisDialog
-        open={dialog === "pregnancyDiagnosis"}
-        onOpenChange={(next) => !next && close()}
-        defaultCattleId={cattleId}
-      />
-      <CalvingEventDialog
-        open={dialog === "calving"}
-        onOpenChange={(next) => !next && close()}
-        defaultCattleId={cattleId}
-        defaultPregnancyId={calvingPregnancyId}
-      />
-      <AbortionEventDialog
-        open={dialog === "abortion"}
-        onOpenChange={(next) => !next && close()}
-        defaultCattleId={cattleId}
-      />
-      <DryOffDialog
-        open={dialog === "dryOff"}
-        onOpenChange={(next) => !next && close()}
-        cattleId={cattleId}
-      />
-      <ReturnToHeatDialog
-        open={dialog === "returnToHeat"}
-        onOpenChange={(next) => !next && close()}
-      />
+      <RecordEventLauncher eventKey={chooseFor} onClose={() => setChooseFor(null)} />
     </>
   );
 }

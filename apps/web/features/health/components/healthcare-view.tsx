@@ -4,8 +4,8 @@ import { useState } from "react";
 import { HealthStatStrip } from "./health-stat-strip";
 import { HealthManagementCenterCard } from "./health-management-center-card";
 import { CaseManagementSheet } from "./case-management-sheet";
-import { ReportSicknessDialog } from "./report-sickness-dialog";
-import { QuickTreatDialog } from "./quick-treat-dialog";
+import { RecordEventLauncher } from "@/features/events/components/record-event-launcher";
+import type { EventKey } from "@/features/events/types";
 import type { CaseManageTab } from "../types";
 
 /** Healthcare dashboard/sick-bay page (Figma 734:35601) + the Case Management sheet
@@ -15,8 +15,8 @@ import type { CaseManageTab } from "../types";
  * outcomes card are gone from the top (trend + outcomes are the Management Center's Insights tab). */
 export function HealthcareView() {
   const [manageCase, setManageCase] = useState<{ caseId: string; tab: CaseManageTab } | null>(null);
-  const [reportSicknessOpen, setReportSicknessOpen] = useState(false);
-  const [quickTreatOpen, setQuickTreatOpen] = useState(false);
+  // Report sickness / Quick treat are the shared Sickness / Treatment event forms (RFE-166).
+  const [recordKey, setRecordKey] = useState<EventKey | null>(null);
 
   return (
     <div className="flex flex-col gap-4">
@@ -24,8 +24,8 @@ export function HealthcareView() {
 
       <HealthManagementCenterCard
         onManageCase={(caseId) => setManageCase({ caseId, tab: "overview" })}
-        onReportSickness={() => setReportSicknessOpen(true)}
-        onRecordTreatment={() => setQuickTreatOpen(true)}
+        onReportSickness={() => setRecordKey("ILLNESS")}
+        onRecordTreatment={() => setRecordKey("TREATMENT")}
       />
 
       <CaseManagementSheet
@@ -35,12 +35,7 @@ export function HealthcareView() {
           if (!open) setManageCase(null);
         }}
       />
-      <ReportSicknessDialog
-        open={reportSicknessOpen}
-        onOpenChange={setReportSicknessOpen}
-        onOpenCase={(caseId, tab = "overview") => setManageCase({ caseId, tab })}
-      />
-      <QuickTreatDialog open={quickTreatOpen} onOpenChange={setQuickTreatOpen} />
+      <RecordEventLauncher eventKey={recordKey} onClose={() => setRecordKey(null)} />
     </div>
   );
 }

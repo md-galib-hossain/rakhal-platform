@@ -1297,9 +1297,7 @@
       "age": "বয়স",
       "status": "অবস্থা",
       "dim": "DIM",
-      "dimValue": "{days} দিন",
       "weight": "ওজন",
-      "weightValue": "{kg} কেজি",
       "pregnantStatus": "গর্ভাবস্থা",
       "pregnantOptions": {
         "positive": "পজিটিভ",
@@ -1330,7 +1328,6 @@
         "LATE": "শেষ স্তন্যদান",
         "DRY_PERIOD": "শুকনা সময়"
       },
-      "pregnancyStage": "গর্ভাবস্থার পর্যায়",
       "pregnancyStageOptions": {
         "EARLY": "প্রাথমিক",
         "MID": "মধ্য",
@@ -1349,7 +1346,6 @@
         "ABORTION_HISTORY": "গর্ভপাতের ইতিহাস",
         "REPRODUCTIVE_HOLD": "প্রজনন স্থগিত"
       },
-      "milkEligibility": "দুধ বিক্রয়যোগ্যতা",
       "milkEligibilityOptions": {
         "SALEABLE": "বিক্রয়যোগ্য",
         "WITHHELD": "আটকানো",
@@ -1365,8 +1361,6 @@
         "OTHER": "অন্যান্য"
       },
       "sections": {
-        "identity": "পরিচয়",
-        "lifeStage": "বয়স ও অবস্থান",
         "production": "কর্মক্ষমতা ও প্রজনন"
       },
       "notApplicable": {
@@ -1382,18 +1376,6 @@
         "pedigree": "বংশতালিকা",
         "feeding": "খাওয়ানো",
         "tasks": "টাস্ক"
-      },
-      "snapshot": {
-        "title": "ওভারভিউ",
-        "error": "ওভারভিউ লোড করা যায়নি।",
-        "alerts": "মনোযোগ প্রয়োজন",
-        "noAlerts": "কোনো সতর্কতা নেই — সবকিছু ঠিক আছে।",
-        "nextTask": "পরবর্তী টাস্ক",
-        "noNextTask": "কোনো আসন্ন টাস্ক নেই।",
-        "latestWeight": "সর্বশেষ ওজন",
-        "latestBcs": "সর্বশেষ BCS",
-        "currentStatus": "বর্তমান অবস্থা",
-        "kg": "{value} কেজি"
       },
       "feeding": {
         "goToFeedingGrid": "ফিডিং গ্রিডে যান",
@@ -2962,7 +2944,6 @@
         "notesPlaceholder": "ঐচ্ছিক নোট",
         "submit": "হিট ইভেন্ট সংরক্ষণ করুন",
         "createdToast": "হিট ইভেন্ট রেকর্ড হয়েছে।",
-        "activePregnancyConflictToast": "হিট রেকর্ড হয়েছে, তবে এই গরুর একটি সক্রিয় গর্ভাবস্থা রয়েছে — তার গর্ভাবস্থার রেকর্ড দেখুন, গর্ভপাত রেকর্ড করুন, অথবা পর্যবেক্ষণটি ভুল হলে গর্ভাবস্থা সংশোধন করুন।",
         "genericError": "হিট ইভেন্ট রেকর্ড করা যায়নি। আবার চেষ্টা করুন।"
       },
       "breeding": {
@@ -3072,16 +3053,6 @@
         "cancelToast": "হিটের রেকর্ড বাতিল হয়েছে।",
         "genericError": "হিটের রেকর্ড হালনাগাদ করা যায়নি। আবার চেষ্টা করুন।"
       },
-      "returnToHeat": {
-        "title": "হিটে ফিরে যাওয়া",
-        "description": "গর্ভধারণ পরীক্ষার আগেই এই গরুটি আবার হিটে ফিরে এসেছে। এটি পূর্ববর্তী প্রজননকে ব্যর্থ হিসেবে চিহ্নিত করবে — কোনো জাল গর্ভধারণ পরীক্ষা তৈরি করা হবে না।",
-        "heatDateTime": "পর্যবেক্ষণের তারিখ ও সময়",
-        "notes": "নোট",
-        "notesPlaceholder": "ঐচ্ছিক নোট",
-        "submit": "হিটে ফিরে যাওয়া নিশ্চিত করুন",
-        "createdToast": "হিটে ফিরে যাওয়া রেকর্ড হয়েছে — পূর্ববর্তী প্রজনন এখন ব্যর্থ হিসেবে চিহ্নিত।",
-        "genericError": "হিটে ফিরে যাওয়া রেকর্ড করা যায়নি। আবার চেষ্টা করুন।"
-      },
       "pregnancyDiagnosis": {
         "title": "গর্ভধারণ পরীক্ষা রেকর্ড করুন",
         "cattle": "গরু",
@@ -3111,9 +3082,6 @@
       "calving": {
         "title": "বাছুর প্রসব রেকর্ড করুন",
         "cattle": "মা গরু",
-        "noPregnancyOnFile": "খুঁজে পাচ্ছেন না? গর্ভাবস্থার তথ্য ছাড়াই রেকর্ড করুন",
-        "backToPregnantCows": "গর্ভবতী গরুর তালিকায় ফিরুন",
-        "calvingDate": "প্রসবের তারিখ",
         "calvingEase": "প্রসবের সহজতা",
         "easeValue": {
           "NORMAL": "স্বাভাবিক",
@@ -3121,16 +3089,12 @@
           "DIFFICULT": "কঠিন",
           "CESAREAN": "সিজারিয়ান"
         },
-        "placentaExpelled": "প্লাসেন্টা নির্গত হয়েছে",
-        "retainedPlacenta": "প্লাসেন্টা আটকে আছে",
         "calves": "বাছুর",
-        "addCalf": "বাছুর যোগ করুন",
         "gender": "লিঙ্গ",
         "genderValue": {
           "FEMALE": "স্ত্রী",
           "MALE": "পুরুষ"
         },
-        "calfStatus": "অবস্থা",
         "calfStatusValue": {
           "ALIVE": "জীবিত",
           "STILLBORN": "মৃত জন্ম",
@@ -3142,45 +3106,7 @@
         "notesPlaceholder": "ঐচ্ছিক নোট",
         "submit": "বাছুর প্রসব সংরক্ষণ করুন",
         "createdToast": "বাছুর প্রসব রেকর্ড হয়েছে।",
-        "genericError": "বাছুর প্রসব রেকর্ড করা যায়নি। আবার চেষ্টা করুন।",
-        "missingDryOffToast": "আগের ল্যাকটেশন স্বয়ংক্রিয়ভাবে বন্ধ হয়েছে — কোনো ড্রাই-অফ রেকর্ড করা হয়নি (শুরু {startDate}, বন্ধ {endDate})।"
-      },
-      "abortion": {
-        "title": "গর্ভপাত রেকর্ড করুন",
-        "cattle": "গরু",
-        "abortionDate": "গর্ভপাতের তারিখ",
-        "gestationDay": "গর্ভকালীন দিন",
-        "suspectedCause": "সন্দেহভাজন কারণ",
-        "suspectedCausePlaceholder": "ঐচ্ছিক",
-        "notes": "নোট",
-        "notesPlaceholder": "ঐচ্ছিক নোট",
-        "submit": "গর্ভপাত সংরক্ষণ করুন",
-        "createdToast": "গর্ভপাত রেকর্ড হয়েছে।",
-        "genericError": "গর্ভপাত রেকর্ড করা যায়নি। আবার চেষ্টা করুন।"
-      },
-      "dryOff": {
-        "title": "ড্রাই-অফ রেকর্ড করুন",
-        "dryOffDate": "ড্রাই-অফের তারিখ",
-        "reason": "কারণ",
-        "reasonPlaceholder": "একটি কারণ নির্বাচন করুন (ঐচ্ছিক)",
-        "reasonValue": {
-          "SCHEDULED": "নির্ধারিত",
-          "LOW_PRODUCTION": "কম উৎপাদন",
-          "HEALTH": "স্বাস্থ্য",
-          "PREGNANCY": "গর্ভাবস্থা",
-          "MANAGEMENT_DECISION": "ব্যবস্থাপনার সিদ্ধান্ত"
-        },
-        "notes": "নোট",
-        "notesPlaceholder": "ঐচ্ছিক নোট",
-        "submit": "ড্রাই-অফ সংরক্ষণ করুন",
-        "createdToast": "ড্রাই-অফ রেকর্ড হয়েছে।",
-        "genericError": "ড্রাই-অফ রেকর্ড করা যায়নি। আবার চেষ্টা করুন।",
-        "recommendedDate": "সিস্টেম-প্রস্তাবিত ড্রাই-অফের তারিখ: {date}",
-        "useRecommendedDate": "এই তারিখ ব্যবহার করুন",
-        "plannedDate": "পরিকল্পিত ড্রাই-অফের তারিখ",
-        "plannedDateHint": "যেকোনো সময় সেট/পরিবর্তনযোগ্য একটি হালকা লক্ষ্য তারিখ — উপরের ড্রাই-অফ রেকর্ডের মতো এটি ল্যাকটেশন শেষ করে না।",
-        "savePlannedDate": "পরিকল্পিত তারিখ সংরক্ষণ করুন",
-        "plannedDateSavedToast": "পরিকল্পিত ড্রাই-অফের তারিখ সংরক্ষিত হয়েছে।"
+        "genericError": "বাছুর প্রসব রেকর্ড করা যায়নি। আবার চেষ্টা করুন।"
       },
       "applyProtocol": {
         "title": "প্রোটোকল প্রয়োগ করুন",
@@ -4479,48 +4405,6 @@
       "releasedToast": "উইথড্রয়াল মুক্ত করা হয়েছে।",
       "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
     },
-    "quickTreat": {
-      "title": "দ্রুত চিকিৎসা",
-      "careTypeLabel": "চিকিৎসার উদ্দেশ্য",
-      "careTypes": {
-        "PREVENTIVE": "সুরক্ষা / প্রতিরোধমূলক",
-        "CURATIVE": "অসুস্থতার চিকিৎসা"
-      },
-      "careTypeHints": {
-        "PREVENTIVE": "সুস্থ পশুর জন্য রুটিন টিকা, ভিটামিন বা কৃমিনাশক। পশুকে অসুস্থ হিসেবে দেখাবে না।",
-        "CURATIVE": "অসুস্থতার চিকিৎসা। পশুকে পর্যবেক্ষণ ও সিক বে-তে রাখা হবে।"
-      },
-      "selectionMethod": "নির্বাচন পদ্ধতি",
-      "selectionMethods": {
-        "shed": "শেড",
-        "batch": "পশুর গ্রুপ",
-        "individual": "একক"
-      },
-      "selectShed": "শেড নির্বাচন করুন",
-      "selectShedPlaceholder": "শেড নির্বাচন করুন",
-      "selectBatch": "পশুর গ্রুপ নির্বাচন করুন",
-      "selectBatchPlaceholder": "পশুর গ্রুপ নির্বাচন করুন",
-      "searchAnimals": "পশু খুঁজুন",
-      "searchAnimalsPlaceholder": "গরুর আইডি বা নাম দিয়ে খুঁজুন",
-      "loadingAnimals": "পশু লোড হচ্ছে…",
-      "noAnimals": "কোনো পশু পাওয়া যায়নি।",
-      "selectedCount": "{count, plural, one {১টি পশু নির্বাচিত} other {#টি পশু নির্বাচিত}}",
-      "selectMedicine": "ওষুধ",
-      "doseAmount": "ডোজের পরিমাণ",
-      "doseUnit": "ডোজের একক",
-      "administrationRoute": "প্রয়োগ পদ্ধতি",
-      "treatedAt": "তারিখ ও সময়",
-      "withdrawalWarning": "এটি {count, plural, one {১টি পশুকে} other {#টি পশুকে}} উইথড্রয়াল সময়ে রাখবে — দুধ {milkUntil} পর্যন্ত, মাংস {meatUntil} পর্যন্ত।",
-      "reason": "কারণ (ঐচ্ছিক)",
-      "notesPlaceholder": "নোট (ঐচ্ছিক)",
-      "cancel": "বাতিল",
-      "confirm": "চিকিৎসা লগ করুন",
-      "noneSelectedError": "অন্তত একটি পশু নির্বাচন করুন।",
-      "noMedicineError": "একটি ওষুধ নির্বাচন করুন।",
-      "noAccountError": "এই ওষুধের খরচের জন্য একটি পেমেন্ট অ্যাকাউন্ট নির্বাচন করুন।",
-      "treatedToast": "{count, plural, one {১টি পশুর} other {#টি পশুর}} চিকিৎসা করা হয়েছে।",
-      "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
-    },
     "treatmentLines": {
       "title": "প্রয়োগ করা ওষুধ",
       "addMedicine": "আরেকটি ওষুধ যোগ করুন",
@@ -4616,12 +4500,6 @@
       },
       "overview": {
         "birthWeight": "জন্ম ওজন",
-        "currentWeight": "বর্তমান ওজন",
-        "adg": "দৈনিক গড় বৃদ্ধি",
-        "daysToWeaning": "দুধ ছাড়ানো পর্যন্ত দিন",
-        "birthEase": "প্রসব সহজতা",
-        "weaningTarget": "দুধ ছাড়ানোর লক্ষ্য",
-        "weaningWeightTarget": "লক্ষ্য {value} কেজি",
         "kg": "{value} কেজি",
         "kgPerDay": "{value} কেজি/দিন",
         "daysValue": "{value} দিন"
@@ -4739,11 +4617,9 @@
       "wean": {
         "title": "বাছুরের দুধ ছাড়ান",
         "warning": "এটি বাছুরটিকে স্থায়ীভাবে ক্যাটল মডিউলে সরিয়ে দেবে এবং এটি পূর্বাবস্থায় ফেরানো যাবে না।",
-        "weaningDate": "দুধ ছাড়ানোর তারিখ",
         "weaningWeightKg": "দুধ ছাড়ানোর সময় ওজন (কেজি)",
         "notes": "নোট",
         "submit": "দুধ ছাড়ান",
-        "weanedToast": "বাছুরের দুধ ছাড়ানো হয়েছে এবং ক্যাটলে সরানো হয়েছে।",
         "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।"
       }
     }
@@ -9506,97 +9382,102 @@
       "addReminder": "রিমাইন্ডার যোগ",
       "editReminder": "সম্পাদনা"
     },
-      "reminders": {
-        "title": "নতুন রিমাইন্ডার",
-        "titleFor": "নতুন রিমাইন্ডার · {animal}",
-        "editTitle": "রিমাইন্ডার সম্পাদনা",
-        "description": "কী মনে রাখবেন, কখন, কাকে জানানো হবে এবং কোন পশুর জন্য — ঠিক করুন।",
-        "close": "বন্ধ করুন",
-        "titleLabel": "শিরোনাম",
-        "titlePlaceholder": "বাম পেছনের খুর দেখা",
-        "notesLabel": "নোট",
-        "notesPlaceholder": "মনে রাখার কিছু (ঐচ্ছিক)",
-        "whenLabel": "কখন",
-        "when": {
-          "date": "নির্দিষ্ট তারিখে",
-          "afterEvent": "কোনো ঘটনার পর"
-        },
-        "date": "তারিখ",
-        "time": "সময় (ঐচ্ছিক)",
-        "daysAfter": "কত দিন পর",
-        "afterEventLabel": "এই ঘটনার পর",
-        "eventPlaceholder": "ঘটনা বেছে নিন",
-        "eventsLoading": "ঘটনা লোড হচ্ছে…",
-        "noEvents": "এই পশুর কোনো নথিভুক্ত ঘটনা এখনও নেই।",
-        "eventsError": "এই পশুর ঘটনা লোড করা যায়নি।",
-        "dueOn": "{date} তারিখে",
-        "follows": "{date} তারিখের {event} অনুসরণ করে। সেই তারিখ বদলালে এই রিমাইন্ডারও সরে যাবে।",
-        "followsUnknown": "একটি নথিভুক্ত ঘটনা অনুসরণ করে। সেই ঘটনার তারিখ বদলালে এই রিমাইন্ডারও সরে যাবে।",
-        "pickOneAnimal": "একটি পশু বেছে নিন",
-        "repeatLabel": "পুনরাবৃত্তি",
-        "repeat": {
-          "NEVER": "কখনও না",
-          "EVERY_N_DAYS": "প্রতি N দিনে",
-          "WEEKLY": "সাপ্তাহিক",
-          "MONTHLY": "মাসিক"
-        },
-        "everyN": "কত দিন পর পর",
-        "endsOn": "শেষ হবে (ঐচ্ছিক)",
-        "leadLabel": "আমাকে জানান",
-        "lead": {
-          "0": "ঐ দিন",
-          "1": "১ দিন আগেও",
-          "3": "৩ দিন আগেও",
-          "7": "৭ দিন আগেও"
-        },
-        "audienceLabel": "কাকে জানানো হবে",
-        "audience": {
-          "assignee": "একজন",
-          "roles": "ভূমিকা",
-          "people": "নির্দিষ্ট ব্যক্তি"
-        },
-        "roles": {
-          "Owner": "মালিক",
-          "Manager": "ম্যানেজার",
-          "Worker": "কর্মী"
-        },
-        "peopleLoading": "টিম লোড হচ্ছে…",
-        "animalsLabel": "পশু",
-        "animalsPlaceholder": "পশু যোগ করুন",
-        "animalsNone": "কোনো নির্দিষ্ট পশুর জন্য নয়।",
-        "animalsLocked": "সংরক্ষণের পর পশু বদলানো যায় না। বদলাতে এই রিমাইন্ডার বাতিল করে নতুন করুন।",
-        "removeAnimal": "{animal} সরান",
-        "save": "রিমাইন্ডার সংরক্ষণ",
-        "saving": "সংরক্ষণ হচ্ছে…",
-        "cancel": "বাতিল",
-        "cancelReminder": "এই রিমাইন্ডার বাতিল করুন",
-        "cancelConfirmTitle": "এই রিমাইন্ডার বাতিল করবেন?",
-        "cancelConfirmBody": "এটি পরবর্তী কাজ ও টাস্ক হাব থেকে সরে যাবে, কাউকে মনে করানো হবে না। পুনরাবৃত্তিও বন্ধ হবে।",
-        "cancelConfirmAction": "রিমাইন্ডার বাতিল",
-        "keep": "রেখে দিন",
-        "cancelledToast": "রিমাইন্ডার বাতিল হয়েছে",
-        "createdToast": "রিমাইন্ডার সংরক্ষিত হয়েছে",
-        "updatedToast": "রিমাইন্ডার হালনাগাদ হয়েছে",
-        "genericError": "রিমাইন্ডার সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
-        "errors": {
-          "titleRequired": "রিমাইন্ডারের একটি শিরোনাম দিন",
-          "titleTooLong": "শিরোনাম অনেক বড়",
-          "notesTooLong": "নোট অনেক বড়",
-          "dateRequired": "একটি তারিখ বেছে নিন",
-          "timeInvalid": "০৮:৩০ এর মতো সময় দিন",
-          "oneAnimalForEvent": "ঠিক একটি পশু বেছে নিন",
-          "eventRequired": "ঘটনাটি বেছে নিন",
-          "offsetInvalid": "পূর্ণ সংখ্যায় দিন, ০ বা বেশি",
-          "intervalInvalid": "১ থেকে ৩৬৫ দিন দিন",
-          "endBeforeStart": "শেষের তারিখ প্রথম তারিখের আগে",
-          "assigneeRequired": "কাকে জানাবেন বেছে নিন",
-          "rolesRequired": "অন্তত একটি ভূমিকা বেছে নিন",
-          "peopleRequired": "অন্তত একজন বেছে নিন"
-        }
-      },
+    "reminders": {
+      "title": "নতুন রিমাইন্ডার",
+      "titleFor": "নতুন রিমাইন্ডার · {animal}",
+      "editTitle": "রিমাইন্ডার সম্পাদনা",
+      "description": "কী মনে রাখবেন, কখন, কাকে জানানো হবে এবং কোন পশুর জন্য — ঠিক করুন।",
+      "close": "বন্ধ করুন",
+      "titleLabel": "শিরোনাম",
+      "titlePlaceholder": "বাম পেছনের খুর দেখা",
+      "notesLabel": "নোট",
+      "notesPlaceholder": "মনে রাখার কিছু (ঐচ্ছিক)",
+      "whenLabel": "কখন",
+      "when": {
+        "date": "নির্দিষ্ট তারিখে",
+        "afterEvent": "কোনো ঘটনার পর"
+      },
+      "date": "তারিখ",
+      "time": "সময় (ঐচ্ছিক)",
+      "daysAfter": "কত দিন পর",
+      "afterEventLabel": "এই ঘটনার পর",
+      "eventPlaceholder": "ঘটনা বেছে নিন",
+      "eventsLoading": "ঘটনা লোড হচ্ছে…",
+      "noEvents": "এই পশুর কোনো নথিভুক্ত ঘটনা এখনও নেই।",
+      "eventsError": "এই পশুর ঘটনা লোড করা যায়নি।",
+      "dueOn": "{date} তারিখে",
+      "follows": "{date} তারিখের {event} অনুসরণ করে। সেই তারিখ বদলালে এই রিমাইন্ডারও সরে যাবে।",
+      "followsUnknown": "একটি নথিভুক্ত ঘটনা অনুসরণ করে। সেই ঘটনার তারিখ বদলালে এই রিমাইন্ডারও সরে যাবে।",
+      "pickOneAnimal": "একটি পশু বেছে নিন",
+      "repeatLabel": "পুনরাবৃত্তি",
+      "repeat": {
+        "NEVER": "কখনও না",
+        "EVERY_N_DAYS": "প্রতি N দিনে",
+        "WEEKLY": "সাপ্তাহিক",
+        "MONTHLY": "মাসিক"
+      },
+      "everyN": "কত দিন পর পর",
+      "endsOn": "শেষ হবে (ঐচ্ছিক)",
+      "leadLabel": "আমাকে জানান",
+      "lead": {
+        "0": "ঐ দিন",
+        "1": "১ দিন আগেও",
+        "3": "৩ দিন আগেও",
+        "7": "৭ দিন আগেও"
+      },
+      "audienceLabel": "কাকে জানানো হবে",
+      "audience": {
+        "assignee": "একজন",
+        "roles": "ভূমিকা",
+        "people": "নির্দিষ্ট ব্যক্তি"
+      },
+      "roles": {
+        "Owner": "মালিক",
+        "Manager": "ম্যানেজার",
+        "Worker": "কর্মী"
+      },
+      "peopleLoading": "টিম লোড হচ্ছে…",
+      "animalsLabel": "পশু",
+      "animalsPlaceholder": "পশু যোগ করুন",
+      "animalsNone": "কোনো নির্দিষ্ট পশুর জন্য নয়।",
+      "animalsLocked": "সংরক্ষণের পর পশু বদলানো যায় না। বদলাতে এই রিমাইন্ডার বাতিল করে নতুন করুন।",
+      "removeAnimal": "{animal} সরান",
+      "save": "রিমাইন্ডার সংরক্ষণ",
+      "saving": "সংরক্ষণ হচ্ছে…",
+      "cancel": "বাতিল",
+      "cancelReminder": "এই রিমাইন্ডার বাতিল করুন",
+      "cancelConfirmTitle": "এই রিমাইন্ডার বাতিল করবেন?",
+      "cancelConfirmBody": "এটি পরবর্তী কাজ ও টাস্ক হাব থেকে সরে যাবে, কাউকে মনে করানো হবে না। পুনরাবৃত্তিও বন্ধ হবে।",
+      "cancelConfirmAction": "রিমাইন্ডার বাতিল",
+      "keep": "রেখে দিন",
+      "cancelledToast": "রিমাইন্ডার বাতিল হয়েছে",
+      "createdToast": "রিমাইন্ডার সংরক্ষিত হয়েছে",
+      "updatedToast": "রিমাইন্ডার হালনাগাদ হয়েছে",
+      "genericError": "রিমাইন্ডার সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
+      "errors": {
+        "titleRequired": "রিমাইন্ডারের একটি শিরোনাম দিন",
+        "titleTooLong": "শিরোনাম অনেক বড়",
+        "notesTooLong": "নোট অনেক বড়",
+        "dateRequired": "একটি তারিখ বেছে নিন",
+        "timeInvalid": "০৮:৩০ এর মতো সময় দিন",
+        "oneAnimalForEvent": "ঠিক একটি পশু বেছে নিন",
+        "eventRequired": "ঘটনাটি বেছে নিন",
+        "offsetInvalid": "পূর্ণ সংখ্যায় দিন, ০ বা বেশি",
+        "intervalInvalid": "১ থেকে ৩৬৫ দিন দিন",
+        "endBeforeStart": "শেষের তারিখ প্রথম তারিখের আগে",
+        "assigneeRequired": "কাকে জানাবেন বেছে নিন",
+        "rolesRequired": "অন্তত একটি ভূমিকা বেছে নিন",
+        "peopleRequired": "অন্তত একজন বেছে নিন"
+      }
+    },
     "notifications": {
       "record": "রেকর্ড করুন",
       "viewAnimals": "প্রাণী দেখুন"
+    },
+    "launcher": {
+      "chooseAnimalTitle": "পশু বাছাই করুন",
+      "chooseAnimalHint": "এই ঘটনাটি কোন পশুর জন্য তা বাছাই করুন। এরপর এন্ট্রি ফর্ম খুলবে।",
+      "chooseAnimal": "পশু খুঁজুন…"
     }
   }
 }

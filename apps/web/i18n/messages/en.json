@@ -1297,9 +1297,7 @@
       "age": "Age",
       "status": "Status",
       "dim": "DIM",
-      "dimValue": "{days} Days",
       "weight": "Weight",
-      "weightValue": "{kg} kg",
       "pregnantStatus": "Pregnant Status",
       "pregnantOptions": {
         "positive": "Positive",
@@ -1330,7 +1328,6 @@
         "LATE": "Late lactation",
         "DRY_PERIOD": "Dry period"
       },
-      "pregnancyStage": "Pregnancy Stage",
       "pregnancyStageOptions": {
         "EARLY": "Early",
         "MID": "Mid",
@@ -1349,7 +1346,6 @@
         "ABORTION_HISTORY": "Abortion history",
         "REPRODUCTIVE_HOLD": "Reproductive hold"
       },
-      "milkEligibility": "Milk Eligibility",
       "milkEligibilityOptions": {
         "SALEABLE": "Saleable",
         "WITHHELD": "Withheld",
@@ -1365,8 +1361,6 @@
         "OTHER": "Other"
       },
       "sections": {
-        "identity": "Identity",
-        "lifeStage": "Life Stage",
         "production": "Performance & Breeding"
       },
       "notApplicable": {
@@ -1382,18 +1376,6 @@
         "pedigree": "Ancestry",
         "feeding": "Feeding",
         "tasks": "Tasks"
-      },
-      "snapshot": {
-        "title": "Overview",
-        "error": "Could not load the overview.",
-        "alerts": "Needs Attention",
-        "noAlerts": "No alerts — everything looks on track.",
-        "nextTask": "Next Task",
-        "noNextTask": "No upcoming tasks.",
-        "latestWeight": "Latest Weight",
-        "latestBcs": "Latest BCS",
-        "currentStatus": "Current Status",
-        "kg": "{value} kg"
       },
       "feeding": {
         "goToFeedingGrid": "Go to Feeding Grid",
@@ -2962,7 +2944,6 @@
         "notesPlaceholder": "Optional notes",
         "submit": "Save Heat Event",
         "createdToast": "Heat event recorded.",
-        "activePregnancyConflictToast": "Heat recorded, but this cow has an active pregnancy — view her pregnancy record, record a pregnancy loss, or correct the pregnancy if this observation was in error.",
         "genericError": "Could not record the heat event. Please try again."
       },
       "breeding": {
@@ -3072,16 +3053,6 @@
         "cancelToast": "Heat record cancelled.",
         "genericError": "Could not update the heat record. Please try again."
       },
-      "returnToHeat": {
-        "title": "Return to Heat",
-        "description": "This cow came back into heat before her pregnancy check was due. This marks the earlier breeding as unsuccessful — no pregnancy check will be fabricated.",
-        "heatDateTime": "Date & time observed",
-        "notes": "Notes",
-        "notesPlaceholder": "Optional notes",
-        "submit": "Confirm Return to Heat",
-        "createdToast": "Return to heat recorded — the earlier breeding is now marked unsuccessful.",
-        "genericError": "Could not record the return to heat. Please try again."
-      },
       "pregnancyDiagnosis": {
         "title": "Record Pregnancy Check",
         "cattle": "Cow",
@@ -3111,9 +3082,6 @@
       "calving": {
         "title": "Record Calving",
         "cattle": "Dam",
-        "noPregnancyOnFile": "Can't find her? Record without a linked pregnancy",
-        "backToPregnantCows": "Back to pregnant cows",
-        "calvingDate": "Calving date",
         "calvingEase": "Calving ease",
         "easeValue": {
           "NORMAL": "Normal",
@@ -3121,16 +3089,12 @@
           "DIFFICULT": "Difficult",
           "CESAREAN": "Cesarean"
         },
-        "placentaExpelled": "Placenta expelled",
-        "retainedPlacenta": "Retained placenta",
         "calves": "Calves",
-        "addCalf": "Add Calf",
         "gender": "Gender",
         "genderValue": {
           "FEMALE": "Female",
           "MALE": "Male"
         },
-        "calfStatus": "Status",
         "calfStatusValue": {
           "ALIVE": "Alive",
           "STILLBORN": "Stillborn",
@@ -3142,45 +3106,7 @@
         "notesPlaceholder": "Optional notes",
         "submit": "Save Calving Event",
         "createdToast": "Calving event recorded.",
-        "genericError": "Could not record the calving event. Please try again.",
-        "missingDryOffToast": "Previous lactation auto-closed — no dry-off was recorded (started {startDate}, closed {endDate})."
-      },
-      "abortion": {
-        "title": "Record Abortion",
-        "cattle": "Cow",
-        "abortionDate": "Abortion date",
-        "gestationDay": "Gestation day",
-        "suspectedCause": "Suspected cause",
-        "suspectedCausePlaceholder": "Optional",
-        "notes": "Notes",
-        "notesPlaceholder": "Optional notes",
-        "submit": "Save Abortion Event",
-        "createdToast": "Abortion event recorded.",
-        "genericError": "Could not record the abortion event. Please try again."
-      },
-      "dryOff": {
-        "title": "Record Dry-off",
-        "dryOffDate": "Dry-off date",
-        "reason": "Reason",
-        "reasonPlaceholder": "Select a reason (optional)",
-        "reasonValue": {
-          "SCHEDULED": "Scheduled",
-          "LOW_PRODUCTION": "Low Production",
-          "HEALTH": "Health",
-          "PREGNANCY": "Pregnancy",
-          "MANAGEMENT_DECISION": "Management Decision"
-        },
-        "notes": "Notes",
-        "notesPlaceholder": "Optional notes",
-        "submit": "Save Dry-off",
-        "createdToast": "Dry-off recorded.",
-        "genericError": "Could not record the dry-off. Please try again.",
-        "recommendedDate": "System-recommended dry-off date: {date}",
-        "useRecommendedDate": "Use this date",
-        "plannedDate": "Planned dry-off date",
-        "plannedDateHint": "A lighter target date you can set/adjust anytime — doesn't end the lactation like recording the dry-off above.",
-        "savePlannedDate": "Save planned date",
-        "plannedDateSavedToast": "Planned dry-off date saved."
+        "genericError": "Could not record the calving event. Please try again."
       },
       "applyProtocol": {
         "title": "Apply Protocol",
@@ -4479,48 +4405,6 @@
       "releasedToast": "Withdrawal released.",
       "genericError": "Something went wrong. Please try again."
     },
-    "quickTreat": {
-      "title": "Quick Treat",
-      "careTypeLabel": "Treatment Purpose",
-      "careTypes": {
-        "PREVENTIVE": "Wellness / Preventive",
-        "CURATIVE": "Illness Treatment"
-      },
-      "careTypeHints": {
-        "PREVENTIVE": "Routine vaccine, vitamin, supplement, or dewormer for healthy animals. Does not mark the animal as sick.",
-        "CURATIVE": "Treatment for sickness or infection. Places the animal under observation in Sick Bay."
-      },
-      "selectionMethod": "Selection Method",
-      "selectionMethods": {
-        "shed": "Shed",
-        "batch": "Animal group",
-        "individual": "Individual"
-      },
-      "selectShed": "Select Shed",
-      "selectShedPlaceholder": "Select shed",
-      "selectBatch": "Select animal group",
-      "selectBatchPlaceholder": "Select animal group",
-      "searchAnimals": "Search Animals",
-      "searchAnimalsPlaceholder": "Search by cow ID or name",
-      "loadingAnimals": "Loading animals…",
-      "noAnimals": "No animals found.",
-      "selectedCount": "{count, plural, one {1 animal selected} other {# animals selected}}",
-      "selectMedicine": "Medicine",
-      "doseAmount": "Dose Amount",
-      "doseUnit": "Dose Unit",
-      "administrationRoute": "Administration Route",
-      "treatedAt": "Date & Time",
-      "withdrawalWarning": "This will place {count, plural, one {1 animal} other {# animals}} under a withholding period — milk until {milkUntil}, meat until {meatUntil}.",
-      "reason": "Reason (optional)",
-      "notesPlaceholder": "Notes (optional)",
-      "cancel": "Cancel",
-      "confirm": "Log Treatment",
-      "noneSelectedError": "Select at least one animal.",
-      "noMedicineError": "Select a medicine.",
-      "noAccountError": "Select a payment account for this medicine's cost.",
-      "treatedToast": "{count, plural, one {1 animal} other {# animals}} treated.",
-      "genericError": "Something went wrong. Please try again."
-    },
     "treatmentLines": {
       "title": "Medicines given",
       "addMedicine": "Add another medicine",
@@ -4616,12 +4500,6 @@
       },
       "overview": {
         "birthWeight": "Birth Weight",
-        "currentWeight": "Current Weight",
-        "adg": "ADG",
-        "daysToWeaning": "Days to Weaning",
-        "birthEase": "Birth Ease",
-        "weaningTarget": "Weaning Target",
-        "weaningWeightTarget": "target {value} kg",
         "kg": "{value} kg",
         "kgPerDay": "{value} kg/day",
         "daysValue": "{value} days"
@@ -4739,11 +4617,9 @@
       "wean": {
         "title": "Wean Calf",
         "warning": "This moves the calf into the Cattle module permanently and cannot be undone.",
-        "weaningDate": "Weaning Date",
         "weaningWeightKg": "Weaning Weight (kg)",
         "notes": "Notes",
         "submit": "Wean Calf",
-        "weanedToast": "Calf weaned and moved to Cattle.",
         "genericError": "Something went wrong. Please try again."
       }
     }
@@ -9506,97 +9382,102 @@
       "addReminder": "Add reminder",
       "editReminder": "Edit"
     },
-      "reminders": {
-        "title": "New reminder",
-        "titleFor": "New reminder · {animal}",
-        "editTitle": "Edit reminder",
-        "description": "Set what to remember, when, who is told and which animals it is about.",
-        "close": "Close",
-        "titleLabel": "Title",
-        "titlePlaceholder": "Check left hind hoof",
-        "notesLabel": "Notes",
-        "notesPlaceholder": "Anything to remember (optional)",
-        "whenLabel": "When",
-        "when": {
-          "date": "On a date",
-          "afterEvent": "After an event"
-        },
-        "date": "Date",
-        "time": "Time (optional)",
-        "daysAfter": "Days after",
-        "afterEventLabel": "After this event",
-        "eventPlaceholder": "Pick an event",
-        "eventsLoading": "Loading events…",
-        "noEvents": "No recorded events for this animal yet.",
-        "eventsError": "Could not load this animal's events.",
-        "dueOn": "Due {date}",
-        "follows": "Follows the {event} on {date}. Change that date and this reminder moves.",
-        "followsUnknown": "Follows a recorded event. Change that event's date and this reminder moves.",
-        "pickOneAnimal": "Pick one animal",
-        "repeatLabel": "Repeat",
-        "repeat": {
-          "NEVER": "Never",
-          "EVERY_N_DAYS": "Every N days",
-          "WEEKLY": "Weekly",
-          "MONTHLY": "Monthly"
-        },
-        "everyN": "Every how many days",
-        "endsOn": "Ends on (optional)",
-        "leadLabel": "Tell me",
-        "lead": {
-          "0": "On the day",
-          "1": "1 day before too",
-          "3": "3 days before too",
-          "7": "7 days before too"
-        },
-        "audienceLabel": "Who is told",
-        "audience": {
-          "assignee": "One person",
-          "roles": "Roles",
-          "people": "Named people"
-        },
-        "roles": {
-          "Owner": "Owner",
-          "Manager": "Manager",
-          "Worker": "Worker"
-        },
-        "peopleLoading": "Loading team…",
-        "animalsLabel": "Animals",
-        "animalsPlaceholder": "Add animals",
-        "animalsNone": "Not about a particular animal.",
-        "animalsLocked": "Animals cannot be changed after saving. Cancel this reminder and make a new one to change them.",
-        "removeAnimal": "Remove {animal}",
-        "save": "Save reminder",
-        "saving": "Saving…",
-        "cancel": "Cancel",
-        "cancelReminder": "Cancel this reminder",
-        "cancelConfirmTitle": "Cancel this reminder?",
-        "cancelConfirmBody": "It leaves Next up and the Task Hub, and nobody is reminded. Repeats stop too.",
-        "cancelConfirmAction": "Cancel reminder",
-        "keep": "Keep it",
-        "cancelledToast": "Reminder cancelled",
-        "createdToast": "Reminder saved",
-        "updatedToast": "Reminder updated",
-        "genericError": "Could not save the reminder. Try again.",
-        "errors": {
-          "titleRequired": "Give the reminder a title",
-          "titleTooLong": "Title is too long",
-          "notesTooLong": "Notes are too long",
-          "dateRequired": "Pick a date",
-          "timeInvalid": "Use a time like 08:30",
-          "oneAnimalForEvent": "Pick exactly one animal",
-          "eventRequired": "Pick the event",
-          "offsetInvalid": "Enter whole days, 0 or more",
-          "intervalInvalid": "Enter 1 to 365 days",
-          "endBeforeStart": "End date is before the first date",
-          "assigneeRequired": "Pick who to tell",
-          "rolesRequired": "Pick at least one role",
-          "peopleRequired": "Pick at least one person"
-        }
-      },
+    "reminders": {
+      "title": "New reminder",
+      "titleFor": "New reminder · {animal}",
+      "editTitle": "Edit reminder",
+      "description": "Set what to remember, when, who is told and which animals it is about.",
+      "close": "Close",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Check left hind hoof",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Anything to remember (optional)",
+      "whenLabel": "When",
+      "when": {
+        "date": "On a date",
+        "afterEvent": "After an event"
+      },
+      "date": "Date",
+      "time": "Time (optional)",
+      "daysAfter": "Days after",
+      "afterEventLabel": "After this event",
+      "eventPlaceholder": "Pick an event",
+      "eventsLoading": "Loading events…",
+      "noEvents": "No recorded events for this animal yet.",
+      "eventsError": "Could not load this animal's events.",
+      "dueOn": "Due {date}",
+      "follows": "Follows the {event} on {date}. Change that date and this reminder moves.",
+      "followsUnknown": "Follows a recorded event. Change that event's date and this reminder moves.",
+      "pickOneAnimal": "Pick one animal",
+      "repeatLabel": "Repeat",
+      "repeat": {
+        "NEVER": "Never",
+        "EVERY_N_DAYS": "Every N days",
+        "WEEKLY": "Weekly",
+        "MONTHLY": "Monthly"
+      },
+      "everyN": "Every how many days",
+      "endsOn": "Ends on (optional)",
+      "leadLabel": "Tell me",
+      "lead": {
+        "0": "On the day",
+        "1": "1 day before too",
+        "3": "3 days before too",
+        "7": "7 days before too"
+      },
+      "audienceLabel": "Who is told",
+      "audience": {
+        "assignee": "One person",
+        "roles": "Roles",
+        "people": "Named people"
+      },
+      "roles": {
+        "Owner": "Owner",
+        "Manager": "Manager",
+        "Worker": "Worker"
+      },
+      "peopleLoading": "Loading team…",
+      "animalsLabel": "Animals",
+      "animalsPlaceholder": "Add animals",
+      "animalsNone": "Not about a particular animal.",
+      "animalsLocked": "Animals cannot be changed after saving. Cancel this reminder and make a new one to change them.",
+      "removeAnimal": "Remove {animal}",
+      "save": "Save reminder",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "cancelReminder": "Cancel this reminder",
+      "cancelConfirmTitle": "Cancel this reminder?",
+      "cancelConfirmBody": "It leaves Next up and the Task Hub, and nobody is reminded. Repeats stop too.",
+      "cancelConfirmAction": "Cancel reminder",
+      "keep": "Keep it",
+      "cancelledToast": "Reminder cancelled",
+      "createdToast": "Reminder saved",
+      "updatedToast": "Reminder updated",
+      "genericError": "Could not save the reminder. Try again.",
+      "errors": {
+        "titleRequired": "Give the reminder a title",
+        "titleTooLong": "Title is too long",
+        "notesTooLong": "Notes are too long",
+        "dateRequired": "Pick a date",
+        "timeInvalid": "Use a time like 08:30",
+        "oneAnimalForEvent": "Pick exactly one animal",
+        "eventRequired": "Pick the event",
+        "offsetInvalid": "Enter whole days, 0 or more",
+        "intervalInvalid": "Enter 1 to 365 days",
+        "endBeforeStart": "End date is before the first date",
+        "assigneeRequired": "Pick who to tell",
+        "rolesRequired": "Pick at least one role",
+        "peopleRequired": "Pick at least one person"
+      }
+    },
     "notifications": {
       "record": "Record",
       "viewAnimals": "View animals"
+    },
+    "launcher": {
+      "chooseAnimalTitle": "Choose an animal",
+      "chooseAnimalHint": "Pick the animal this event is for. The entry form opens next.",
+      "chooseAnimal": "Search animals…"
     }
   }
 }

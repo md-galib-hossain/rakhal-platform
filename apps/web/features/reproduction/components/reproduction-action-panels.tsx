@@ -31,7 +31,7 @@ const ATTENTION_STEP = 8;
 export interface ReproductionActionPanelsProps {
   onRecordAi: (cattleId: string) => void;
   onRecordPregnancyCheck: (cattleId: string, breedingEventId?: string) => void;
-  onReturnToHeat: (breedingEventId: string) => void;
+  onReturnToHeat: (cattleId: string) => void;
   onRecordCalving: (cattleId: string, pregnancyId?: string) => void;
   onRecordDryOff: (cattleId: string) => void;
 }
@@ -182,7 +182,7 @@ export function ReproductionActionPanels({
                     </MetaPill>
                   }
                 >
-                  <Button size="sm" variant="ghost" onClick={() => onReturnToHeat(row.breeding_event_id)}>
+                  <Button size="sm" variant="ghost" onClick={() => onReturnToHeat(row.cattle_id)}>
                     {t("returnToHeat")}
                   </Button>
                   <Button
