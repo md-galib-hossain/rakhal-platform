@@ -4782,6 +4782,7 @@
   "tasks": {
     "pageTitle": "Task Hub",
     "createTask": "Create Task",
+    "newReminder": "New reminder",
     "allTasks": "All Tasks",
     "searchPlaceholder": "Search task by id",
     "priority": {
@@ -4796,7 +4797,8 @@
       "MAINTENANCE": "Maintenance",
       "MILKING": "Milking",
       "CALF_CARE": "Calf Care",
-      "GENERAL": "General"
+      "GENERAL": "General",
+      "REMINDER": "Reminder"
     },
     "recurrence": {
       "DAILY": "Daily",
@@ -8928,6 +8930,50 @@
     }
   },
   "events": {
+    "bulk": {
+      "title": "Record for many animals",
+      "subtitle": "{count, plural, one {# animal selected} other {# animals selected}}",
+      "back": "Back",
+      "pickEvent": "Choose an event",
+      "noEvents": "You can't record events for many animals.",
+      "validFor": "valid for {valid} of {total}",
+      "review": "Review",
+      "checking": "Checking…",
+      "cancel": "Cancel",
+      "done": "Done",
+      "save": "Save {count}",
+      "confirmCount": "{event} will be recorded for {count, plural, one {# animal} other {# animals}}.",
+      "skipHeading": "{count, plural, one {# animal will be skipped} other {# animals will be skipped}}",
+      "skipped": "Skipped",
+      "skipReason": {
+        "VALUES_MISSING": "No value entered"
+      },
+      "batches": "Recording in {count} batches of up to 100.",
+      "gridLabel": "Value for each animal",
+      "gridEmpty": "Enter a value for at least one animal.",
+      "gridInvalid": "{count, plural, one {# value is} other {# values are}} out of range. Check them.",
+      "resultSaved": "{event} saved for {count, plural, one {# animal} other {# animals}}.",
+      "recordEvent": "Record event",
+      "selectMatching": "Select all matching",
+      "selectedMatching": "Selected {count} (first 100 matching)",
+      "selectMatchingFailed": "Could not load the matching animals.",
+      "categoryLabel": "Animal categories",
+      "category": {
+        "ALL": "All",
+        "COW": "Cows",
+        "HEIFER": "Heifers",
+        "CALF": "Calves",
+        "WEANED": "Weaned",
+        "MALE": "Male",
+        "FEMALE": "Female",
+        "PREGNANT": "Pregnant",
+        "MILKING": "Milking",
+        "DRY": "Dry",
+        "FRESH": "Fresh",
+        "OPEN": "Open",
+        "FATTENING": "Fattening"
+      }
+    },
     "chip": {
       "female": "Female",
       "male": "Male",
@@ -9213,6 +9259,35 @@
         "HOOF_TRIM": "Hoof trim",
         "DEHORN": "Dehorned",
         "CUSTOM": "Event"
+      },
+      "actions": {
+        "menu": "Event actions",
+        "edit": "Edit",
+        "void": "Void",
+        "copy": "Copy to another animal",
+        "cancel": "Cancel",
+        "save": "Save",
+        "saving": "Saving…",
+        "editTitle": "Edit this event",
+        "editHelp": "Change the date or the note. Follow-up reminders are re-planned from the new date.",
+        "date": "Date",
+        "notes": "Note",
+        "dateFuture": "The date cannot be in the future.",
+        "editDone": "Event updated",
+        "editError": "Could not update the event.",
+        "forbidden": "Only the person who entered this, within 24 hours, or a manager can change it.",
+        "voidTitle": "Void this event?",
+        "voidHelp": "The row stays in the timeline, struck through. Its open reminders are cancelled and her status is recalculated.",
+        "calvingWarning": "Calves created by this calving are not deleted. Open them from the Family section if they also need removing.",
+        "reason": "Reason",
+        "reasonRequired": "Please give a reason.",
+        "voiding": "Voiding…",
+        "voidDone": "Event voided",
+        "voidError": "Could not void the event.",
+        "copyTitle": "Copy to another animal",
+        "copyHelp": "Pick an animal; its form opens for the same kind of event.",
+        "copySearch": "Search by tag or name",
+        "copyEmpty": "No animals found."
       }
     },
     "form": {
@@ -9427,7 +9502,101 @@
       "skipConfirm": "Skip it",
       "skippedToast": "Skipped",
       "failed": "Could not update the reminder.",
-      "recordOnList": "Record"
+      "recordOnList": "Record",
+      "addReminder": "Add reminder",
+      "editReminder": "Edit"
+    },
+      "reminders": {
+        "title": "New reminder",
+        "titleFor": "New reminder · {animal}",
+        "editTitle": "Edit reminder",
+        "description": "Set what to remember, when, who is told and which animals it is about.",
+        "close": "Close",
+        "titleLabel": "Title",
+        "titlePlaceholder": "Check left hind hoof",
+        "notesLabel": "Notes",
+        "notesPlaceholder": "Anything to remember (optional)",
+        "whenLabel": "When",
+        "when": {
+          "date": "On a date",
+          "afterEvent": "After an event"
+        },
+        "date": "Date",
+        "time": "Time (optional)",
+        "daysAfter": "Days after",
+        "afterEventLabel": "After this event",
+        "eventPlaceholder": "Pick an event",
+        "eventsLoading": "Loading events…",
+        "noEvents": "No recorded events for this animal yet.",
+        "eventsError": "Could not load this animal's events.",
+        "dueOn": "Due {date}",
+        "follows": "Follows the {event} on {date}. Change that date and this reminder moves.",
+        "followsUnknown": "Follows a recorded event. Change that event's date and this reminder moves.",
+        "pickOneAnimal": "Pick one animal",
+        "repeatLabel": "Repeat",
+        "repeat": {
+          "NEVER": "Never",
+          "EVERY_N_DAYS": "Every N days",
+          "WEEKLY": "Weekly",
+          "MONTHLY": "Monthly"
+        },
+        "everyN": "Every how many days",
+        "endsOn": "Ends on (optional)",
+        "leadLabel": "Tell me",
+        "lead": {
+          "0": "On the day",
+          "1": "1 day before too",
+          "3": "3 days before too",
+          "7": "7 days before too"
+        },
+        "audienceLabel": "Who is told",
+        "audience": {
+          "assignee": "One person",
+          "roles": "Roles",
+          "people": "Named people"
+        },
+        "roles": {
+          "Owner": "Owner",
+          "Manager": "Manager",
+          "Worker": "Worker"
+        },
+        "peopleLoading": "Loading team…",
+        "animalsLabel": "Animals",
+        "animalsPlaceholder": "Add animals",
+        "animalsNone": "Not about a particular animal.",
+        "animalsLocked": "Animals cannot be changed after saving. Cancel this reminder and make a new one to change them.",
+        "removeAnimal": "Remove {animal}",
+        "save": "Save reminder",
+        "saving": "Saving…",
+        "cancel": "Cancel",
+        "cancelReminder": "Cancel this reminder",
+        "cancelConfirmTitle": "Cancel this reminder?",
+        "cancelConfirmBody": "It leaves Next up and the Task Hub, and nobody is reminded. Repeats stop too.",
+        "cancelConfirmAction": "Cancel reminder",
+        "keep": "Keep it",
+        "cancelledToast": "Reminder cancelled",
+        "createdToast": "Reminder saved",
+        "updatedToast": "Reminder updated",
+        "genericError": "Could not save the reminder. Try again.",
+        "errors": {
+          "titleRequired": "Give the reminder a title",
+          "titleTooLong": "Title is too long",
+          "notesTooLong": "Notes are too long",
+          "dateRequired": "Pick a date",
+          "timeInvalid": "Use a time like 08:30",
+          "oneAnimalForEvent": "Pick exactly one animal",
+          "eventRequired": "Pick the event",
+          "offsetInvalid": "Enter whole days, 0 or more",
+          "intervalInvalid": "Enter 1 to 365 days",
+          "endBeforeStart": "End date is before the first date",
+          "assigneeRequired": "Pick who to tell",
+          "rolesRequired": "Pick at least one role",
+          "peopleRequired": "Pick at least one person"
+        }
+      },
+    "notifications": {
+      "record": "Record",
+      "viewAnimals": "View animals"
     }
   }
 }

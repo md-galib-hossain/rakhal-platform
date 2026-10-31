@@ -16,6 +16,7 @@ import type { RowAction } from "@/components/shared/row-actions-menu";
 import { EventFormPlaceholder } from "@/features/events/components/event-picker/event-form-placeholder";
 import { EventPicker } from "@/features/events/components/event-picker/event-picker";
 import { EventFormPanel } from "@/features/events/components/form/event-form-panel";
+import { ReminderSheet } from "@/features/events/components/reminders/reminder-sheet";
 import { DISPOSE_EVENTS, FORM_DEFS } from "@/features/events/forms/definitions";
 import { EVENT_KEYS, type EventKey } from "@/features/events/types";
 import { useCattleDetail, useRestoreCattle } from "../../hooks/use-cattle";
@@ -227,6 +228,15 @@ export function AnimalWorkspace({
               setPickerOpen(true);
             }}
             onDone={() => void setRecord(null)}
+          />
+        ) : cattle && canRecord && record === "REMINDER" ? (
+          // RFE-164: the picker's "Reminder" opens the reminder form (a Task Hub task), not an event form.
+          <ReminderSheet
+            open
+            onOpenChange={(open) => {
+              if (!open) void setRecord(null);
+            }}
+            animal={{ id: cattle.id, tagNumber: cattle.tagNumber, name: cattle.name }}
           />
         ) : cattle && canRecord && record && isEventKey(record) && !DISPOSE_EVENTS.includes(record) ? (
           <EventFormPlaceholder

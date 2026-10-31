@@ -68,7 +68,7 @@ export function SectionBody({
     <div id="workspace-panel" role="tabpanel" aria-labelledby={`workspace-tab-${section}`} className="flex flex-col gap-4">
       {section === "timeline" ? (
         <>
-          <NextUp cattleId={cattle.id} canRecord={canRecord} onRecord={onRecord} />
+          <NextUp cattleId={cattle.id} animal={{ id: cattle.id, tagNumber: cattle.tagNumber, name: cattle.name }} canRecord={canRecord} onRecord={onRecord} />
           <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
             <div className="order-last lg:order-none">
               <AnimalTimeline cattleId={cattle.id} gender={cattle.gender} animalCategory={cattle.animalCategory} />

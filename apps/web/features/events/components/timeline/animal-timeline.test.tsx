@@ -6,6 +6,9 @@ import bn from "@/i18n/messages/bn.json";
 import type { TimelineEvent } from "../../timeline-model";
 import { AnimalTimeline } from "./animal-timeline";
 
+// The row menu reads the session and the query client; its rule is covered in row-actions/permissions.test.ts.
+vi.mock("./row-actions/row-actions", () => ({ RowActions: () => null }));
+
 const useAnimalTimeline = vi.fn();
 vi.mock("../../hooks/use-animal-timeline", () => ({
   useAnimalTimeline: (args: unknown) => useAnimalTimeline(args) as unknown,

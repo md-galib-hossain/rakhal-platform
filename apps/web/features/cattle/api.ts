@@ -60,6 +60,7 @@ export const cattleApi = {
         status: filters.status,
         lifecycleSubStage: filters.lifecycleSubStage,
         dueFilter: filters.dueFilter,
+        category: filters.category,
         cursor,
         limit,
       },

@@ -36,7 +36,8 @@ function toDefaults(task: Task): EditTaskFormInput {
   return {
     name: task.name,
     details: task.details ?? undefined,
-    category: task.category,
+    // A reminder is edited in the reminder form (RFE-164), so it never lands here; the plain form has no such category.
+    category: task.category === "REMINDER" ? undefined : task.category,
     priority: task.priority,
     dueAt: task.dueAt.slice(0, 10),
     assignedToId: task.assignedToId ?? undefined,

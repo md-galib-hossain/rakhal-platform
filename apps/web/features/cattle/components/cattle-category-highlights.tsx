@@ -2,130 +2,60 @@
 
 import { useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
-import { Ban, Baby, Beef, Milk, Users, Venus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useCattleCategoryCounts } from "../hooks/use-cattle";
-import type { CattleListFilters } from "../types";
+import { CATTLE_CATEGORY_CHIPS, type CattleCategoryChip, type CattleListFilters } from "../types";
 
-type CategoryKey = "all" | "milking" | "dry" | "heifer" | "calf" | "cow" | "bull" | "steer";
+type ChipKey = "ALL" | CattleCategoryChip;
 
-/** RAKHAL-402 — the 5 animal-category tiles now share their label with `cattle.animalCategory`
- * (the same set Chip labels/the filter dropdown use) instead of the old separate
- * `cattle.categories.{heifer,calf,cow,bull,steer}` keys, so this tile row can't silently drift
- * from the rest of the app's wording. "all"/"milking"/"dry" have no `AnimalCategory` equivalent
- * and stay on `cattle.categories`. */
-const CATEGORY_I18N_KEY: Partial<Record<CategoryKey, "CALF" | "HEIFER" | "COW" | "BULL" | "STEER">> = {
-  heifer: "HEIFER",
-  calf: "CALF",
-  cow: "COW",
-  bull: "BULL",
-  steer: "STEER",
-};
-
-/**
- * RAKHAL-282/283/284: "milking"/"dry" still map onto a real backend query filter
- * (`productionStatus`, `ListCattleQueryDto`) — unchanged.
- *
- * RAKHAL-289: "heifer"/"calf" used to proxy off `reproductiveStatus: "NOT_ELIGIBLE"` /
- * `purpose: "CALF"` for both the tile's count *and* its click-through table filter — a real bug,
- * since heifers with no `ReproductionProfile` row at all (a null relation, not `NOT_ELIGIBLE`)
- * were silently excluded from the click-through. The backend now exposes a real
- * `animalCategory` query param (`ListCattleQueryDto.animalCategory`, confirmed by reading
- * `list-cattle-query.dto.ts` directly — mirrors `deriveAnimalCategory()` server-side), so both
- * `filters` (click-through) and `countFilters` (tile count) use it directly for heifer/calf now.
- * `category` is kept `null` for these two tiles too — the server-side filter is now exact, so the
- * client-side `countByCategory()` recompute is no longer needed (page-count fallback below applies
- * uniformly, same as the other real-field tiles).
- */
-const CATEGORIES: {
-  key: CategoryKey;
-  /** Query params sent when the tile is *clicked* (drives "All Cattle View" below) *and* for the
-   * tile's own *count* query — every tile now maps onto a real, exact backend filter param. */
-  filters: CattleListFilters;
-  icon: React.ComponentType<{ className?: string }>;
-  iconBg: string;
-  iconFg: string;
-}[] = [
-  { key: "all", filters: {}, icon: Users, iconBg: "bg-accent-indigo-tint", iconFg: "text-accent-indigo" },
-  { key: "milking", filters: { productionStatus: "MILKING" }, icon: Milk, iconBg: "bg-success-tint", iconFg: "text-success" },
-  { key: "dry", filters: { productionStatus: "DRY" }, icon: Ban, iconBg: "bg-muted", iconFg: "text-muted-foreground" },
-  { key: "heifer", filters: { animalCategory: "HEIFER" }, icon: Venus, iconBg: "bg-accent-purple-tint", iconFg: "text-accent-purple" },
-  { key: "calf", filters: { animalCategory: "CALF" }, icon: Baby, iconBg: "bg-info-tint", iconFg: "text-info" },
-  { key: "cow", filters: { animalCategory: "COW" }, icon: Beef, iconBg: "bg-primary-tint", iconFg: "text-primary" },
-  { key: "bull", filters: { animalCategory: "BULL" }, icon: Beef, iconBg: "bg-accent-indigo-tint", iconFg: "text-accent-indigo" },
-  { key: "steer", filters: { animalCategory: "STEER" }, icon: Beef, iconBg: "bg-muted", iconFg: "text-muted-foreground" },
+const CHIPS: { key: ChipKey; filters: CattleListFilters }[] = [
+  { key: "ALL", filters: {} },
+  ...CATTLE_CATEGORY_CHIPS.map((key) => ({ key, filters: { category: key } as CattleListFilters })),
 ];
 
-/** Clickable KPI-tile row (same "Cattle Highlights" card visual language, not the earlier pill
- * tabs) — picking "Milking" filters "All Cattle View" below to milking cows; "All" (the default,
- * no query params set) shows everything. URL-synced via `nuqs`, same param keys `CattleFilters`'s
- * select dropdowns write, so both controls stay in sync in either direction. */
+/**
+ * RFE-163 — scrolling category chips with live counts (04 §6), replacing the 8 KPI tiles. A chip writes the `category`
+ * URL param (`GET /cattle?category=`, RAKHAL-480); "All" clears it. The older `productionStatus` / `animalCategory` /
+ * `reproductiveStatus` params are cleared on pick so a stale bookmarked URL cannot stack with the chip. Counts come
+ * from a 100-row page, so a bigger group reads "100+".
+ */
 export function CattleCategoryHighlights() {
-  const t = useTranslations("cattle.categories");
-  const tAnimalCategory = useTranslations("cattle.animalCategory");
-  const [productionStatus, setProductionStatus] = useQueryState("productionStatus", parseAsString);
-  const [animalCategory, setAnimalCategory] = useQueryState("animalCategory", parseAsString);
-  // Cleared (not read) on select below — no longer written by this component (RAKHAL-289 dropped
-  // the reproductiveStatus proxy) but a stale bookmarked/shared URL could still carry
-  // one, which would otherwise silently stack with the new animalCategory filter.
+  const t = useTranslations("events.bulk");
+  const [category, setCategory] = useQueryState("category", parseAsString);
+  const [, setProductionStatus] = useQueryState("productionStatus", parseAsString);
+  const [, setAnimalCategory] = useQueryState("animalCategory", parseAsString);
   const [, setReproductiveStatus] = useQueryState("reproductiveStatus", parseAsString);
-  const counts = useCattleCategoryCounts(CATEGORIES.map(({ key, filters }) => ({ key, filters })));
+  const counts = useCattleCategoryCounts(CHIPS.map(({ key, filters }) => ({ key: `chip-${key}`, filters })));
+  const active: ChipKey = CHIPS.some((chip) => chip.key === category) ? (category as ChipKey) : "ALL";
 
-  const active: CategoryKey =
-    CATEGORIES.find((c) => {
-      if (c.key === "all") return false;
-      if (c.filters.productionStatus) return productionStatus === c.filters.productionStatus;
-      if (c.filters.animalCategory) return animalCategory === c.filters.animalCategory;
-      return false;
-    })?.key ?? "all";
-
-  function selectCategory(next: CategoryKey) {
-    const cfg = CATEGORIES.find((c) => c.key === next)!;
-    void setProductionStatus(cfg.filters.productionStatus ?? null);
-    void setAnimalCategory(cfg.filters.animalCategory ?? null);
+  function pick(key: ChipKey) {
+    void setCategory(key === "ALL" ? null : key);
+    void setProductionStatus(null);
+    void setAnimalCategory(null);
     void setReproductiveStatus(null);
   }
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row">
-      {CATEGORIES.map((cfg, i) => {
-        const Icon = cfg.icon;
-        const isActive = cfg.key === active;
+    <div role="group" aria-label={t("categoryLabel")} className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+      {CHIPS.map((chip, i) => {
+        const isActive = chip.key === active;
         const result = counts[i];
+        const page = result.data;
+        const count = page ? (page.meta.hasNextPage ? `${page.items.length}+` : String(page.items.length)) : "0";
         return (
           <button
-            key={cfg.key}
+            key={chip.key}
             type="button"
-            onClick={() => selectCategory(cfg.key)}
+            onClick={() => pick(chip.key)}
             aria-pressed={isActive}
             className={cn(
-              "flex flex-1 flex-col justify-between gap-3 rounded-xl border p-3 text-left transition-colors",
-              isActive ? "border-primary bg-primary-tint" : "border-border bg-card hover:bg-muted",
+              "flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-4 text-sm transition-colors",
+              isActive ? "border-primary bg-primary-tint font-semibold text-primary" : "border-border bg-card text-foreground hover:bg-muted",
             )}
           >
-            <div className="flex items-center gap-2">
-              <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", cfg.iconBg)}>
-                <Icon className={cn("size-4", cfg.iconFg)} />
-              </span>
-              <p className="text-sm font-medium text-foreground">
-                {(() => {
-                  const animalCategoryKey = CATEGORY_I18N_KEY[cfg.key];
-                  return animalCategoryKey ? tAnimalCategory(animalCategoryKey) : t(cfg.key);
-                })()}
-              </p>
-            </div>
-            {result.isLoading ? (
-              <Skeleton className="h-8 w-12" />
-            ) : (
-              <p className="text-2xl font-bold tracking-tight text-foreground tabular-nums">
-                {result.data
-                  ? result.data.meta.hasNextPage
-                    ? `${result.data.items.length}+`
-                    : result.data.items.length
-                  : 0}
-              </p>
-            )}
+            {t(`category.${chip.key}` as never)}
+            {result.isLoading ? <Skeleton className="h-4 w-6" /> : <span className="tabular-nums text-muted-foreground">{count}</span>}
           </button>
         );
       })}

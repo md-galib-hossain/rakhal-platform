@@ -1,5 +1,5 @@
 /** Mirrors the backend `TaskCategory` Prisma enum (`task.enums.prisma`). */
-export type TaskCategory = "FEEDING" | "HEALTHCARE" | "BREEDING" | "MAINTENANCE" | "MILKING" | "CALF_CARE" | "GENERAL";
+export type TaskCategory = "FEEDING" | "HEALTHCARE" | "BREEDING" | "MAINTENANCE" | "MILKING" | "CALF_CARE" | "GENERAL" | "REMINDER";
 
 export type TaskPriority = "HIGH" | "MEDIUM" | "LOW";
 
@@ -11,7 +11,7 @@ export type TaskDisplayStatus = "pending" | "in_progress" | "completed" | "block
 
 export type TaskSource = "MANUAL" | "HEALTH_PLAN" | "SYSTEM_AUTO";
 
-export type TaskRecurrence = "DAILY" | "WEEKLY" | "MONTHLY";
+export type TaskRecurrence = "DAILY" | "WEEKLY" | "MONTHLY" | "EVERY_N_DAYS";
 
 export type TaskListFilter = "my_tasks" | "all" | "overdue" | "blocked";
 
@@ -31,6 +31,13 @@ export interface Task {
   recurring: boolean;
   recurrenceType: TaskRecurrence | null;
   recurrenceEndDate: string | null;
+  /** RFE-164 — custom-reminder columns (RAKHAL-487). Optional: absent on rows from before they were typed. */
+  recurrenceIntervalDays?: number | null;
+  remindDaysBefore?: number | null;
+  notifyRoleNames?: string[];
+  recipientUserIds?: string[];
+  /** Set when the due date follows a linked animal event ("N days after"). */
+  reminderOffsetDays?: number | null;
   safetyCritical: boolean;
   source: TaskSource;
   /** Present on `SYSTEM_AUTO` tasks only (e.g. a repro-protocol step) — the domain event that
@@ -108,12 +115,20 @@ export interface CreateTaskPayload {
   category?: TaskCategory;
   priority?: TaskPriority;
   scheduledAt?: string;
-  dueAt: string;
+  /** Required, except a REMINDER linked to an event (`sourceEventId` + `offsetDays`). */
+  dueAt?: string;
   assignedToId?: string;
   recurring?: boolean;
   recurrenceType?: TaskRecurrence;
   recurrenceEndDate?: string;
   safetyCritical?: boolean;
+  /** RFE-164 reminders (`CreateTaskDto`, RAKHAL-487). */
+  remindDaysBefore?: number;
+  notifyRoleNames?: string[];
+  recipientUserIds?: string[];
+  sourceEventId?: string;
+  offsetDays?: number;
+  recurrenceIntervalDays?: number;
   /** Mutually exclusive with `cattleIds` — the backend rejects both set. */
   relatedCattleId?: string;
   /** Multi-cow target (user request, no ticket #). Mutually exclusive with `relatedCattleId`. */
@@ -131,6 +146,15 @@ export interface UpdateTaskPayload {
   dueAt?: string;
   assignedToId?: string;
   safetyCritical?: boolean;
+  /** RFE-164 reminders (`UpdateTaskDto`). `offsetDays` re-derives the due date of an event-linked reminder. */
+  remindDaysBefore?: number;
+  notifyRoleNames?: string[];
+  recipientUserIds?: string[];
+  offsetDays?: number;
+  recurring?: boolean;
+  recurrenceType?: TaskRecurrence;
+  recurrenceIntervalDays?: number;
+  recurrenceEndDate?: string;
 }
 
 /** Mirrors `CompleteTaskDto`. `completionPhotoUrl` has no matching upload endpoint on this

@@ -216,7 +216,12 @@ export interface CattleListFilters {
   lifecycleSubStage?: LifecycleSubStage;
   /** RAKHAL-475 — animals with an actionable upcoming event (`ListCattleQueryDto.dueFilter`). */
   dueFilter?: DueFilter;
+  /** RAKHAL-480 — event-category chip (`GET /cattle?category=`); the Animals list chips write it. */
+  category?: CattleCategoryChip;
 }
+
+export const CATTLE_CATEGORY_CHIPS = ["COW", "HEIFER", "CALF", "WEANED", "MALE", "FEMALE", "PREGNANT", "MILKING", "DRY", "FRESH", "OPEN", "FATTENING"] as const;
+export type CattleCategoryChip = (typeof CATTLE_CATEGORY_CHIPS)[number];
 
 export const BULK_ACTIONS = ["change_shed", "mark_sold", "dispose", "export"] as const;
 export type BulkAction = (typeof BULK_ACTIONS)[number];

@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { todayLocalIso, addDaysLocalIso } from "@/lib/local-date";
 import { useAnimalTimeline } from "../../hooks/use-animal-timeline";
 import { TIMELINE_GROUPS, groupByDay, type TimelineGroup } from "../../timeline-model";
+import { RowActions } from "./row-actions/row-actions";
 import { TimelineRow } from "./timeline-row";
 
 /**
@@ -86,7 +87,11 @@ export function AnimalTimeline({
               </h3>
               <ol className="divide-y divide-border">
                 {day.events.map((event) => (
-                  <TimelineRow key={event.id} event={event} />
+                  <TimelineRow
+                    key={event.id}
+                    event={event}
+                    actions={timeline.source === "route" ? <RowActions cattleId={cattleId} event={event} /> : undefined}
+                  />
                 ))}
               </ol>
             </div>

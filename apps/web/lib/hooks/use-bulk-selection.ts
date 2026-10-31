@@ -46,7 +46,7 @@ export function useTableBulkSelection(
 export function useGridBulkSelection(
   allIds: string[],
   initialSelected: string[] = [],
-): BulkSelectionAdapter & { isSelected: (id: string) => boolean; toggle: (id: string) => void } {
+): BulkSelectionAdapter & { isSelected: (id: string) => boolean; toggle: (id: string) => void; selectMany: (ids: string[]) => void } {
   const [selected, setSelected] = useState<Set<string>>(() => new Set(initialSelected));
   const isAllSelected = allIds.length > 0 && allIds.every((id) => selected.has(id));
 
@@ -63,6 +63,7 @@ export function useGridBulkSelection(
         return next;
       });
     },
+    selectMany: (ids) => setSelected(new Set(ids)),
     toggleAll: () => setSelected(isAllSelected ? new Set() : new Set(allIds)),
     clear: () => setSelected(new Set()),
   };

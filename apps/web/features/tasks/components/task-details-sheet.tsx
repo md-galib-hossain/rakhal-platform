@@ -19,6 +19,7 @@ import { avatarTint, initials } from "../avatar-tint";
 import { DISPLAY_STATUS_CHIP_VARIANT, PRIORITY_CHIP_VARIANT } from "../task-style";
 import { LACTATION_ALERT_ICON, lactationAlertSeverity, parseLactationAlert } from "../lactation-alert";
 import { AssigneePicker } from "./assignee-picker";
+import { ReminderSheet } from "@/features/events/components/reminders/reminder-sheet";
 import { EditTaskSheet } from "./edit-task-sheet";
 import type { Task } from "../types";
 
@@ -384,7 +385,12 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
         </div>
       </div>
 
-      <EditTaskSheet task={editing ? task : null} open={editing} onOpenChange={setEditing} onUpdated={setTask} />
+      {task.category === "REMINDER" ? (
+        // RFE-164: a custom reminder is edited in the reminder form (repeat, audience, "N days after"), not the plain task form.
+        <ReminderSheet key={task.id} open={editing} onOpenChange={setEditing} task={task} onSaved={setTask} />
+      ) : (
+        <EditTaskSheet task={editing ? task : null} open={editing} onOpenChange={setEditing} onUpdated={setTask} />
+      )}
       <ConfirmDialog
         open={deleting}
         onOpenChange={setDeleting}

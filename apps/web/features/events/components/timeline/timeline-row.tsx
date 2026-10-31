@@ -1,5 +1,6 @@
 "use client"; // locale-aware text and dates
 
+import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import {
   AlertTriangle,
@@ -64,7 +65,7 @@ function text(value: unknown): string | null {
  * "History" tag for entries recorded after the fact, a struck-through row for voided ones, and a quiet line when the
  * event follows from an earlier one. Sorted by event date by the caller. No row actions yet (edit / void is RFE-161).
  */
-export function TimelineRow({ event }: { event: TimelineEvent }) {
+export function TimelineRow({ event, actions }: { event: TimelineEvent; actions?: ReactNode }) {
   const t = useTranslations("events.timeline");
   const tCondition = useTranslations("health.reportSickness.conditionValue");
   const Icon = ICONS[event.type] ?? StickyNote;
@@ -120,6 +121,7 @@ export function TimelineRow({ event }: { event: TimelineEvent }) {
           className="shrink-0 pt-1 text-xs text-muted-foreground"
         />
       ) : null}
+      {actions}
     </li>
   );
 }

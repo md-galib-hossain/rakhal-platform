@@ -15,6 +15,7 @@ import {
   useMarkNotificationRead,
   useNotifications,
 } from "../hooks/use-notifications";
+import { notificationAction } from "../notification-action";
 import type { NotificationListItem, NotificationStatusFilter } from "../types";
 
 const PER_PAGE = 20;
@@ -31,6 +32,7 @@ const PRIORITY_VARIANT: Record<NotificationListItem["priority"], "destructive" |
  * read/read-all + deep links, matching the ticket's own AC. */
 export function NotificationCenterView() {
   const t = useTranslations("notificationsPage");
+  const te = useTranslations("events.notifications");
   const format = useFormatter();
   const [status, setStatus] = useState<NotificationStatusFilter>("all");
   const [page, setPage] = useState(1);
@@ -101,8 +103,11 @@ export function NotificationCenterView() {
       ) : (
         <div className="flex flex-col divide-y divide-border rounded-xl border border-border bg-card">
           {items.map((n) => {
+            const action = notificationAction(n.link);
+            const actionLabel =
+              action.kind === "record" ? te("record") : action.kind === "list" ? te("viewAnimals") : null;
             const row = (
-              <div className={cn("flex items-start gap-3 px-4 py-3 hover:bg-muted/50", !n.read && "bg-primary/5")}>
+              <div className={cn("flex items-start gap-3 px-4 py-3 ", action.kind !== "none" && "hover:bg-muted/50", !n.read && "bg-primary/5")}>
                 <Badge variant={PRIORITY_VARIANT[n.priority]} className="mt-0.5 shrink-0">
                   {t(`priority.${n.priority}`)}
                 </Badge>
@@ -113,18 +118,21 @@ export function NotificationCenterView() {
                     {format.dateTime(new Date(n.created_at), { dateStyle: "medium", timeStyle: "short" })}
                   </p>
                 </div>
+                {actionLabel ? (
+                  <span className="mt-0.5 shrink-0 text-xs font-medium text-primary">{actionLabel}</span>
+                ) : null}
                 {!n.read ? <span className="mt-1.5 size-2 shrink-0 rounded-full bg-primary" aria-hidden /> : null}
               </div>
             );
-            return n.link ? (
-              <Link key={n.id} href={n.link} onClick={() => !n.read && markRead.mutate(n.id)}>
+            return action.kind !== "none" ? (
+              <Link key={n.id} href={action.href} onClick={() => !n.read && markRead.mutate(n.id)}>
                 {row}
               </Link>
             ) : (
               <button
                 key={n.id}
                 type="button"
-                className="block w-full text-left"
+                className="block w-full cursor-default text-left"
                 onClick={() => !n.read && markRead.mutate(n.id)}
               >
                 {row}

@@ -37,11 +37,14 @@ import {
   useCreateShedInline,
   useSheds,
 } from "../hooks/use-cattle";
+import { BulkEventSheet } from "@/features/events/components/bulk/bulk-event-sheet";
+import { cattleApi } from "../api";
 import { buildCattleColumns } from "./cattle-columns";
 import { CattleGrid } from "./cattle-grid";
 import type {
   AnimalCategory,
   BulkDisposeType,
+  CattleCategoryChip,
   CattleListFilters,
   CattleListItem,
   CattleStatus,
@@ -96,6 +99,7 @@ export function CattleTable() {
     status: (searchParams.get("herdStatus") as CattleStatus | null) ?? undefined,
     lifecycleSubStage: (searchParams.get("lifecycleSubStage") as LifecycleSubStage | null) ?? undefined,
     dueFilter: (searchParams.get("dueFilter") as DueFilter | null) ?? undefined,
+    category: (searchParams.get("category") as CattleCategoryChip | null) ?? undefined,
   };
 
   const query = useCattleInfiniteList(filters);
@@ -106,6 +110,10 @@ export function CattleTable() {
   const createAnimalGroup = useCreateAnimalGroup();
   const addToAnimalGroup = useAddToAnimalGroup();
   const items = query.items;
+  const [recordOpen, setRecordOpen] = useState(false);
+  /** Animals fetched by "Select all matching" that the infinite list has not loaded yet (the bulk sheet needs their facts). */
+  const [fetchedItems, setFetchedItems] = useState<CattleListItem[]>([]);
+  const [selectingAll, setSelectingAll] = useState(false);
   const [disposeDialogOpen, setDisposeDialogOpen] = useState(false);
   const [disposeType, setDisposeType] = useState<BulkDisposeType>("SALE");
   const columns = useMemo(
@@ -130,8 +138,30 @@ export function CattleTable() {
     setRowSelection({});
     gridSelection.clear();
   }
-  const selectedItems = items.filter((c) => selection.selectedIds.includes(c.id));
   const tBulk = useTranslations("cattle.bulk");
+  const tEvents = useTranslations("events.bulk");
+  const selectedAnimals = useMemo(() => {
+    const byId = new Map<string, CattleListItem>();
+    for (const row of [...fetchedItems, ...items]) byId.set(row.id, row);
+    return selection.selectedIds.map((id) => byId.get(id)).filter((row): row is CattleListItem => Boolean(row));
+  }, [fetchedItems, items, selection.selectedIds]);
+
+  /** RFE-163 — selects up to 100 animals matching the current filters, loaded or not (the server cap per submit). */
+  async function selectAllMatching() {
+    setSelectingAll(true);
+    try {
+      const page = await cattleApi.list(filters, undefined, 100);
+      setFetchedItems(page.items);
+      const ids = page.items.map((row) => row.id);
+      setRowSelection(Object.fromEntries(ids.map((id) => [id, true])));
+      gridSelection.selectMany(ids);
+      toast.success(tEvents("selectedMatching", { count: ids.length }));
+    } catch {
+      toast.error(tEvents("selectMatchingFailed"));
+    } finally {
+      setSelectingAll(false);
+    }
+  }
 
   async function run(
     action: "change_shed" | "dispose",
@@ -188,6 +218,12 @@ export function CattleTable() {
           <List className="size-4" aria-hidden />
         </button>
       </div>
+
+      {canBulk && items.length > 0 ? (
+        <Button variant="outline" size="sm" className="min-h-11 w-fit" disabled={selectingAll} onClick={() => void selectAllMatching()}>
+          {tEvents("selectMatching")}
+        </Button>
+      ) : null}
 
       {mode === "table" ? (
         <div
@@ -318,6 +354,9 @@ export function CattleTable() {
         cancelLabel={tBulk("cancel")}
         selectedCountLabel={tBulk("selectedCount", { count: selection.selectedCount })}
         actions={[
+          ...(can("cattle.event")
+            ? [{ key: "record_event", label: tEvents("recordEvent"), variant: "primary" as const, onRun: () => setRecordOpen(true) }]
+            : []),
           { key: "change_shed", label: tBulk("changeShed"), variant: "outline", onRun: () => setShedDialogOpen(true) },
           { key: "add_to_group", label: tBulk("addToGroup"), variant: "outline", onRun: () => setAddToGroupOpen(true) },
           {
@@ -328,6 +367,8 @@ export function CattleTable() {
           },
         ]}
       />
+
+      <BulkEventSheet open={recordOpen} onOpenChange={setRecordOpen} animals={selectedAnimals} />
 
       <Sheet open={disposeDialogOpen} onOpenChange={setDisposeDialogOpen}>
         <SheetContent side="right" className="inset-y-0 right-0 flex h-full w-full flex-col gap-0 border-0 p-4 shadow-2xl sm:inset-y-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:w-[calc(100%-20px)] sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:max-w-md">

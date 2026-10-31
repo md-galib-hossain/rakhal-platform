@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ClipboardList, Plus, Search } from "lucide-react";
+import { AlarmClock, ClipboardList, Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -15,6 +15,7 @@ import { TaskHighlights } from "./task-highlights";
 import { TaskFilterTabs } from "./task-filter-tabs";
 import { TaskDateFilterPicker, taskPresetRange } from "./task-date-filter";
 import { TaskCard } from "./task-card";
+import { ReminderSheet } from "@/features/events/components/reminders/reminder-sheet";
 import { CreateTaskSheet } from "./create-task-sheet";
 import { TaskDetailsSheet } from "./task-details-sheet";
 
@@ -38,6 +39,7 @@ export function TasksView() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
   const [detailsTask, setDetailsTask] = useState<Task | null>(null);
 
   useEffect(() => {
@@ -68,10 +70,16 @@ export function TasksView() {
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-2xl font-bold text-foreground">{t("pageTitle")}</h1>
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="size-[18px]" aria-hidden />
-            {t("createTask")}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={() => setReminderOpen(true)}>
+              <AlarmClock className="size-[18px]" aria-hidden />
+              {t("newReminder")}
+            </Button>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="size-[18px]" aria-hidden />
+              {t("createTask")}
+            </Button>
+          </div>
         </div>
 
         <TaskHighlights data={query.highlights} isLoading={query.isLoading} />
@@ -127,6 +135,7 @@ export function TasksView() {
       </div>
 
       <CreateTaskSheet open={createOpen} onOpenChange={setCreateOpen} />
+      <ReminderSheet open={reminderOpen} onOpenChange={setReminderOpen} />
       <TaskDetailsSheet task={detailsTask} open={detailsTask !== null} onOpenChange={(open) => !open && setDetailsTask(null)} />
     </div>
   );

@@ -11,7 +11,6 @@ import { todayLocalIso } from "@/lib/local-date";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { CattleDetail } from "@/features/cattle/types";
-import { EVENT_VOID_AVAILABLE } from "../../api";
 import { buildRequest, defaultValues, FORM_DEFS, validateValues, type FieldError } from "../../forms/definitions";
 import { clientFindings, findingMessageKey, isPastRecord, previewFollowUps } from "../../forms/followups";
 import type { Finding, FollowUpPreview, FormDef, FormValues } from "../../forms/types";
@@ -164,7 +163,7 @@ export function EventFormPanel({
       const result = await record.mutateAsync({ request, idempotencyKey });
       const ref = result.via === "route" ? extractRef(result.body) : null;
       const message = t("saved", { event: tCatalogue(`${eventKey}.label`), count: followUps.filter(isOn).length });
-      if (ref && EVENT_VOID_AVAILABLE) toast.success(message, { duration: 5000, action: { label: t("undo"), onClick: () => void undo(ref) } });
+      if (ref) toast.success(message, { duration: 5000, action: { label: t("undo"), onClick: () => void undo(ref) } });
       else toast.success(message);
       if (another) {
         setValues(defaultValues(def));

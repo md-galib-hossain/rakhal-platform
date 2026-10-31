@@ -42,6 +42,9 @@ export interface TimelineEvent {
   batchId: string | null;
   /** The earlier event this one follows from (a preg check's AI). */
   sourceEventId: string | null;
+  /** Who entered it and when (route rows only) — the 24 h author window of Edit / Void is measured from `createdAt`. */
+  recordedById?: string | null;
+  createdAt?: string | null;
   detail: Record<string, unknown> | null;
 }
 

@@ -18,8 +18,8 @@ export class EventUnavailableError extends Error {
 
 /** An opaque `ref` (02 §3.8) from a create response, when there is one — what Undo voids. */
 export function extractRef(body: unknown): string | null {
-  const b = (body ?? {}) as { ref?: unknown; event?: { ref?: unknown; id?: unknown }; id?: unknown };
-  const ref = b.ref ?? b.event?.ref ?? b.event?.id ?? b.id;
+  const b = (body ?? {}) as { ref?: unknown; eventId?: unknown; event?: { ref?: unknown; id?: unknown }; id?: unknown };
+  const ref = b.eventId ?? b.ref ?? b.event?.ref ?? b.event?.id ?? b.id;
   return typeof ref === "string" ? ref : null;
 }
 
@@ -102,6 +102,19 @@ export function useRecordEvent(cattleId: string, eventKey: EventKey) {
     onSuccess: () => {
       // An event moves state everywhere: the animal, its timeline, Next up, reproduction, health and the task list.
       for (const key of ["cattle", "events", "reproduction", "health", "healthcare", "tasks"]) {
+        void queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    },
+  });
+}
+
+export function useEditEvent(cattleId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ eventId, body }: { eventId: string; body: { eventAt?: string; notes?: string | null; reason?: string } }) =>
+      eventsApi.edit(cattleId, eventId, body),
+    onSuccess: () => {
+      for (const key of ["cattle", "events", "reproduction", "health", "tasks"]) {
         void queryClient.invalidateQueries({ queryKey: [key] });
       }
     },

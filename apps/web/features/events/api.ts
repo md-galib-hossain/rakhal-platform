@@ -5,10 +5,6 @@ import type { CursorPage } from "@/types/api";
 import type { EventRequest, Finding, FollowUpPreview } from "./forms/types";
 import type { TimelineEvent, TimelineGroup } from "./timeline-model";
 
-/** `POST /cattle/:id/events/:ref/void` ships with RAKHAL-488 (Wave 5); until then there is no Undo toast and no Void
- * button anywhere. Flip to `true` when the route exists. */
-export const EVENT_VOID_AVAILABLE = false;
-
 /** Server rule keys (04 §3.6) → `events.form.followUp.*` label keys. */
 const RULE_LABEL: Record<string, string> = {
   PREG_CHECK_AFTER_BREEDING: "pregCheck",
@@ -73,7 +69,11 @@ export const eventsApi = {
       headers: { "Idempotency-Key": idempotencyKey },
     });
   },
-  /** `POST /cattle/:id/events/:ref/void` (02 §3.8) — used by the Undo toast. */
+  /** RAKHAL-488 — `PATCH /cattle/:id/events/:eventId`: date and note only; author within 24 h or manager. */
+  edit(cattleId: string, eventId: string, body: { eventAt?: string; notes?: string | null; reason?: string }): Promise<unknown> {
+    return apiFetch<unknown>(`/cattle/${cattleId}/events/${encodeURIComponent(eventId)}`, { method: "PATCH", body });
+  },
+  /** `POST /cattle/:id/events/:ref/void` (RAKHAL-488) — used by the Undo toast. */
   void(cattleId: string, ref: string, reason: string): Promise<unknown> {
     return apiFetch<unknown>(`/cattle/${cattleId}/events/${encodeURIComponent(ref)}/void`, { method: "POST", body: { reason } });
   },
