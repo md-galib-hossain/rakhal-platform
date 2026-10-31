@@ -1,5 +1,5 @@
 import { addDaysLocalIso } from "@/lib/local-date";
-import type { CattleFormPayload, HistoryPayload } from "../../types";
+import type { HistoryPayload } from "../../types";
 
 /**
  * RFE-162 — the "Her / His history" step of Add animal (03 §6, 04 §5 walkthrough A). The step collects what the farmer
@@ -136,52 +136,4 @@ export function toHistoryPayload(values: HistoryValues, gender: string, today: s
   }
   void today;
   return history;
-}
-
-export type DroppedItem = "vaccination" | "service";
-
-/**
- * Fallback while `POST /cattle` does not accept `history`: the existing intake fields where they map (`priorCalvings`,
- * `productionStatus` + `lactationStartDate` / `dryOffStartDate`, `intakePregnancy`, `intakeBreeding`). `dropped` lists
- * what the old fields cannot hold, so the UI can tell the farmer instead of losing it silently.
- */
-export function toLegacyIntake(
-  values: HistoryValues,
-  gender: string,
-  today: string,
-): { fields: Partial<CattleFormPayload>; dropped: DroppedItem[] } {
-  const fields: Partial<CattleFormPayload> = {};
-  const dropped: DroppedItem[] = [];
-  if (gender === "FEMALE") {
-    const calved = values.calvedBefore === "yes" && filled(values.lastCalvingDate);
-    if (calved) fields.priorCalvings = values.calvingNumber && values.calvingNumber >= 1 ? values.calvingNumber : 1;
-    if (calved && values.milkingNow === "yes") {
-      fields.productionStatus = "MILKING";
-      fields.lactationStartDate = expandDate(filled(values.milkingSince) ? values.milkingSince : (values.lastCalvingDate as string));
-    } else if (calved && values.milkingNow === "no" && filled(values.drySince)) {
-      fields.productionStatus = "DRY";
-      fields.dryOffStartDate = expandDate(values.drySince);
-    }
-    if (values.pregnant === "yes") {
-      if (filled(values.expectedCalvingDate)) fields.intakePregnancy = { expectedCalvingDate: expandDate(values.expectedCalvingDate) };
-      else if (typeof values.monthsPregnant === "number") {
-        fields.intakePregnancy = { conceptionDate: addDaysLocalIso(today, -Math.round(values.monthsPregnant * 30)) };
-      }
-      if (filled(values.lastBreedingDate)) dropped.push("service");
-    } else if (filled(values.lastBreedingDate)) {
-      fields.intakeBreeding = {
-        breedingDate: expandDate(values.lastBreedingDate),
-        breedingMethod: values.breedingMethod ?? "AI",
-        ...(clean(values.bull) ? { notes: clean(values.bull) } : {}),
-      };
-    }
-  }
-  if (filled(values.lastVaccinationDate)) dropped.push("vaccination");
-  return { fields, dropped };
-}
-
-/** The server answers 400 "property history should not exist" until it accepts the field; only then do we retry the old way. */
-export function isHistoryRejected(error: unknown): boolean {
-  const e = error as { status?: number; message?: string } | null;
-  return Boolean(e) && e?.status === 400 && /history/i.test(e?.message ?? "");
 }

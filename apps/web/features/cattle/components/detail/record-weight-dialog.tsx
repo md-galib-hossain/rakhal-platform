@@ -12,7 +12,7 @@ import { useRecordWeight } from "../../hooks/use-cattle-detail-tabs";
 import { recordWeightSchema, type RecordWeightInput } from "../../schemas";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 
-/** `POST /cattle/:id/weight` (RAKHAL-039) — `cattle.update`-gated (manager+, no worker perm yet). */
+/** Weight event (`POST /cattle/:id/events`, type WEIGHT; RAKHAL-039) — `cattle.update`-gated (manager+, no worker perm yet). */
 export function RecordWeightDialog({
   cattleId,
   open,

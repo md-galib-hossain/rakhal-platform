@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
+import { eventsApi } from "@/features/events/api";
+import { toEventAt } from "@/features/events/forms/definitions";
 import { calvesApi } from "../api";
 import type { CalfKpis, CalfListFilters } from "../types";
 import type {
@@ -64,7 +66,19 @@ export function useRecordMilkFeeding(calfId: string) {
 export function useRecordWeight(calfId: string) {
   const invalidate = useInvalidateCalf(calfId);
   return useMutation({
-    mutationFn: (dto: RecordWeightInput) => calvesApi.recordWeight(calfId, dto),
+    // A calf is a cattle row: its weight is the one weight event (`POST /cattle/:id/events`, type WEIGHT).
+    mutationFn: (dto: RecordWeightInput) =>
+      eventsApi.create(
+        calfId,
+        {
+          type: "WEIGHT",
+          eventAt: toEventAt(dto.measuredDate, undefined),
+          provenance: "RECORDED",
+          ...(dto.notes ? { notes: dto.notes } : {}),
+          payload: { weightKg: dto.weightKg },
+        },
+        crypto.randomUUID(),
+      ),
     onSuccess: invalidate,
   });
 }

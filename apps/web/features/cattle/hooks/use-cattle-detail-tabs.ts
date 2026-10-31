@@ -2,6 +2,9 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
+import { todayLocalIso } from "@/lib/local-date";
+import { eventsApi } from "@/features/events/api";
+import { toEventAt } from "@/features/events/forms/definitions";
 import { cattleApi } from "../api";
 import type { WeightHistoryPeriod } from "../detail-types";
 import type { RecordBcsInput, RecordWeightInput } from "../schemas";
@@ -51,36 +54,51 @@ export function useCattleHealthSummary(id: string) {
   });
 }
 
-export function useCattleCalvingEvents(id: string, enabled: boolean) {
-  return useQuery({
-    queryKey: qk.cattle.calvingEvents(id),
-    queryFn: () => cattleApi.calvingEvents(id),
-    staleTime: STALE_TIME,
-    enabled,
-  });
-}
-
-/** `cattle.bcs` (worker-permitted, PRD §26) — invalidates the Overview tab's `bcs_records`. */
+/** `POST /cattle/:id/events` type BCS. `cattle.bcs` (worker-permitted, PRD §26) — invalidates the Overview tab's `bcs_records`. */
 export function useRecordBcs(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (dto: RecordBcsInput) => cattleApi.recordBcs(id, dto),
+    mutationFn: (dto: RecordBcsInput) =>
+      eventsApi.create(
+        id,
+        {
+          type: "BCS",
+          eventAt: toEventAt(dto.date || todayLocalIso(), undefined),
+          provenance: "RECORDED",
+          ...(dto.notes ? { notes: dto.notes } : {}),
+          payload: { score: dto.score },
+        },
+        crypto.randomUUID(),
+      ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: qk.cattle.overview(id) });
       void queryClient.invalidateQueries({ queryKey: qk.cattle.detail(id) });
+      void queryClient.invalidateQueries({ queryKey: ["events"] });
     },
   });
 }
 
-/** `cattle.update` (manager+, no worker perm yet — TECH_DEBT RD-012(f)). */
+/** `POST /cattle/:id/events` type WEIGHT. `cattle.update` (manager+, no worker perm yet — TECH_DEBT RD-012(f)). */
 export function useRecordWeight(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (dto: RecordWeightInput) => cattleApi.recordWeight(id, dto),
+    mutationFn: (dto: RecordWeightInput) =>
+      eventsApi.create(
+        id,
+        {
+          type: "WEIGHT",
+          eventAt: dto.date || new Date().toISOString(),
+          provenance: "RECORDED",
+          ...(dto.notes ? { notes: dto.notes } : {}),
+          payload: { weightKg: dto.weightKg },
+        },
+        crypto.randomUUID(),
+      ),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: qk.cattle.overview(id) });
       void queryClient.invalidateQueries({ queryKey: qk.cattle.detail(id) });
       void queryClient.invalidateQueries({ queryKey: ["cattle", "weight-history", id] });
+      void queryClient.invalidateQueries({ queryKey: ["events"] });
     },
   });
 }

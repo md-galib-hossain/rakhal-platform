@@ -45,7 +45,7 @@ import type { AnimalCategory, CattleDetail, CattleFormPayload } from "../types";
 import { cn } from "@/lib/utils";
 import { todayLocalIso } from "@/lib/local-date";
 import { HistoryStep } from "./intake-history/history-step";
-import { isEmptyHistory, isHistoryRejected, toHistoryPayload, toLegacyIntake, type DroppedItem, type HistoryValues } from "./intake-history/history-model";
+import { isEmptyHistory, toHistoryPayload, type HistoryValues } from "./intake-history/history-model";
 
 const UNSET = "__unset__";
 const ADD_NEW_BREED = "__add_new_breed__";
@@ -55,8 +55,6 @@ const SOURCE_TYPES = ["BORN", "PURCHASED", "GIFTED", "UNKNOWN"] as const;
 /** Strips the `""`/`UNSET` sentinel back to `undefined` before hitting the API — the backend's
  * optional string fields reject an empty string differently than an omitted key in some paths
  * (`@IsOptional` only skips `undefined`), so never send `""`/sentinel on the wire. */
-/** RAKHAL-319-F — only sent create-mode (an edit is always a `PATCH`, and the backend's intake
- * fields live on `CreateCattleDto` only). Mode is exclusive: `bred` and `heat` never both fire. */
 function toPayload(values: CattleEditFormInput): CattleFormPayload {
   const clean = <T,>(v: T | "" | typeof UNSET | undefined): T | undefined =>
     v === "" || v === UNSET || v === undefined ? undefined : v;
@@ -74,7 +72,6 @@ function toPayload(values: CattleEditFormInput): CattleFormPayload {
     weightKg: values.weightKg,
     color: clean(values.color),
     notes: clean(values.notes),
-    priorCalvings: values.gender === "FEMALE" ? values.priorCalvings : undefined,
   };
 }
 
@@ -96,9 +93,6 @@ function toFormDefaults(
     weightKg: cattle.lastWeightKg ?? undefined,
     color: cattle.color ?? "",
     notes: cattle.notes ?? "",
-    // RAKHAL-status-fold: former `CattleStatusDialog` defaults, folded in for edit mode.
-    productionStatus: cattle.productionStatus ?? undefined,
-    reproductiveStatus: cattle.reproductiveStatus ?? undefined,
   };
 }
 
@@ -286,17 +280,16 @@ function CattleFormDialogBody({
     defaultValues: toFormDefaults(cattle, initialValues),
   });
 
-  // RAKHAL-297: recompute the create-mode category preview as gender/DOB/priorCalvings change —
+  // RAKHAL-297: recompute the create-mode category preview as gender/DOB/"calved before" change —
   // `useWatch` (not `form.watch`) so only this subscription re-renders, not the whole form.
   const watchedGender = useWatch({ control: form.control, name: "gender" });
   const watchedDob = useWatch({ control: form.control, name: "dateOfBirth" });
-  const watchedPriorCalvings = useWatch({ control: form.control, name: "priorCalvings" });
   const previewCategory: AnimalCategory | null = isEdit
     ? null
     : deriveAnimalCategoryPreview({
         gender: watchedGender,
         dateOfBirth: watchedDob,
-        priorCalvings: watchedPriorCalvings,
+        priorCalvings: historyValues.calvedBefore === "yes" ? (historyValues.calvingNumber ?? 1) : undefined,
       });
 
   const pending =
@@ -323,40 +316,20 @@ function CattleFormDialogBody({
     if (await form.trigger()) setCreateStep("history");
   }
 
-  /** Create: tries the `history` field first; while the server does not accept it, falls back to the existing intake
-   * fields where they map and reports what they cannot hold. */
-  async function createWithHistory(
-    payload: CattleFormPayload,
-    values: CattleEditFormInput,
-    withHistory: boolean,
-  ): Promise<{ id: string; dropped: DroppedItem[] }> {
+  /** Create: the "her history" answers go in `history` and become backdated HISTORICAL events server-side. */
+  async function createWithHistory(payload: CattleFormPayload, values: CattleEditFormInput, withHistory: boolean): Promise<string> {
     const history = withHistory ? toHistoryPayload(historyValues, values.gender, today) : undefined;
-    if (!history) return { id: (await createCattle.mutateAsync(payload)).id, dropped: [] };
-    try {
-      return { id: (await createCattle.mutateAsync({ ...payload, history })).id, dropped: [] };
-    } catch (error) {
-      if (!isHistoryRejected(error)) throw error;
-      const legacy = toLegacyIntake(historyValues, values.gender, today);
-      const created = await createCattle.mutateAsync({
-        ...payload,
-        ...legacy.fields,
-        priorCalvings: legacy.fields.priorCalvings ?? payload.priorCalvings,
-      });
-      return { id: created.id, dropped: legacy.dropped };
-    }
+    return (await createCattle.mutateAsync(history ? { ...payload, history } : payload)).id;
   }
 
   async function onSubmit(values: CattleEditFormInput, withHistory: boolean) {
     const payload = toPayload(values);
     try {
-      let dropped: DroppedItem[] = [];
       let savedId: string;
       if (isEdit && cattle) {
         savedId = (await updateCattle.mutateAsync({ id: cattle.id, dto: payload })).id;
       } else {
-        const created = await createWithHistory(payload, values, withHistory && !isEmptyHistory(historyValues, values.gender));
-        savedId = created.id;
-        dropped = created.dropped;
+        savedId = await createWithHistory(payload, values, withHistory && !isEmptyHistory(historyValues, values.gender));
       }
       try {
         if (photoFile) {
@@ -372,7 +345,6 @@ function CattleFormDialogBody({
         );
       }
       toast.success(isEdit ? t("updatedToast") : t("createdToast"));
-      if (dropped.length > 0) toast.message(t("history.droppedNote", { items: dropped.map((d) => t(`history.dropped.${d}`)).join(", ") }));
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
@@ -540,25 +512,6 @@ function CattleFormDialogBody({
                 />
               )}
             />
-            {/* RAKHAL-297: only meaningful for a female (a purchased already-calved cow needs
-                this so she lands as `COW` not `HEIFER` on create) — hidden entirely for
-                MALE/CASTRATED_MALE rather than disabled, since it has no effect for them. */}
-            {watchedGender === "FEMALE" ? (
-              <div className="col-span-1 flex flex-col gap-1.5 sm:col-span-2">
-                <LabeledInput
-                  id="priorCalvings"
-                  type="number"
-                  min={1}
-                  step={1}
-                  label={t("priorCalvings")}
-                  error={form.formState.errors.priorCalvings?.message}
-                  {...form.register("priorCalvings", {
-                    setValueAs: (v) => (v === "" ? undefined : Number(v)),
-                  })}
-                />
-                <p className="text-muted-foreground text-xs">{t("priorCalvingsHint")}</p>
-              </div>
-            ) : null}
           </div>
 
           {/* RAKHAL-297: create-mode live preview of the derived `AnimalCategory` (UI-mirror only,

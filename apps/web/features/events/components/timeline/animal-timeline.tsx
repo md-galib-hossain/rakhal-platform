@@ -16,22 +16,13 @@ import { TimelineRow } from "./timeline-row";
 
 /**
  * Unified timeline of one animal (RFE-155, 03 §3.2): day groups in event-date order, filter chips (one scrollable row,
- * never wrapping), "Show voided", and Load older. Real route when `GET /cattle/:id/events` answers, merged per-domain
- * fallback otherwise (see `use-animal-timeline.ts`).
+ * never wrapping), "Show voided", and Load older, all from `GET /cattle/:id/events`.
  */
-export function AnimalTimeline({
-  cattleId,
-  gender,
-  animalCategory,
-}: {
-  cattleId: string;
-  gender: string;
-  animalCategory: string;
-}) {
+export function AnimalTimeline({ cattleId }: { cattleId: string }) {
   const t = useTranslations("events.timeline");
   const [group, setGroup] = useState<TimelineGroup | null>(null);
   const [includeVoided, setIncludeVoided] = useState(false);
-  const timeline = useAnimalTimeline({ cattleId, gender, animalCategory, group, includeVoided });
+  const timeline = useAnimalTimeline({ cattleId, group, includeVoided });
   const days = groupByDay(timeline.items);
   const today = todayLocalIso();
   const yesterday = addDaysLocalIso(today, -1);
@@ -87,11 +78,7 @@ export function AnimalTimeline({
               </h3>
               <ol className="divide-y divide-border">
                 {day.events.map((event) => (
-                  <TimelineRow
-                    key={event.id}
-                    event={event}
-                    actions={timeline.source === "route" ? <RowActions cattleId={cattleId} event={event} /> : undefined}
-                  />
+                  <TimelineRow key={event.id} event={event} actions={<RowActions cattleId={cattleId} event={event} />} />
                 ))}
               </ol>
             </div>
@@ -110,7 +97,6 @@ export function AnimalTimeline({
               {timeline.isFetchingNextPage ? t("loadingOlder") : timeline.isNextPageError ? t("retry") : t("loadOlder")}
             </Button>
           ) : null}
-          {timeline.source === "fallback" ? <p className="text-xs text-muted-foreground">{t("fallbackNote")}</p> : null}
         </>
       )}
     </section>

@@ -3,12 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api/errors";
 import { eventsApi, normaliseDryRun } from "../api";
-import { FALLBACK } from "../forms/fallback";
 import { clientFindings, previewFollowUps } from "../forms/followups";
 import type { DryRunResult, EventRequest, FormValues } from "../forms/types";
 import type { AnimalFacts, EventKey } from "../types";
 
-/** Raised when the event can only be recorded through `POST /cattle/:id/events` and that route is not deployed yet. */
+/** Raised when `POST /cattle/:id/events` answers 404: every event is recorded through that one route. */
 export class EventUnavailableError extends Error {
   constructor() {
     super("EVENT_ROUTE_UNAVAILABLE");
@@ -79,7 +78,7 @@ export function useEventDryRun({
   });
 }
 
-export function useRecordEvent(cattleId: string, eventKey: EventKey) {
+export function useRecordEvent(cattleId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ request, idempotencyKey }: { request: EventRequest; idempotencyKey: string }) => {
@@ -94,9 +93,7 @@ export function useRecordEvent(cattleId: string, eventKey: EventKey) {
           return { via: "route" as const, body: await eventsApi.create(cattleId, withoutToggles, idempotencyKey) };
         }
         if (!(error instanceof ApiError) || error.status !== 404) throw error;
-        const fallback = FALLBACK[eventKey];
-        if (!fallback) throw new EventUnavailableError();
-        return { via: "fallback" as const, body: await fallback(cattleId, request) };
+        throw new EventUnavailableError();
       }
     },
     onSuccess: () => {

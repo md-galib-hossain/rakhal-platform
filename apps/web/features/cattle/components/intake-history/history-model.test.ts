@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { addDaysLocalIso } from "@/lib/local-date";
-import { expandDate, isEmptyHistory, isHistoryRejected, isMonthOnly, previewItems, toHistoryPayload, toLegacyIntake, type HistoryValues } from "./history-model";
+import { expandDate, isEmptyHistory, isMonthOnly, previewItems, toHistoryPayload, type HistoryValues } from "./history-model";
 
 const today = "2026-10-30";
 const kinds = (values: HistoryValues, gender = "FEMALE") => previewItems(values, gender, today).map((item) => item.kind);
@@ -97,44 +97,5 @@ describe("toHistoryPayload (the HistoryItemDto array)", () => {
     expect(toHistoryPayload({ pregnant: "yes", expectedCalvingDate: "2027-03-20", monthsPregnant: 2 }, "FEMALE", today)).toEqual([{ kind: "PREGNANT", expectedCalvingDate: "2027-03-20" }]);
     expect(toHistoryPayload({ pregnant: "yes", monthsPregnant: 0.5 }, "FEMALE", today)).toEqual([{ kind: "PREGNANT", monthsPregnant: 1 }]);
     expect(toHistoryPayload({ pregnant: "yes", monthsPregnant: 2, lastVaccinationDate: "2026-07-01" }, "MALE", today)).toEqual([{ kind: "LAST_VACCINATION", date: "2026-07-01" }]);
-  });
-});
-
-describe("toLegacyIntake (until the server accepts history)", () => {
-  it("milking cow: MILKING, lactation start, prior calvings", () => {
-    const { fields, dropped } = toLegacyIntake({ calvedBefore: "yes", lastCalvingDate: "2026-06-10", calvingNumber: 2, milkingNow: "yes", milkingSince: "2026-06-12" }, "FEMALE", today);
-    expect(fields).toEqual({ priorCalvings: 2, productionStatus: "MILKING", lactationStartDate: "2026-06-12" });
-    expect(dropped).toEqual([]);
-  });
-  it("milking with no start date falls back to the calving date", () => {
-    expect(toLegacyIntake({ calvedBefore: "yes", lastCalvingDate: "2026-06-10", milkingNow: "yes" }, "FEMALE", today).fields).toEqual({
-      priorCalvings: 1, productionStatus: "MILKING", lactationStartDate: "2026-06-10",
-    });
-  });
-  it("dry cow: DRY with a dry-off start", () => {
-    expect(toLegacyIntake({ calvedBefore: "yes", lastCalvingDate: "2026-01-10", calvingNumber: 3, milkingNow: "no", drySince: "2026-09-01" }, "FEMALE", today).fields).toEqual({
-      priorCalvings: 3, productionStatus: "DRY", dryOffStartDate: "2026-09-01",
-    });
-  });
-  it("pregnant 2 months: intakePregnancy from a conception date, no AI needed", () => {
-    expect(toLegacyIntake({ pregnant: "yes", monthsPregnant: 2 }, "FEMALE", today).fields).toEqual({ intakePregnancy: { conceptionDate: addDaysLocalIso(today, -60) } });
-    expect(toLegacyIntake({ pregnant: "yes", expectedCalvingDate: "2027-03-20" }, "FEMALE", today).fields).toEqual({ intakePregnancy: { expectedCalvingDate: "2027-03-20" } });
-  });
-  it("a service maps to intakeBreeding only when she is not pregnant; vaccination cannot be kept", () => {
-    expect(toLegacyIntake({ pregnant: "no", lastBreedingDate: "2026-10-20", breedingMethod: "AI", bull: "Rajat" }, "FEMALE", today).fields).toEqual({
-      intakeBreeding: { breedingDate: "2026-10-20", breedingMethod: "AI", notes: "Rajat" },
-    });
-    const pregnant = toLegacyIntake({ pregnant: "yes", monthsPregnant: 3, lastBreedingDate: "2026-08-01", lastVaccinationDate: "2026-07-01" }, "FEMALE", today);
-    expect(pregnant.fields.intakeBreeding).toBeUndefined();
-    expect(pregnant.dropped).toEqual(["service", "vaccination"]);
-  });
-});
-
-describe("isHistoryRejected", () => {
-  it("only a 400 that names history triggers the fallback", () => {
-    expect(isHistoryRejected({ status: 400, message: "property history should not exist" })).toBe(true);
-    expect(isHistoryRejected({ status: 400, message: "tagNumber must be unique" })).toBe(false);
-    expect(isHistoryRejected({ status: 500, message: "history" })).toBe(false);
-    expect(isHistoryRejected(null)).toBe(false);
   });
 });

@@ -287,23 +287,9 @@ export interface CattleFormPayload {
   weightKg?: number;
   color?: string;
   notes?: string;
-  /** RAKHAL-297 — mirrors `CreateCattleDto.priorCalvings` (`@IsOptional() @IsInt() @Min(1)`),
-   * already accepted by the backend. Lets a purchased already-calved cow be recorded correctly as
-   * `COW` (not `HEIFER`) from creation, instead of only via the later status-change dialog. */
-  priorCalvings?: number;
-  /** RAKHAL-319-F — mirrors `CreateCattleDto.intakeBreeding`/`intakeHeat` (`IntakeBreedingDto`/
-   * `IntakeHeatDto`). Create-only, mutually exclusive, sent by `cattle-form-dialog.tsx`'s
-   * `toPayload()` based on the local `intakeReproductionMode` toggle. */
-  intakeBreeding?: { breedingDate: string; breedingMethod?: "AI" | "NATURAL" | "EMBRYO_TRANSFER"; notes?: string };
-  intakeHeat?: { heatDateTime: string; notes?: string };
   /** MILESTONE 31 / RFE-162 — what the "Her history" step collected; the server turns each answer into a backdated
-   * HISTORICAL event. Create-only. Until the server accepts it the dialog sends the fields below instead. */
+   * HISTORICAL event. Create-only. */
   history?: HistoryPayload;
-  /** Existing intake fields (`CreateCattleDto`) the history step falls back to; see `toLegacyIntake`. */
-  productionStatus?: "MILKING" | "DRY";
-  lactationStartDate?: string;
-  dryOffStartDate?: string;
-  intakePregnancy?: { conceptionDate?: string; expectedCalvingDate?: string };
 }
 
 /** RFE-162 — one `history` entry of `POST /cattle` (`HistoryItemDto`, backend `intake.dto.ts`): the server accepts exactly these
@@ -322,34 +308,3 @@ export type HistoryPayload = HistoryItem[];
 
 /** 1.0–5.0 in 0.25 steps (PRD §8.6 / RAKHAL-038) — mirrors the backend's `BCS_ALLOWED_SCORES`. */
 export const BCS_ALLOWED_SCORES: number[] = Array.from({ length: 17 }, (_, i) => 1 + i * 0.25);
-
-/** `POST /cattle/:id/bcs` response (`bcs.service.ts#recordBcs`). */
-export interface BcsRecordResult {
-  id: string;
-  score: number;
-  date: string;
-  notes: string | null;
-}
-
-/** `POST /cattle/:id/weight` response (`weight.service.ts#recordWeight`). */
-export interface WeightRecordResult {
-  id: string;
-  weightKg: number;
-  date: string;
-  notes: string | null;
-}
-
-/** RAKHAL-296-F — `POST /reproduction/cattle/:id/purchased-lactation` response (RAKHAL-281's
- * `createPurchasedLactation`, returns the created `Lactation` row). Only the fields this feature
- * actually consumes are modeled here (not the full `Lactation` shape — that's `LactationRow` in
- * `features/reproduction/types.ts`, deliberately not imported to avoid a dependency on that
- * feature's in-progress lane). */
-export interface PurchasedLactationResult {
-  id: string;
-  cattleId: string;
-  lactationNumber: number;
-  startDate: string;
-  isEstimated: boolean;
-  estimatedDaysInMilk: number | null;
-  estimatedLactationNumber: number | null;
-}

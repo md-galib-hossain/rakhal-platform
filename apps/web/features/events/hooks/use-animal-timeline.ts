@@ -1,42 +1,20 @@
 "use client"; // TanStack Query hooks
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { ApiError } from "@/lib/api/errors";
 import { dedupeById, shouldRetryInfinite } from "@/lib/hooks/use-infinite-cursor-list";
-import { useCattleHealthSummary, useCattleOverview } from "@/features/cattle/hooks/use-cattle-detail-tabs";
-import { useReproductionEvents } from "@/features/reproduction/hooks/use-reproduction";
 import { eventsApi } from "../api";
-import {
-  fromCases,
-  fromOverview,
-  fromReproEvents,
-  fromTreatments,
-  inGroup,
-  sortNewestFirst,
-  type TimelineEvent,
-  type TimelineGroup,
-} from "../timeline-model";
+import { inGroup, type TimelineEvent, type TimelineGroup } from "../timeline-model";
 
 const PAGE_SIZE = 30;
 
-export type TimelineSource = "pending" | "route" | "fallback";
-
-/**
- * One animal's event timeline (RFE-155). Tries the real route (`GET /cattle/:id/events`, RAKHAL-479); while it answers
- * 404 the same rows are built client-side from reproduction events, treatments, illness cases, weights and BCS, so the UI
- * ships either way and switches over on its own once the route exists. Same return shape in both modes.
- */
+/** One animal's event timeline (RFE-155): `GET /cattle/:id/events` (RAKHAL-479), cursor-paged, newest first. */
 export function useAnimalTimeline({
   cattleId,
-  gender,
-  animalCategory,
   group,
   includeVoided,
 }: {
   cattleId: string;
-  gender: string;
-  animalCategory: string;
   group: TimelineGroup | null;
   includeVoided: boolean;
 }) {
@@ -54,29 +32,7 @@ export function useAnimalTimeline({
     retry: shouldRetryInfinite,
   });
 
-  const routeMissing = route.error instanceof ApiError && route.error.status === 404;
-  const showRepro = gender === "FEMALE" && animalCategory !== "CALF";
-  const repro = useReproductionEvents({ cattleId: routeMissing && showRepro ? cattleId : undefined, limit: 100 });
-  // Shared with the state cards (same query keys), so these add no requests while the workspace is open.
-  const health = useCattleHealthSummary(cattleId);
-  const overview = useCattleOverview(cattleId);
-
-  // Fallback paging is local: show PAGE_SIZE rows, then more on demand. A group change starts over.
-  const [shown, setShown] = useState<{ group: TimelineGroup | null; count: number }>({ group, count: PAGE_SIZE });
-  const count = shown.group === group ? shown.count : PAGE_SIZE;
-
-  const fallbackRows = useMemo(() => {
-    if (!routeMissing) return [];
-    const rows = [
-      ...fromReproEvents(showRepro ? (repro.data?.items ?? []) : []),
-      ...fromTreatments(health.data?.treatmentHistory ?? []),
-      ...fromCases(health.data?.activeCases ?? []),
-      ...fromOverview(overview.data),
-    ];
-    return sortNewestFirst(rows.filter((row) => inGroup(row, group)));
-  }, [routeMissing, showRepro, repro.data, health.data, overview.data, group]);
-
-  const routeRows = useMemo(
+  const items = useMemo(
     () =>
       dedupeById(route.data?.pages.flatMap((page) => page.items) ?? []).filter(
         (row) => inGroup(row, group) && (includeVoided || row.status !== "VOIDED"),
@@ -84,30 +40,9 @@ export function useAnimalTimeline({
     [route.data, group, includeVoided],
   );
 
-  if (routeMissing) {
-    const loading = repro.isLoading || health.isLoading || overview.isLoading;
-    const failed = repro.isError || health.isError || overview.isError;
-    return {
-      source: "fallback" as TimelineSource,
-      items: fallbackRows.slice(0, count),
-      isLoading: loading,
-      isError: failed,
-      refetch: () => {
-        void repro.refetch();
-        void health.refetch();
-        void overview.refetch();
-      },
-      hasNextPage: fallbackRows.length > count,
-      isFetchingNextPage: false,
-      isNextPageError: false,
-      fetchNextPage: () => setShown({ group, count: count + PAGE_SIZE }),
-    };
-  }
-
   const hasLoaded = (route.data?.pages.length ?? 0) > 0;
   return {
-    source: (route.isSuccess ? "route" : "pending") as TimelineSource,
-    items: routeRows,
+    items,
     isLoading: route.isLoading,
     isError: route.isError && !hasLoaded,
     refetch: () => void route.refetch(),

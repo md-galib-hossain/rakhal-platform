@@ -66,7 +66,6 @@ export const qk = {
     weightHistory: (id: string, period: string) => ["cattle", "weight-history", id, period] as const,
     reproductionSummary: (id: string) => ["cattle", "reproduction-summary", id] as const,
     healthSummary: (id: string) => ["cattle", "health-summary", id] as const,
-    calvingEvents: (id: string) => ["cattle", "calving-events", id] as const,
     holds: (id: string) => ["cattle", "holds", id] as const,
     upcomingEvents: (id: string) => ["cattle", "upcoming-events", id] as const,
   },
@@ -194,14 +193,7 @@ export const qk = {
     dashboard: () => ["reproduction", "dashboard"] as const,
     /** RAKHAL-363: OPEN/BRED_AWAITING_CONFIRMATION/PREGNANT cow list, `GET /reproduction/cows`. */
     cows: (status: string | undefined) => ["reproduction", "cows", status] as const,
-    events: (filters: Record<string, string | number | undefined>) =>
-      ["reproduction", "events", filters] as const,
-    heatEvents: (cattleId: string | undefined) => ["reproduction", "heat-events", cattleId] as const,
-    breedingEvents: (cattleId: string | undefined) => ["reproduction", "breeding-events", cattleId] as const,
-    breedingEventDetail: (id: string | undefined) => ["reproduction", "breeding-events", "detail", id] as const,
     pregnancies: (cattleId: string | undefined) => ["reproduction", "pregnancies", cattleId] as const,
-    calvingEvents: (cattleId: string | undefined) => ["reproduction", "calving-events", cattleId] as const,
-    abortionEvents: (cattleId: string | undefined) => ["reproduction", "abortion-events", cattleId] as const,
     lactations: (cattleId: string | undefined) => ["reproduction", "lactations", cattleId] as const,
     lactationCurve: (lactationId: string | undefined, compareLactationId: string | undefined) =>
       ["reproduction", "lactations", "curve", lactationId, compareLactationId] as const,

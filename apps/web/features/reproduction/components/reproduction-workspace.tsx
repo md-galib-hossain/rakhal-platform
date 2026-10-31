@@ -25,17 +25,15 @@ import { ReproductionKpiCards } from "./reproduction-kpi-cards";
 import { ReproductionActionPanels } from "./reproduction-action-panels";
 import { ReproductionCalvingForecast } from "./reproduction-calving-forecast";
 import { ReproductionCowList } from "./reproduction-cow-list";
-import { ReproductionEventsFeed } from "./reproduction-events-feed";
 import { ProtocolsPanel } from "./protocols/protocols-panel";
 import { RecordEventLauncher } from "@/features/events/components/record-event-launcher";
 
-export type SectionId = "kpis" | "operations" | "cows" | "events" | "protocols";
+export type SectionId = "kpis" | "operations" | "cows" | "protocols";
 
 const DEFAULT_SECTIONS: { id: SectionId; label: string }[] = [
   { id: "kpis", label: "Reproduction Highlights" },
   { id: "operations", label: "Needs Attention & Calving Forecast" },
   { id: "cows", label: "Reproduction Cow List" },
-  { id: "events", label: "Reproduction Events Feed" },
   { id: "protocols", label: "Reproductive Protocols" },
 ];
 
@@ -77,8 +75,6 @@ export function ReproductionWorkspace() {
         );
       case "cows":
         return <ReproductionCowList />;
-      case "events":
-        return <ReproductionEventsFeed />;
       case "protocols":
         return <ProtocolsPanel />;
     }

@@ -20,7 +20,7 @@ const ev = (id: string, type: TimelineEvent["type"], eventAt: string, over: Part
 
 function state(over: Record<string, unknown> = {}) {
   return {
-    source: "route", items: [], isLoading: false, isError: false, refetch: vi.fn(), hasNextPage: false,
+    items: [], isLoading: false, isError: false, refetch: vi.fn(), hasNextPage: false,
     isFetchingNextPage: false, isNextPageError: false, fetchNextPage: vi.fn(), ...over,
   };
 }
@@ -28,7 +28,7 @@ function state(over: Record<string, unknown> = {}) {
 function renderTimeline(locale: "en" | "bn" = "en") {
   return render(
     <NextIntlClientProvider locale={locale} messages={locale === "en" ? en : bn} timeZone="Asia/Dhaka">
-      <AnimalTimeline cattleId="c1" gender="FEMALE" animalCategory="COW" />
+      <AnimalTimeline cattleId="c1" />
     </NextIntlClientProvider>,
   );
 }
@@ -78,11 +78,10 @@ describe("AnimalTimeline", () => {
     expect(fetchNextPage).toHaveBeenCalledTimes(1);
   });
 
-  it("hides Load older on the last page and notes the fallback source", () => {
-    useAnimalTimeline.mockReturnValue(state({ source: "fallback", items: [ev("a", "NOTE", "2026-10-01T07:00:00")] }));
+  it("hides Load older on the last page", () => {
+    useAnimalTimeline.mockReturnValue(state({ items: [ev("a", "NOTE", "2026-10-01T07:00:00")] }));
     renderTimeline();
     expect(screen.queryByRole("button", { name: "Load older" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Showing recent history/)).toBeInTheDocument();
   });
 
   it("shows a retry when loading older fails but keeps the rows", () => {

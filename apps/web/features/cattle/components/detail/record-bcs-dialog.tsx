@@ -15,7 +15,7 @@ import { recordBcsSchema, type RecordBcsInput } from "../../schemas";
 import { BCS_ALLOWED_SCORES } from "../../types";
 import { DatePicker } from "@/components/ui/date-picker";
 
-/** `POST /cattle/:id/bcs` (RAKHAL-038, PRD §8.6) — worker-permitted (`cattle.bcs`). Score is one of
+/** BCS event (`POST /cattle/:id/events`, type BCS; RAKHAL-038, PRD §8.6) — worker-permitted (`cattle.bcs`). Score is one of
  * 17 allowed 0.25-steps (1.0–5.0), rendered as a `Select` rather than a free-typed number input so an
  * invalid value can never be submitted. */
 export function RecordBcsDialog({

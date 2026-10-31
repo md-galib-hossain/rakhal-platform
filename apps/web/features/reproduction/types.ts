@@ -1,14 +1,8 @@
 /**
- * Mirrors `rakhal-backend/src/modules/reproduction` response shapes exactly, read directly from
- * `reproduction.service.ts` / `repro-protocol.service.ts` / the Prisma schema — NOT the aspirational
- * `Rakhal_API.md` §5 (which lists stale route names like `/reproduction/ai`/`/dryoff` that don't
- * exist on the real controller). `dashboard`/`events` return bespoke snake_case shapes (RAKHAL-051);
- * the six sub-resource lists (`heat-events`, `breeding-events`, `pregnancies`, `calving-events`,
- * `abortion-events`, `lactations`) are real cursor pages of raw Prisma rows (camelCase, no per-field
- * mapping) — same convention `cattleApi.calvingEvents()` already relies on. `POST
- * /reproduction/cattle/:id/dry-off` (RD-038) returns the created `DryPeriod` row directly (not a
- * cursor page — there's no GET list route for `DryPeriod` yet); RAKHAL-274 added its optional
- * `reason: DryOffReason | null` field (`create-dry-off.dto.ts` / `reproduction.prisma`, verified live).
+ * Mirrors `rakhal-backend/src/modules/reproduction` response shapes, read from the services and the Prisma schema, not the
+ * aspirational `Rakhal_API.md` §5. `dashboard` returns a bespoke snake_case shape (RAKHAL-051); `pregnancies` and `lactations`
+ * are cursor pages of raw Prisma rows (camelCase). Writes (heat, AI, pregnancy check, calving, abortion, dry off) are events
+ * (`POST /cattle/:id/events`, `features/events`), so their request/response shapes are not modelled here.
  */
 
 /** RAKHAL-271 v2 correction — same 5-value `ReproductionState` `features/cattle/types.ts` uses.
@@ -40,8 +34,6 @@ export type PregnancyStatus = "ACTIVE" | "CALVED" | "ABORTED" | "FAILED";
 export type CalvingEase = "NORMAL" | "ASSISTED" | "DIFFICULT" | "CESAREAN";
 export type CalfBirthStatus = "ALIVE" | "STILLBORN" | "DIED_AFTER_BIRTH";
 export type LactationStatus = "ACTIVE" | "ENDED";
-export type ReproEventType = "heat" | "breeding" | "calving" | "abortion" | "pregnancy_diagnosis";
-
 /** RAKHAL-274 — `DryOffReason` enum, `prisma/schemas/reproduction/reproduction.enums.prisma`. */
 export type DryOffReason = "SCHEDULED" | "LOW_PRODUCTION" | "HEALTH" | "PREGNANCY" | "MANAGEMENT_DECISION";
 
@@ -128,87 +120,11 @@ export interface ReproductionCowRow extends ReproCattleRef {
   expected_calving_date: string | null;
 }
 
-// ---- GET /reproduction/events (RAKHAL-051) --------------------------------
-
-export interface ReproEventEntry {
-  id: string;
-  event_type: ReproEventType;
-  event_date: string;
-  cattle_id: string;
-  cattle_name: string | null;
-  cattle_tag: string;
-  details: Record<string, unknown>;
-}
-
-export interface ReproEventsQuery {
-  cattleId?: string;
-  eventType?: ReproEventType;
-  fromDate?: string;
-  toDate?: string;
-  limit?: number;
-  /** Opaque keyset cursor from the previous page's `meta.endCursor` (backend 2026-09-30). */
-  cursor?: string;
-  sortOrder?: "asc" | "desc";
-}
-
 // ---- Sub-resource rows (raw Prisma shape, cursor-paginated) ---------------
-
-export interface HeatEventRow {
-  id: string;
-  cattleId: string;
-  heatDateTime: string;
-  detectionMethod: HeatDetectionMethod;
-  standingHeat: boolean;
-  mucusDischarge: boolean;
-  mountingBehavior: boolean;
-  restlessness: boolean;
-  notes: string | null;
-  createdAt: string;
-  /** RAKHAL-318: present only when this heat was recorded on an actively-pregnant cow —
-   * `createHeatEvent` still creates the row (never drops real data) but flags the conflict. */
-  activePregnancyConflict?: boolean;
-  pregnancyId?: string;
-  /** RAKHAL-316: set when this heat resulted from a confirmed return-to-heat, points at the
-   * `BreedingEvent` it invalidated. */
-  returnedFromBreedingEventId?: string | null;
-}
 
 export type SemenSource = "FARM_INVENTORY" | "TECHNICIAN_SUPPLIED" | "EXTERNAL";
 export type SemenType = "CONVENTIONAL" | "SEX_SORTED";
 export type TargetSex = "FEMALE" | "MALE";
-
-export interface BreedingEventRow {
-  id: string;
-  cattleId: string;
-  breedingDate: string;
-  breedingMethod: BreedingMethod;
-  bullId: string | null;
-  bull: { id: string; tagNumber: string; name: string | null } | null;
-  semenBatchId: string | null;
-  inseminator: string | null;
-  /** Explicit semen provenance (no ticket #, 2026-08-15) — null for NATURAL/EMBRYO_TRANSFER, always
-   * set for AI (server-inferred when an old client omits it). */
-  semenSource: SemenSource | null;
-  serviceProviderId: string | null;
-  /** Progressive-optional traceability, only meaningful for TECHNICIAN_SUPPLIED/EXTERNAL — a bull the
-   * farm doesn't own and may have no structured record of. */
-  sireNameOrCode: string | null;
-  sireBreed: string | null;
-  semenType: SemenType | null;
-  targetSex: TargetSex | null;
-  strawBatchCode: string | null;
-  semenCompany: string | null;
-  serviceCost: number | null;
-  /** RAKHAL-330: how the breeding/AI cost was paid — null when no cost was recorded. */
-  paymentMethod: "CASH" | "BANK_TRANSFER" | "MFS" | "WALLET" | null;
-  /** RAKHAL-330: the posted `FinanceTransaction.id` this event's cost was linked to, if any. */
-  financeTransactionId: string | null;
-  breedingNumber: number;
-  expectedPregnancyCheckDate: string | null;
-  status: BreedingStatus;
-  notes: string | null;
-  createdAt: string;
-}
 
 export interface PregnancyRow {
   id: string;
@@ -227,44 +143,6 @@ export interface PregnancyRow {
   /** Present on `GET /reproduction/pregnancies` responses (backend now `include`s it) — absent
    * elsewhere (e.g. the unified events feed's own pregnancy_diagnosis mapping). */
   cattle?: { id: string; name: string | null; tagNumber: string };
-}
-
-export interface CalfBirthRow {
-  id: string;
-  calvingEventId: string;
-  calfId: string | null;
-  gender: "MALE" | "FEMALE";
-  birthWeight: number | null;
-  status: CalfBirthStatus;
-  createdAt: string;
-}
-
-export interface CalvingEventRow {
-  id: string;
-  cattleId: string;
-  pregnancyId: string | null;
-  calvingDate: string;
-  calvingNumber: number;
-  calvingEase: CalvingEase;
-  calfCount: number;
-  placentaExpelled: boolean;
-  retainedPlacenta: boolean;
-  complications: string | null;
-  notes: string | null;
-  createdAt: string;
-  calfBirths: CalfBirthRow[];
-  lactations: { id: string; startDate: string; status: LactationStatus }[];
-}
-
-export interface AbortionEventRow {
-  id: string;
-  cattleId: string;
-  pregnancyId: string | null;
-  abortionDate: string;
-  gestationDay: number | null;
-  suspectedCause: string | null;
-  notes: string | null;
-  createdAt: string;
 }
 
 export interface LactationRow {
@@ -287,13 +165,6 @@ export interface LactationRow {
    * (same "no `select` narrowing" reasoning as `endReason` above), not yet consumed by any UI. */
   startReason: string | null;
   sourceCalvingEventId: string | null;
-}
-
-/** `POST /reproduction/calving-events` response (RAKHAL-290) — the created `CalvingEventRow` plus,
- * when the dam still had an ACTIVE lactation (a missed dry-off), the now-auto-closed `LactationRow`
- * so the UI can surface it instead of this being a silent correction. Null in the normal case. */
-export interface CreateCalvingEventResult extends CalvingEventRow {
-  closedMissingDryOffLactation: LactationRow | null;
 }
 
 /** Lactation-to-date totals, split by `MilkDisposition` — `LactationStatsService`'s
@@ -346,18 +217,6 @@ export interface LactationStatsResponse {
   lactationToDate: LactationTotalsByDisposition;
   peak: LactationPeak | null;
   persistency: LactationPersistency | null;
-}
-
-/** Return shape of `POST /reproduction/cattle/:id/dry-off` (RD-038 + RAKHAL-274's `reason`). */
-export interface DryPeriodRow {
-  id: string;
-  cattleId: string;
-  startDate: string;
-  expectedEndDate: string | null;
-  actualEndDate: string | null;
-  notes: string | null;
-  reason: DryOffReason | null;
-  createdAt: string;
 }
 
 // ---- Protocols (RAKHAL-214) ------------------------------------------------

@@ -10,9 +10,7 @@ import type { BulkAction, BulkDisposeType, CattleFormPayload, CattleListFilters 
 import type {
   CattleDeleteInput,
   CattleDisposeInput,
-  CattleStatusInput,
   CreateAnimalHoldInput,
-  PurchasedLactationInput,
   ReleaseAnimalHoldInput,
 } from "../schemas";
 
@@ -233,25 +231,6 @@ export function useUpdateCattle() {
   const invalidate = useInvalidateCattle();
   return useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: CattleFormPayload }) => cattleApi.update(id, dto),
-    onSuccess: (_data, { id }) => invalidate(id),
-  });
-}
-
-export function useUpdateCattleStatus() {
-  const invalidate = useInvalidateCattle();
-  return useMutation({
-    mutationFn: ({ id, dto }: { id: string; dto: CattleStatusInput }) => cattleApi.updateStatus(id, dto),
-    onSuccess: (_data, { id }) => invalidate(id),
-  });
-}
-
-/** RAKHAL-296-F — mirrors `useUpdateCattleStatus`'s invalidation (this mutation flips
- * `productionStatus` to MILKING server-side too, same as that route). */
-export function useCreatePurchasedLactation() {
-  const invalidate = useInvalidateCattle();
-  return useMutation({
-    mutationFn: ({ id, dto }: { id: string; dto: PurchasedLactationInput }) =>
-      cattleApi.createPurchasedLactation(id, dto),
     onSuccess: (_data, { id }) => invalidate(id),
   });
 }

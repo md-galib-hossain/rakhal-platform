@@ -78,7 +78,7 @@ export function EventFormPanel({
 
   const past = isPastRecord(date, today);
   const historical = pastOverride ?? past;
-  const record = useRecordEvent(cattle.id, eventKey);
+  const record = useRecordEvent(cattle.id);
   const voidEvent = useVoidEvent(cattle.id);
 
   useEffect(() => {

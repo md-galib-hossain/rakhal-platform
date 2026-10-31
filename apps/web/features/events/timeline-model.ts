@@ -1,11 +1,8 @@
 import { format } from "date-fns";
-import type { CattleOverview, HealthCaseRow, TreatmentLogRow } from "@/features/cattle/detail-types";
-import type { ReproEventEntry, ReproEventType } from "@/features/reproduction/types";
 
 /**
  * MILESTONE 31 (RFE-155) — unified animal timeline model. Mirrors the backend `AnimalEvent` header + detail row
  * served by `GET /cattle/:id/events` (RAKHAL-479; enum in `prisma/schemas/animal-events/animal-event.prisma`).
- * Until that route answers, `use-animal-timeline.ts` builds the same rows from the per-domain hooks below.
  */
 
 export const TIMELINE_TYPES = [
@@ -71,71 +68,4 @@ export function groupByDay(events: TimelineEvent[]): { day: string; events: Time
     else days.push({ day, events: [event] });
   }
   return days;
-}
-
-// ---- Fallback: the same rows built from the existing per-domain endpoints ----------------------------------------
-
-const REPRO_TYPE: Record<ReproEventType, TimelineEventType> = {
-  heat: "HEAT",
-  breeding: "BREEDING",
-  pregnancy_diagnosis: "PREG_CHECK",
-  calving: "CALVING",
-  abortion: "ABORTION",
-};
-
-const base = { provenance: "RECORDED", status: "ACTIVE", findings: null, batchId: null, sourceEventId: null } as const;
-
-export function fromReproEvents(items: ReproEventEntry[]): TimelineEvent[] {
-  return items.map((event) => ({
-    ...base,
-    id: `repro-${event.id}`,
-    type: REPRO_TYPE[event.event_type],
-    eventAt: event.event_date,
-    notes: null,
-    detail: event.details,
-  }));
-}
-
-export function fromTreatments(items: TreatmentLogRow[]): TimelineEvent[] {
-  return items.map((log) => ({
-    ...base,
-    id: `treatment-${log.id}`,
-    type: "TREATMENT",
-    eventAt: log.administeredAt,
-    notes: log.notes,
-    detail: { medicineName: log.medicineName, route: log.route },
-  }));
-}
-
-export function fromCases(items: HealthCaseRow[]): TimelineEvent[] {
-  return items.map((c) => ({
-    ...base,
-    id: `case-${c.id}`,
-    type: "ILLNESS",
-    eventAt: c.startDate,
-    notes: c.note,
-    detail: { condition: c.condition },
-  }));
-}
-
-export function fromOverview(overview: Pick<CattleOverview, "weight_history" | "bcs_records"> | undefined): TimelineEvent[] {
-  if (!overview) return [];
-  return [
-    ...overview.weight_history.map((w) => ({
-      ...base,
-      id: `weight-${w.date}`,
-      type: "WEIGHT" as const,
-      eventAt: w.date,
-      notes: null,
-      detail: { weightKg: w.weight_kg },
-    })),
-    ...overview.bcs_records.map((b) => ({
-      ...base,
-      id: `bcs-${b.date}`,
-      type: "BCS" as const,
-      eventAt: b.date,
-      notes: null,
-      detail: { score: b.score },
-    })),
-  ];
 }

@@ -9105,7 +9105,6 @@
       "empty": "No events yet.",
       "emptyGroup": "No events in this group.",
       "error": "Could not load the timeline.",
-      "fallbackNote": "Showing recent history from each record. Some events may be missing.",
       "summary": {
         "weight": "{kg} kg",
         "bcs": "BCS {score}"

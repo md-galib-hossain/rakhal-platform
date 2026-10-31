@@ -17,7 +17,7 @@ function defaults(): RecordWeightInput {
   return { weightKg: undefined as unknown as number, measuredDate: todayLocalIso(), notes: "" };
 }
 
-/** `POST /calves/:id/weight` — `calf.log-feeding`-gated. */
+/** `POST /cattle/:id/events` (WEIGHT) — `calf.log-feeding`-gated in the UI. */
 export function RecordWeightDialog({
   calfId,
   open,

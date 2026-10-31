@@ -5,7 +5,6 @@ import type { CursorPage } from "@/types/api";
 import type {
   AnimalGroup,
   AnimalHold,
-  BcsRecordResult,
   Breed,
   BulkAction,
   BulkCattleResult,
@@ -16,23 +15,16 @@ import type {
   CattleListFilters,
   CattleListItem,
   MediaUrls,
-  PurchasedLactationResult,
   Shed,
   UpcomingEventsResult,
-  WeightRecordResult,
 } from "./types";
 import type {
   CattleDeleteInput,
   CattleDisposeInput,
-  CattleStatusInput,
   CreateAnimalHoldInput,
-  PurchasedLactationInput,
-  RecordBcsInput,
-  RecordWeightInput,
   ReleaseAnimalHoldInput,
 } from "./schemas";
 import type {
-  CalvingEventRow,
   CattleFinance,
   CattleOverview,
   CattlePedigree,
@@ -132,23 +124,6 @@ export const cattleApi = {
   update(id: string, dto: CattleFormPayload): Promise<CattleDetail> {
     return apiFetch<CattleDetail>(`/cattle/${id}`, { method: "PATCH", body: dto });
   },
-  updateStatus(id: string, dto: CattleStatusInput): Promise<CattleDetail> {
-    return apiFetch<CattleDetail>(`/cattle/${id}/status`, { method: "PATCH", body: dto });
-  },
-  /** RAKHAL-296-F — `POST /reproduction/cattle/:id/purchased-lactation` (RAKHAL-281). Reproduction
-   * module's own route (not `/cattle/*`), called from the cattle status flow: the alternative to
-   * `updateStatus`'s exact `lactationStartDate` when the farmer only knows an estimate (or nothing)
-   * about a purchased already-milking cow's lactation. Also flips `productionStatus` to MILKING
-   * server-side (`flipToMilking`), same as the exact-date path. */
-  createPurchasedLactation(
-    id: string,
-    dto: PurchasedLactationInput,
-  ): Promise<PurchasedLactationResult> {
-    return apiFetch<PurchasedLactationResult>(`/reproduction/cattle/${id}/purchased-lactation`, {
-      method: "POST",
-      body: dto,
-    });
-  },
   /** RAKHAL-402 — real soft-delete only (`DELETE /cattle/:id`). Sends `reason: "archived"`, the
    * only value that still routes to `archiveWithReason()`'s plain-archive branch; the backend
    * refuses (409) when the animal has real history (milk logs/health cases/breeding events). */
@@ -194,19 +169,6 @@ export const cattleApi = {
   },
   healthSummary(id: string): Promise<HealthSummary> {
     return apiFetch<HealthSummary>(`/cattle/${id}/health-summary`);
-  },
-  calvingEvents(cattleId: string): Promise<CursorPage<CalvingEventRow>> {
-    return apiFetchPage<CalvingEventRow>("/reproduction/calving-events", {
-      searchParams: { cattleId, limit: 20 },
-    });
-  },
-
-  // RFE-023 follow-up — BCS + weight recording (`cattle.bcs`/`cattle.update`-gated on the backend).
-  recordBcs(id: string, dto: RecordBcsInput): Promise<BcsRecordResult> {
-    return apiFetch<BcsRecordResult>(`/cattle/${id}/bcs`, { method: "POST", body: dto });
-  },
-  recordWeight(id: string, dto: RecordWeightInput): Promise<WeightRecordResult> {
-    return apiFetch<WeightRecordResult>(`/cattle/${id}/weight`, { method: "POST", body: dto });
   },
 
   // MILESTONE 10 gap closure — generic per-animal hold (RAKHAL-280, `cattle.hold`-gated).

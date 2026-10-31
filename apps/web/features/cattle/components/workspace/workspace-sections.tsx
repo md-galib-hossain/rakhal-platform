@@ -71,7 +71,7 @@ export function SectionBody({
           <NextUp cattleId={cattle.id} animal={{ id: cattle.id, tagNumber: cattle.tagNumber, name: cattle.name }} canRecord={canRecord} onRecord={onRecord} />
           <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
             <div className="order-last lg:order-none">
-              <AnimalTimeline cattleId={cattle.id} gender={cattle.gender} animalCategory={cattle.animalCategory} />
+              <AnimalTimeline cattleId={cattle.id} />
             </div>
             <div className="lg:sticky lg:top-0">
               <StateColumn cattle={cattle} drill={drill} onDrill={onDrill} />

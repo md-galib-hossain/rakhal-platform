@@ -9,14 +9,12 @@ import type {
   CalfListFilters,
   CalfListItem,
   CalfMilkFeeding,
-  CalfWeightPoint,
   WeanCalfResult,
 } from "./types";
 import type {
   RecordColostrumInput,
   RecordMilkFeedingInput,
   RecordStarterFeedInput,
-  RecordWeightInput,
   WeanCalfInput,
 } from "./schemas";
 
@@ -40,9 +38,6 @@ export const calvesApi = {
   },
   recordMilkFeeding(id: string, dto: RecordMilkFeedingInput): Promise<CalfMilkFeeding> {
     return apiFetch<CalfMilkFeeding>(`/calves/${id}/milk-feeding`, { method: "POST", body: dto });
-  },
-  recordWeight(id: string, dto: RecordWeightInput): Promise<CalfWeightPoint> {
-    return apiFetch<CalfWeightPoint>(`/calves/${id}/weight`, { method: "POST", body: dto });
   },
   recordStarterFeed(id: string, dto: RecordStarterFeedInput): Promise<{ id: string }> {
     return apiFetch(`/calves/${id}/starter-feed`, { method: "POST", body: dto });

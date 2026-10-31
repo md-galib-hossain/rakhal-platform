@@ -89,16 +89,6 @@ export interface ReproductionSummary {
   gestationLength: number | null;
 }
 
-/** One row of `GET /reproduction/calving-events?cattleId=` (cursor list). */
-export interface CalvingEventRow {
-  id: string;
-  calvingDate: string;
-  calvingNumber: number;
-  calvingEase: string;
-  calfCount: number;
-  calfBirths: { id: string; gender: CattleGender; birthWeight: number | null }[];
-}
-
 // ---- Health (Tab 3) ---------------------------------------------------------
 
 export interface HealthCaseRow {

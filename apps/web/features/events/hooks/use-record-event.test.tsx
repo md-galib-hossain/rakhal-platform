@@ -32,7 +32,7 @@ describe("useRecordEvent follow-up toggles", () => {
     create
       .mockRejectedValueOnce(new ApiError("VALIDATION_ERROR", "property followUps should not exist", 400))
       .mockResolvedValueOnce({ ref: "e1" });
-    const { result } = renderHook(() => useRecordEvent("c1", "SERVICE"), { wrapper });
+    const { result } = renderHook(() => useRecordEvent("c1"), { wrapper });
     const outcome = await result.current.mutateAsync({ request, idempotencyKey: "key-1" });
     expect(outcome).toEqual({ via: "route", body: { ref: "e1" } });
     expect(create).toHaveBeenCalledTimes(2);
@@ -43,7 +43,7 @@ describe("useRecordEvent follow-up toggles", () => {
 
   it("does not retry other validation errors", async () => {
     create.mockRejectedValueOnce(new ApiError("VALIDATION_ERROR", "serviceCost is required", 400));
-    const { result } = renderHook(() => useRecordEvent("c1", "SERVICE"), { wrapper });
+    const { result } = renderHook(() => useRecordEvent("c1"), { wrapper });
     await expect(result.current.mutateAsync({ request, idempotencyKey: "key-2" })).rejects.toThrow("serviceCost is required");
     await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
   });
