@@ -99,7 +99,6 @@ import {
 } from '../../presentation/dto/list-cattle-query.dto';
 import { UpcomingEventsQueryDto } from '../../presentation/dto/upcoming-events-query.dto';
 import { UpdateCattleDto } from '../../presentation/dto/update-cattle.dto';
-import { UpdateHerdStatusDto } from '../../presentation/dto/update-cattle-status.dto';
 import { computeAqrScoreAsOf } from './aqr-trend';
 
 type CattleSummary = Pick<Cattle, 'id' | 'name' | 'tagNumber'>;
@@ -867,125 +866,6 @@ export class CattleService {
       }
       throw error;
     }
-  }
-
-  /**
-   * Dedicated multi-dimension status update (PRD §8.1, RAKHAL-036). Sets the
-   * stored production status and/or the reproductive status on the linked
-   * `ReproductionProfile`. Moving production status to Sold/Deceased also
-   * archives the animal so it leaves active herd KPIs (CAT-08).
-   */
-  async updateStatus(farmId: string, id: string, dto: UpdateHerdStatusDto) {
-    await this.getCattleOrThrow(farmId, id);
-
-    if (dto.productionStatus) {
-      // v2 correction (RAKHAL-269/271): `Cattle.lactationStartDate` is gone —
-      // lactation start now lives solely on `Lactation.startDate`. Moving to
-      // MILKING requires an active `Lactation` row to already exist (created
-      // by `createCalvingEvent`, or — RAKHAL-291 — a purchase-intake flow
-      // right here). This is still a stub check — richer "does the newest
-      // Lactation actually belong to this cow's current cycle" logic is a
-      // later ticket's job.
-      if (dto.productionStatus === ProductionStatus.MILKING) {
-        const [activeLactation, reproductionProfile] = await Promise.all([
-          this.prisma.lactation.findFirst({
-            where: { cattleId: id, status: LactationStatus.ACTIVE },
-            select: { id: true },
-          }),
-          this.prisma.reproductionProfile.findUnique({
-            where: { cattleId: id },
-            select: { totalCalvings: true },
-          }),
-        ]);
-
-        // Invariant guard: a heifer (no calving history) can never be set to
-        // Milking. An existing profile's own `totalCalvings` always wins; a
-        // profile-less cow (e.g. never assessed) falls back to a caller-
-        // supplied `priorCalvings` for this purchase-intake path.
-        const effectiveTotalCalvings = reproductionProfile
-          ? reproductionProfile.totalCalvings
-          : (dto.priorCalvings ?? 0);
-        if (effectiveTotalCalvings === 0) {
-          throw new BadRequestException(
-            'A heifer (no calving history) cannot be set to Milking. Record a calving event, or if she was purchased already-calved, supply priorCalvings.',
-          );
-        }
-
-        if (!activeLactation) {
-          // RAKHAL-291: no auto-stamped Lactation from a calving means either
-          // this cow has never calved in this system (e.g. purchased already
-          // milking) or her lactation genuinely ended — either way, without a
-          // caller-supplied start date there is nothing safe to create.
-          if (!dto.lactationStartDate) {
-            throw new BadRequestException(
-              'No active lactation on record. Provide lactationStartDate to record this cow as milking (e.g. for a purchased cow with no calving history in this system).',
-            );
-          }
-
-          const lactationCount = await this.prisma.lactation.count({
-            where: { cattleId: id },
-          });
-          const lactationStartDate = dto.lactationStartDate;
-
-          // Create the purchase-intake Lactation and flip productionStatus in
-          // the same transaction so the two never drift apart. A profile-less
-          // cow with a supplied `priorCalvings` also gets its
-          // `ReproductionProfile` created here — one write, not two. No raw
-          // `productionStatus` write — `refreshDerivedState` below reads this Lactation back and
-          // derives it correctly (RD-048).
-          await this.prisma.$transaction(async (tx) => {
-            await tx.lactation.create({
-              data: {
-                cattleId: id,
-                lactationNumber: lactationCount + 1,
-                startDate: new Date(lactationStartDate),
-                status: LactationStatus.ACTIVE,
-                startReason: LactationStartReason.PURCHASED_LACTATING,
-              },
-            });
-            if (!reproductionProfile && dto.priorCalvings) {
-              await tx.reproductionProfile.create({
-                data: { cattleId: id, totalCalvings: dto.priorCalvings },
-              });
-            }
-          });
-        }
-        // `else` (an active Lactation already exists): nothing to write — derivation below
-        // already reads it and confirms MILKING.
-      } else if (dto.productionStatus === ProductionStatus.DRY) {
-        // RD-048: same "must be backed by a fact" rule as MILKING above — this branch used to be
-        // a bare `cattle.update({ data: { productionStatus } })` with no backing check at all,
-        // the actual bug this closes. An open DryPeriod already existing means nothing to do;
-        // derivation below reads it and confirms DRY.
-        const openDryPeriod = await this.prisma.dryPeriod.findFirst({
-          where: { cattleId: id, actualEndDate: null },
-          select: { id: true },
-        });
-        if (!openDryPeriod) {
-          if (!dto.dryOffStartDate) {
-            throw new BadRequestException(
-              'dryOffStartDate is required to record this cow as dry (no open dry period on record). Provide dryOffStartDate, or record a real dry-off event instead.',
-            );
-          }
-          await this.prisma.dryPeriod.create({
-            data: { cattleId: id, startDate: new Date(dto.dryOffStartDate) },
-          });
-        }
-      }
-
-      await this.derivation.refreshDerivedState(farmId, id);
-    }
-
-    if (dto.reproductiveStatus) {
-      await this.prisma.reproductionProfile.upsert({
-        where: { cattleId: id },
-        update: { reproductiveStatus: dto.reproductiveStatus },
-        create: { cattleId: id, reproductiveStatus: dto.reproductiveStatus },
-      });
-    }
-
-    this.log.info('Cattle status updated', { cattleId: id, farmId });
-    return this.findOne(farmId, id);
   }
 
   async archive(farmId: string, id: string, userId: string) {

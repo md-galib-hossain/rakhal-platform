@@ -22,7 +22,6 @@ import { LactationStatsService } from './application/services/lactation-stats.se
 import { LactationEconomicsService } from './application/services/lactation-economics.service';
 import { CattleReproductionController } from './presentation/controllers/cattle-reproduction.controller';
 import { ReproductionController } from './presentation/controllers/reproduction.controller';
-import { ReproductionEditController } from './presentation/controllers/reproduction-edit.controller';
 import { ReproProtocolController } from './presentation/controllers/repro-protocol.controller';
 import { LactationController } from './presentation/lactation.controller';
 
@@ -50,7 +49,6 @@ import { LactationController } from './presentation/lactation.controller';
   ],
   controllers: [
     ReproductionController,
-    ReproductionEditController,
     CattleReproductionController,
     ReproProtocolController,
     LactationController,

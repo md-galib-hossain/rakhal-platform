@@ -15,7 +15,6 @@ import {
   DryPeriod,
   ExpenseCategory,
   ExpectedCalvingDateSource,
-  HeatDetectionMethod,
   HeatResolutionReason,
   LactationEndReason,
   LactationStartReason,
@@ -35,12 +34,7 @@ import {
 } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
-import {
-  decodeCursor,
-  encodeCursor,
-  getCursorArgs,
-  toCursorPage,
-} from 'src/common/pagination';
+import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { AqrService } from 'src/modules/activity/application/services/aqr.service';
 import {
   ActivityLogService,
@@ -77,12 +71,8 @@ import { CreateAbortionEventDto } from '../../presentation/dto/create-abortion-e
 import { CreateBreedingEventDto } from '../../presentation/dto/create-breeding-event.dto';
 import { CreateCalvingEventDto } from '../../presentation/dto/create-calving-event.dto';
 import { CreateDryOffDto } from '../../presentation/dto/create-dry-off.dto';
-import { CreatePurchasedLactationDto } from '../../presentation/dto/create-purchased-lactation.dto';
 import { CreateHeatEventDto } from '../../presentation/dto/create-heat-event.dto';
 import { CreatePregnancyDiagnosisDto } from '../../presentation/dto/create-pregnancy-diagnosis.dto';
-import { CorrectPregnancyDto } from '../../presentation/dto/correct-pregnancy.dto';
-import { ResolveHeatEventDto } from '../../presentation/dto/resolve-heat-event.dto';
-import { ReturnToHeatDto } from '../../presentation/dto/return-to-heat.dto';
 import { ReproductionListQueryDto } from '../../presentation/dto/common.dto';
 import { ListPregnanciesQueryDto } from '../../presentation/dto/list-pregnancies-query.dto';
 import { ListReproductionCowsQueryDto } from '../../presentation/dto/list-reproduction-cows-query.dto';
@@ -246,136 +236,6 @@ export class ReproductionService {
       ...getCursorArgs(query),
     });
     return toCursorPage(rows, query);
-  }
-
-  /** RAKHAL-298: manually close an open heat (`FALSE_ALARM`/`SKIPPED_CYCLE`); `INSEMINATED` is normally stamped by `createBreedingEvent` instead. */
-  async resolveHeatEvent(
-    farmId: string,
-    id: string,
-    dto: ResolveHeatEventDto,
-    actorId?: string | null,
-  ) {
-    const heatEvent = await this.prisma.heatEvent.findFirst({
-      where: { id, cattle: { farmId } },
-      include: { cattle: { select: { tagNumber: true } } },
-    });
-    if (!heatEvent) {
-      throw new NotFoundException('Heat event not found');
-    }
-    if (heatEvent.resolvedAt) {
-      throw new BadRequestException('Heat event is already resolved');
-    }
-
-    const resolved = await this.prisma.heatEvent.update({
-      where: { id },
-      data: {
-        resolvedAt: new Date(),
-        resolutionReason: dto.reason,
-        notes: dto.notes ?? heatEvent.notes,
-      },
-    });
-
-    await this.logActivity(
-      farmId,
-      actorId,
-      heatEvent.cattleId,
-      'Heat resolved',
-      `Heat for [${heatEvent.cattle.tagNumber}] closed: ${dto.reason}.`,
-      [
-        { key: 'cattle', value: heatEvent.cattle.tagNumber },
-        { key: 'reason', value: String(dto.reason) },
-      ],
-    );
-
-    return resolved;
-  }
-
-  /**
-   * RAKHAL-316: farmer-confirmed return to heat before a pregnancy check was
-   * due. Creates a real HeatEvent and marks the breeding RETURNED_TO_HEAT
-   * (via `returnedFromBreedingEventId` + `refreshDerivedState`) — never
-   * fabricates a `PregnancyDiagnosis`, since no examination happened.
-   */
-  async returnToHeat(
-    farmId: string,
-    userId: string,
-    breedingEventId: string,
-    dto: ReturnToHeatDto,
-  ) {
-    const breedingEvent = await this.prisma.breedingEvent.findFirst({
-      where: { id: breedingEventId, cattle: { farmId } },
-      include: { cattle: { select: { tagNumber: true } } },
-    });
-    if (!breedingEvent) {
-      throw new NotFoundException('Breeding event not found');
-    }
-    if (breedingEvent.status !== BreedingStatus.PENDING_CHECK) {
-      throw new BadRequestException(
-        `Breeding #${breedingEvent.breedingNumber} for [${breedingEvent.cattle.tagNumber}] is already resolved (${breedingEvent.status}) — return-to-heat only applies while a pregnancy check is still pending.`,
-      );
-    }
-
-    // RAKHAL-324: lock the cow row, then re-read the breeding's live status
-    // inside the transaction — closes the race against a concurrent
-    // `createPregnancyDiagnosis` resolving the same breeding between the
-    // unlocked check above and this write (e.g. a vet confirming pregnancy
-    // while a worker records return-to-heat at the same moment).
-    const heatEvent = await this.prisma.$transaction(async (tx) => {
-      await this.lockCattleForUpdate(tx, breedingEvent.cattleId);
-      const freshBreedingEvent = await tx.breedingEvent.findFirst({
-        where: { id: breedingEventId },
-        select: { status: true },
-      });
-      if (
-        !freshBreedingEvent ||
-        freshBreedingEvent.status !== BreedingStatus.PENDING_CHECK
-      ) {
-        throw new BadRequestException(
-          `Breeding #${breedingEvent.breedingNumber} for [${breedingEvent.cattle.tagNumber}] is already resolved (${freshBreedingEvent?.status ?? 'unknown'}) — return-to-heat only applies while a pregnancy check is still pending.`,
-        );
-      }
-
-      return tx.heatEvent.create({
-        data: {
-          cattleId: breedingEvent.cattleId,
-          heatDateTime: new Date(dto.heatDateTime),
-          detectionMethod: dto.detectionMethod ?? HeatDetectionMethod.MANUAL,
-          notes: dto.notes,
-          returnedFromBreedingEventId: breedingEvent.id,
-        },
-      });
-    });
-
-    await this.ensureProfile(breedingEvent.cattleId);
-    await this.derivation.refreshDerivedState(farmId, breedingEvent.cattleId);
-    await this.taskService.completeBySourceEvent(
-      farmId,
-      'BREEDING_EVENT',
-      breedingEvent.id,
-      userId,
-      `Superseded — return to heat recorded ${dto.heatDateTime}.`,
-    );
-
-    await this.logActivity(
-      farmId,
-      userId,
-      breedingEvent.cattleId,
-      'Returned to heat',
-      `[${breedingEvent.cattle.tagNumber}] returned to heat after breeding #${breedingEvent.breedingNumber}.`,
-      [
-        { key: 'cattle', value: breedingEvent.cattle.tagNumber },
-        { key: 'breeding', value: `#${breedingEvent.breedingNumber}` },
-      ],
-    );
-
-    this.log.info('Breeding event returned to heat', {
-      breedingEventId: breedingEvent.id,
-      heatEventId: heatEvent.id,
-      cattleId: breedingEvent.cattleId,
-      farmId,
-    });
-
-    return heatEvent;
   }
 
   async createBreedingEvent(
@@ -673,24 +533,24 @@ export class ReproductionService {
     // RAKHAL-322: guarded against duplicates — see createBreedingTaskUnlessDuplicate.
     // RAKHAL-484: through the event API the BREEDING_TO_PREG_CHECK follow-up rule makes this task.
     if (!eventApiContext())
-    await this.createBreedingTaskUnlessDuplicate(
-      {
-        farmId,
-        createdBy: userId,
-        name: `Pregnancy check — ${cattle.tagNumber}`,
-        details: `Confirm pregnancy for breeding #${breedingEvent.breedingNumber} of [${cattle.tagNumber}].`,
-        category: TaskCategory.BREEDING,
-        priority: TaskPriority.MEDIUM,
-        dueAt:
-          breedingEvent.expectedPregnancyCheckDate ??
-          this.addDays(new Date(dto.breedingDate), pregnancyCheckDays),
-        source: TaskSource.SYSTEM_AUTO,
-        relatedCattleId: dto.cattleId,
-        sourceEventType: 'BREEDING_EVENT',
-        sourceEventId: breedingEvent.id,
-      },
-      'Pregnancy check — ',
-    );
+      await this.createBreedingTaskUnlessDuplicate(
+        {
+          farmId,
+          createdBy: userId,
+          name: `Pregnancy check — ${cattle.tagNumber}`,
+          details: `Confirm pregnancy for breeding #${breedingEvent.breedingNumber} of [${cattle.tagNumber}].`,
+          category: TaskCategory.BREEDING,
+          priority: TaskPriority.MEDIUM,
+          dueAt:
+            breedingEvent.expectedPregnancyCheckDate ??
+            this.addDays(new Date(dto.breedingDate), pregnancyCheckDays),
+          source: TaskSource.SYSTEM_AUTO,
+          relatedCattleId: dto.cattleId,
+          sourceEventType: 'BREEDING_EVENT',
+          sourceEventId: breedingEvent.id,
+        },
+        'Pregnancy check — ',
+      );
 
     await this.logActivity(
       farmId,
@@ -1017,69 +877,6 @@ export class ReproductionService {
       },
     });
     return toCursorPage(rows, query);
-  }
-
-  /**
-   * RAKHAL-325: mark a `Pregnancy` row as a data-entry mistake ("she was
-   * never really pregnant"), distinct from `ABORTED`/`FAILED` (real
-   * biological outcomes) — never a hard delete, the row and its audit trail
-   * (`correctionReason`/`correctedBy`/`correctedAt`) stay forever. Already
-   * `CANCELLED_CORRECTION` is a no-op-guarded error, not silently re-applied.
-   * `refreshDerivedState` afterwards clears any `ReproductionProfile`/
-   * `Lactation.recommendedDryOffAt` pointer that was keyed off this
-   * pregnancy while it still read as ACTIVE.
-   */
-  async correctPregnancy(
-    farmId: string,
-    userId: string,
-    pregnancyId: string,
-    dto: CorrectPregnancyDto,
-  ) {
-    const pregnancy = await this.prisma.pregnancy.findFirst({
-      where: { id: pregnancyId, cattle: { farmId } },
-      include: { cattle: { select: { tagNumber: true } } },
-    });
-    if (!pregnancy) {
-      throw new NotFoundException('Pregnancy not found');
-    }
-    if (pregnancy.status === PregnancyStatus.CANCELLED_CORRECTION) {
-      throw new BadRequestException(
-        `Pregnancy for [${pregnancy.cattle.tagNumber}] is already marked as a correction`,
-      );
-    }
-
-    const corrected = await this.prisma.pregnancy.update({
-      where: { id: pregnancyId },
-      data: {
-        status: PregnancyStatus.CANCELLED_CORRECTION,
-        correctionReason: dto.reason,
-        correctedBy: userId,
-        correctedAt: new Date(),
-      },
-    });
-
-    await this.derivation.refreshDerivedState(farmId, pregnancy.cattleId);
-
-    await this.logActivity(
-      farmId,
-      userId,
-      pregnancy.cattleId,
-      'Pregnancy corrected',
-      `Pregnancy for [${pregnancy.cattle.tagNumber}] cancelled as a correction.`,
-      [
-        { key: 'cattle', value: pregnancy.cattle.tagNumber },
-        { key: 'reason', value: String(dto.reason) },
-      ],
-    );
-
-    this.log.info('Pregnancy marked as correction', {
-      pregnancyId,
-      cattleId: pregnancy.cattleId,
-      farmId,
-      correctedBy: userId,
-    });
-
-    return corrected;
   }
 
   async createCalvingEvent(
@@ -1473,120 +1270,6 @@ export class ReproductionService {
     });
 
     return dryPeriod;
-  }
-
-  /**
-   * RAKHAL-281: start a `Lactation` for a purchased-lactating cow with no
-   * `CalvingEvent` on record in this system — the farmer supplies whatever
-   * she knows (estimated calving date / known DIM / lactation number),
-   * possibly nothing at all. Mirrors `createCalvingEvent`'s
-   * `Cattle.productionStatus` flip (via the shared `flipToMilking`) and its
-   * `ReproductionProfile.currentLactationNumber`/`currentLactationId`
-   * bookkeeping, without duplicating the `CalvingEvent`/`CalfBirth`/AQR/Task
-   * side effects — there is no birth to register here.
-   *
-   * Deliberate scope decision (documented, not silently skipped): this does
-   * **not** touch `ReproductionProfile.totalCalvings` — `createCalvingEvent`
-   * derives that field from a real `CalvingEvent.count()`, which stays 0 here
-   * (no `CalvingEvent` exists for a purchased cow). A purchased-lactating cow
-   * may therefore still derive `AnimalCategory=HEIFER` (`totalCalvings===0`)
-   * in `CattleService`'s domain logic despite being `MILKING` here — the
-   * existing `priorCalvings` intake field on `CreateCattleDto`/
-   * `UpdateHerdStatusDto` (RAKHAL-291) is the supported way to also record
-   * real prior-calving history; wiring the two together is left to a future
-   * ticket rather than reaching into `CattleModule`'s `ReproductionProfile`
-   * invariant from here.
-   */
-  async createPurchasedLactation(
-    farmId: string,
-    userId: string,
-    cattleId: string,
-    dto: CreatePurchasedLactationDto,
-  ) {
-    const cattle = await this.getFemaleCattle(farmId, cattleId);
-
-    const existingActiveLactation = await this.prisma.lactation.findFirst({
-      where: { cattleId, status: LactationStatus.ACTIVE },
-    });
-    if (existingActiveLactation) {
-      throw new BadRequestException(
-        `[${cattle.tagNumber}] already has an active lactation on record`,
-      );
-    }
-
-    const now = new Date();
-    // Best available anchor for the required `Lactation.startDate` column:
-    // a known DIM (most current signal) > an estimated calving date > "now"
-    // (no information supplied at all — still a valid intake, just fully
-    // unestimated beyond "she is milking today").
-    const startDate =
-      dto.estimatedDaysInMilk !== undefined
-        ? this.addDays(now, -dto.estimatedDaysInMilk)
-        : dto.estimatedCalvingDate
-          ? new Date(dto.estimatedCalvingDate)
-          : now;
-
-    const existingLactationCount = await this.prisma.lactation.count({
-      where: { cattleId },
-    });
-    const lactationNumber =
-      dto.estimatedLactationNumber ?? existingLactationCount + 1;
-
-    const lactation = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.lactation.create({
-        data: {
-          cattleId,
-          lactationNumber,
-          startDate,
-          status: LactationStatus.ACTIVE,
-          startReason: LactationStartReason.PURCHASED_LACTATING,
-          isEstimated: true,
-          estimatedLactationNumber: dto.estimatedLactationNumber ?? null,
-          estimatedDaysInMilk: dto.estimatedDaysInMilk ?? null,
-        },
-      });
-
-      await tx.reproductionProfile.upsert({
-        where: { cattleId },
-        create: {
-          cattleId,
-          currentLactationNumber: lactationNumber,
-          currentLactationId: created.id,
-        },
-        update: {
-          currentLactationNumber: lactationNumber,
-          currentLactationId: created.id,
-        },
-      });
-
-      await this.flipToMilking(tx, cattleId);
-
-      return created;
-    });
-
-    await this.derivation.refreshDerivedState(farmId, cattleId);
-
-    await this.logActivity(
-      farmId,
-      userId,
-      cattleId,
-      'Lactation started',
-      `Lactation #${lactationNumber} started for purchased cow [${cattle.tagNumber}] (estimated).`,
-      [
-        { key: 'cattle', value: cattle.tagNumber },
-        { key: 'lactation', value: `#${lactationNumber}` },
-      ],
-    );
-
-    this.log.info('Purchased-lactating cow intake recorded', {
-      lactationId: lactation.id,
-      cattleId,
-      farmId,
-      userId,
-      isEstimated: true,
-    });
-
-    return lactation;
   }
 
   async listCalvingEvents(farmId: string, query: ReproductionListQueryDto) {
@@ -2362,247 +2045,6 @@ export class ReproductionService {
           expected_calving_date: activePregnancy?.expectedCalvingDate ?? null,
         };
       }),
-    };
-  }
-
-  /**
-   * Unified reproduction events feed (API §5 `GET /reproduction/events`).
-   * Merges heat / breeding / pregnancy-diagnosis / calving / abortion events
-   * from the event tables, filters by type and date range, returns a cursor page.
-   *
-   * Pagination is a **composite keyset** over the merged stream, ordered by
-   * `(event_date, event_type, id)` — a plain Prisma `{ id }` cursor can't work
-   * because the rows come from five different tables. The opaque cursor carries
-   * the last row's `{ id, d: ISO date, t: type }`; each table is then asked only
-   * for rows strictly AFTER that key (see `after()`), `limit + 1` of each, and the
-   * merged result is trimmed to `limit` (the extra row proves `hasNextPage`).
-   */
-  async events(
-    farmId: string,
-    query: {
-      cattleId?: string;
-      eventType?: string;
-      fromDate?: string;
-      toDate?: string;
-      limit?: number;
-      cursor?: string;
-      sortOrder?: 'asc' | 'desc';
-    },
-  ) {
-    if (query.cattleId) {
-      await this.getCattleOrThrow(farmId, query.cattleId);
-    }
-
-    const cattleWhere = {
-      cattle: { farmId },
-      ...(query.cattleId ? { cattleId: query.cattleId } : {}),
-    };
-    const limit = query.limit ?? 20;
-    const dir: 'asc' | 'desc' = query.sortOrder === 'asc' ? 'asc' : 'desc';
-    const types = query.eventType
-      ? [query.eventType]
-      : ['heat', 'breeding', 'calving', 'abortion', 'pregnancy_diagnosis'];
-
-    const dateFilter = (field: string) =>
-      query.fromDate || query.toDate
-        ? {
-            [field]: {
-              ...(query.fromDate ? { gte: new Date(query.fromDate) } : {}),
-              ...(query.toDate ? { lte: new Date(query.toDate) } : {}),
-            },
-          }
-        : {};
-
-    type Key = { id: string; d: string; t: string };
-    const anchor = query.cursor ? decodeCursor<Key>(query.cursor) : null;
-    if (
-      anchor &&
-      (typeof anchor.d !== 'string' ||
-        typeof anchor.t !== 'string' ||
-        Number.isNaN(new Date(anchor.d).getTime()))
-    ) {
-      throw new BadRequestException('Invalid pagination cursor');
-    }
-
-    /** Rows strictly after the cursor key in the active sort direction. The key
-     * is `(date, type, id)`; `type` is constant per table, so whether the date
-     * comparison is inclusive depends only on how this table's type ranks
-     * against the cursor row's type. */
-    const after = (field: string, type: string) => {
-      if (!anchor) return {};
-      const at = new Date(anchor.d);
-      const strict = dir === 'desc' ? 'lt' : 'gt';
-      const loose = dir === 'desc' ? 'lte' : 'gte';
-      const typeAfter = dir === 'desc' ? type < anchor.t : type > anchor.t;
-      if (typeAfter) return { [field]: { [loose]: at } };
-      if (type === anchor.t) {
-        return {
-          OR: [
-            { [field]: { [strict]: at } },
-            { [field]: at, id: { [strict]: anchor.id } },
-          ],
-        };
-      }
-      return { [field]: { [strict]: at } };
-    };
-
-    const where = (type: string, field: string) =>
-      types.includes(type)
-        ? { AND: [cattleWhere, dateFilter(field), after(field, type)] }
-        : { id: 'NEVER' };
-    const page = { take: limit + 1 };
-
-    const cattleInclude = {
-      cattle: { select: { id: true, name: true, tagNumber: true } },
-    } as const;
-    const [heats, breedings, calvings, abortions, diagnoses] =
-      await Promise.all([
-        this.prisma.heatEvent.findMany({
-          where: where('heat', 'heatDateTime'),
-          include: cattleInclude,
-          orderBy: [{ heatDateTime: dir }, { id: dir }],
-          ...page,
-        }),
-        this.prisma.breedingEvent.findMany({
-          // A voided breeding is hidden from the working feed (it stays in the Activity Log).
-          where: {
-            AND: [where('breeding', 'breedingDate'), { voidedAt: null }],
-          },
-          include: cattleInclude,
-          orderBy: [{ breedingDate: dir }, { id: dir }],
-          ...page,
-        }),
-        this.prisma.calvingEvent.findMany({
-          where: where('calving', 'calvingDate'),
-          include: cattleInclude,
-          orderBy: [{ calvingDate: dir }, { id: dir }],
-          ...page,
-        }),
-        this.prisma.abortionEvent.findMany({
-          where: where('abortion', 'abortionDate'),
-          include: cattleInclude,
-          orderBy: [{ abortionDate: dir }, { id: dir }],
-          ...page,
-        }),
-        this.prisma.pregnancyDiagnosis.findMany({
-          where: where('pregnancy_diagnosis', 'diagnosisDate'),
-          include: cattleInclude,
-          orderBy: [{ diagnosisDate: dir }, { id: dir }],
-          ...page,
-        }),
-      ]);
-
-    type EventEntry = {
-      id: string;
-      event_type: string;
-      event_date: Date;
-      cattle_id: string;
-      cattle_name: string | null;
-      cattle_tag: string;
-      details: Record<string, unknown>;
-    };
-
-    const unified: EventEntry[] = [
-      ...heats.map((h) => ({
-        id: h.id,
-        event_type: 'heat',
-        event_date: h.heatDateTime,
-        cattle_id: h.cattle.id,
-        cattle_name: h.cattle.name,
-        cattle_tag: h.cattle.tagNumber,
-        details: {
-          detection_method: h.detectionMethod,
-          standing_heat: h.standingHeat,
-          // Closed heats (false alarm / skipped cycle / inseminated) must read as closed in the feed.
-          resolution: h.resolutionReason,
-          resolved_at: h.resolvedAt,
-        },
-      })),
-      ...breedings.map((b) => ({
-        id: b.id,
-        event_type: 'breeding',
-        event_date: b.breedingDate,
-        cattle_id: b.cattle.id,
-        cattle_name: b.cattle.name,
-        cattle_tag: b.cattle.tagNumber,
-        details: {
-          method: b.breedingMethod,
-          status: b.status,
-          inseminator: b.inseminator,
-        },
-      })),
-      ...calvings.map((c) => ({
-        id: c.id,
-        event_type: 'calving',
-        event_date: c.calvingDate,
-        cattle_id: c.cattle.id,
-        cattle_name: c.cattle.name,
-        cattle_tag: c.cattle.tagNumber,
-        details: { calving_ease: c.calvingEase, calf_count: c.calfCount },
-      })),
-      ...abortions.map((a) => ({
-        id: a.id,
-        event_type: 'abortion',
-        event_date: a.abortionDate,
-        cattle_id: a.cattle.id,
-        cattle_name: a.cattle.name,
-        cattle_tag: a.cattle.tagNumber,
-        details: {
-          gestation_day: a.gestationDay,
-          suspected_cause: a.suspectedCause,
-        },
-      })),
-      ...diagnoses.map((d) => ({
-        id: d.id,
-        event_type: 'pregnancy_diagnosis',
-        event_date: d.diagnosisDate,
-        cattle_id: d.cattle.id,
-        cattle_name: d.cattle.name,
-        cattle_tag: d.cattle.tagNumber,
-        // RAKHAL-317-F: expected_calving_date/gestation_day/notes/breeding_event_id added so the
-        // frontend can seed an edit form from this feed row directly (`EditPregnancyDiagnosisDto`
-        // has no dedicated GET-by-id route) instead of guessing current values.
-        details: {
-          result: d.result,
-          method: d.diagnosisMethod,
-          gestation_day: d.gestationDay,
-          expected_calving_date: d.expectedCalvingDate,
-          breeding_event_id: d.breedingEventId,
-          notes: d.notes,
-        },
-      })),
-    ].sort((a, b) => {
-      // Must match the per-table `orderBy` + `after()` key exactly: (date, type, id).
-      const byDate = a.event_date.getTime() - b.event_date.getTime();
-      const byType =
-        a.event_type < b.event_type ? -1 : a.event_type > b.event_type ? 1 : 0;
-      const byId = a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
-      const asc = byDate || byType || byId;
-      return dir === 'asc' ? asc : -asc;
-    });
-
-    const hasNextPage = unified.length > limit;
-    const items = unified.slice(0, limit);
-    const toCursor = (e: EventEntry) =>
-      encodeCursor({
-        id: e.id,
-        d: e.event_date.toISOString(),
-        t: e.event_type,
-      });
-
-    return {
-      items,
-      meta: {
-        count: items.length,
-        limit,
-        hasNextPage,
-        hasPreviousPage: Boolean(query.cursor),
-        startCursor: items.length ? toCursor(items[0]) : null,
-        endCursor: items.length ? toCursor(items[items.length - 1]) : null,
-        // Kept from the pre-cursor shape (`{ total, limit }`) for existing readers; it is the
-        // size of THIS page, not a farm-wide total (a keyset feed has no cheap total).
-        total: items.length,
-      },
     };
   }
 

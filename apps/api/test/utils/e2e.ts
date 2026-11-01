@@ -1,3 +1,4 @@
+import { installLegacyReproShim } from './legacy-repro-shim';
 import {
   INestApplication,
   RequestMethod,
@@ -59,6 +60,7 @@ export async function createTestApp(
 
   const app = moduleRef.createNestApplication();
   app.use(cookieParser());
+  installLegacyReproShim(app);
 
   const { apiPrefix } = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
   app.setGlobalPrefix(apiPrefix, {

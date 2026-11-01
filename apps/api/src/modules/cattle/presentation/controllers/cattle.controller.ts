@@ -39,11 +39,8 @@ import { CreateCattleDto } from '../dto/create-cattle.dto';
 import { DisposeCattleDto } from '../dto/dispose-cattle.dto';
 import { ImportConfirmDto, ImportPreviewDto } from '../dto/import-cattle.dto';
 import { ListCattleQueryDto } from '../dto/list-cattle-query.dto';
-import { RecordBcsDto } from '../dto/record-bcs.dto';
-import { RecordWeightDto } from '../dto/record-weight.dto';
 import { UpcomingEventsQueryDto } from '../dto/upcoming-events-query.dto';
 import { UpdateCattleDto } from '../dto/update-cattle.dto';
-import { UpdateHerdStatusDto } from '../dto/update-cattle-status.dto';
 import { WeightHistoryQueryDto } from '../dto/weight-history-query.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
@@ -187,17 +184,6 @@ export class CattleController {
     return this.bcsService.history(farmId, id);
   }
 
-  @Post(':id/bcs')
-  @RequirePermission('cattle.bcs')
-  recordBcs(
-    @CurrentFarmId() farmId: string,
-    @CurrentUserId() userId: string,
-    @Param('id') id: string,
-    @Body() dto: RecordBcsDto,
-  ) {
-    return this.bcsService.recordBcs(farmId, userId, id, dto);
-  }
-
   @Get(':id/weight')
   @RequirePermission('cattle.read')
   weightHistory(@CurrentFarmId() farmId: string, @Param('id') id: string) {
@@ -212,17 +198,6 @@ export class CattleController {
     @Query() query: WeightHistoryQueryDto,
   ) {
     return this.weightService.periodHistory(farmId, id, query.period);
-  }
-
-  @Post(':id/weight')
-  @RequirePermission('cattle.update')
-  recordWeight(
-    @CurrentFarmId() farmId: string,
-    @CurrentUserId() userId: string,
-    @Param('id') id: string,
-    @Body() dto: RecordWeightDto,
-  ) {
-    return this.weightService.recordWeight(farmId, userId, id, dto);
   }
 
   // Profile photo (RAKHAL-009, PRD §8.4). Upload → Sharp-processed → private R2;
@@ -286,16 +261,6 @@ export class CattleController {
   @RequirePermission('cattle.read')
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.cattleService.findOne(farmId, id);
-  }
-
-  @Patch(':id/status')
-  @RequirePermission('cattle.update')
-  updateStatus(
-    @CurrentFarmId() farmId: string,
-    @Param('id') id: string,
-    @Body() dto: UpdateHerdStatusDto,
-  ) {
-    return this.cattleService.updateStatus(farmId, id, dto);
   }
 
   @Patch(':id')
