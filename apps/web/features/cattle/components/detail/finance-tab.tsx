@@ -3,7 +3,10 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, Wallet } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/shared/empty-state";
 import { cn } from "@/lib/utils";
 import { StatCard } from "@/components/shared/stat-card";
 import { ChartCard } from "@/components/shared/chart-card";
@@ -25,6 +28,10 @@ const TrendChartInner = dynamic(() => import("./charts/trend-chart-inner"), {
   loading: () => <Skeleton className="h-[220px] w-full" />,
 });
 
+// Container-query-safe: tiles wrap by available width, never by viewport (the workspace is a modal).
+const AUTO_FIT_TILES = "grid grid-cols-[repeat(auto-fit,minmax(min(100%,140px),1fr))] gap-3";
+const AUTO_FIT_CARDS = "grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-4";
+
 function currentPeriod(offset: number): string {
   const d = new Date();
   d.setUTCMonth(d.getUTCMonth() + offset);
@@ -44,7 +51,7 @@ export function FinanceTab({ cattleId }: { cattleId: string }) {
 
   if (query.isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className={AUTO_FIT_TILES}>
         <CardSkeleton />
         <CardSkeleton />
         <CardSkeleton />
@@ -62,37 +69,65 @@ export function FinanceTab({ cattleId }: { cattleId: string }) {
   const expenseTotal = expenseEntries.reduce((sum, [, v]) => sum + v, 0);
   const incomeTotal = incomeEntries.reduce((sum, [, v]) => sum + v, 0);
 
+  const chartHasData = data.monthly_chart.some((m) => m.income > 0 || m.cost > 0);
+  const nothingAtAll = incomeTotal === 0 && expenseTotal === 0 && !chartHasData && data.net_profit === 0;
+
+  const monthNav = (
+    <div className="flex items-center justify-between gap-2">
+      <p className="text-sm font-medium text-foreground">{data.period}</p>
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="icon" onClick={() => setOffset((o) => o - 1)} aria-label={t("previousMonth")}>
+          <ChevronLeft className="size-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setOffset((o) => Math.min(o + 1, 0))}
+          disabled={offset >= 0}
+          aria-label={t("nextMonth")}
+        >
+          <ChevronRight className="size-4" />
+        </Button>
+      </div>
+    </div>
+  );
+
+  if (nothingAtAll) {
+    return (
+      <div className="flex flex-col gap-4">
+        {monthNav}
+        <Card className="rounded-xl">
+          <EmptyState
+            icon={Wallet}
+            title={t("emptyTitle")}
+            description={t("emptyDescription")}
+            action={
+              <Button variant="secondary" size="sm" asChild>
+                <Link href="/finance">{t("emptyAction")}</Link>
+              </Button>
+            }
+          />
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className={AUTO_FIT_TILES}>
         <StatCard label={t("totalIncome")} value={<MoneyText amount={data.total_income} />} />
         <StatCard label={t("totalCost")} value={<MoneyText amount={data.total_cost} />} />
         <StatCard label={t("netProfit")} value={<MoneyText amount={data.net_profit} colorize />} />
       </div>
 
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-foreground">{data.period}</p>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={() => setOffset((o) => o - 1)} aria-label={t("previousMonth")}>
-            <ChevronLeft className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setOffset((o) => Math.min(o + 1, 0))}
-            disabled={offset >= 0}
-            aria-label={t("nextMonth")}
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
-      </div>
+      {monthNav}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className={AUTO_FIT_CARDS}>
         <BreakdownCard title={t("expenseBreakdown")} entries={expenseEntries} total={expenseTotal} labelKey="expenseLabels" />
         <BreakdownCard title={t("incomeBreakdown")} entries={incomeEntries} total={incomeTotal} labelKey="incomeLabels" />
       </div>
 
+      {chartHasData ? (
       <ChartCard
         title={t("monthlyChart")}
         legend={
@@ -118,6 +153,11 @@ export function FinanceTab({ cattleId }: { cattleId: string }) {
           ]}
         />
       </ChartCard>
+      ) : (
+        <Card className="rounded-xl">
+          <EmptyState icon={Wallet} title={t("chartEmpty")} className="py-8" />
+        </Card>
+      )}
     </div>
   );
 }

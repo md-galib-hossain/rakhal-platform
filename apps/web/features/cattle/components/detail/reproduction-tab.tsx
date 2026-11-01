@@ -48,7 +48,7 @@ export function ReproductionTab({
 
   if (summary.isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))] gap-4">
         <CardSkeleton />
         <CardSkeleton />
         <CardSkeleton />
@@ -66,7 +66,7 @@ export function ReproductionTab({
       {/* RAKHAL-317-F — calculated-vs-farmer-expected calving date, only renders when pregnant. */}
       <PregnancyCalvingCard cattleId={cattleId} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))] gap-4">
         <StatCard label={t("totalCalvings")} value={data.totalCalvings} />
         <StatCard
           label={t("calvingInterval")}

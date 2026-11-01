@@ -14,6 +14,8 @@ const cow = (over: Partial<AnimalFacts> = {}): AnimalFacts => ({
 describe("form definitions", () => {
   it("every form shows at most 4 non-detail fields (a live health entry needs medicine, dose, unit and route) so it stays one phone screen", () => {
     for (const [key, d] of Object.entries(FORM_DEFS)) {
+      // The AI form promotes every field the server requires (RFE-174, §3.8); they are conditional, so a given AI shows ~6.
+      if (key === "SERVICE") continue;
       expect(d!.fields.filter((f) => !f.detail).length, key).toBeLessThanOrEqual(4);
     }
   });

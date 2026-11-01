@@ -22,7 +22,7 @@ export function WhatHappensNext({
   const tLabel = useTranslations("events.form.followUp");
   if (items.length === 0) return null;
   return (
-    <section aria-labelledby="what-happens-next" className="flex flex-col gap-1 rounded-lg border border-border p-3">
+    <section aria-labelledby="what-happens-next" className="flex flex-col gap-1 border-t border-border pt-4">
       <h4 id="what-happens-next" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {t("whatNext")}
       </h4>

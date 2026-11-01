@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
+import { FamilyCards } from "./family-cards";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useCattleDetailModal } from "../../context/cattle-detail-modal-context";
 import { avatarTint } from "../../avatar-tint";
@@ -667,6 +668,7 @@ export function PedigreeTab({ cattleId }: { cattleId: string }) {
 
   return (
     <div className="flex flex-col gap-6">
+      <FamilyCards data={data} />
       {/* ── Interactive Ancestry Tree Canvas ─────────────────────── */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
@@ -692,7 +694,7 @@ export function PedigreeTab({ cattleId }: { cattleId: string }) {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleMouseUp}
           className={cn(
-            "relative h-[560px] w-full overflow-hidden rounded-2xl border border-border bg-card shadow-xs transition-colors",
+            "relative h-[min(560px,60vh)] min-h-[320px] w-full overflow-hidden rounded-2xl border border-border bg-card shadow-xs transition-colors",
             isDragging ? "cursor-grabbing" : "cursor-grab",
           )}
           style={{

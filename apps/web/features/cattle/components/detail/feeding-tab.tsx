@@ -56,7 +56,7 @@ function FeedTodayCard({ cattleId }: { cattleId: string }) {
         <p className="text-sm font-medium text-foreground">{t("feedToday")}</p>
         <div className="flex flex-col gap-2">
           {myMixtures.map((c) => (
-            <div key={c.id} className="flex items-center justify-between gap-2 rounded-lg border border-border p-2">
+            <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border p-2">
               <p className="truncate text-sm text-foreground">{c.name}</p>
               <Can I="feed.distribution-log">
                 <Button variant="secondary" size="sm" className="gap-2" onClick={() => setFeedTodayId(c.id)}>
@@ -112,10 +112,22 @@ function RationDmiSection({ cattleId }: { cattleId: string }) {
       <Card className="flex flex-col gap-3 p-4">
         <p className="text-sm font-semibold text-foreground">{t("assignedRation")}</p>
         {!ration.data?.concentration ? (
-          <EmptyState icon={Wheat} title={t("noRation")} description={t("noRationDescription")} />
+          <EmptyState
+            icon={Wheat}
+            title={t("noRation")}
+            description={t("noRationDescription")}
+            className="py-6"
+            action={
+              <Can I="feed.distribution-log">
+                <Button variant="secondary" size="sm" asChild>
+                  <Link href={`/feeding?cattleId=${cattleId}`}>{t("goToFeedingGrid")}</Link>
+                </Button>
+              </Can>
+            }
+          />
         ) : (
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex flex-col">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-col">
               <span className="text-sm font-medium text-foreground">{ration.data.concentration.name}</span>
               <span className="text-xs text-muted-foreground">
                 {t("costPerDay", { value: ration.data.concentration.totals.total_cost_tk.toFixed(2) })}
@@ -133,12 +145,12 @@ function RationDmiSection({ cattleId }: { cattleId: string }) {
       <Card className="flex flex-col gap-3 p-4">
         <p className="text-sm font-semibold text-foreground">{t("dmiTitle")}</p>
         {dmi.data ? (
-          <div className="flex items-center gap-4">
-            <div className="flex flex-1 flex-col gap-1 rounded-lg border border-border p-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,140px),1fr))] gap-3">
+            <div className="flex min-w-0 flex-col gap-1 rounded-lg border border-border p-3">
               <span className="text-xs text-muted-foreground">{t("expectedDmi")}</span>
               <p className="text-lg font-semibold text-foreground">{t("kgValue", { value: dmi.data.expected_dmi_kg.toFixed(1) })}</p>
             </div>
-            <div className="flex flex-1 flex-col gap-1 rounded-lg border border-border p-3">
+            <div className="flex min-w-0 flex-col gap-1 rounded-lg border border-border p-3">
               <span className="text-xs text-muted-foreground">{t("actualDmi")}</span>
               <p className="text-lg font-semibold text-foreground">
                 {dmi.data.actual_dmi_kg != null ? t("kgValue", { value: dmi.data.actual_dmi_kg.toFixed(1) }) : "—"}
@@ -151,7 +163,7 @@ function RationDmiSection({ cattleId }: { cattleId: string }) {
             </div>
           </div>
         ) : (
-          <EmptyState icon={Wheat} title={t("noDmi")} description={t("noDmiDescription")} />
+          <EmptyState icon={Wheat} title={t("noDmi")} description={t("noDmiDescription")} className="py-6" />
         )}
       </Card>
     </div>

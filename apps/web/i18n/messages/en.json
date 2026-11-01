@@ -1637,7 +1637,11 @@
         },
         "monthlyChart": "Monthly Income vs Cost",
         "income": "Income",
-        "cost": "Cost"
+        "cost": "Cost",
+        "emptyTitle": "No income or costs recorded yet",
+        "emptyDescription": "Milk sales, feed, health and breeding costs for this animal will show up here.",
+        "emptyAction": "Open Finance",
+        "chartEmpty": "No monthly trend yet"
       },
       "pedigree": {
         "error": "Could not load pedigree data.",
@@ -1677,7 +1681,13 @@
           "MALE": "Male",
           "FEMALE": "Female",
           "CASTRATED_MALE": "Castrated male"
-        }
+        },
+        "familyEmptyTitle": "No family recorded yet",
+        "familyEmptyDescription": "Add a dam or sire on the profile, or record a calving, to build the family tree.",
+        "unknownParent": "Not recorded",
+        "siblingsTitle": "Siblings",
+        "offspringTitle": "Offspring",
+        "offspringRole": "Calf"
       },
       "lactation": {
         "title": "Lactation Summary",
@@ -9016,15 +9026,93 @@
     "workspace": {
       "title": "Animal workspace",
       "recordEvent": "Record event",
+      "allEvents": "All events…",
+      "quickMenu": "Quick record",
+      "shortcutHint": "Ctrl/Cmd+K",
+      "notRecorded": "Not recorded",
+      "moreStats": "More stats",
+      "fewerStats": "Fewer stats",
       "edit": "Edit",
       "more": "More actions",
       "close": "Close",
       "back": "Back",
       "sections": {
+        "overview": "Overview",
         "timeline": "Timeline",
         "feeding": "Feeding",
         "family": "Family",
         "money": "Money"
+      },
+      "overview": {
+        "view": "View",
+        "repro": {
+          "title": "Reproduction",
+          "pregnant": "Pregnant",
+          "open": "Open",
+          "daysOpen": "{days} days open",
+          "barLabel": "Reproduction phases: calving, voluntary waiting period, bred, check, due",
+          "today": "Today",
+          "none": "No calving or service recorded yet. Record a heat or a service to start the timeline.",
+          "heiferNone": "Not bred yet. Record a heat or a service to start the timeline.",
+          "phase": {
+            "calving": "Calved",
+            "vwp": "VWP end",
+            "bred": "Bred",
+            "check": "Check",
+            "due": "Due"
+          },
+          "lastService": "Last service {date}",
+          "calvings": "Calvings {count}"
+        },
+        "milk": {
+          "title": "Milk",
+          "today": "Today",
+          "week": "Last 7 days",
+          "litres": "{value} L",
+          "none": "No milk logged yet.",
+          "dry": "Dry. No milk is expected until she calves.",
+          "log": "Log milk",
+          "notMilked": "not milked yet",
+          "avg7": "7-day average",
+          "perDay": "L/day",
+          "weekTotal": "Last 7 days total: {value} L"
+        },
+        "health": {
+          "title": "Health",
+          "healthy": "Healthy, no open case",
+          "openCases": "{count, plural, one {# open case} other {# open cases}}",
+          "step": "Step {current} of {total}",
+          "withdrawal": {
+            "milk": "Milk withdrawal until {date} ({days} d left)",
+            "meat": "Meat withdrawal until {date} ({days} d left)"
+          },
+          "report": "Report sickness"
+        },
+        "growth": {
+          "title": "Growth",
+          "weight": "Weight",
+          "change": "Change, 30 days",
+          "bcs": "Body condition",
+          "kg": "{value} kg",
+          "delta": "{value, number, signed} kg",
+          "none": "No weight recorded yet.",
+          "weighAgain": "One weight recorded. Weigh again to see a trend.",
+          "trendHint": "Weight trend from {count} weighings."
+        },
+        "recent": {
+          "title": "Recent events",
+          "seeAll": "See all",
+          "none": "No events yet.",
+          "recordFirst": "Record the first one"
+        },
+        "glance": {
+          "title": "At a glance",
+          "lactation": "Lactation",
+          "breed": "Breed",
+          "pen": "Pen",
+          "source": "Source",
+          "ordinal": "{n, selectordinal, one {#st} two {#nd} few {#rd} other {#th}} lactation"
+        }
       },
       "sectionsLabel": "Workspace sections",
       "nextUp": "Next up",
@@ -9040,7 +9128,37 @@
       "pregnantDay": "Pregnant · day {days}",
       "pregnant": "Pregnant",
       "ageValue": "{years}y {months}m",
-      "error": "Could not load this animal."
+      "error": "Could not load this animal.",
+      "notFound": "Animal not found. It may have been deleted.",
+      "stale": "Couldn't refresh, showing saved data",
+      "retry": "Retry",
+      "loading": "Loading animal",
+      "stats": {
+        "label": "Key numbers",
+        "dim": "DIM",
+        "daysPregnant": "Days pregnant",
+        "daysOpen": "Days open",
+        "lastMilk": "Last milk",
+        "lastWeight": "Last weight",
+        "litres": "{value} L",
+        "kg": "{value} kg",
+        "today": "today",
+        "yesterday": "yesterday",
+        "daysAgo": "{days}d ago",
+        "since": "since {date}",
+        "due": "Due {date}",
+        "sinceCalving": "since calving",
+        "age": "Age",
+        "bcs": "Body condition",
+        "status": "Status",
+        "breed": "Breed",
+        "repro": {
+          "OPEN": "Open",
+          "PREGNANT": "Pregnant",
+          "SERVICED": "Bred",
+          "DRY": "Dry"
+        }
+      }
     },
     "cards": {
       "view": "View",
@@ -9107,7 +9225,20 @@
       "error": "Could not load the timeline.",
       "summary": {
         "weight": "{kg} kg",
-        "bcs": "BCS {score}"
+        "bcs": "BCS {score}",
+        "day": "day {day}",
+        "calves": "{count, plural, one {# calf} other {# calves}}",
+        "bull": "bull {name}",
+        "by": "by {name}",
+        "price": "৳{amount}",
+        "nextDose": "next in {days} days",
+        "heat": {
+          "standing": "Standing",
+          "mucus": "Mucus",
+          "mounting": "Mounting",
+          "restless": "Restless"
+        },
+        "you": "You"
       },
       "type": {
         "HEAT": "Heat",
@@ -9236,7 +9367,23 @@
       },
       "unsupportedTitle": "Not available here yet",
       "unsupportedBody": "This event cannot be recorded from the animal page yet. Nothing was saved.",
-      "openHealthcare": "Open Healthcare"
+      "openHealthcare": "Open Healthcare",
+      "close": "Close",
+      "discardTitle": "Discard what you entered?",
+      "keepEditing": "Keep editing",
+      "discard": "Discard",
+      "context": {
+        "title": "This animal",
+        "lastHeat": "Last heat",
+        "lastAi": "Last service",
+        "dim": "DIM",
+        "services": "Services this lactation",
+        "status": "Status",
+        "daysAgo": "{count, plural, =0 {today} one {# day ago} other {# days ago}}"
+      },
+      "outsideInseminator": "Someone outside the farm…",
+      "outsideName": "Inseminator's name",
+      "linkedToHeat": "Linked to heat on"
     },
     "fields": {
       "detectionMethod": "How was it noticed",
@@ -9281,7 +9428,9 @@
       "medicineName": "Medicine / product",
       "doseAmount": "Dose",
       "symptoms": "Symptoms",
-      "medicineId": "Medicine (from stock)"
+      "medicineId": "Medicine (from stock)",
+      "semenBatchId": "Semen batch",
+      "heatLink": "Heat"
     },
     "options": {
       "detectionMethod": {
@@ -9333,7 +9482,8 @@
       },
       "semenSource": {
         "TECHNICIAN_SUPPLIED": "Technician",
-        "EXTERNAL": "Outside / other"
+        "EXTERNAL": "Outside / other",
+        "FARM_INVENTORY": "From inventory"
       },
       "paymentMethod": {
         "CASH": "Cash",

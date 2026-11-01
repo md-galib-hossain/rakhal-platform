@@ -27,7 +27,17 @@ import {
 import { cn } from "@/lib/utils";
 import { Chip } from "@/components/ui/chip";
 import { DateText } from "@/components/shared/date-text";
-import type { TimelineEvent, TimelineEventType } from "../../timeline-model";
+import { TYPE_GROUP, type TimelineEvent, type TimelineEventType, type TimelineGroup } from "../../timeline-model";
+import { formatEventSummary, safeText } from "../../forms/summary";
+
+/** Group tint (06 §6): a soft token fill with the group colour on the icon. Never colour alone: the type title sits next to it. */
+const GROUP_TINT: Record<TimelineGroup, string> = {
+  REPRODUCTION: "bg-accent-pink-tint text-accent-pink",
+  HEALTH: "bg-destructive-tint text-destructive",
+  GROWTH: "bg-accent-teal-tint text-accent-teal",
+  MOVEMENT: "bg-muted text-muted-foreground",
+  OTHER: "bg-muted text-muted-foreground",
+};
 
 const ICONS: Record<TimelineEventType, LucideIcon> = {
   HEAT: Heart,
@@ -56,48 +66,46 @@ const ICONS: Record<TimelineEventType, LucideIcon> = {
   CUSTOM: StickyNote,
 };
 
-function text(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value : null;
-}
-
 /**
- * One timeline row (RFE-155, 03 §3.4): icon, title, one summary line, the notes, and the provenance cues — a
- * "History" tag for entries recorded after the fact, a struck-through row for voided ones, and a quiet line when the
- * event follows from an earlier one. Sorted by event date by the caller. No row actions yet (edit / void is RFE-161).
+ * One timeline row (RFE-155, redesigned RFE-178, 06 §6): a group-tinted icon, the title with a one-line summary from
+ * `formatEventSummary` (never an id or raw code), the notes, and a meta column with the time and the recorder's first
+ * name. Provenance cues stay: a "History" tag for entries recorded after the fact, a struck-through row for voided ones,
+ * and a quiet line when the event follows from an earlier one. Compact: one line plus notes.
  */
-export function TimelineRow({ event, actions }: { event: TimelineEvent; actions?: ReactNode }) {
+export function TimelineRow({ event, actions, actorName }: { event: TimelineEvent; actions?: ReactNode; actorName?: string | null }) {
   const t = useTranslations("events.timeline");
+  const tSummary = useTranslations("events.timeline.summary");
+  const tOptions = useTranslations("events.options");
   const tCondition = useTranslations("health.reportSickness.conditionValue");
   const Icon = ICONS[event.type] ?? StickyNote;
   const voided = event.status === "VOIDED";
-  const detail = event.detail ?? {};
 
-  const weight = typeof detail.weightKg === "number" ? t("summary.weight", { kg: detail.weightKg }) : null;
-  const score = typeof detail.score === "number" ? t("summary.bcs", { score: detail.score }) : null;
-  const condition = text(detail.condition);
-  const summary =
-    weight ??
-    score ??
-    text(detail.medicineName) ??
-    text(detail.name) ??
-    (condition ? tCondition(condition as never) : null);
+  const summary = formatEventSummary(event, {
+    t: (key, values) => tSummary(key as never, values as never),
+    option: (group, value) => (typeof value === "string" && tOptions.has(`${group}.${value}` as never) ? tOptions(`${group}.${value}` as never) : null),
+    condition: (value) => (typeof value === "string" && tCondition.has(value as never) ? tCondition(value as never) : null),
+  });
+  const customName = event.type === "CUSTOM" ? safeText(event.detail?.name) : null;
+  const title = customName ?? t(`type.${event.type}`);
   const warnings = Array.isArray(event.findings) ? event.findings.length : 0;
-  const title = event.type === "CUSTOM" && text(detail.name) ? (text(detail.name) as string) : t(`type.${event.type}`);
+  const actorFull = safeText(actorName);
+  const actor = actorFull ? actorFull.split(/\s+/).map((p) => p.charAt(0)).join("").slice(0, 2).toUpperCase() : null;
+  const tint = GROUP_TINT[TYPE_GROUP[event.type]] ?? GROUP_TINT.OTHER;
+  const strike = voided && "line-through";
 
   return (
-    <li className={cn("flex gap-3 py-3", voided && "opacity-60")}>
-      <span
-        className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground"
-        aria-hidden
-      >
-        <Icon className="size-4" />
+    <li className={cn("flex items-start gap-2.5 py-2", voided && "opacity-60")}>
+      <span className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full", tint)} aria-hidden>
+        <Icon className="size-4" strokeWidth={1.75} />
       </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className={cn("text-sm font-semibold text-foreground", voided && "line-through")}>{title}</span>
-          {summary && summary !== title ? (
-            <span className={cn("text-sm text-muted-foreground", voided && "line-through")}>{summary}</span>
-          ) : null}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+          <div className="flex min-w-0 max-w-full items-baseline gap-1 text-sm" title={summary ? `${title} · ${summary}` : title}>
+            <span className={cn("shrink-0 font-semibold text-foreground", strike)}>{title}</span>
+            {summary && summary !== title ? (
+              <span className={cn("min-w-0 truncate text-muted-foreground", strike)}>{summary}</span>
+            ) : null}
+          </div>
           {event.provenance === "HISTORICAL" ? <Chip variant="info">{t("history")}</Chip> : null}
           {voided ? <Chip variant="muted">{t("voided")}</Chip> : null}
           {warnings > 0 ? (
@@ -106,7 +114,7 @@ export function TimelineRow({ event, actions }: { event: TimelineEvent; actions?
             </Chip>
           ) : null}
         </div>
-        {event.notes ? <p className={cn("text-sm text-muted-foreground", voided && "line-through")}>{event.notes}</p> : null}
+        {event.notes ? <p className={cn("text-sm text-muted-foreground", strike)}>{event.notes}</p> : null}
         {event.sourceEventId ? (
           <p className="flex items-center gap-1 text-xs text-muted-foreground">
             <CornerDownRight className="size-3.5 shrink-0" aria-hidden />
@@ -114,12 +122,17 @@ export function TimelineRow({ event, actions }: { event: TimelineEvent; actions?
           </p>
         ) : null}
       </div>
-      {event.provenance === "RECORDED" ? (
-        <DateText
-          date={event.eventAt}
-          options={{ hour: "2-digit", minute: "2-digit" }}
-          className="shrink-0 pt-1 text-xs text-muted-foreground"
-        />
+      {event.provenance === "RECORDED" || actor ? (
+        <div className="flex max-w-24 shrink-0 flex-col items-end pt-0.5 text-xs text-muted-foreground">
+          {event.provenance === "RECORDED" ? (
+            <DateText date={event.eventAt} options={{ hour: "2-digit", minute: "2-digit" }} className="tabular-nums" />
+          ) : null}
+          {actor ? (
+            <span className="max-w-full truncate" title={actorFull ?? undefined}>
+              {actor}
+            </span>
+          ) : null}
+        </div>
       ) : null}
       {actions}
     </li>

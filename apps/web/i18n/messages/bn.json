@@ -1637,7 +1637,11 @@
         },
         "monthlyChart": "মাসিক আয় বনাম খরচ",
         "income": "আয়",
-        "cost": "খরচ"
+        "cost": "খরচ",
+        "emptyTitle": "এখনও কোনো আয় বা খরচ নেই",
+        "emptyDescription": "এই পশুর দুধ বিক্রি, খাদ্য, স্বাস্থ্য ও প্রজনন খরচ এখানে দেখা যাবে।",
+        "emptyAction": "আর্থিক হিসাব খুলুন",
+        "chartEmpty": "মাসিক ট্রেন্ড এখনও নেই"
       },
       "pedigree": {
         "error": "বংশতালিকা তথ্য লোড করা যায়নি।",
@@ -1677,7 +1681,13 @@
           "MALE": "পুরুষ",
           "FEMALE": "স্ত্রী",
           "CASTRATED_MALE": "খাসি করা পুরুষ"
-        }
+        },
+        "familyEmptyTitle": "এখনও কোনো বংশ তথ্য নেই",
+        "familyEmptyDescription": "বংশবৃক্ষ তৈরি করতে প্রোফাইলে মা বা বাবা যোগ করুন, অথবা বাছুর প্রসব লিখুন।",
+        "unknownParent": "লেখা নেই",
+        "siblingsTitle": "ভাইবোন",
+        "offspringTitle": "সন্তান",
+        "offspringRole": "বাছুর"
       },
       "lactation": {
         "title": "দুগ্ধদান সারাংশ",
@@ -9016,15 +9026,93 @@
     "workspace": {
       "title": "পশুর ওয়ার্কস্পেস",
       "recordEvent": "ঘটনা লিখুন",
+      "allEvents": "সব ঘটনা…",
+      "quickMenu": "দ্রুত লিখুন",
+      "shortcutHint": "Ctrl/Cmd+K",
+      "notRecorded": "লেখা নেই",
+      "moreStats": "আরও তথ্য",
+      "fewerStats": "কম তথ্য",
       "edit": "সম্পাদনা",
       "more": "আরও কাজ",
       "close": "বন্ধ করুন",
       "back": "ফিরে যান",
       "sections": {
+        "overview": "ওভারভিউ",
         "timeline": "টাইমলাইন",
         "feeding": "খাদ্য",
         "family": "বংশ",
         "money": "অর্থ"
+      },
+      "overview": {
+        "view": "দেখুন",
+        "repro": {
+          "title": "প্রজনন",
+          "pregnant": "গর্ভবতী",
+          "open": "খালি",
+          "daysOpen": "{days} দিন খালি",
+          "barLabel": "প্রজনন ধাপ: বাচ্চা প্রসব, অপেক্ষার সময়, প্রজনন, পরীক্ষা, প্রসবের তারিখ",
+          "today": "আজ",
+          "none": "এখনও প্রসব বা প্রজনন নথিভুক্ত হয়নি। টাইমলাইন শুরু করতে গরম বা প্রজনন নথিভুক্ত করুন।",
+          "heiferNone": "এখনও প্রজনন হয়নি। টাইমলাইন শুরু করতে গরম বা প্রজনন নথিভুক্ত করুন।",
+          "phase": {
+            "calving": "প্রসব",
+            "vwp": "অপেক্ষা শেষ",
+            "bred": "প্রজনন",
+            "check": "পরীক্ষা",
+            "due": "প্রসবকাল"
+          },
+          "lastService": "সর্বশেষ সার্ভিস {date}",
+          "calvings": "বাচ্চা প্রসব {count}"
+        },
+        "milk": {
+          "title": "দুধ",
+          "today": "আজ",
+          "week": "শেষ ৭ দিন",
+          "litres": "{value} লি.",
+          "none": "এখনও দুধ নথিভুক্ত হয়নি।",
+          "dry": "শুকনো। প্রসবের আগে দুধ আশা করা যায় না।",
+          "log": "দুধ নথিভুক্ত করুন",
+          "notMilked": "এখনও দুধ দোহানো হয়নি",
+          "avg7": "৭ দিনের গড়",
+          "perDay": "লি/দিন",
+          "weekTotal": "গত ৭ দিনের মোট: {value} লি"
+        },
+        "health": {
+          "title": "স্বাস্থ্য",
+          "healthy": "সুস্থ, কোনো খোলা কেস নেই",
+          "openCases": "{count, plural, one {#টি খোলা কেস} other {#টি খোলা কেসs}}",
+          "step": "ধাপ {current}/{total}",
+          "withdrawal": {
+            "milk": "{date} পর্যন্ত দুধ বিক্রি বন্ধ (আর {days} দিন)",
+            "meat": "{date} পর্যন্ত মাংস বিক্রি বন্ধ (আর {days} দিন)"
+          },
+          "report": "অসুস্থতা জানান"
+        },
+        "growth": {
+          "title": "বৃদ্ধি",
+          "weight": "ওজন",
+          "change": "৩০ দিনে পরিবর্তন",
+          "bcs": "শারীরিক অবস্থা",
+          "kg": "{value} কেজি",
+          "delta": "{value, number, signed} কেজি",
+          "none": "এখনও ওজন নথিভুক্ত হয়নি।",
+          "weighAgain": "একটি ওজন নথিভুক্ত। ধারা দেখতে আবার ওজন নিন।",
+          "trendHint": "{count}টি ওজনের ভিত্তিতে ধারা।"
+        },
+        "recent": {
+          "title": "সাম্প্রতিক ঘটনা",
+          "seeAll": "সব দেখুন",
+          "none": "এখনও কোনো ঘটনা নেই।",
+          "recordFirst": "প্রথমটি নথিভুক্ত করুন"
+        },
+        "glance": {
+          "title": "এক নজরে",
+          "lactation": "ল্যাকটেশন",
+          "breed": "জাত",
+          "pen": "পেন",
+          "source": "উৎস",
+          "ordinal": "{n}ম ল্যাকটেশন"
+        }
       },
       "sectionsLabel": "ওয়ার্কস্পেসের অংশ",
       "nextUp": "এরপর করণীয়",
@@ -9040,7 +9128,37 @@
       "pregnantDay": "গর্ভবতী · {days} দিন",
       "pregnant": "গর্ভবতী",
       "ageValue": "{years} বছর {months} মাস",
-      "error": "এই পশুর তথ্য আনা যায়নি।"
+      "error": "এই পশুর তথ্য আনা যায়নি।",
+      "notFound": "পশুটি পাওয়া যায়নি। এটি মুছে ফেলা হয়ে থাকতে পারে।",
+      "stale": "হালনাগাদ করা যায়নি, সংরক্ষিত তথ্য দেখানো হচ্ছে",
+      "retry": "আবার চেষ্টা করুন",
+      "loading": "পশুর তথ্য লোড হচ্ছে",
+      "stats": {
+        "label": "মূল সংখ্যা",
+        "dim": "দুধ দেওয়ার দিন",
+        "daysPregnant": "গর্ভের দিন",
+        "daysOpen": "খালি দিন",
+        "lastMilk": "শেষ দুধ",
+        "lastWeight": "শেষ ওজন",
+        "litres": "{value} লি.",
+        "kg": "{value} কেজি",
+        "today": "আজ",
+        "yesterday": "গতকাল",
+        "daysAgo": "{days} দিন আগে",
+        "since": "{date} থেকে",
+        "due": "প্রসব {date}",
+        "sinceCalving": "বিয়ানোর পর থেকে",
+        "age": "বয়স",
+        "bcs": "শারীরিক অবস্থা",
+        "status": "অবস্থা",
+        "breed": "জাত",
+        "repro": {
+          "OPEN": "খালি",
+          "PREGNANT": "গর্ভবতী",
+          "SERVICED": "প্রজননকৃত",
+          "DRY": "শুকনো"
+        }
+      }
     },
     "cards": {
       "view": "দেখুন",
@@ -9107,7 +9225,20 @@
       "error": "টাইমলাইন আনা যায়নি।",
       "summary": {
         "weight": "{kg} কেজি",
-        "bcs": "BCS {score}"
+        "bcs": "BCS {score}",
+        "day": "{day} দিন",
+        "calves": "{count} বাছুর",
+        "bull": "ষাঁড় {name}",
+        "by": "{name} দ্বারা",
+        "price": "৳{amount}",
+        "nextDose": "পরবর্তী {days} দিন পরে",
+        "heat": {
+          "standing": "স্থির দাঁড়ানো",
+          "mucus": "শ্লেষ্মা",
+          "mounting": "চড়া",
+          "restless": "অস্থির"
+        },
+        "you": "আপনি"
       },
       "type": {
         "HEAT": "গরম (হিট)",
@@ -9236,7 +9367,23 @@
       },
       "unsupportedTitle": "এখানে এখনও পাওয়া যাচ্ছে না",
       "unsupportedBody": "এই ঘটনা এখনও পশুর পাতা থেকে লেখা যাচ্ছে না। কিছু সংরক্ষণ হয়নি।",
-      "openHealthcare": "স্বাস্থ্যসেবা খুলুন"
+      "openHealthcare": "স্বাস্থ্যসেবা খুলুন",
+      "close": "বন্ধ করুন",
+      "discardTitle": "যা লিখেছেন তা বাদ দেবেন?",
+      "keepEditing": "লেখা চালিয়ে যান",
+      "discard": "বাদ দিন",
+      "context": {
+        "title": "এই পশু",
+        "lastHeat": "শেষ হিট",
+        "lastAi": "শেষ AI",
+        "dim": "দুধ দেওয়ার দিন",
+        "services": "এই দুগ্ধকালে সার্ভিস",
+        "status": "অবস্থা",
+        "daysAgo": "{count, plural, =0 {আজ} other {# দিন আগে}}"
+      },
+      "outsideInseminator": "খামারের বাইরের কেউ…",
+      "outsideName": "ইনসেমিনেটরের নাম",
+      "linkedToHeat": "হিটের সাথে যুক্ত:"
     },
     "fields": {
       "detectionMethod": "কীভাবে বোঝা গেল",
@@ -9281,7 +9428,9 @@
       "medicineName": "ওষুধ / পণ্য",
       "doseAmount": "মাত্রা",
       "symptoms": "লক্ষণ",
-      "medicineId": "ওষুধ (মজুত থেকে)"
+      "medicineId": "ওষুধ (মজুত থেকে)",
+      "semenBatchId": "সিমেন ব্যাচ",
+      "heatLink": "হিট"
     },
     "options": {
       "detectionMethod": {
@@ -9333,7 +9482,8 @@
       },
       "semenSource": {
         "TECHNICIAN_SUPPLIED": "টেকনিশিয়ান",
-        "EXTERNAL": "বাইরে / অন্য"
+        "EXTERNAL": "বাইরে / অন্য",
+        "FARM_INVENTORY": "মজুত থেকে"
       },
       "paymentMethod": {
         "CASH": "নগদ",

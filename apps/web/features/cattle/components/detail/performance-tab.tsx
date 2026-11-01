@@ -94,7 +94,7 @@ function NonCalfPerformanceTab({
 
   if (query.isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))] gap-4">
         <CardSkeleton />
         <CardSkeleton />
         <CardSkeleton />
@@ -121,7 +121,7 @@ function NonCalfPerformanceTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))] gap-4">
         <StatCard label={t("aqrScore")} value={data.aqr_score ?? "—"} delta={data.aqr_change_pct ?? undefined} deltaLabel="%" />
         <StatCard
           label={t("avgDailyYield")}

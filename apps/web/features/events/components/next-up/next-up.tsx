@@ -54,14 +54,17 @@ function NextUpCard({
   const text = useEventText(event);
   const Icon = KIND_ICON[event.kind];
   const recordKey = canRecord ? recordKeyFor(event) : null;
+  const overdue = text.variant === "destructive" || text.variant === "warning";
   const taskActions = canEditTask && canSnoozeSkip(event);
 
   return (
-    <Card className="flex w-[85%] shrink-0 snap-start flex-col gap-2 rounded-xl p-3 sm:w-72">
-      <div className="flex items-start gap-2">
-        <Icon className={cn("mt-0.5 size-4 shrink-0", DUE_TEXT[text.variant])} aria-hidden />
+    <Card className={cn("flex w-[85%] shrink-0 snap-start flex-col gap-3 rounded-2xl p-4 shadow-none sm:w-72 xl:w-full", overdue && "border-warning/40 bg-warning-tint")}>
+      <div className="flex items-start gap-3">
+        <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl", overdue ? "bg-warning/15" : "bg-muted")} aria-hidden>
+          <Icon className={cn("size-5", DUE_TEXT[text.variant])} />
+        </span>
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className="text-sm font-semibold leading-snug text-foreground break-words">{text.label}</span>
+          <span className="line-clamp-2 text-base font-semibold leading-snug text-foreground break-words" title={text.label}>{text.label}</span>
           <span className={cn("text-xs font-medium", DUE_TEXT[text.variant])}>
             {text.due}
             {text.date ? <span className="font-normal text-muted-foreground"> ({text.date})</span> : null}
@@ -70,18 +73,18 @@ function NextUpCard({
       </div>
       {!event.actionable ? <p className="text-xs text-muted-foreground">{t("infoOnly")}</p> : null}
       {recordKey || taskActions ? (
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2">
           {recordKey ? (
-            <Button type="button" size="sm" className="h-11 flex-1 sm:h-9" onClick={() => onRecord(recordKey, event.ref.id)}>
+            <Button type="button" size="sm" className="h-11 w-full sm:h-9" onClick={() => onRecord(recordKey, event.ref.id)}>
               {t("record")}
             </Button>
           ) : null}
           {taskActions ? (
-            <>
+            <div className="grid grid-cols-3 gap-2 [&>*]:min-w-0">
               <ReminderEditButton taskId={event.ref.id} onEdit={onEditReminder} />
               <SnoozeControl event={event} />
               <SkipControl event={event} />
-            </>
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -115,13 +118,13 @@ export function NextUp({
   const hidden = (query.data?.total ?? 0) - events.length;
 
   return (
-    <section aria-labelledby="next-up-heading" className="flex flex-col gap-2">
+    <section aria-labelledby="next-up-heading" className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <h2 id="next-up-heading" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h2 id="next-up-heading" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t("title")}
         </h2>
         {canRecord && can("task.create") ? (
-          <Button type="button" variant="ghost" size="sm" className="h-11 gap-1 sm:h-8" onClick={() => setReminderOpen(true)}>
+          <Button type="button" variant="ghost" size="sm" className="h-11 gap-1 text-primary hover:text-primary sm:h-8" onClick={() => setReminderOpen(true)}>
             <Plus className="size-4" aria-hidden />
             {t("addReminder")}
           </Button>
@@ -139,7 +142,7 @@ export function NextUp({
       ) : events.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("nothingDue")}</p>
       ) : (
-        <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1">
+        <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 xl:mx-0 xl:snap-none xl:flex-col xl:overflow-visible xl:px-0">
           {events.map((event) => (
             <NextUpCard
               key={`${event.ref.type}:${event.ref.id}:${event.labelKey}`}

@@ -10,8 +10,6 @@ import { useCan } from "@/lib/auth/permissions";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
 import type { RowAction } from "@/components/shared/row-actions-menu";
 import { EventFormPlaceholder } from "@/features/events/components/event-picker/event-form-placeholder";
 import { EventPicker } from "@/features/events/components/event-picker/event-picker";
@@ -26,6 +24,10 @@ import { resolveSection, type SectionKey } from "./section-state";
 // eslint-disable-next-line import/no-cycle
 import { SectionBody, SectionSwitcher } from "./workspace-sections";
 import { WorkspaceHeader } from "./workspace-header";
+import { WorkspaceSkeleton } from "./workspace-skeleton";
+import { quickActionsFor } from "./quick-actions";
+import { WS_SHELL } from "./workspace-grid";
+import { isNotFound, StaleBanner, WorkspaceError } from "./workspace-status";
 import type { DrillKey } from "./state-cards/state-column";
 
 function isEventKey(value: string): value is EventKey {
@@ -33,9 +35,8 @@ function isEventKey(value: string): value is EventKey {
 }
 
 /**
- * Animal Workspace (MILESTONE 31, RFE-154) — replaces the old narrow 8-tab detail drawer. One wide sheet with the
- * Feed Formulator detail-sheet geometry at ≥1024px (`concentration-detail-sheet.tsx`), inset at 640–1023px and
- * full screen below 640px. Header (identity + state chips + Record event), four sections (Timeline / Feeding /
+ * Animal Workspace (MILESTONE 31, RFE-154) — replaces the old narrow 8-tab detail drawer. One right-anchored sheet, at most
+ * 1280px wide (RFE-185), full screen below 640px. Header (identity + state chips + Record event), four sections (Timeline / Feeding /
  * Family / Money), and URL state: `?view=<id>` (owned by `CattleDetailModalProvider`), `&section=`, `&record=<eventKey>`,
  * `&ref=<reminderId>` so a notification can open a form directly. The footer bar is gone; Dispose / Delete / Restore
  * live in `⋯`.
@@ -55,6 +56,7 @@ export function AnimalWorkspace({
 }) {
   const t = useTranslations("events.workspace");
   const tActions = useTranslations("cattle.actions");
+  const tCatalogue = useTranslations("events.catalogue");
   const can = useCan();
   const query = useCattleDetail(cattleId);
   const restore = useRestoreCattle();
@@ -73,6 +75,7 @@ export function AnimalWorkspace({
   const isDeleted = cattle?.deletedAt != null;
   const isActive = cattle?.herdStatus === "ACTIVE";
   const canRecord = Boolean(cattle) && !isDeleted;
+  const quickActions = cattle && canRecord ? quickActionsFor(cattle, can) : [];
 
   // The heading only exists once the animal has loaded, after the sheet's own open-focus pass; focus it then so a
   // screen reader hears who this is (03 §10).
@@ -147,58 +150,77 @@ export function AnimalWorkspace({
           event.preventDefault();
           titleRef.current?.focus();
         }}
-        // ≥1024: same geometry as `concentration-detail-sheet.tsx`. 640–1023: full width minus the 10px inset.
-        // <640: full-screen, no inset/radius. `sm:max-w-none` beats the right-side variant's own `sm:max-w-sm`.
-        className="inset-0 flex h-dvh w-auto max-w-none flex-col gap-0 rounded-none border-0 p-4 pb-0 shadow-2xl sm:inset-y-2.5 sm:left-2.5 sm:right-2.5 sm:h-[calc(100vh-20px)] sm:max-w-none sm:rounded-[20px] sm:border-2 sm:border-border sm:p-5 sm:pb-5 lg:left-[16.25rem]"
+        // RFE-185: right-anchored, content-sized shell (`WS_SHELL`); full screen under 640px.
+        className={WS_SHELL}
       >
-        {cattle ? (
-          <WorkspaceHeader
-            cattle={cattle}
-            titleRef={titleRef}
-            actions={actions}
-            canEdit={can("cattle.update")}
-            canRecord={canRecord}
-            onRecord={() => setPickerOpen(true)}
-            onEdit={() => onEdit(cattle)}
-            onClose={() => closeWorkspace(false)}
-          />
-        ) : (
-          <div className="pb-4">
+        {query.isLoading ? (
+          <>
             <SheetTitle className="sr-only">{t("title")}</SheetTitle>
-            {query.isLoading ? <CardSkeleton lines={2} /> : null}
-          </div>
-        )}
-        <div className="border-t border-border" />
-
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-1 py-4">
-          {query.isLoading ? (
-            <CardSkeleton lines={4} />
-          ) : query.isError || !cattle ? (
-            <ErrorState description={t("error")} onRetry={() => query.refetch()} />
-          ) : (
-            <>
-              {!isActive && !isDeleted ? (
-                <Card className="border-warning/40 bg-warning-tint p-3 text-sm font-medium text-warning">{t("leftHerd")}</Card>
-              ) : null}
-              <SectionSwitcher value={section} canSeeMoney={canSeeMoney} onChange={selectSection} />
-              <SectionBody
-                section={section}
+            <WorkspaceSkeleton onClose={() => closeWorkspace(false)} />
+          </>
+        ) : (
+          <>
+            {cattle ? (
+              <WorkspaceHeader
                 cattle={cattle}
-                drill={drill}
-                onDrill={setDrill}
+                titleRef={titleRef}
+                actions={actions}
+                canEdit={can("cattle.update")}
                 canRecord={canRecord}
-                onRecord={(key, ref) => {
-                  void setRef(ref);
-                  void setRecord(key);
-                }}
+                quickActions={quickActions}
+                onRecord={() => setPickerOpen(true)}
+                onQuickAction={(key) => void setRecord(key)}
+                onEdit={() => onEdit(cattle)}
+                onClose={() => closeWorkspace(false)}
               />
-            </>
-          )}
-        </div>
+            ) : (
+              <SheetTitle className="sr-only">{t("title")}</SheetTitle>
+            )}
+            <div className="border-t border-border" />
+
+            {/* Header and tabs sit outside the scroller, so they never scroll away (RFE-172). */}
+            <div className="flex min-h-0 flex-1 flex-col gap-4 pt-0">
+              {!cattle ? (
+                // Only when there is nothing to show: a failed background refetch keeps the cached animal (RFE-170).
+                <WorkspaceError
+                  notFound={isNotFound(query.error)}
+                  retrying={query.isFetching}
+                  onRetry={() => void query.refetch()}
+                  onClose={() => closeWorkspace(false)}
+                />
+              ) : (
+                <>
+                  {query.isError ? <StaleBanner retrying={query.isFetching} onRetry={() => void query.refetch()} /> : null}
+                  {!isActive && !isDeleted ? (
+                    <Card className="border-warning/40 bg-warning-tint p-3 text-sm font-medium text-warning">{t("leftHerd")}</Card>
+                  ) : null}
+                  <SectionSwitcher value={section} canSeeMoney={canSeeMoney} onChange={selectSection} />
+                  <SectionBody
+                    section={section}
+                    cattle={cattle}
+                    drill={drill}
+                    onDrill={setDrill}
+                    canRecord={canRecord}
+                    onSeeAll={() => selectSection("timeline")}
+                    onRecord={(key, ref) => {
+                      void setRef(ref || null);
+                      void setRecord(key);
+                    }}
+                  />
+                </>
+              )}
+            </div>
+          </>
+        )}
 
         {canRecord ? (
-          <div className="-mx-4 border-t border-border bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden">
-            <Button type="button" className="h-12 w-full gap-2" onClick={() => setPickerOpen(true)}>
+          <div className="-mx-4 flex gap-2 border-t border-border bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:hidden">
+            {quickActions.slice(0, 2).map((key) => (
+              <Button key={key} type="button" variant="outline" className="h-12 shrink-0 px-3" onClick={() => void setRecord(key)}>
+                {tCatalogue(`${key}.label`)}
+              </Button>
+            ))}
+            <Button type="button" className="h-12 min-w-0 flex-1 gap-2" onClick={() => setPickerOpen(true)}>
               <Plus className="size-5" aria-hidden />
               {t("recordEvent")}
             </Button>

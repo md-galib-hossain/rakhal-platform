@@ -1,12 +1,17 @@
 "use client"; // controlled inputs + live shed/group lists
 
-import { useId } from "react";
+import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useAnimalGroups, useSheds } from "@/features/cattle/hooks/use-cattle";
 import { useMedicineInfiniteList } from "@/features/inventory/hooks/use-inventory";
+import { SemenBatchPicker } from "@/features/inventory/components/semen-batch-picker";
+import { useTeam } from "@/features/settings/hooks/use-team";
+import { DateText } from "@/components/shared/date-text";
+import { useAnimalTimeline } from "../../hooks/use-animal-timeline";
+import { summariseContext } from "./event-context-card";
 import type { FieldDef, FormValues } from "../../forms/types";
 import type { FieldError } from "../../forms/definitions";
 
@@ -23,7 +28,9 @@ export function FieldRenderer({
   onChange,
   error,
   today,
+  cattleId,
 }: {
+  cattleId?: string;
   field: FieldDef;
   value: FormValues[string];
   onChange: (value: FormValues[string]) => void;
@@ -135,6 +142,14 @@ export function FieldRenderer({
           {label}
         </label>
       );
+    case "semenBatch":
+      control = <SemenBatchPicker value={typeof value === "string" ? value : undefined} onChange={onChange} error={errorText ?? undefined} />;
+      break;
+    case "person":
+      control = <PersonField id={id} value={value} onChange={onChange} describedBy={describedBy} />;
+      break;
+    case "heatLink":
+      return <HeatLink cattleId={cattleId} value={value} onChange={onChange} />;
     case "medicine":
       control = <MedicineSelect id={id} value={value} onChange={onChange} describedBy={describedBy} />;
       break;
@@ -173,6 +188,64 @@ export function FieldRenderer({
         </p>
       ) : null}
     </div>
+  );
+}
+
+const OUTSIDE = "__outside__";
+
+/** Inseminator: a farm member, or an outside name typed in. Both go to the server as the free-string `inseminator`. */
+function PersonField({ id, value, onChange, describedBy }: { id: string; value: FormValues[string]; onChange: (value: FormValues[string]) => void; describedBy?: string }) {
+  const tForm = useTranslations("events.form");
+  const team = useTeam();
+  const names = (team.data?.members ?? []).map((m) => m.name).filter((n): n is string => Boolean(n));
+  const text = typeof value === "string" ? value : "";
+  const [outside, setOutside] = useState(() => text !== "" && !names.includes(text));
+  return (
+    <div className="flex flex-col gap-2">
+      <select
+        id={id}
+        value={outside ? OUTSIDE : text}
+        onChange={(event) => {
+          if (event.target.value === OUTSIDE) {
+            setOutside(true);
+            onChange(undefined);
+          } else {
+            setOutside(false);
+            onChange(event.target.value || undefined);
+          }
+        }}
+        aria-describedby={describedBy}
+        className={INPUT}
+      >
+        <option value="">{tForm("choose")}</option>
+        {names.map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ))}
+        <option value={OUTSIDE}>{tForm("outsideInseminator")}</option>
+      </select>
+      {outside ? (
+        <input type="text" value={text} onChange={(event) => onChange(event.target.value)} placeholder={tForm("outsideName")} aria-label={tForm("outsideName")} className={INPUT} />
+      ) : null}
+    </div>
+  );
+}
+
+/** Display-only link to the latest heat within 48 h (no heat-event id on the breeding DTO yet: never sent). */
+function HeatLink({ cattleId, value, onChange }: { cattleId?: string; value: FormValues[string]; onChange: (value: FormValues[string]) => void }) {
+  const t = useTranslations("events.form");
+  const timeline = useAnimalTimeline({ cattleId: cattleId ?? "", group: null, includeVoided: false });
+  const [now] = useState(() => Date.now());
+  const heat = summariseContext(timeline.items).lastHeatAt;
+  if (!heat || now - new Date(heat).getTime() > 48 * 3_600_000) return null;
+  return (
+    <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-foreground">
+      <Checkbox checked={value !== false} onCheckedChange={(checked) => onChange(checked === true)} />
+      <span>
+        {t("linkedToHeat")} <DateText date={heat} />
+      </span>
+    </label>
   );
 }
 

@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { WS_CARD } from "../workspace-grid";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 
 /**
@@ -27,9 +28,9 @@ export function StateCard({
 }) {
   const t = useTranslations("events.cards");
   return (
-    <Card className="flex flex-col gap-2 rounded-xl p-3 sm:p-4">
+    <Card className={`${WS_CARD} flex flex-col gap-3`}>
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+        <h3 className="text-base font-semibold normal-case tracking-normal text-foreground ">{title}</h3>
         <Button
           type="button"
           variant="ghost"

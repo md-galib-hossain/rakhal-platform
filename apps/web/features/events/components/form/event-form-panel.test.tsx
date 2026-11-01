@@ -17,6 +17,11 @@ globalThis.ResizeObserver ??= class {
 };
 
 const mutateAsync = vi.fn();
+vi.mock("../../hooks/use-animal-timeline", () => ({
+  useAnimalTimeline: () => ({ items: [], isLoading: false, isError: false }),
+}));
+vi.mock("@/features/inventory/components/semen-batch-picker", () => ({ SemenBatchPicker: () => <div data-testid="semen-picker" /> }));
+vi.mock("@/features/settings/hooks/use-team", () => ({ useTeam: () => ({ data: { members: [{ name: "Rahim" }] } }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/features/inventory/hooks/use-inventory", () => ({
   useMedicineInfiniteList: () => ({ items: [{ id: "m1", name: "FMD" }], isLoading: false }),
@@ -119,6 +124,26 @@ describe("EventFormPanel", () => {
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Back" })[0]);
     expect(onBack).toHaveBeenCalled();
+  });
+
+  it("closes at once when nothing was typed, and asks before throwing typed values away", () => {
+    const first = renderForm("WEIGHT");
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(first.onDone).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Discard what you entered?")).not.toBeInTheDocument();
+  });
+
+  it("Esc with typed values shows the discard question; Keep editing stays, Discard closes", () => {
+    const { onDone } = renderForm("WEIGHT");
+    fireEvent.change(screen.getByLabelText(/Weight/), { target: { value: "412" } });
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(screen.getByText("Discard what you entered?")).toBeInTheDocument();
+    expect(onDone).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.queryByText("Discard what you entered?")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+    expect(onDone).toHaveBeenCalledTimes(1);
   });
 
   it("renders the Bangla labels", () => {

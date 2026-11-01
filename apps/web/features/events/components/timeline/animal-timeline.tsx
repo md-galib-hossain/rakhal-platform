@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { todayLocalIso, addDaysLocalIso } from "@/lib/local-date";
 import { useAnimalTimeline } from "../../hooks/use-animal-timeline";
 import { TIMELINE_GROUPS, groupByDay, type TimelineGroup } from "../../timeline-model";
+import { useRecorderNames } from "./use-recorder-names";
 import { RowActions } from "./row-actions/row-actions";
 import { TimelineRow } from "./timeline-row";
 
@@ -23,6 +24,7 @@ export function AnimalTimeline({ cattleId }: { cattleId: string }) {
   const [group, setGroup] = useState<TimelineGroup | null>(null);
   const [includeVoided, setIncludeVoided] = useState(false);
   const timeline = useAnimalTimeline({ cattleId, group, includeVoided });
+  const recorderName = useRecorderNames();
   const days = groupByDay(timeline.items);
   const today = todayLocalIso();
   const yesterday = addDaysLocalIso(today, -1);
@@ -73,12 +75,12 @@ export function AnimalTimeline({ cattleId }: { cattleId: string }) {
         <>
           {days.map((day) => (
             <div key={day.day} className="flex flex-col">
-              <h3 className="border-b border-border pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <h3 className="sticky top-0 z-10 border-b border-border bg-background pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {day.day === today ? t("today") : day.day === yesterday ? t("yesterday") : <DateText date={day.events[0].eventAt} />}
               </h3>
               <ol className="divide-y divide-border">
                 {day.events.map((event) => (
-                  <TimelineRow key={event.id} event={event} actions={<RowActions cattleId={cattleId} event={event} />} />
+                  <TimelineRow key={event.id} event={event} actorName={recorderName(event.recordedById)} actions={<RowActions cattleId={cattleId} event={event} />} />
                 ))}
               </ol>
             </div>

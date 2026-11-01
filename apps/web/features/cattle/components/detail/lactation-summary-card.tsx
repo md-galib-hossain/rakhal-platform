@@ -105,7 +105,7 @@ export function LactationSummaryCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,120px),1fr))] gap-4">
         <StatCard label={t("dim")} value={dim != null ? t("days", { value: dim }) : "—"} />
         <StatCard label={t("today")} value={t("litres", { value: data.today })} />
         <StatCard label={t("sevenDayAvg")} value={t("litres", { value: data.sevenDayAvgYield })} />
@@ -114,7 +114,7 @@ export function LactationSummaryCard({
 
       <div className="flex flex-col gap-2">
         <p className="text-xs font-medium text-muted-foreground">{t("lactationToDate")}</p>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,120px),1fr))] gap-x-6 gap-y-2">
           <TotalField label={t("produced")} value={t("litres", { value: lactationToDate.produced })} />
           <TotalField label={t("saleable")} value={t("litres", { value: lactationToDate.saleable })} />
           <TotalField label={t("withheld")} value={t("litres", { value: lactationToDate.withheld })} />
@@ -125,7 +125,7 @@ export function LactationSummaryCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 border-t border-border pt-4 sm:grid-cols-2">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-4 border-t border-border pt-4">
         <div className="flex flex-col gap-1.5">
           <p className="text-xs font-medium text-muted-foreground">{t("peak")}</p>
           {peak ? (

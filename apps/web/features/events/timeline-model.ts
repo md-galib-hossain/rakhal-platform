@@ -43,6 +43,8 @@ export interface TimelineEvent {
   recordedById?: string | null;
   createdAt?: string | null;
   detail: Record<string, unknown> | null;
+  /** Header payload of the types that have no detail table (note, custom, vaccination's next dose). */
+  data?: Record<string, unknown> | null;
 }
 
 export function inGroup(event: TimelineEvent, group: TimelineGroup | null): boolean {

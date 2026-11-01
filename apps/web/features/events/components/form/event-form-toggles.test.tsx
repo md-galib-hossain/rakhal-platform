@@ -16,6 +16,11 @@ globalThis.ResizeObserver ??= class {
 const mutateAsync = vi.fn();
 let dryData: unknown;
 
+vi.mock("../../hooks/use-animal-timeline", () => ({
+  useAnimalTimeline: () => ({ items: [], isLoading: false, isError: false }),
+}));
+vi.mock("@/features/inventory/components/semen-batch-picker", () => ({ SemenBatchPicker: () => <div data-testid="semen-picker" /> }));
+vi.mock("@/features/settings/hooks/use-team", () => ({ useTeam: () => ({ data: { members: [{ name: "Rahim" }] } }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("../../hooks/use-record-event", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../hooks/use-record-event")>()),
@@ -32,6 +37,8 @@ function renderForm() {
       <EventFormPanel eventKey="SERVICE" cattle={cow} onBack={vi.fn()} onDone={vi.fn()} />
     </NextIntlClientProvider>,
   );
+  // Inventory semen needs a batch (RFE-174); these tests are about follow-ups, so use technician-supplied semen.
+  fireEvent.click(screen.getByRole("radio", { name: "Technician" }));
 }
 
 beforeEach(() => {

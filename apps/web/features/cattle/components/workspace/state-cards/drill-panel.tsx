@@ -12,7 +12,8 @@ import type { CardKey } from "./applicability";
 /**
  * Drill panel (RFE-156): "View" on a state card swaps the right column for the full history of that domain, reusing
  * the existing tab bodies (charts, tables) rather than duplicating them. Esc or Back returns (the workspace owns Esc).
- * Below `lg` it is a full-screen push; at `lg` it sits in the column.
+ * It replaces the main track of the workspace grid (from 1400px it also takes the Next-up track); under 720px it
+ * replaces the whole body. It lives in the grid, never in the rail, and is not `fixed` (the `@container` would re-anchor it).
  */
 export function DrillPanel({ cattle, drill, onBack }: { cattle: CattleDetail; drill: CardKey; onBack: () => void }) {
   const t = useTranslations("events.cards");
@@ -20,9 +21,9 @@ export function DrillPanel({ cattle, drill, onBack }: { cattle: CattleDetail; dr
   return (
     <section
       aria-labelledby="workspace-drill-title"
-      className="fixed inset-0 z-[60] flex flex-col gap-3 overflow-y-auto bg-card p-4 lg:static lg:z-auto lg:overflow-visible lg:p-0"
+      className="flex min-w-0 flex-col gap-3"
     >
-      <div className="flex items-center gap-2">
+      <div className="sticky top-0 z-10 flex items-center gap-2 bg-card py-1">
         <Button type="button" variant="ghost" size="sm" className="-ml-2 h-10 gap-1 px-2" onClick={onBack}>
           <ArrowLeft className="size-4" aria-hidden />
           {tw("back")}

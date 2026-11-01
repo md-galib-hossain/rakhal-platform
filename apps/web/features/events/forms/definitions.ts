@@ -4,6 +4,7 @@ import type { EventRequest, FieldDef, FormDef, FormValues } from "./types";
 
 const MEDICINE_ROUTES = ["IM", "IV", "SC", "ORAL", "TOPICAL", "OTHER"];
 const notes: FieldDef = { name: "notes", kind: "textarea", detail: true, target: "notes" };
+const isAi = (v: FormValues) => (v.breedingMethod ?? "AI") === "AI";
 const bool = (name: string): FieldDef => ({ name, kind: "bool", detail: true });
 
 /**
@@ -31,13 +32,15 @@ export const FORM_DEFS: Partial<Record<EventKey, FormDef>> = {
     showTime: true,
     fields: [
       { name: "breedingMethod", kind: "segmented", required: true, options: ["AI", "NATURAL", "EMBRYO_TRANSFER"], default: "AI" },
-      { name: "sireNameOrCode", kind: "text", detail: true },
-      { name: "inseminator", kind: "text", detail: true },
-      // A live AI must say who supplied the semen and what it cost (RAKHAL-330); a past record needs neither. The server's
-      // dry run reports it when missing, so these stay under "More details" to keep the form one screen.
-      { name: "semenSource", kind: "segmented", detail: true, options: ["TECHNICIAN_SUPPLIED", "EXTERNAL"] },
-      { name: "serviceCost", kind: "number", detail: true, min: 0, step: 1, unit: "৳" },
-      { name: "paymentMethod", kind: "segmented", detail: true, options: ["CASH", "BANK_TRANSFER", "MFS"] },
+      // A live AI must say who supplied the semen and what it cost (RAKHAL-330): all up front (RFE-174). A past record
+      // (HISTORICAL) sends no batch or payment, and cost is optional. Backend gaps: no straw count (always 1), no heat id.
+      { name: "semenSource", kind: "segmented", options: ["FARM_INVENTORY", "TECHNICIAN_SUPPLIED", "EXTERNAL"], default: "FARM_INVENTORY", visibleWhen: isAi },
+      { name: "semenBatchId", kind: "semenBatch", requiredWhenLive: true, visibleWhen: (v, c) => isAi(v) && v.semenSource === "FARM_INVENTORY" && !c.historical },
+      { name: "sireNameOrCode", kind: "text", visibleWhen: (v) => v.breedingMethod !== "EMBRYO_TRANSFER" },
+      { name: "inseminator", kind: "person", visibleWhen: isAi },
+      { name: "heatLink", kind: "heatLink", target: "none", visibleWhen: isAi },
+      { name: "serviceCost", kind: "number", min: 0, step: 1, unit: "৳", visibleWhen: (v) => !(isAi(v) && v.semenSource === "FARM_INVENTORY") },
+      { name: "paymentMethod", kind: "segmented", options: ["CASH", "BANK_TRANSFER", "MFS"], visibleWhen: (v, c) => !c.historical && Number(v.serviceCost) > 0 },
       notes,
     ],
   },
@@ -212,6 +215,7 @@ export function validateValues(def: FormDef, values: FormValues, opts: { histori
   const oneOf = new Set(def.requireOneOf ?? []);
   const oneOfOk = oneOf.size === 0 || [...oneOf].some((name) => isFilled(values[name]));
   for (const field of def.fields) {
+    if (field.visibleWhen && !field.visibleWhen(values, { historical: Boolean(opts.historical) })) continue;
     const value = values[field.name];
     if (oneOf.has(field.name)) {
       if (!oneOfOk) errors[field.name] = "required";
@@ -248,6 +252,8 @@ export function buildRequest(
   let payload: Record<string, unknown> = {};
   let notesValue: string | undefined;
   for (const field of def.fields) {
+    if (field.target === "none") continue;
+    if (field.visibleWhen && !field.visibleWhen(values, { historical: when.historical })) continue;
     const value = values[field.name];
     if (!isFilled(value) || (field.kind === "bool" && value === false)) continue;
     const typed = field.kind === "number" ? Number(value) : typeof value === "string" ? value.trim() : value;

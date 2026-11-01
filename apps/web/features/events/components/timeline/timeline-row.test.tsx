@@ -71,4 +71,23 @@ describe("TimelineRow", () => {
     expect(screen.getByText("ওজন")).toBeInTheDocument();
     expect(screen.getByText("পুরনো তথ্য")).toBeInTheDocument();
   });
+  it("shows the recorder's first name and the AI summary, never an id", () => {
+    const { container } = render(
+      <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
+        <ol>
+          <TimelineRow
+            event={row({ type: "BREEDING", detail: { breedingMethod: "AI", sireNameOrCode: "Sultan" }, recordedById: "cmuf4t0ve0049hofca2egbu8w" })}
+            actorName="Galib Hossain"
+          />
+        </ol>
+      </NextIntlClientProvider>,
+    );
+    expect(screen.getByText("GH")).toBeInTheDocument();
+    expect(screen.getByText("AI · bull Sultan")).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/cmuf4t0/);
+  });
+  it("tints the icon by group", () => {
+    const { container } = renderRow(row({ type: "HEAT", detail: { detectionMethod: "VISUAL" } }));
+    expect(container.querySelector("span.bg-accent-pink-tint")).not.toBeNull();
+  });
 });

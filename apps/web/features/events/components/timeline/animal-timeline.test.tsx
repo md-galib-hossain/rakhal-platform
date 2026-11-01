@@ -8,6 +8,7 @@ import { AnimalTimeline } from "./animal-timeline";
 
 // The row menu reads the session and the query client; its rule is covered in row-actions/permissions.test.ts.
 vi.mock("./row-actions/row-actions", () => ({ RowActions: () => null }));
+vi.mock("./use-recorder-names", () => ({ useRecorderNames: () => () => null }));
 
 const useAnimalTimeline = vi.fn();
 vi.mock("../../hooks/use-animal-timeline", () => ({

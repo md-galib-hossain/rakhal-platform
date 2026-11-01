@@ -33,7 +33,7 @@ export function SnoozeControl({ event }: { event: UpcomingEvent }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-11 flex-1 sm:h-9">
+        <Button type="button" variant="outline" size="sm" className="h-11 w-full sm:h-9">
           {t("snooze")}
         </Button>
       </PopoverTrigger>
@@ -73,7 +73,7 @@ export function SkipControl({ event }: { event: UpcomingEvent }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className="h-11 flex-1 sm:h-9">
+        <Button type="button" variant="outline" size="sm" className="h-11 w-full sm:h-9">
           {t("skip")}
         </Button>
       </PopoverTrigger>

@@ -1,6 +1,6 @@
 import type { EventKey } from "../types";
 
-export type FieldKind = "segmented" | "select" | "medicine" | "number" | "text" | "textarea" | "date" | "bool" | "shed" | "group";
+export type FieldKind = "segmented" | "select" | "medicine" | "number" | "text" | "textarea" | "date" | "bool" | "shed" | "group" | "semenBatch" | "person" | "heatLink";
 
 export interface FieldDef {
   name: string;
@@ -20,7 +20,9 @@ export interface FieldDef {
   step?: number;
   unit?: string;
   /** `notes` sends the value as the event's top-level notes instead of inside `payload`. */
-  target?: "payload" | "notes";
+  target?: "payload" | "notes" | "none";
+  /** Hidden (and never validated or sent) while this returns false; `historical` = a past record. */
+  visibleWhen?: (values: FormValues, ctx: { historical: boolean }) => boolean;
 }
 
 export interface FormDef {

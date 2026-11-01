@@ -1,8 +1,8 @@
 "use client"; // form state, debounced dry run, mutations
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { AlertTriangle, ArrowLeft, ChevronDown } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ChevronDown, X } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -10,12 +10,14 @@ import { ApiError } from "@/lib/api/errors";
 import { todayLocalIso } from "@/lib/local-date";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import type { CattleDetail } from "@/features/cattle/types";
 import { buildRequest, defaultValues, FORM_DEFS, validateValues, type FieldError } from "../../forms/definitions";
 import { clientFindings, findingMessageKey, isPastRecord, previewFollowUps } from "../../forms/followups";
 import type { Finding, FollowUpPreview, FormDef, FormValues } from "../../forms/types";
 import { EventUnavailableError, extractRef, useEventDryRun, useRecordEvent, useVoidEvent } from "../../hooks/use-record-event";
 import type { EventKey } from "../../types";
+import { EventContextCard } from "./event-context-card";
 import { FieldRenderer } from "./field-renderer";
 import { WhatHappensNext } from "./what-happens-next";
 import { WhenField } from "./when-field";
@@ -39,12 +41,14 @@ function newKey(): string {
 }
 
 /**
- * The shared event form (RFE-158/159, 03 §5): docked over the right column at >=1024px, a full-screen layer below.
- * When (Today / Yesterday / Pick date + time) -> required fields -> "More details" (collapsed) -> amber findings that
- * never block saving -> "What happens next" with per-item toggles (follow-ups already past due start off) -> Save and
- * Save & record another. A date more than 7 days back pre-ticks "This is a past record" (HISTORICAL). Saves through
- * `POST /cattle/:id/events` with an Idempotency-Key; while that route is missing, a few events use their old endpoint
- * (`forms/fallback.ts`) and the rest say they are not available yet.
+ * The shared event form (RFE-158/159, 03 §5; RFE-179, 06 §7): a 600px right drawer (a nested Sheet, so it has a focus
+ * trap, `aria-modal`, Esc and a backdrop over the whole workspace), full screen below 640px. Top to bottom: cow strip ->
+ * When (Today / Yesterday / Pick date + time) -> required fields -> "More details" (collapsed) -> "What happens next" with
+ * per-item toggles (follow-ups already past due start off) -> a sticky footer holding the amber findings (they never block
+ * saving) and Save / Save & record another. A date more than 7 days back pre-ticks "This is a past record" (HISTORICAL).
+ * Esc, the backdrop and X ask before throwing away typed values. Saves through `POST /cattle/:id/events` with an
+ * Idempotency-Key; while that route is missing, a few events use their old endpoint (`forms/fallback.ts`) and the rest say
+ * they are not available yet.
  */
 export function EventFormPanel({
   eventKey,
@@ -74,16 +78,25 @@ export function EventFormPanel({
   const [unsupportedAtSave, setUnsupportedAtSave] = useState(false);
   const [toggles, setToggles] = useState<Record<string, boolean>>({});
   const [idempotencyKey, setIdempotencyKey] = useState(newKey);
+  // Which way the user was leaving when the unsaved-changes question came up.
+  const [confirmExit, setConfirmExit] = useState<"done" | "back" | null>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const keepEditingRef = useRef<HTMLDivElement>(null);
+  const [pristine] = useState(() => JSON.stringify(defaultValues(def)));
 
   const past = isPastRecord(date, today);
   const historical = pastOverride ?? past;
   const record = useRecordEvent(cattle.id);
   const voidEvent = useVoidEvent(cattle.id);
+  const dirty = JSON.stringify(values) !== pristine || date !== today || pastOverride !== null || Object.keys(toggles).length > 0;
 
   useEffect(() => {
     titleRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    if (confirmExit) keepEditingRef.current?.querySelector("button")?.focus();
+  }, [confirmExit]);
 
   const liveErrors = useMemo(() => validateValues(def, values, { historical }), [def, values, historical]);
   const dryRequest = useMemo(
@@ -118,6 +131,14 @@ export function EventFormPanel({
     if (finding.code === "UNUSUAL_FOR_STATE") return tFinding("UNUSUAL_FOR_STATE", { chips: (finding.chips ?? []).map((c) => tChip(c as never)).join(", ") });
     // Unknown codes become a generic sentence for their severity; a raw code or the server's English never reaches the screen.
     return tFinding(findingMessageKey(finding) as never);
+  }
+
+  /** Esc, the backdrop, X and the phone back arrow all come through here: ask first when something was typed. */
+  function requestExit(way: "done" | "back") {
+    if (record.isPending) return;
+    if (dirty && !unsupported) setConfirmExit(way);
+    else if (way === "back") onBack();
+    else onDone();
   }
 
   function setValue(name: string, value: FormValues[string]) {
@@ -184,54 +205,83 @@ export function EventFormPanel({
     }
   }
 
-  const required = def.fields.filter((f) => !f.detail);
-  const details = def.fields.filter((f) => f.detail);
+  const shown = def.fields.filter((f) => !f.visibleWhen || f.visibleWhen(values, { historical }));
+  const required = shown.filter((f) => !f.detail);
+  const details = shown.filter((f) => f.detail);
   const title = `${tCatalogue(`${eventKey}.label`)} · ${cattle.name ?? cattle.tagNumber}`;
   const oneOfNote = def.requireOneOf ? t("requireOneOf") : null;
 
-  if (unsupported) {
-    return (
-      <section
-        aria-labelledby="event-form-title"
-        className="fixed inset-0 z-[60] flex flex-col bg-card lg:absolute lg:inset-y-0 lg:left-auto lg:right-0 lg:w-[460px] lg:rounded-r-[18px] lg:border-l lg:border-border lg:shadow-xl"
+  /** The drawer: a nested Sheet over the workspace. Radix gives it the focus trap, aria-modal, Esc and the backdrop. */
+  const drawer = (children: ReactNode) => (
+    <Sheet
+      open
+      onOpenChange={(open) => {
+        if (!open) requestExit("done");
+      }}
+    >
+      <SheetContent
+        showClose={false}
+        aria-describedby={undefined}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          titleRef.current?.focus();
+        }}
+        className="inset-0 z-[60] flex h-dvh w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 p-0 shadow-xl sm:left-auto sm:w-[min(600px,100%)] sm:max-w-none sm:rounded-l-[18px] sm:border-l motion-reduce:data-[state=open]:slide-in-from-right-0 motion-reduce:data-[state=closed]:slide-out-to-right-0"
       >
-        <div className="flex items-center gap-2 border-b border-border p-3">
-          <Button type="button" variant="ghost" size="icon" aria-label={t("back")} onClick={onBack}>
-            <ArrowLeft className="size-4" aria-hidden />
-          </Button>
-          <h3 id="event-form-title" ref={titleRef} tabIndex={-1} className="min-w-0 flex-1 truncate text-base font-semibold text-foreground outline-none">
-            {title}
-          </h3>
-        </div>
-        <div role="status" className="flex flex-col gap-4 p-4">
+        {children}
+      </SheetContent>
+    </Sheet>
+  );
+
+  const header = (
+    <div className="flex items-center gap-2 border-b border-border px-4 py-3 sm:px-6">
+      <Button type="button" variant="ghost" size="icon" aria-label={t("back")} onClick={() => requestExit("back")} className="sm:hidden">
+        <ArrowLeft className="size-4" aria-hidden />
+      </Button>
+      <SheetTitle ref={titleRef} tabIndex={-1} className="min-w-0 flex-1 truncate text-base outline-none">
+        {title}
+      </SheetTitle>
+      <Button type="button" variant="ghost" size="icon" aria-label={t("close")} onClick={() => requestExit("done")}>
+        <X className="size-4" aria-hidden />
+      </Button>
+    </div>
+  );
+
+  if (unsupported) {
+    return drawer(
+      <>
+        {header}
+        <div role="status" className="flex flex-col gap-4 p-6">
           <p className="text-base font-semibold text-foreground">{t("unsupportedTitle")}</p>
           <p className="text-sm text-muted-foreground">{t("unsupportedBody")}</p>
           {def.fallbackHref ? (
-            <Link href={def.fallbackHref} className="inline-flex h-12 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground">
+            <Link href={def.fallbackHref} className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground">
               {t("openHealthcare")}
             </Link>
           ) : null}
-          <Button type="button" variant="outline" className="h-12" onClick={onBack}>
+          <Button type="button" variant="outline" className="h-10" onClick={onBack}>
             {t("back")}
           </Button>
         </div>
-      </section>
+      </>,
     );
   }
 
-  return (
-    <section
-      aria-labelledby="event-form-title"
-      className="fixed inset-0 z-[60] flex flex-col bg-card lg:absolute lg:inset-y-0 lg:left-auto lg:right-0 lg:w-[460px] lg:rounded-r-[18px] lg:border-l lg:border-border lg:shadow-xl"
-    >
-      <div className="flex items-center gap-2 border-b border-border p-3">
-        <Button type="button" variant="ghost" size="icon" aria-label={t("back")} onClick={onBack}>
-          <ArrowLeft className="size-4" aria-hidden />
-        </Button>
-        <h3 id="event-form-title" ref={titleRef} tabIndex={-1} className="min-w-0 flex-1 truncate text-base font-semibold text-foreground outline-none">
-          {title}
-        </h3>
-      </div>
+  const blockFindings = findings.filter((f) => f.severity === "BLOCK");
+  const warnFindings = findings.filter((f) => f.severity !== "BLOCK");
+  const fieldProps = (field: (typeof shown)[number]) => ({
+    cattleId: cattle.id,
+    field,
+    value: values[field.name],
+    onChange: (v: FormValues[string]) => setValue(field.name, v),
+    error: errors[field.name],
+    today,
+  });
+
+  return drawer(
+    <>
+      {header}
+      <EventContextCard cattle={cattle} strip />
 
       {/* Ctrl/Cmd+Enter = Save & record another (03 §10); Enter alone submits natively. */}
       {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
@@ -249,11 +299,16 @@ export function EventFormPanel({
         }}
         noValidate
       >
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+        <div className="@container flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-5 sm:px-6">
+          {serverError ? (
+            <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive-tint p-3 text-sm text-destructive">
+              {serverError}
+            </p>
+          ) : null}
           <WhenField date={date} time={time} showTime={Boolean(def.showTime)} today={today} onDateChange={setDate} onTimeChange={setTime} />
 
           {required.map((field) => (
-            <FieldRenderer key={field.name} field={field} value={values[field.name]} onChange={(v) => setValue(field.name, v)} error={errors[field.name]} today={today} />
+            <FieldRenderer key={field.name} {...fieldProps(field)} />
           ))}
           {oneOfNote ? <p className="-mt-2 text-xs text-muted-foreground">{oneOfNote}</p> : null}
 
@@ -275,56 +330,68 @@ export function EventFormPanel({
                 <ChevronDown className={cn("size-4 transition-transform", showDetails && "rotate-180")} aria-hidden />
                 {showDetails ? t("lessDetails") : t("moreDetails")}
               </button>
-              {showDetails
-                ? details.map((field) => (
-                    <FieldRenderer key={field.name} field={field} value={values[field.name]} onChange={(v) => setValue(field.name, v)} error={errors[field.name]} today={today} />
-                  ))
-                : null}
+              {showDetails ? details.map((field) => <FieldRenderer key={field.name} {...fieldProps(field)} />) : null}
             </div>
           ) : null}
-
-          {findings.length > 0 ? (
-            <div role="status" aria-live="polite" className="flex flex-col gap-1.5">
-              {findings.map((finding) => (
-                <p
-                  key={`${finding.code}-${finding.severity}`}
-                  className={cn(
-                    "flex items-start gap-2 rounded-lg border p-3 text-sm",
-                    finding.severity === "BLOCK" ? "border-destructive/40 bg-destructive-tint text-destructive" : "border-warning/40 bg-warning-tint text-warning",
-                  )}
-                >
-                  <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-                  <span>
-                    {findingText(finding)}
-                    {finding.severity === "WARN" ? ` ${t("saveAnyway")}` : null}
-                  </span>
-                </p>
-              ))}
-            </div>
-          ) : null}
-          {dryError ? <p className="text-sm text-destructive">{dryError}</p> : null}
 
           <WhatHappensNext
             items={followUps}
             isOn={isOn}
             onToggle={(item, on) => setToggles((previous) => ({ ...previous, [item.key]: on }))}
           />
-          {serverError ? (
-            <p role="alert" className="text-sm text-destructive">
-              {serverError}
-            </p>
-          ) : null}
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-border bg-card p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row-reverse">
-          <Button type="submit" className="h-12 w-full sm:w-auto sm:flex-1" disabled={record.isPending || blocked}>
-            {record.isPending ? t("saving") : t("save")}
-          </Button>
-          <Button type="button" variant="outline" className="h-12 w-full sm:w-auto sm:flex-1" disabled={record.isPending || blocked} onClick={() => void submit(true)}>
-            {t("saveAnother")}
-          </Button>
+        <div className="flex flex-col gap-2 border-t border-border bg-card px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6">
+          {blockFindings.length > 0 || warnFindings.length > 0 || dryError ? (
+            <div role="status" aria-live="polite" className="flex max-h-32 flex-col gap-1.5 overflow-y-auto">
+              {blockFindings.map((finding) => (
+                <p key={`${finding.code}-${finding.severity}`} className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive-tint p-2 text-sm text-destructive">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                  <span>{findingText(finding)}</span>
+                </p>
+              ))}
+              {dryError ? <p className="text-sm text-destructive">{dryError}</p> : null}
+              {warnFindings.map((finding) => (
+                <p key={`${finding.code}-${finding.severity}`} className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning-tint p-2 text-sm text-warning">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                  <span>
+                    {findingText(finding)} {t("saveAnyway")}
+                  </span>
+                </p>
+              ))}
+            </div>
+          ) : null}
+
+          {confirmExit ? (
+            <div role="alert" className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-medium text-foreground">{t("discardTitle")}</p>
+              <div ref={keepEditingRef} className="flex gap-2 sm:justify-end">
+                <Button type="button" variant="outline" className="h-10 flex-1 sm:flex-none" onClick={() => setConfirmExit(null)}>
+                  {t("keepEditing")}
+                </Button>
+                <Button type="button" variant="destructive" className="h-10 flex-1 sm:flex-none" onClick={confirmExit === "back" ? onBack : onDone}>
+                  {t("discard")}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 max-sm:border-transparent max-sm:shadow-none"
+                disabled={record.isPending || blocked}
+                onClick={() => void submit(true)}
+              >
+                {t("saveAnother")}
+              </Button>
+              <Button type="submit" className="h-10 max-sm:w-full" disabled={record.isPending || blocked}>
+                {record.isPending ? t("saving") : t("save")}
+              </Button>
+            </div>
+          )}
         </div>
       </form>
-    </section>
+    </>,
   );
 }

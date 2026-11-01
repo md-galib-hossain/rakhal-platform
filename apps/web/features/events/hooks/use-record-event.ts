@@ -1,5 +1,6 @@
 "use client"; // TanStack Query hooks
 
+import { invalidateAnimal } from "./invalidate-animal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/lib/api/errors";
 import { eventsApi, normaliseDryRun } from "../api";
@@ -98,9 +99,7 @@ export function useRecordEvent(cattleId: string) {
     },
     onSuccess: () => {
       // An event moves state everywhere: the animal, its timeline, Next up, reproduction, health and the task list.
-      for (const key of ["cattle", "events", "reproduction", "health", "healthcare", "tasks"]) {
-        void queryClient.invalidateQueries({ queryKey: [key] });
-      }
+      invalidateAnimal(queryClient, cattleId, ["reproduction", "health", "healthcare", "tasks"]);
     },
   });
 }
@@ -111,9 +110,7 @@ export function useEditEvent(cattleId: string) {
     mutationFn: ({ eventId, body }: { eventId: string; body: { eventAt?: string; notes?: string | null; reason?: string } }) =>
       eventsApi.edit(cattleId, eventId, body),
     onSuccess: () => {
-      for (const key of ["cattle", "events", "reproduction", "health", "tasks"]) {
-        void queryClient.invalidateQueries({ queryKey: [key] });
-      }
+      invalidateAnimal(queryClient, cattleId, ["reproduction", "health", "tasks"]);
     },
   });
 }
@@ -123,9 +120,7 @@ export function useVoidEvent(cattleId: string) {
   return useMutation({
     mutationFn: ({ ref, reason }: { ref: string; reason: string }) => eventsApi.void(cattleId, ref, reason),
     onSuccess: () => {
-      for (const key of ["cattle", "events", "reproduction", "health", "tasks"]) {
-        void queryClient.invalidateQueries({ queryKey: [key] });
-      }
+      invalidateAnimal(queryClient, cattleId, ["reproduction", "health", "tasks"]);
     },
   });
 }

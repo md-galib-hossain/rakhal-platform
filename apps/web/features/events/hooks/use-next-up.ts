@@ -1,6 +1,7 @@
 "use client"; // TanStack Query hooks
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { invalidateAnimal } from "./invalidate-animal";
 import { tasksApi } from "@/features/tasks/api";
 
 /**
@@ -11,7 +12,7 @@ import { tasksApi } from "@/features/tasks/api";
 export function useNextUpActions() {
   const queryClient = useQueryClient();
   const refresh = () => {
-    for (const key of ["cattle", "tasks", "health"]) void queryClient.invalidateQueries({ queryKey: [key] });
+    invalidateAnimal(queryClient, undefined, ["tasks", "health"]);
   };
   const snooze = useMutation({
     mutationFn: ({ taskId, dueAt }: { taskId: string; dueAt: string }) => tasksApi.update(taskId, { dueAt }),
