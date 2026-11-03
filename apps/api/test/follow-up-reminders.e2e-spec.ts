@@ -6,7 +6,7 @@ import { FollowUpReminderService } from '../src/modules/animal-events/applicatio
 import { AuthedUser, createTestApp, loginAs, TestContext } from './utils/e2e';
 
 /**
- * RAKHAL-485 (one follow-up sweep) + RAKHAL-487 (custom reminders as Task category REMINDER).
+ * RAKHAL-485 (one follow-up sweep) + RAKHAL-487 (custom reminders as Task kind REMINDER, RAKHAL-491).
  * Drives `FollowUpReminderService.sweepAll(now)` against the real DB, the entry the 05:00 cron calls.
  * The sweep is farm-wide and the dev DB holds other agents' tasks, so every assertion filters on the
  * dedupe keys of the tasks created here.
@@ -30,6 +30,10 @@ describe('Follow-up sweep + custom reminders (RAKHAL-485/487)', () => {
   const taskIds: string[] = [];
 
   const http = (u: AuthedUser) => ({
+    get: (p: string) =>
+      request(ctx.app.getHttpServer())
+        .get(api(p))
+        .set('Authorization', `Bearer ${u.token}`),
     post: (p: string, body: object = {}) =>
       request(ctx.app.getHttpServer())
         .post(api(p))
@@ -261,7 +265,7 @@ describe('Follow-up sweep + custom reminders (RAKHAL-485/487)', () => {
       const res = await http(owner)
         .post('/tasks', {
           name: `Check water trough ${run}`,
-          category: 'REMINDER',
+          kind: 'REMINDER',
           dueAt: inDays(1).toISOString(),
           remindDaysBefore: 1,
           recipientUserIds: [workerId],
@@ -270,7 +274,8 @@ describe('Follow-up sweep + custom reminders (RAKHAL-485/487)', () => {
         .expect(201);
       const task = res.body.data;
       taskIds.push(task.id);
-      expect(task.category).toBe('REMINDER');
+      expect(task.kind).toBe('REMINDER');
+      expect(task.category).toBe('GENERAL');
       expect(task.recipientUserIds).toEqual([workerId]);
       expect(task.cattleIds).toEqual([c.id]);
 
@@ -305,7 +310,7 @@ describe('Follow-up sweep + custom reminders (RAKHAL-485/487)', () => {
       const res = await http(owner)
         .post('/tasks', {
           name: `Farm-wide reminder ${run}`,
-          category: 'REMINDER',
+          kind: 'REMINDER',
           dueAt: new Date().toISOString(),
         })
         .expect(201);
@@ -326,7 +331,7 @@ describe('Follow-up sweep + custom reminders (RAKHAL-485/487)', () => {
       const res = await http(owner)
         .post('/tasks', {
           name,
-          category: 'REMINDER',
+          kind: 'REMINDER',
           dueAt: new Date().toISOString(),
           recurring: true,
           recurrenceType: 'EVERY_N_DAYS',
@@ -363,7 +368,7 @@ describe('Follow-up sweep + custom reminders (RAKHAL-485/487)', () => {
       const res = await http(owner)
         .post('/tasks', {
           name,
-          category: 'REMINDER',
+          kind: 'REMINDER',
           dueAt: new Date().toISOString(),
           recurring: true,
           recurrenceType: 'DAILY',
@@ -398,7 +403,7 @@ describe('Follow-up sweep + custom reminders (RAKHAL-485/487)', () => {
       const res = await http(owner)
         .post('/tasks', {
           name: `Re-weigh ${run}`,
-          category: 'REMINDER',
+          kind: 'REMINDER',
           sourceEventId: ev.id,
           offsetDays: 30,
         })
@@ -428,7 +433,7 @@ describe('Follow-up sweep + custom reminders (RAKHAL-485/487)', () => {
     });
 
     it('validates: dueAt xor source event, interval for EVERY_N_DAYS, member-only recipients', async () => {
-      const base = { name: `Bad ${run}`, category: 'REMINDER' };
+      const base = { name: `Bad ${run}`, kind: 'REMINDER' };
       const now = new Date().toISOString();
       await http(owner)
         .post('/tasks', {
@@ -455,11 +460,89 @@ describe('Follow-up sweep + custom reminders (RAKHAL-485/487)', () => {
         .expect(404);
     });
 
+    it('RAKHAL-491: kind filter, highlights split, legacy category alias', async () => {
+      const base = (await http(owner).get('/tasks?limit=1').expect(200)).body
+        .meta;
+      const t = await http(owner)
+        .post('/tasks', {
+          name: `KS491-${run} plain`,
+          category: 'MAINTENANCE',
+          dueAt: new Date(Date.now() - DAY).toISOString(),
+        })
+        .expect(201);
+      taskIds.push(t.body.data.id);
+      expect(t.body.data.kind).toBe('TASK');
+      const rem = await http(owner)
+        .post('/tasks', {
+          name: `KS491-${run} overdue`,
+          kind: 'REMINDER',
+          category: 'BREEDING',
+          dueAt: new Date(Date.now() - DAY).toISOString(),
+          recurring: true,
+          recurrenceType: 'DAILY',
+        })
+        .expect(201);
+      taskIds.push(rem.body.data.id);
+      expect(rem.body.data.kind).toBe('REMINDER');
+      expect(rem.body.data.category).toBe('BREEDING');
+      // Deprecated alias: category REMINDER stores kind REMINDER + topic GENERAL.
+      const legacy = await http(owner)
+        .post('/tasks', {
+          name: `KS491-${run} legacy`,
+          category: 'REMINDER',
+          dueAt: inDays(5).toISOString(),
+        })
+        .expect(201);
+      taskIds.push(legacy.body.data.id);
+      expect(legacy.body.data.kind).toBe('REMINDER');
+      expect(legacy.body.data.category).toBe('GENERAL');
+
+      const search = encodeURIComponent(`KS491-${run}`);
+      const onlyTasks = await http(owner)
+        .get(`/tasks?kind=task&search=${search}`)
+        .expect(200);
+      expect(onlyTasks.body.data.map((x: { id: string }) => x.id)).toEqual([
+        t.body.data.id,
+      ]);
+      const onlyRem = await http(owner)
+        .get(`/tasks?kind=reminder&search=${search}`)
+        .expect(200);
+      expect(onlyRem.body.data.map((x: { id: string }) => x.id).sort()).toEqual(
+        [rem.body.data.id, legacy.body.data.id].sort(),
+      );
+      await http(owner).get('/tasks?kind=bogus').expect(400);
+
+      // Exact deltas on this farm: +1 overdue reminder (repeating), +1 upcoming (legacy alias),
+      // and the plain overdue task moves only highlights.overdue (reminders never do).
+      const after = (await http(owner).get('/tasks?limit=1').expect(200)).body
+        .meta;
+      expect(
+        after.reminderHighlights.overdue - base.reminderHighlights.overdue,
+      ).toBe(1);
+      expect(
+        after.reminderHighlights.upcoming - base.reminderHighlights.upcoming,
+      ).toBe(1);
+      expect(
+        after.reminderHighlights.repeating - base.reminderHighlights.repeating,
+      ).toBe(1);
+      expect(after.highlights.overdue - base.highlights.overdue).toBe(1);
+
+      // Sweep still fires for a kind=REMINDER row.
+      await sweep.sweepAll();
+      const fired = await prisma.notification.count({
+        where: {
+          farmId: owner.farmId,
+          dedupeKey: { startsWith: `fu:task:${rem.body.data.id}:` },
+        },
+      });
+      expect(fired).toBeGreaterThanOrEqual(1);
+    });
+
     it('a worker cannot create a reminder', async () => {
       await http(worker)
         .post('/tasks', {
           name: `W ${run}`,
-          category: 'REMINDER',
+          kind: 'REMINDER',
           dueAt: new Date().toISOString(),
         })
         .expect(403);

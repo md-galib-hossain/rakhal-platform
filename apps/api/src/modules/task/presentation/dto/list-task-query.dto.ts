@@ -1,17 +1,69 @@
 import { Transform } from 'class-transformer';
-import { IsEnum, IsIn, IsISO8601, IsOptional, IsString } from 'class-validator';
-import { TaskCategory, TaskPriority } from '@prisma/client';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsEnum,
+  IsIn,
+  IsISO8601,
+  IsOptional,
+  IsString,
+} from 'class-validator';
+import { TaskCategory, TaskPriority, TaskStatus } from '@prisma/client';
 import { CursorPaginationQueryDto } from 'src/common/pagination';
-import { trimString } from 'src/common/dto';
+import { toBoolean, trimString } from 'src/common/dto';
 
 /** View filter for `GET /tasks` (PRD §17.2). */
-export type TaskListFilter = 'my_tasks' | 'all' | 'overdue' | 'blocked';
+export type TaskListFilter =
+  | 'my_tasks'
+  | 'all'
+  | 'overdue'
+  | 'upcoming'
+  | 'blocked';
 
 export class ListTaskQueryDto extends CursorPaginationQueryDto {
+  /**
+   * View filter. `overdue` = open (not COMPLETED/CANCELLED) with `dueAt < now`; `upcoming` = open with
+   * `dueAt >= now` (the exact complement of `overdue` for open items, same server `now` per request,
+   * same boundary as `meta.reminderHighlights.upcoming/overdue`).
+   */
   @IsOptional()
   @Transform(trimString)
-  @IsIn(['my_tasks', 'all', 'overdue', 'blocked'])
+  @IsIn(['my_tasks', 'all', 'overdue', 'upcoming', 'blocked'])
   filter?: TaskListFilter;
+
+  /** RAKHAL-491: `task` = work to do, `reminder` = custom reminders. Omitted = both. */
+  @IsOptional()
+  @Transform(trimString)
+  @IsIn(['task', 'reminder'])
+  kind?: 'task' | 'reminder';
+
+  /**
+   * RAKHAL-491 fix: comma-separated TaskStatus list, e.g. `COMPLETED,CANCELLED`. Exact server-side
+   * filter (an unknown value is a 400). Combines with `filter`, `kind`, search and the cursor.
+   *
+   * Response note: `meta.highlights` and `meta.reminderHighlights` are computed on the FIRST page
+   * only (no `cursor`); later pages omit them, so clients keep the first-page values.
+   */
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }): unknown =>
+    typeof value === 'string'
+      ? value
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : value,
+  )
+  @IsArray()
+  @ArrayMaxSize(7)
+  @IsEnum(TaskStatus, { each: true })
+  status?: TaskStatus[];
+
+  /** RAKHAL-491 fix: `true` = repeating items only (`recurring` flag, same definition as `reminderHighlights.repeating`); `false` = one-off only. */
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  recurring?: boolean;
 
   @IsOptional()
   @IsEnum(TaskCategory)

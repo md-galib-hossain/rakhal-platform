@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { TaskCategory, TaskPriority, TaskSource } from '@prisma/client';
+import {
+  TaskCategory,
+  TaskKind,
+  TaskPriority,
+  TaskSource,
+} from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
@@ -196,9 +201,7 @@ export class FollowUpService {
         sourceEventType: 'ANIMAL_EVENT',
         sourceEventId: eventId,
         status: { in: [...OPEN] },
-        ...(opts.keepReminders
-          ? { category: { not: TaskCategory.REMINDER } }
-          : {}),
+        ...(opts.keepReminders ? { kind: { not: TaskKind.REMINDER } } : {}),
       },
       data: { status: 'CANCELLED', cancelledAt: new Date() },
     });
@@ -211,7 +214,7 @@ export class FollowUpService {
       where: {
         sourceEventType: 'ANIMAL_EVENT',
         sourceEventId: eventId,
-        category: TaskCategory.REMINDER,
+        kind: TaskKind.REMINDER,
         reminderOffsetDays: { not: null },
         status: { in: [...OPEN] },
       },

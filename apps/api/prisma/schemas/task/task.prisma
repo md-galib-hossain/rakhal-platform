@@ -10,6 +10,8 @@ model Task {
   name     String
   details  String?
   category TaskCategory @default(GENERAL)
+  /// RAKHAL-491: TASK (work to do) vs REMINDER (a custom notice). `category` is the topic only.
+  kind     TaskKind     @default(TASK)
   priority TaskPriority @default(MEDIUM)
   status   TaskStatus   @default(PENDING)
 
@@ -45,7 +47,7 @@ model Task {
   followUpKey     String?
   ruleKey         String?
 
-  /// RAKHAL-487 (category REMINDER): lead-time notice in days before `dueAt` (null = none besides the day itself).
+  /// RAKHAL-487 (kind REMINDER): lead-time notice in days before `dueAt` (null = none besides the day itself).
   remindDaysBefore Int?
   /// Roles notified when the reminder has no assignee and no named users (empty = Owner + Manager).
   notifyRoleNames  String[] @default([])
@@ -80,6 +82,7 @@ model Task {
   @@index([assignedToId])
   @@index([dueAt])
   @@index([category])
+  @@index([farmId, kind, status, dueAt])
   @@index([sourceEventType, sourceEventId])
 }
 

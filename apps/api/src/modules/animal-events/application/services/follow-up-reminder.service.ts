@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, TaskCategory } from '@prisma/client';
+import { Prisma, TaskKind } from '@prisma/client';
 import { FarmClockService } from 'src/common/farm-time/farm-clock.service';
 import { dayKey, localDateIso } from 'src/common/farm-time/farm-time';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
@@ -26,6 +26,7 @@ const TASK_SELECT = {
   farmId: true,
   name: true,
   category: true,
+  kind: true,
   ruleKey: true,
   sourceEventId: true,
   dueAt: true,
@@ -57,7 +58,7 @@ interface Bucket {
 
 /**
  * RAKHAL-485: the one sweep that turns Task Hub follow-ups (rule tasks) and custom reminders
- * (category REMINDER) into notifications. One entry in the existing 05:00 cron (no scheduler of
+ * (kind REMINDER) into notifications. One entry in the existing 05:00 cron (no scheduler of
  * its own); it replaces the four bespoke calving / heat / pregnancy-check / dry-off sweeps.
  *
  * On the farm's calendar day it sends: a day-before notice for rule tasks (a reminder uses its
@@ -85,7 +86,7 @@ export class FollowUpReminderService {
     const rows = await this.prisma.task.findMany({
       where: {
         status: { in: [...OPEN] },
-        OR: [{ ruleKey: { not: null } }, { category: TaskCategory.REMINDER }],
+        OR: [{ ruleKey: { not: null } }, { kind: TaskKind.REMINDER }],
         dueAt: {
           gte: new Date(
             now.getTime() - (REMINDER_OVERDUE_MAX_DAYS + 2) * DAY_MS,
@@ -150,7 +151,7 @@ export class FollowUpReminderService {
     const buckets = new Map<string, Bucket>();
     for (const row of rows) {
       const daysUntil = this.daysUntil(row.dueAt, timezone, now);
-      const isReminder = row.category === TaskCategory.REMINDER;
+      const isReminder = row.kind === TaskKind.REMINDER;
 
       // A repeating reminder spawns its next occurrence the day it fires (once, atomically).
       if (isReminder && row.recurring && !row.spawnedNextAt && daysUntil <= 0) {

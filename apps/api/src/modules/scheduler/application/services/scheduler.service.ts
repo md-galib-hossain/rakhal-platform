@@ -212,7 +212,7 @@ export class SchedulerService {
         status: { in: ['PENDING', 'IN_PROGRESS', 'BLOCKED'] },
         // RAKHAL-485: follow-up rule tasks and custom reminders are nagged by the follow-up sweep.
         ruleKey: null,
-        category: { not: 'REMINDER' },
+        kind: { not: 'REMINDER' },
       },
       select: { id: true, farmId: true, name: true, dueAt: true },
     });
@@ -402,6 +402,7 @@ export class SchedulerService {
     // equals the farm's local today.
     const tasks = await this.prisma.task.findMany({
       where: {
+        kind: 'TASK', // RAKHAL-491: reminders have their own sweep
         dueAt: {
           gte: new Date(now.getTime() - 2 * DAY_MS),
           lt: new Date(now.getTime() + 2 * DAY_MS),

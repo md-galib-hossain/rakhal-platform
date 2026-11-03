@@ -8,6 +8,7 @@ import {
   Task,
   TaskAuditAction,
   TaskCategory,
+  TaskKind,
   TaskPriority,
   TaskRecurrence,
   TaskSource,
@@ -83,7 +84,14 @@ export class TaskService {
       await this.assertCattleIds(farmId, dto.cattleIds);
     }
 
-    const isReminder = dto.category === TaskCategory.REMINDER;
+    // RAKHAL-491: kind decides; the deprecated category=REMINDER is still accepted as a kind=REMINDER alias.
+    if (dto.kind === TaskKind.TASK && dto.category === TaskCategory.REMINDER) {
+      throw new BadRequestException(
+        'kind TASK conflicts with the legacy category REMINDER',
+      );
+    }
+    const isReminder =
+      dto.kind === TaskKind.REMINDER || dto.category === TaskCategory.REMINDER;
     const link = isReminder
       ? await this.resolveReminderLink(farmId, dto)
       : null;
@@ -105,7 +113,8 @@ export class TaskService {
         createdBy: userId,
         name: dto.name,
         details: dto.details,
-        category: dto.category ?? TaskCategory.GENERAL,
+        category: this.topic(dto.category),
+        kind: isReminder ? TaskKind.REMINDER : TaskKind.TASK,
         priority: dto.priority ?? TaskPriority.MEDIUM,
         scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
         dueAt: link ? link.dueAt : new Date(dto.dueAt!),
@@ -247,7 +256,7 @@ export class TaskService {
     });
     if (
       !task ||
-      task.category !== TaskCategory.REMINDER ||
+      task.kind !== TaskKind.REMINDER ||
       !task.recurring ||
       !task.recurrenceType
     ) {
@@ -287,7 +296,8 @@ export class TaskService {
       createdBy: task.createdBy,
       name: task.name,
       details: task.details ?? undefined,
-      category: TaskCategory.REMINDER,
+      category: task.category,
+      kind: TaskKind.REMINDER,
       priority: task.priority,
       dueAt: nextDue,
       recurring: true,
@@ -492,6 +502,11 @@ export class TaskService {
 
   async update(farmId: string, userId: string, id: string, dto: UpdateTaskDto) {
     const existing = await this.getOrThrow(farmId, id);
+    if (dto.category === TaskCategory.REMINDER) {
+      throw new BadRequestException(
+        'category REMINDER is deprecated and cannot be set on update; kind is not changeable',
+      );
+    }
     await this.assertAssignee(farmId, dto.assignedToId);
     await this.assertMembers(farmId, dto.recipientUserIds);
 
@@ -519,7 +534,7 @@ export class TaskService {
       reminderOffsetDays = null;
     }
     const recurring = dto.recurring ?? existing.recurring;
-    if (existing.category === TaskCategory.REMINDER && recurring) {
+    if (existing.kind === TaskKind.REMINDER && recurring) {
       this.assertRepeat(
         {
           recurring,
@@ -540,7 +555,7 @@ export class TaskService {
       data: {
         name: dto.name,
         details: dto.details,
-        category: dto.category,
+        category: dto.category ? this.topic(dto.category) : undefined,
         priority: dto.priority,
         status: dto.status,
         ...(dto.scheduledAt ? { scheduledAt: new Date(dto.scheduledAt) } : {}),
@@ -711,6 +726,19 @@ export class TaskService {
         ],
       });
     }
+    // In the AND list so it combines with (never clobbers) `filter=overdue|blocked`'s own status.
+    if (query.status?.length) {
+      andClauses.push({ status: { in: query.status } });
+    }
+    // In the AND list so the custom range intersects (never overwrites) `filter=upcoming|overdue`'s own `dueAt`.
+    if (query.dueFrom || query.dueTo) {
+      andClauses.push({
+        dueAt: {
+          ...(query.dueFrom ? { gte: new Date(query.dueFrom) } : {}),
+          ...(query.dueTo ? { lt: new Date(query.dueTo) } : {}),
+        },
+      });
+    }
     if (query.search) {
       andClauses.push({
         OR: [
@@ -723,16 +751,10 @@ export class TaskService {
     const where: Prisma.TaskWhereInput = {
       farmId,
       ...this.filterClause(query.filter, userId, now),
+      ...(query.kind ? { kind: this.kindOf(query.kind) } : {}),
+      ...(query.recurring !== undefined ? { recurring: query.recurring } : {}),
       ...(query.category ? { category: query.category } : {}),
       ...(query.priority ? { priority: query.priority } : {}),
-      ...(query.dueFrom || query.dueTo
-        ? {
-            dueAt: {
-              ...(query.dueFrom ? { gte: new Date(query.dueFrom) } : {}),
-              ...(query.dueTo ? { lt: new Date(query.dueTo) } : {}),
-            },
-          }
-        : {}),
       ...(andClauses.length ? { AND: andClauses } : {}),
     };
 
@@ -744,7 +766,13 @@ export class TaskService {
     });
 
     const page = toCursorPage(rows, query);
-    const highlights = await this.highlights(farmId, now);
+    // Counters are farm-wide, not page-wide: first page only, later pages omit them.
+    const [highlights, reminderHighlights] = query.cursor
+      ? [undefined, undefined]
+      : await Promise.all([
+          this.highlights(farmId, now),
+          this.reminderHighlights(farmId, now),
+        ]);
 
     const cattleIds = page.items
       .flatMap((task) => [
@@ -768,7 +796,7 @@ export class TaskService {
 
     return {
       items,
-      meta: { ...page.meta, highlights },
+      meta: { ...page.meta, highlights, reminderHighlights },
     };
   }
 
@@ -791,11 +819,43 @@ export class TaskService {
           status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
           dueAt: { lt: now },
         };
+      case 'upcoming':
+        // Exact complement of `overdue` among open items (dueAt is non-null): same `now`.
+        return {
+          status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
+          dueAt: { gte: now },
+        };
       case 'blocked':
         return { status: TaskStatus.BLOCKED };
       default:
         return {};
     }
+  }
+
+  /** Deprecated category REMINDER is never stored: it maps to the general topic. */
+  private topic(category?: TaskCategory): TaskCategory {
+    return !category || category === TaskCategory.REMINDER
+      ? TaskCategory.GENERAL
+      : category;
+  }
+
+  private kindOf(kind: 'task' | 'reminder'): TaskKind {
+    return kind === 'reminder' ? TaskKind.REMINDER : TaskKind.TASK;
+  }
+
+  /** Reminder counters (RAKHAL-491): open reminders only; `highlights` counts kind=TASK only. */
+  private async reminderHighlights(farmId: string, now: Date) {
+    const open = {
+      farmId,
+      kind: TaskKind.REMINDER,
+      status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
+    };
+    const [upcoming, overdue, repeating] = await Promise.all([
+      this.prisma.task.count({ where: { ...open, dueAt: { gte: now } } }),
+      this.prisma.task.count({ where: { ...open, dueAt: { lt: now } } }),
+      this.prisma.task.count({ where: { ...open, recurring: true } }),
+    ]);
+    return { upcoming, overdue, repeating };
   }
 
   private async highlights(farmId: string, now: Date) {
@@ -809,6 +869,7 @@ export class TaskService {
       this.prisma.task.count({
         where: {
           farmId,
+          kind: TaskKind.TASK,
           status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
           dueAt: { gte: dayStart, lt: dayEnd },
         },
@@ -816,16 +877,18 @@ export class TaskService {
       this.prisma.task.count({
         where: {
           farmId,
+          kind: TaskKind.TASK,
           status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
           dueAt: { lt: now },
         },
       }),
       this.prisma.task.count({
-        where: { farmId, status: TaskStatus.BLOCKED },
+        where: { farmId, kind: TaskKind.TASK, status: TaskStatus.BLOCKED },
       }),
       this.prisma.task.findMany({
         where: {
           farmId,
+          kind: TaskKind.TASK,
           status: TaskStatus.COMPLETED,
           completedAt: { gte: monthStart },
         },
@@ -855,6 +918,7 @@ export class TaskService {
     name: string;
     details?: string;
     category: TaskCategory;
+    kind?: TaskKind;
     priority: TaskPriority;
     scheduledAt?: Date;
     dueAt: Date;
@@ -872,7 +936,7 @@ export class TaskService {
     sourceEventId?: string;
     followUpKey?: string;
     ruleKey?: string;
-    /** RAKHAL-487 (category REMINDER). */
+    /** RAKHAL-487 (kind REMINDER). */
     remindDaysBefore?: number;
     notifyRoleNames?: string[];
     reminderOffsetDays?: number;
@@ -898,6 +962,7 @@ export class TaskService {
             name: data.name,
             details: data.details,
             category: data.category,
+            kind: data.kind ?? TaskKind.TASK,
             priority: data.priority,
             scheduledAt: data.scheduledAt,
             dueAt: data.dueAt,
@@ -960,7 +1025,7 @@ export class TaskService {
   ): Promise<Task | null> {
     if (!task.recurring || !task.recurrenceType) return null;
     // RAKHAL-487: a repeating reminder spawns when it fires (the sweep); completing it must not spawn again.
-    if (task.category === TaskCategory.REMINDER) {
+    if (task.kind === TaskKind.REMINDER) {
       return this.spawnNextReminder(task.id);
     }
 

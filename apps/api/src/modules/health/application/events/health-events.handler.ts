@@ -1,4 +1,5 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
+import { ExceptionCode } from 'src/common/exceptions/exception-codes.enum';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { parsePayload } from 'src/modules/animal-events/application/parse-payload';
 import {
@@ -137,6 +138,16 @@ export class HealthEventHandler implements EventHandler, OnModuleInit {
 
     if (type === 'TREATMENT') {
       const open = await this.openCase(i.cattleId);
+      if (!open && i.provenance !== 'HISTORICAL' && !p.condition) {
+        // The silently-opened case needs a structured condition; the client
+        // asks for it (it saw TREATMENT_NEW_CASE) and retries.
+        throw new BadRequestException({
+          code: ExceptionCode.VALIDATION_ERROR,
+          message:
+            'A condition is required to record a treatment for an animal with no open health case',
+          details: { eventCode: 'CONDITION_REQUIRED', field: 'condition' },
+        });
+      }
       if (open) {
         const dto = await parsePayload(LogTreatmentDto, {
           ...p,

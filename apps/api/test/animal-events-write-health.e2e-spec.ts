@@ -192,28 +192,72 @@ describe('POST /cattle/:id/events — health, history, transaction (e2e)', () =>
     );
   });
 
-  it('TREATMENT with no case opens one (TREATMENT_NEW_CASE); the next attaches to it', async () => {
+  const treatmentPayload = {
+    medicineName: 'oxytetracycline',
+    outsideInventory: true,
+    doseAmount: 10,
+    doseUnit: 'mL',
+    route: 'IM',
+  };
+
+  it('TREATMENT with no case and a condition opens a case with that condition (TREATMENT_NEW_CASE); the next attaches to it', async () => {
     const c = await cow('TRT');
     const body = {
       type: 'TREATMENT',
       eventAt: day(1),
-      payload: {
-        medicineName: 'oxytetracycline',
-        outsideInventory: true,
-        doseAmount: 10,
-        doseUnit: 'mL',
-        route: 'IM',
-      },
+      payload: { ...treatmentPayload, condition: 'MASTITIS' },
     };
     const a = await post(owner, c.id, body).expect(201);
     expect(codes(a)).toContain('TREATMENT_NEW_CASE');
-    const b = await post(owner, c.id, body).expect(201);
+    const cases = await prisma.healthCase.findMany({
+      where: { cattleId: c.id },
+    });
+    expect(cases).toHaveLength(1);
+    expect(cases[0].condition).toBe('MASTITIS');
+    // open case now exists: no condition needed, nothing new opened
+    const b = await post(owner, c.id, {
+      type: 'TREATMENT',
+      eventAt: day(1),
+      payload: treatmentPayload,
+    }).expect(201);
     expect(codes(b)).not.toContain('TREATMENT_NEW_CASE');
     expect(await prisma.healthCase.count({ where: { cattleId: c.id } })).toBe(
       1,
     );
     expect(await prisma.treatmentLog.count({ where: { cattleId: c.id } })).toBe(
       2,
+    );
+  });
+
+  it('TREATMENT with no case and no condition: 400 CONDITION_REQUIRED, nothing written', async () => {
+    const c = await cow('TRTNC');
+    const res = await post(owner, c.id, {
+      type: 'TREATMENT',
+      eventAt: day(1),
+      payload: treatmentPayload,
+    }).expect(400);
+    expect(JSON.stringify(res.body)).toContain('CONDITION_REQUIRED');
+    expect(await prisma.healthCase.count({ where: { cattleId: c.id } })).toBe(
+      0,
+    );
+    expect(await prisma.treatmentLog.count({ where: { cattleId: c.id } })).toBe(
+      0,
+    );
+    expect(await prisma.animalEvent.count({ where: { cattleId: c.id } })).toBe(
+      0,
+    );
+  });
+
+  it('TREATMENT with an invalid condition is rejected', async () => {
+    const c = await cow('TRTBAD');
+    const res = await post(owner, c.id, {
+      type: 'TREATMENT',
+      eventAt: day(1),
+      payload: { ...treatmentPayload, condition: 'NOT_A_CONDITION' },
+    });
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(await prisma.healthCase.count({ where: { cattleId: c.id } })).toBe(
+      0,
     );
   });
 

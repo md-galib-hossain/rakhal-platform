@@ -16,6 +16,7 @@ import {
   ClinicalProgress,
   HealthCareType,
   HealthCloseOutcome,
+  HealthCondition,
   MedicineRoute,
 } from '@prisma/client';
 import { toBoolean } from 'src/common/dto';
@@ -391,6 +392,13 @@ export class RecordTreatmentDto {
   @Transform(trimString)
   @IsString()
   reason?: string;
+
+  /** Structured condition for the case opened when the animal has no open one (same enum as
+   * `CreateHealthCaseDto.condition`). Ignored when an open case is reused. The TREATMENT event
+   * path requires it when it has to open a case. */
+  @IsOptional()
+  @IsEnum(HealthCondition)
+  condition?: HealthCondition;
 
   @IsOptional()
   @Transform(trimString)

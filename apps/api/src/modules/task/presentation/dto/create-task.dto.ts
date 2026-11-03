@@ -13,7 +13,12 @@ import {
   Max,
   Min,
 } from 'class-validator';
-import { TaskCategory, TaskPriority, TaskRecurrence } from '@prisma/client';
+import {
+  TaskCategory,
+  TaskKind,
+  TaskPriority,
+  TaskRecurrence,
+} from '@prisma/client';
 import { toBoolean, trimString } from 'src/common/dto';
 
 /** Create a task (source = MANUAL). Tenant comes from the token. */
@@ -28,9 +33,15 @@ export class CreateTaskDto {
   @IsString()
   details?: string;
 
+  /** Topic only. The deprecated value REMINDER is accepted as an alias for kind=REMINDER. */
   @IsOptional()
   @IsEnum(TaskCategory)
   category?: TaskCategory;
+
+  /** RAKHAL-491: TASK (default) or REMINDER (needs dueAt, or sourceEventId + offsetDays). */
+  @IsOptional()
+  @IsEnum(TaskKind)
+  kind?: TaskKind;
 
   @IsOptional()
   @IsEnum(TaskPriority)
@@ -45,7 +56,7 @@ export class CreateTaskDto {
   @IsISO8601()
   dueAt?: string;
 
-  // ---- RAKHAL-487: custom reminders (category REMINDER) -----------------------------------------
+  // ---- RAKHAL-487: custom reminders (kind REMINDER) -----------------------------------------
 
   /** Lead notice: also notify this many days before the due date (the day itself is always notified). */
   @IsOptional()

@@ -2052,6 +2052,7 @@ export class HealthService {
                     ? `Preventive / Wellness — ${medicineLabel}`
                     : `Quick treatment — ${medicineLabel}`),
                 careType,
+                ...(dto.condition ? { condition: dto.condition } : {}),
                 priority: HealthPriority.LOW,
                 status: isPreventive
                   ? HealthCaseStatus.CLOSED
