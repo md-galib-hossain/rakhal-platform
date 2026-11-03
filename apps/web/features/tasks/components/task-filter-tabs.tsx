@@ -1,8 +1,10 @@
 "use client";
 import { AlertTriangle, ListChecks, ListX, User } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TaskHighlights, TaskListFilter } from "../types";
+import { BADGE_TONE } from "./task-chip";
 
 const TABS: { value: TaskListFilter; icon: typeof User }[] = [
   { value: "my_tasks", icon: User },
@@ -23,25 +25,34 @@ export function TaskFilterTabs({
   value,
   onChange,
   highlights,
+  panelId,
 }: {
   value: TaskListFilter;
   onChange: (value: TaskListFilter) => void;
-  highlights: TaskHighlights;
+  /** Absent while loading / failed and nothing is known yet: no badges rather than fake zeros. */
+  highlights?: TaskHighlights;
+  /** `id` of the `role="tabpanel"` these tabs control (the list area); trigger ids are `${panelId}-tab-<tab>`. */
+  panelId: string;
 }) {
   const t = useTranslations("tasks.filters");
-  const badgeFor: Partial<Record<TaskListFilter, number>> = { overdue: highlights.overdue, blocked: highlights.blocked };
+  const badgeFor: Partial<Record<TaskListFilter, number>> = highlights ? { overdue: highlights.overdue, blocked: highlights.blocked } : {};
 
   return (
-    <Tabs value={value} onValueChange={(v) => onChange(v as TaskListFilter)}>
-      <TabsList className="h-11 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <Tabs value={value} onValueChange={(v) => onChange(v as TaskListFilter)} className="w-full">
+      <TabsList aria-label={t("label")} className="w-full justify-start overflow-x-auto sm:w-fit [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {TABS.map(({ value: tab, icon: Icon }) => {
           const badge = badgeFor[tab];
           return (
-            <TabsTrigger key={tab} value={tab} className="shrink-0">
+            <TabsTrigger key={tab} value={tab} id={`${panelId}-tab-${tab}`} aria-controls={panelId} className="shrink-0">
               <Icon className="mr-1.5 size-4" aria-hidden />
               {t(tab)}
               {typeof badge === "number" && badge > 0 ? (
-                <span className="ml-1.5 min-w-4.5 rounded-full bg-primary/15 px-1 text-center text-[0.7rem] font-bold leading-4 text-primary">
+                <span
+                  className={cn(
+                    "ml-1.5 min-w-4.5 rounded-full px-1 text-center text-[0.7rem] font-bold leading-4",
+                    tab === "overdue" ? BADGE_TONE.destructive : BADGE_TONE.warning,
+                  )}
+                >
                   {badge}
                 </span>
               ) : null}

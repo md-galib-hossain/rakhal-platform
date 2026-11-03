@@ -127,6 +127,17 @@ export const FORM_DEFS: Partial<Record<EventKey, FormDef>> = {
     backendType: "TREATMENT",
     fallbackHref: "/healthcare",
     fields: [
+      // Only when the animal has no open case: the treatment opens one, and the server wants to know what for (it answers
+      // 400 CONDITION_REQUIRED otherwise). Same conditions as Report sickness.
+      {
+        name: "condition",
+        kind: "select",
+        required: true,
+        optionLabels: "health.reportSickness.conditionValue",
+        options: ["MASTITIS", "LAMENESS", "METRITIS", "KETOSIS", "MILK_FEVER", "FEVER", "INJURY", "OTHER"],
+        hintKey: "conditionHint",
+        visibleWhen: (_v, c) => Boolean(c.needsCondition) && !c.historical,
+      },
       { name: "medicineId", kind: "medicine", requiredWhenLive: true },
       { name: "doseAmount", kind: "number", requiredWhenLive: true, min: 0.01, step: 0.1 },
       { name: "doseUnit", kind: "text", requiredWhenLive: true },
@@ -210,12 +221,12 @@ function isFilled(value: unknown): boolean {
 }
 
 /** Required fields, `requireOneOf`, and numeric ranges. Returns an error code per failing field name. */
-export function validateValues(def: FormDef, values: FormValues, opts: { historical?: boolean } = {}): Record<string, FieldError> {
+export function validateValues(def: FormDef, values: FormValues, opts: { historical?: boolean; needsCondition?: boolean } = {}): Record<string, FieldError> {
   const errors: Record<string, FieldError> = {};
   const oneOf = new Set(def.requireOneOf ?? []);
   const oneOfOk = oneOf.size === 0 || [...oneOf].some((name) => isFilled(values[name]));
   for (const field of def.fields) {
-    if (field.visibleWhen && !field.visibleWhen(values, { historical: Boolean(opts.historical) })) continue;
+    if (field.visibleWhen && !field.visibleWhen(values, { historical: Boolean(opts.historical), needsCondition: opts.needsCondition })) continue;
     const value = values[field.name];
     if (oneOf.has(field.name)) {
       if (!oneOfOk) errors[field.name] = "required";
@@ -247,13 +258,13 @@ export function toEventAt(date: string, time: string | undefined): string {
 export function buildRequest(
   def: FormDef,
   values: FormValues,
-  when: { date: string; time?: string; historical: boolean },
+  when: { date: string; time?: string; historical: boolean; needsCondition?: boolean },
 ): EventRequest {
   let payload: Record<string, unknown> = {};
   let notesValue: string | undefined;
   for (const field of def.fields) {
     if (field.target === "none") continue;
-    if (field.visibleWhen && !field.visibleWhen(values, { historical: when.historical })) continue;
+    if (field.visibleWhen && !field.visibleWhen(values, { historical: when.historical, needsCondition: when.needsCondition })) continue;
     const value = values[field.name];
     if (!isFilled(value) || (field.kind === "bool" && value === false)) continue;
     const typed = field.kind === "number" ? Number(value) : typeof value === "string" ? value.trim() : value;

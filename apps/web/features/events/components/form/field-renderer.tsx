@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useAnimalGroups, useSheds } from "@/features/cattle/hooks/use-cattle";
-import { useMedicineInfiniteList } from "@/features/inventory/hooks/use-inventory";
+import { useMedicineDetail } from "@/features/inventory/hooks/use-inventory";
+import { MedicinePicker } from "./medicine-picker";
 import { SemenBatchPicker } from "@/features/inventory/components/semen-batch-picker";
 import { useTeam } from "@/features/settings/hooks/use-team";
 import { DateText } from "@/components/shared/date-text";
@@ -29,8 +30,14 @@ export function FieldRenderer({
   error,
   today,
   cattleId,
+  values,
+  setSibling,
 }: {
   cattleId?: string;
+  /** All current form values + a setter for another field: lets the medicine field prefill the dose unit and the dose field
+   * check the stock. Optional so callers that render a single field (bulk sheet) keep working. */
+  values?: FormValues;
+  setSibling?: (name: string, value: FormValues[string]) => void;
   field: FieldDef;
   value: FormValues[string];
   onChange: (value: FormValues[string]) => void;
@@ -92,6 +99,7 @@ export function FieldRenderer({
       break;
     case "number":
       control = (
+        <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-2">
           <input
             id={id}
@@ -107,6 +115,10 @@ export function FieldRenderer({
             className={INPUT}
           />
           {field.unit ? <span className="shrink-0 text-sm text-muted-foreground">{field.unit}</span> : null}
+        </div>
+        {field.name === "doseAmount" && typeof values?.medicineId === "string" && typeof value === "number" ? (
+          <DoseStockWarning medicineId={values.medicineId} dose={value} />
+        ) : null}
         </div>
       );
       break;
@@ -151,7 +163,19 @@ export function FieldRenderer({
     case "heatLink":
       return <HeatLink cattleId={cattleId} value={value} onChange={onChange} />;
     case "medicine":
-      control = <MedicineSelect id={id} value={value} onChange={onChange} describedBy={describedBy} />;
+      control = (
+        <MedicinePicker
+          id={id}
+          value={typeof value === "string" ? value : undefined}
+          invalid={Boolean(error)}
+          describedBy={describedBy}
+          onPick={(medicine) => {
+            onChange(medicine?.id);
+            // The dose unit follows the medicine: stock is deducted in the medicine's own unit.
+            setSibling?.("doseUnit", medicine?.unit.symbol);
+          }}
+        />
+      );
       break;
     case "shed":
       control = <LookupSelect id={id} kind="shed" value={value} onChange={onChange} describedBy={describedBy} />;
@@ -160,6 +184,10 @@ export function FieldRenderer({
       control = <LookupSelect id={id} kind="group" value={value} onChange={onChange} describedBy={describedBy} />;
       break;
     default:
+      if (field.name === "doseUnit" && typeof values?.medicineId === "string") {
+        control = <LockedUnit id={id} value={typeof value === "string" ? value : ""} />;
+        break;
+      }
       control = (
         <input
           id={id}
@@ -182,6 +210,7 @@ export function FieldRenderer({
         </label>
       )}
       {control}
+      {field.hintKey ? <p className="text-xs text-muted-foreground">{tForm(field.hintKey as never)}</p> : null}
       {errorText ? (
         <p id={`${id}-error`} className="text-sm text-destructive">
           {errorText}
@@ -249,35 +278,26 @@ function HeatLink({ cattleId, value, onChange }: { cattleId?: string; value: For
   );
 }
 
-/** Inventory medicine picker: a live health entry deducts stock, so the server needs the medicine id. */
-function MedicineSelect({
-  id,
-  value,
-  onChange,
-  describedBy,
-}: {
-  id: string;
-  value: FormValues[string];
-  onChange: (value: FormValues[string]) => void;
-  describedBy?: string;
-}) {
-  const tForm = useTranslations("events.form");
-  const list = useMedicineInfiniteList({});
+/** Dose unit once a medicine is chosen: read-only, taken from the medicine (stock is deducted in that unit). */
+function LockedUnit({ id, value }: { id: string; value: string }) {
+  const t = useTranslations("pickers.medicine");
   return (
-    <select
-      id={id}
-      value={typeof value === "string" ? value : ""}
-      onChange={(event) => onChange(event.target.value || undefined)}
-      aria-describedby={describedBy}
-      className={INPUT}
-    >
-      <option value="">{tForm("choose")}</option>
-      {list.items.map((medicine) => (
-        <option key={medicine.id} value={medicine.id}>
-          {medicine.name}
-        </option>
-      ))}
-    </select>
+    <div className="flex flex-col gap-1">
+      <input id={id} type="text" value={value} readOnly aria-readonly className={cn(INPUT, "cursor-not-allowed bg-muted text-muted-foreground")} />
+      <p className="text-xs text-muted-foreground">{t("unitFollows")}</p>
+    </div>
+  );
+}
+
+/** Non-blocking heads-up when the typed dose is more than the medicine's recorded stock. */
+function DoseStockWarning({ medicineId, dose }: { medicineId: string; dose: number }) {
+  const t = useTranslations("pickers.medicine");
+  const medicine = useMedicineDetail(medicineId);
+  if (!medicine.data || dose <= medicine.data.currentStock) return null;
+  return (
+    <p role="alert" className="rounded-lg border border-warning/40 bg-warning-tint p-2 text-xs text-warning">
+      {t("overStock", { stock: medicine.data.currentStock, unit: medicine.data.unit.symbol, dose })}
+    </p>
   );
 }
 

@@ -1,6 +1,7 @@
 "use client"; // live queries for each card
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
@@ -16,7 +17,7 @@ import { useRecorderNames } from "@/features/events/components/timeline/use-reco
 import type { EventKey } from "@/features/events/types";
 import { useCattleHealthSummary, useCattleOverview, useCattleReproductionSummary } from "../../../hooks/use-cattle-detail-tabs";
 import type { CattleDetail } from "../../../types";
-import { buildPhaseBar, milkFigures, overviewCards, weightTrend } from "./overview-model";
+import { buildPhaseBar, calvingsShown, milkFigures, overviewCards, weightTrend } from "./overview-model";
 
 type DrillTarget = "reproduction" | "milk" | "health" | "growth";
 
@@ -100,6 +101,7 @@ function PhaseBarCard({ cattle, onRecord, canRecord, onView }: Common) {
     : null;
   const date = (iso: string) => format.dateTime(new Date(`${iso}T00:00:00`), { day: "numeric", month: "short" });
   const currentIndex = bar ? Math.max(0, bar.markers.findIndex((m) => !m.recorded)) : 0;
+  const [openKey, setOpenKey] = useState<string | null>(null);
   const phase = pregnant ? t("pregnant") : cattle.reproductiveStatus === "OPEN" ? t("open") : null;
   return (
     <OverviewCard title={t("title")} onView={onView}>
@@ -112,25 +114,45 @@ function PhaseBarCard({ cattle, onRecord, canRecord, onView }: Common) {
         />
       ) : (
         <>
-          {data?.lastBreeding || data?.totalCalvings != null ? (
-            <p className="-mt-2 text-sm text-muted-foreground">
-              {[data.lastBreeding ? t("lastService", { date: format.dateTime(new Date(`${data.lastBreeding.slice(0, 10)}T00:00:00`), { dateStyle: "medium" }) }) : null, t("calvings", { count: data.totalCalvings ?? 0 })].filter(Boolean).join(" · ")}
-            </p>
-          ) : null}
+          <p className="-mt-2 text-sm text-muted-foreground">
+            {[
+              data?.lastBreeding ? t("lastService", { date: format.dateTime(new Date(`${data.lastBreeding.slice(0, 10)}T00:00:00`), { dateStyle: "medium" }) }) : null,
+              t("calvings", { count: calvingsShown(data?.totalCalvings, cattle.dim) }),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
           {phase ? <p className="sr-only">{phase}</p> : null}
+          <TooltipProvider delayDuration={100}>
           <ol className="relative flex justify-between pb-1 pt-2" aria-label={t("barLabel")}>
             <span className="absolute left-[10%] right-[10%] top-[18px] h-0.5 bg-border" aria-hidden />
             <span className="absolute left-[10%] top-[18px] h-0.5 bg-primary" style={{ width: `${(currentIndex / Math.max(bar.markers.length - 1, 1)) * 80}%` }} aria-hidden />
             {bar.markers.map((m, i) => (
               <li key={m.key} className="relative z-10 flex w-1/5 min-w-0 flex-col items-center gap-1.5 text-center" aria-current={i === currentIndex ? "step" : undefined}>
-                <span className="flex size-5 items-center justify-center">
-                  <span className={cn("block rounded-full border-2 border-primary", i === currentIndex ? "size-5 bg-primary ring-4 ring-primary/20" : "size-3", i !== currentIndex && (m.recorded ? "bg-primary" : "bg-card"))} />
-                </span>
+                <Tooltip open={openKey === m.key} onOpenChange={(next) => setOpenKey(next ? m.key : null)}>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setOpenKey((k) => (k === m.key ? null : m.key))}
+                      aria-label={`${t(`phase.${m.key}`)}, ${date(m.date)}`}
+                      className="-my-1.5 flex size-8 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <span className={cn("block rounded-full border-2 border-primary", i === currentIndex ? "size-5 bg-primary ring-4 ring-primary/20" : "size-3", i !== currentIndex && (m.recorded ? "bg-primary" : "bg-card"))} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-[16rem] space-y-0.5 px-3 py-2">
+                    <p className="text-sm font-semibold">{t(`phase.${m.key}`)} · {format.dateTime(new Date(`${m.date}T00:00:00`), { dateStyle: "medium" })}</p>
+                    <p className="text-muted-foreground">{m.fromToday === 0 ? t("tip.today") : m.fromToday < 0 ? t("tip.ago", { days: -m.fromToday }) : t("tip.ahead", { days: m.fromToday })}</p>
+                    <p>{t(`tip.${m.key}${m.key === "check" && pregnant ? "Done" : ""}`, { days: m.gap ?? 0, dim: cattle.dim ?? 0 })}</p>
+                    {m.recorded ? null : <p className="text-muted-foreground">{t("tip.projected")}</p>}
+                  </TooltipContent>
+                </Tooltip>
                 <span className="w-full truncate text-xs font-medium text-foreground">{t(`phase.${m.key}`)}</span>
                 <span className="text-[11px] leading-none text-muted-foreground">{date(m.date)}</span>
               </li>
             ))}
           </ol>
+          </TooltipProvider>
           {canRecord && !pregnant ? <RecordButtons keys={["HEAT", "SERVICE"]} onRecord={onRecord} /> : null}
         </>
       )}

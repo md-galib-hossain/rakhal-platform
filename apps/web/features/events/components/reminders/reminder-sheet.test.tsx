@@ -46,7 +46,7 @@ const LINKED = {
   id: "t1",
   name: "Check hoof",
   details: null,
-  category: "REMINDER",
+  kind: "REMINDER", category: "GENERAL",
   dueAt: new Date(2026, 10, 5, 8, 0).toISOString(),
   recurring: false,
   recurrenceType: null,
@@ -76,7 +76,7 @@ describe("ReminderSheet — create", () => {
     await waitFor(() => expect(createMutate).toHaveBeenCalledTimes(1));
     expect(createMutate.mock.calls[0][0]).toMatchObject({
       name: "Check left hind hoof",
-      category: "REMINDER",
+      kind: "REMINDER", category: "GENERAL",
       recurring: false,
       assignedToId: "u1",
       relatedCattleId: "c1",

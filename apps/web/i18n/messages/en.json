@@ -4669,7 +4669,6 @@
     "pageTitle": "Task Hub",
     "createTask": "Create Task",
     "newReminder": "New reminder",
-    "allTasks": "All Tasks",
     "searchPlaceholder": "Search task by id",
     "priority": {
       "HIGH": "High",
@@ -4705,7 +4704,8 @@
       "my_tasks": "My Tasks",
       "all": "All Tasks",
       "overdue": "Overdue",
-      "blocked": "Blocked"
+      "blocked": "Blocked",
+      "label": "Task views"
     },
     "dateFilters": {
       "all": "All Dates",
@@ -4725,28 +4725,33 @@
       "overdue": "Overdue"
     },
     "highlights": {
-      "title": "Task Highlights",
       "dueToday": "Due Task Today",
-      "dueTodayDesc": "{count} tasks need to be completed by today",
-      "overdue": "Overdue Tasks",
-      "overdueDesc": "{count} high priority tasks missed deadline",
-      "blocked": "Task Blocked",
-      "blockedDesc": "{count} tasks waiting on stock",
       "lateRate": "Late Completion Rate"
     },
     "card": {
-      "priority": "Priority",
-      "dueDate": "Due Date",
       "overdueBy": "Overdue by {hours}h",
-      "category": "Category",
-      "cow": "Cow",
-      "assignedTo": "Assigned to",
-      "unassigned": "Unassigned",
-      "seeDetails": "See Details"
+      "unassigned": "Unassigned"
     },
     "empty": {
       "title": "No tasks yet",
-      "description": "Create a task to start tracking farm work here."
+      "description": "Create a task to start tracking farm work here.",
+      "filteredTitle": "No tasks match these filters",
+      "filteredDescription": "Try another view or date, or clear the filters.",
+      "clear": "Clear filters",
+      "byTab": {
+        "my_tasks": {
+          "title": "Nothing assigned to you",
+          "description": "Tasks assigned to you will show up here."
+        },
+        "overdue": {
+          "title": "Nothing overdue",
+          "description": "Every task is on time."
+        },
+        "blocked": {
+          "title": "No blocked tasks",
+          "description": "Tasks waiting on stock or a decision will show up here."
+        }
+      }
     },
     "error": {
       "title": "Could not load tasks."
@@ -4829,12 +4834,79 @@
       "deletedToast": "Task deleted",
       "deleteConfirmTitle": "Delete this task?",
       "deleteConfirmDescription": "This permanently removes the task. This can't be undone.",
-      "genericError": "Something went wrong. Please try again."
+      "genericError": "Something went wrong. Please try again.",
+      "markDone": "Mark done",
+      "notifies": "Who is told",
+      "reminderCancelTask": "Cancel reminder",
+      "reminderCancelReasonPlaceholder": "Why is this reminder being cancelled?",
+      "reminderCancelledToast": "Reminder cancelled",
+      "reminderDoneToast": "Reminder marked done",
+      "reminderReopenedToast": "Reminder reopened",
+      "reminderDeletedToast": "Reminder deleted",
+      "reminderDeleteConfirmTitle": "Delete this reminder?",
+      "reminderDeleteConfirmDescription": "This permanently removes the reminder. This can't be undone.",
+      "reminderDescription": "Notes"
     },
     "editSheet": {
       "title": "Edit Task",
       "save": "Save Changes",
       "updatedToast": "Task updated"
+    },
+    "segment": {
+      "label": "Task Hub view",
+      "tasks": "Tasks",
+      "reminders": "Reminders"
+    },
+    "reminders": {
+      "searchPlaceholder": "Search reminders",
+      "error": {
+        "title": "Could not load reminders."
+      },
+      "tabs": {
+        "upcoming": "Upcoming",
+        "overdue": "Overdue",
+        "repeating": "Repeating",
+        "done": "Done",
+        "label": "Reminder views"
+      },
+      "roles": {
+        "Owner": "Owner",
+        "Manager": "Manager",
+        "Worker": "Worker"
+      },
+      "empty": {
+        "upcoming": {
+          "title": "No upcoming reminders",
+          "description": "Use New reminder to be told about something on a date or after an event."
+        },
+        "overdue": {
+          "title": "No overdue reminders",
+          "description": "Nothing has been missed."
+        },
+        "repeating": {
+          "title": "No repeating reminders",
+          "description": "Reminders that repeat on a schedule will show up here."
+        },
+        "filteredTitle": "No reminders match these filters",
+        "filteredDescription": "Try another tab or date, or clear the filters.",
+        "done": {
+          "title": "No finished reminders yet",
+          "description": "Reminders you mark Done will show up here."
+        }
+      },
+      "card": {
+        "done": "Done",
+        "doneToast": "Reminder marked done",
+        "genericError": "Something went wrong. Please try again.",
+        "repeatsEveryN": "Repeats every {count, plural, one {day} other {# days}}",
+        "repeatsWeekly": "Repeats weekly",
+        "repeatsMonthly": "Repeats monthly",
+        "leadNotice": "Heads-up {count, plural, one {# day} other {# days}} before",
+        "notifiedPeople": "Tells {count, plural, one {# person} other {# people}}",
+        "notifiedRoles": "Tells {roles}",
+        "notifiedAssignee": "Tells {name}",
+        "notifiedNobody": "Tells the Owner and managers"
+      }
     }
   },
   "finance": {
@@ -9062,7 +9134,19 @@
             "due": "Due"
           },
           "lastService": "Last service {date}",
-          "calvings": "Calvings {count}"
+          "calvings": "Calvings {count}",
+          "tip": {
+            "today": "Today",
+            "ago": "{days, plural, one {# day ago} other {# days ago}}",
+            "ahead": "{days, plural, one {In # day} other {In # days}}",
+            "projected": "Projected from the dates above",
+            "calving": "Last calving. {dim, plural, one {# day} other {# days}} in milk.",
+            "vwp": "End of the {days}-day waiting period after calving. Breeding can start from this day.",
+            "bred": "Last AI / service, {days, plural, one {# day} other {# days}} after calving.",
+            "check": "Pregnancy check, {days, plural, one {# day} other {# days}} after service.",
+            "checkDone": "Pregnancy confirmed.",
+            "due": "Expected calving, {days, plural, one {# day} other {# days}} after service."
+          }
         },
         "milk": {
           "title": "Milk",
@@ -9383,7 +9467,8 @@
       },
       "outsideInseminator": "Someone outside the farm…",
       "outsideName": "Inseminator's name",
-      "linkedToHeat": "Linked to heat on"
+      "linkedToHeat": "Linked to heat on",
+      "conditionHint": "No open case for this animal. Say what it is being treated for; a case is opened with this treatment."
     },
     "fields": {
       "detectionMethod": "How was it noticed",
@@ -9511,6 +9596,7 @@
       "error": "Could not load what is due.",
       "retry": "Try again",
       "nothingDue": "Nothing due",
+      "showAll": "Show all ({count})",
       "more": "+{count} more",
       "infoOnly": "Information only",
       "record": "Record",
@@ -9626,7 +9712,32 @@
     "launcher": {
       "chooseAnimalTitle": "Choose an animal",
       "chooseAnimalHint": "Pick the animal this event is for. The entry form opens next.",
-      "chooseAnimal": "Search animals…"
+      "chooseAnimal": "Search animals…",
+      "loadingAnimal": "Opening the form…"
+    }
+  },
+  "pickers": {
+    "cattle": {
+      "searchPlaceholder": "Search tag or name…",
+      "searching": "Searching…",
+      "empty": "No animals match",
+      "error": "Could not load animals. Close and reopen to retry.",
+      "hint": "Showing the first animals. Type a tag or name to search the whole farm."
+    },
+    "medicine": {
+      "placeholder": "Choose a medicine",
+      "searchPlaceholder": "Search medicines…",
+      "searching": "Searching…",
+      "empty": "No medicine found",
+      "error": "Could not load medicines.",
+      "inStock": "{stock} {unit} in stock",
+      "outOfStock": "Out of stock",
+      "lowStock": "Low",
+      "expired": "Expired",
+      "hint": "Showing the first medicines. Type a name to search all.",
+      "overStock": "Only {stock} {unit} in stock. This dose is {dose} {unit}, so saving may fail or leave stock negative.",
+      "unitFollows": "Unit follows the chosen medicine.",
+      "stockLine": "{stock} {unit} in stock"
     }
   }
 }

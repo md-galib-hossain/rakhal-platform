@@ -5,11 +5,12 @@ import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { useInfiniteCursorList } from "@/lib/hooks/use-infinite-cursor-list";
 import { tasksApi } from "../api";
-import type { CancelTaskPayload, CompleteTaskPayload, CreateTaskPayload, TaskHighlights, TaskListFilters, UpdateTaskPayload } from "../types";
+import type { CancelTaskPayload, CompleteTaskPayload, CreateTaskPayload, ReminderHighlights, TaskHighlights, TaskListFilters, UpdateTaskPayload } from "../types";
 
 const STALE_TIME = 30_000;
 
 const EMPTY_HIGHLIGHTS: TaskHighlights = { dueToday: 0, overdue: 0, blocked: 0, lateCompletionRatePct: 0 };
+const EMPTY_REMINDER_HIGHLIGHTS: ReminderHighlights = { upcoming: 0, overdue: 0, repeating: 0 };
 
 /** Shared-pager adapter (`useCursorPager`) over the cursor-only `GET /tasks`. `meta.highlights` is
  * farm-wide (not scoped to the current page/filter), returned by every page fetch. */
@@ -30,7 +31,11 @@ export function useTaskInfiniteList(filters: TaskListFilters) {
     (cursor, limit) => tasksApi.list(filters, cursor, limit),
     { staleTime: STALE_TIME },
   );
-  return { ...list, highlights: list.meta?.highlights ?? EMPTY_HIGHLIGHTS };
+  return {
+    ...list,
+    highlights: list.meta?.highlights ?? EMPTY_HIGHLIGHTS,
+    reminderHighlights: list.meta?.reminderHighlights ?? EMPTY_REMINDER_HIGHLIGHTS,
+  };
 }
 
 export function useTaskAssignees() {
@@ -44,7 +49,13 @@ export function useTaskAssignees() {
 
 function useInvalidateTasks() {
   const queryClient = useQueryClient();
-  return () => void queryClient.invalidateQueries({ queryKey: ["tasks", "list"] });
+  // A task/reminder also drives an animal's Next up (`cattle`), Health and the dashboard, so all are refreshed.
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: ["tasks", "list"] });
+    // Single-task reads (Next up's reminder edit) must not serve a stale row after an edit/complete/cancel.
+    void queryClient.invalidateQueries({ queryKey: ["tasks", "detail"] });
+    for (const key of ["cattle", "health", "dashboard"]) void queryClient.invalidateQueries({ queryKey: [key] });
+  };
 }
 
 export function useCreateTask() {

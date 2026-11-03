@@ -193,7 +193,7 @@ export function DrilldownFilterBar({
 
         {/* Right group: Actions (Report Sickness, Record Treatment, Refresh, etc.) */}
         {actions && (
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex w-full max-w-full items-center gap-2 sm:w-auto sm:shrink-0">
             {actions}
           </div>
         )}

@@ -39,6 +39,8 @@ import type {
 const CARD_WIDTH = 210;
 const CARD_HEIGHT = 130;
 const GAP_X = 32;
+const MIN_ZOOM = 0.35;
+const MAX_ZOOM = 2;
 
 interface PositionedNode {
   key: string;
@@ -243,9 +245,12 @@ export function PedigreeTab({ cattleId }: { cattleId: string }) {
   const t = useTranslations("cattle.detail.pedigree");
   const query = useCattlePedigree(cattleId);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState(0.85);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  // State (not a ref) so the wheel / resize effects re-run once the canvas mounts: it renders only after the
+  // pedigree has loaded, so a mount-time `useEffect(..., [])` would see `null` and never attach.
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
+  const [view, setView] = useState({ zoom: 0.85, x: 0, y: 0 });
+  const zoom = view.zoom;
+  const pan = useMemo(() => ({ x: view.x, y: view.y }), [view.x, view.y]);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const panStartRef = useRef({ x: 0, y: 0 });
@@ -258,23 +263,33 @@ export function PedigreeTab({ cattleId }: { cattleId: string }) {
 
   const data = query.data;
 
-  // Wheel zoom handler attached natively with passive: false to prevent modal scroll
+  /** Zoom to `next(zoom)` keeping the point (cx, cy) — in container pixels — fixed under the cursor. */
+  const zoomAt = useCallback((next: (z: number) => number, cx: number, cy: number) => {
+    setView((v) => {
+      const nz = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next(v.zoom)));
+      if (nz === v.zoom) return v;
+      const k = nz / v.zoom;
+      return { zoom: nz, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k };
+    });
+  }, []);
+
+  // Wheel zoom handler attached natively with passive: false so preventDefault stops the modal/page scrolling.
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    if (!container) return;
 
     const handleWheelNative = (e: WheelEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      const delta = -e.deltaY * 0.0012;
-      setZoom((z) => Math.min(2.0, Math.max(0.35, Math.round((z + delta) * 100) / 100)));
+      const rect = container.getBoundingClientRect();
+      // deltaMode 1 = lines (Firefox mouse wheels); normalise to pixels. ctrl+wheel (trackpad pinch) is sent with small deltas, so boost it.
+      const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+      const factor = Math.exp(-dy * (e.ctrlKey ? 0.01 : 0.0015));
+      zoomAt((z) => z * factor, e.clientX - rect.left, e.clientY - rect.top);
     };
 
-    el.addEventListener("wheel", handleWheelNative, { passive: false });
-    return () => {
-      el.removeEventListener("wheel", handleWheelNative);
-    };
-  }, []);
+    container.addEventListener("wheel", handleWheelNative, { passive: false });
+    return () => container.removeEventListener("wheel", handleWheelNative);
+  }, [container, zoomAt]);
 
   // On-demand ancestor expander
   const handleExpandAncestors = useCallback(async (ancestorId: string) => {
@@ -313,11 +328,12 @@ export function PedigreeTab({ cattleId }: { cattleId: string }) {
   }, [loadingNodes, exhaustedNodes]);
 
   // Calculate tree positions and orthogonal SVG connection paths
-  const { positionedNodes, lines, bounds } = useMemo(() => {
+  const { positionedNodes, lines, bounds, content } = useMemo(() => {
     if (!data) {
       return {
         positionedNodes: [],
         lines: [],
+        content: { minX: 0, maxX: 800, minY: 0, maxY: 500 },
         bounds: { minX: 0, maxX: 800, minY: 0, maxY: 500 },
       };
     }
@@ -584,6 +600,8 @@ export function PedigreeTab({ cattleId }: { cattleId: string }) {
     return {
       positionedNodes: nodes,
       lines: svgLines,
+      // Tight box around the cards (expansion buttons overhang ~12px): what "center" and "fit" work from.
+      content: { minX, maxX, minY: minY - 12, maxY: maxY + 12 },
       bounds: {
         minX: Math.min(minX - 40, 0),
         maxX: Math.max(maxX + 40, 1000),
@@ -595,35 +613,41 @@ export function PedigreeTab({ cattleId }: { cattleId: string }) {
 
   // Center & Fit View
   const fitView = useCallback(() => {
-    if (!containerRef.current) return;
-    const containerWidth = containerRef.current.clientWidth || 700;
-    const containerHeight = containerRef.current.clientHeight || 520;
+    if (!container) return;
+    const cw = container.clientWidth;
+    const ch = container.clientHeight;
+    if (cw === 0 || ch === 0) return; // not laid out yet (hidden tab / modal animating): the ResizeObserver retries
 
-    const contentWidth = bounds.maxX - bounds.minX + 80;
-    const contentHeight = bounds.maxY - bounds.minY + 80;
-
-    const scale = Math.min(
-      1.05,
-      Math.max(0.4, Math.min(containerWidth / contentWidth, containerHeight / contentHeight)),
-    );
+    const w = content.maxX - content.minX;
+    const h = content.maxY - content.minY;
+    const pad = 32;
+    const scale = Math.min(1.05, Math.max(MIN_ZOOM, Math.min((cw - pad * 2) / w, (ch - pad * 2) / h)));
     const targetZoom = Math.round(scale * 100) / 100;
 
-    const scaledWidth = (bounds.maxX - bounds.minX) * targetZoom;
-    const offsetX = (containerWidth - scaledWidth) / 2 - bounds.minX * targetZoom;
-    const offsetY = 25;
+    // Centre the content box in the viewport on both axes.
+    setView({
+      zoom: targetZoom,
+      x: Math.round((cw - w * targetZoom) / 2 - content.minX * targetZoom),
+      y: Math.round((ch - h * targetZoom) / 2 - content.minY * targetZoom),
+    });
+  }, [container, content]);
 
-    setZoom(targetZoom);
-    setPan({ x: Math.round(offsetX), y: Math.round(offsetY) });
-  }, [bounds]);
-
+  // Centre on first open (and when the pedigree changes), and again whenever the canvas is resized
+  // (modal open animation, window resize, breakpoint change). Observing also fires once on attach.
+  const fitRef = useRef(fitView);
   useEffect(() => {
-    if (data) {
-      fitView();
-    }
-  }, [data, fitView]);
+    fitRef.current = fitView;
+  }, [fitView]);
+  useEffect(() => {
+    if (!container || !data) return;
+    fitRef.current();
+    const observer = new ResizeObserver(() => fitRef.current());
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [container, data]);
 
-  const zoomIn = () => setZoom((z) => Math.min(2.0, Math.round((z + 0.15) * 100) / 100));
-  const zoomOut = () => setZoom((z) => Math.max(0.35, Math.round((z - 0.15) * 100) / 100));
+  const zoomIn = () => zoomAt((z) => z + 0.15, (container?.clientWidth ?? 0) / 2, (container?.clientHeight ?? 0) / 2);
+  const zoomOut = () => zoomAt((z) => z - 0.15, (container?.clientWidth ?? 0) / 2, (container?.clientHeight ?? 0) / 2);
   const resetZoom = () => fitView();
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -637,7 +661,7 @@ export function PedigreeTab({ cattleId }: { cattleId: string }) {
     if (!isDragging) return;
     const dx = e.clientX - dragStartRef.current.x;
     const dy = e.clientY - dragStartRef.current.y;
-    setPan({ x: panStartRef.current.x + dx, y: panStartRef.current.y + dy });
+    setView((v) => ({ ...v, x: panStartRef.current.x + dx, y: panStartRef.current.y + dy }));
   };
 
   const handleMouseUp = () => {
@@ -657,7 +681,7 @@ export function PedigreeTab({ cattleId }: { cattleId: string }) {
     if (!isDragging || e.touches.length !== 1) return;
     const dx = e.touches[0].clientX - dragStartRef.current.x;
     const dy = e.touches[0].clientY - dragStartRef.current.y;
-    setPan({ x: panStartRef.current.x + dx, y: panStartRef.current.y + dy });
+    setView((v) => ({ ...v, x: panStartRef.current.x + dx, y: panStartRef.current.y + dy }));
   };
 
   if (query.isLoading) return <CardSkeleton lines={6} />;
@@ -685,7 +709,7 @@ export function PedigreeTab({ cattleId }: { cattleId: string }) {
         </div>
 
         <div
-          ref={containerRef}
+          ref={setContainer}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}

@@ -1,19 +1,17 @@
 import { useLocale, useTranslations } from "next-intl";
-import { ArrowRight } from "lucide-react";
+import { CalendarClock, ChevronRight, PawPrint } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Chip } from "@/components/ui/chip";
+import { TaskChip } from "./task-chip";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { avatarTint, initials } from "../avatar-tint";
 import { DISPLAY_STATUS_CHIP_VARIANT, PRIORITY_CHIP_VARIANT } from "../task-style";
 import { LACTATION_ALERT_ICON, lactationAlertSeverity, parseLactationAlert } from "../lactation-alert";
-import type { Task } from "../types";
+import type { Task, TaskPriority } from "../types";
 import { TruncatedText } from "@/components/shared/truncated-text";
 
-/** Cow-name display (user request, no ticket #) — Figma's card has no cow-target row at all, so this
- * reuses the card's own existing label/value row style (see `card.category` below) rather than
- * inventing a new visual, per the frontend's "smallest real affordance" precedent. */
+/** Cow label — reuses the tag/name convention of the rest of the app. */
 function cattleLabel(c: { tagNumber: string; name: string | null }) {
   return c.name ? `${c.tagNumber} — ${c.name}` : c.tagNumber;
 }
@@ -24,99 +22,113 @@ function cattleSummary(task: Task): string | null {
   return `${cattleLabel(task.cattleTags[0])} +${task.cattleTags.length - 1}`;
 }
 
-/** Pixel-matched to the Figma "Task Card" (1039:48345/861:14663). */
+/** Left accent so priority scans without reading a label. */
+const PRIORITY_STRIPE: Record<TaskPriority, string> = {
+  HIGH: "before:bg-destructive",
+  MEDIUM: "before:bg-warning",
+  LOW: "before:bg-primary",
+};
+
+/**
+ * Task Hub card, redesigned for scanning (T-20261103-galib-01): one line per question —
+ * WHAT (title + category), WHEN (due, red if overdue), WHICH ANIMAL, WHO (assignee), STATUS (chip top
+ * right). Priority is the left stripe (+ a chip only for High). The whole card opens the details
+ * sheet through the title button (stretched link pattern), so there is no separate "See details" row.
+ */
 export function TaskCard({ task, onSeeDetails }: { task: Task; onSeeDetails: (task: Task) => void }) {
   const t = useTranslations("tasks");
   const locale = useLocale() as Locale;
 
-  const dueLabel =
-    task.displayStatus === "overdue" && task.overdueByHours !== null
-      ? t("card.overdueBy", { hours: task.overdueByHours })
-      : formatDate(task.dueAt, locale, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  const isOverdue = task.displayStatus === "overdue";
+  const dueText = formatDate(task.dueAt, locale, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+  const dueLabel = isOverdue && task.overdueByHours !== null ? `${dueText} · ${t("card.overdueBy", { hours: task.overdueByHours })}` : dueText;
 
-  // RAKHAL-286's lactation alerts (8 kinds) ride the generic Task Hub — decode the
-  // `[LACTATION_ALERT:<TAG>]` dedupe marker the backend embeds in `details` so it doesn't leak
-  // to the farmer, and surface a type-specific icon/label chip instead.
+  // RAKHAL-286 lactation alerts ride this list — decode the dedupe marker so it never leaks to the farmer.
   const lactationAlert = parseLactationAlert(task.details);
   const LactationIcon = lactationAlert ? LACTATION_ALERT_ICON[lactationAlert.kind] : null;
   const visibleDetails = lactationAlert ? lactationAlert.cleanDetails : task.details;
 
-  // A completed/cancelled task must never look identical to a live one — muted card, status chip,
-  // strikethrough title (not color alone).
+  // Completed/cancelled must never look like a live task — muted, struck-through, status chip.
   const isClosed = task.displayStatus === "completed" || task.displayStatus === "cancelled";
+  const cow = cattleSummary(task);
 
   return (
-    <div className={cn("flex w-full flex-col gap-5 rounded-2xl border border-border bg-card p-4", isClosed && "opacity-70")}>
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-bold text-muted-foreground">{task.reference}</p>
-          <Chip variant={DISPLAY_STATUS_CHIP_VARIANT[task.displayStatus]} subtle className="w-fit">
+    <div
+      className={cn(
+        "relative flex h-full w-full flex-col gap-3 overflow-hidden rounded-xl border border-border bg-card py-3 pl-5 pr-4 transition-colors hover:bg-accent/40 focus-within:ring-2 focus-within:ring-ring",
+        "before:absolute before:inset-y-0 before:left-0 before:w-1.5",
+        PRIORITY_STRIPE[task.priority],
+        isClosed && "opacity-70",
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="flex flex-wrap items-center gap-x-2 text-xs font-medium text-muted-foreground">
+            <span>{t(`category.${task.category}`)}</span>
+            <span aria-hidden>·</span>
+            <span className="font-bold">{task.reference}</span>
+          </p>
+          <button
+            type="button"
+            onClick={() => onSeeDetails(task)}
+            className={cn(
+              "text-left text-base font-bold leading-snug text-foreground outline-none after:absolute after:inset-0",
+              isClosed && "line-through",
+            )}
+          >
+            <TruncatedText lines={2}>{task.name}</TruncatedText>
+          </button>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <TaskChip variant={DISPLAY_STATUS_CHIP_VARIANT[task.displayStatus]} subtle>
             {t(`status.${task.displayStatus}`)}
-          </Chip>
-        </div>
-        <div className="flex flex-col gap-2">
-          {lactationAlert && LactationIcon ? (
-            <Chip variant={lactationAlertSeverity(lactationAlert.kind)} subtle className="w-fit gap-1.5">
-              <LactationIcon className="size-3.5" aria-hidden />
-              {t(`lactationAlert.${lactationAlert.kind}`)}
-            </Chip>
-          ) : null}
-          <TruncatedText lines={2} className={cn("text-xl font-bold text-foreground", isClosed && "line-through")}>
-            {task.name}
-          </TruncatedText>
-          {visibleDetails ? (
-            <TruncatedText lines={2} className="text-sm font-medium text-muted-foreground">
-              {visibleDetails}
-            </TruncatedText>
+          </TaskChip>
+          {task.priority === "HIGH" ? (
+            <TaskChip variant={PRIORITY_CHIP_VARIANT.HIGH} subtle>
+              {t("priority.HIGH")}
+            </TaskChip>
           ) : null}
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-muted-foreground">{t("card.priority")}</p>
-          <Chip variant={PRIORITY_CHIP_VARIANT[task.priority]} subtle>
-            {t(`priority.${task.priority}`)}
-          </Chip>
-        </div>
-        <div className="flex items-center justify-between">
-          <p className="text-sm font-medium text-muted-foreground">{t("card.dueDate")}</p>
-          <Chip variant={task.displayStatus === "overdue" ? "destructive" : "muted"}>{dueLabel}</Chip>
-        </div>
-        <div className="flex items-center justify-between text-sm">
-          <p className="font-medium text-muted-foreground">{t("card.category")}</p>
-          <p className="font-bold text-foreground">{t(`category.${task.category}`)}</p>
-        </div>
-        {cattleSummary(task) ? (
-          <div className="flex items-center justify-between text-sm">
-            <p className="font-medium text-muted-foreground">{t("card.cow")}</p>
-            <TruncatedText className="max-w-[60%] text-right font-bold text-foreground">{cattleSummary(task)}</TruncatedText>
-          </div>
-        ) : null}
-      </div>
+      {lactationAlert && LactationIcon ? (
+        <TaskChip variant={lactationAlertSeverity(lactationAlert.kind)} subtle className="w-fit gap-1.5">
+          <LactationIcon className="size-3.5" aria-hidden />
+          {t(`lactationAlert.${lactationAlert.kind}`)}
+        </TaskChip>
+      ) : null}
+      {visibleDetails ? (
+        <TruncatedText lines={1} className="text-sm text-muted-foreground">
+          {visibleDetails}
+        </TruncatedText>
+      ) : null}
 
-      <div className="flex w-full items-center justify-between rounded-xl border border-border bg-muted px-3 py-2">
-        <div className="flex flex-col gap-1.5">
-          <p className="text-xs font-medium text-muted-foreground">{t("card.assignedTo")}</p>
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-border pt-2.5">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+          <span className={cn("inline-flex items-center gap-1.5 font-semibold", isOverdue ? "text-destructive-text" : "text-foreground")}>
+            <CalendarClock className="size-4 shrink-0" aria-hidden />
+            {dueLabel}
+          </span>
+          {cow ? (
+            <span className="inline-flex min-w-0 items-center gap-1.5 text-foreground">
+              <PawPrint className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <TruncatedText className="max-w-[180px] font-medium">{cow}</TruncatedText>
+            </span>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-2 text-sm">
           {task.assignedTo ? (
-            <div className="flex items-center gap-2">
+            <>
               <Avatar className="size-6">
                 <AvatarFallback className={avatarTint(task.assignedTo.id)}>{initials(task.assignedTo.name)}</AvatarFallback>
               </Avatar>
-              <TruncatedText className="text-base font-bold text-foreground">{task.assignedTo.name}</TruncatedText>
-            </div>
+              <TruncatedText className="max-w-[120px] font-medium text-foreground">{task.assignedTo.name}</TruncatedText>
+            </>
           ) : (
-            <p className="text-sm text-muted-foreground">{t("card.unassigned")}</p>
+            <span className="text-muted-foreground">{t("card.unassigned")}</span>
           )}
+          <ChevronRight className="size-4 text-muted-foreground rtl:rotate-180" aria-hidden />
         </div>
-        <button
-          type="button"
-          onClick={() => onSeeDetails(task)}
-          className="flex items-center gap-2 rounded-lg border-[1.5px] border-border bg-card px-4 py-2.5 text-sm font-bold text-muted-foreground transition-colors hover:bg-accent"
-        >
-          {t("card.seeDetails")}
-          <ArrowRight className="size-[18px]" aria-hidden />
-        </button>
       </div>
     </div>
   );

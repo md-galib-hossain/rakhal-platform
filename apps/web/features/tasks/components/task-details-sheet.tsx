@@ -7,7 +7,7 @@ import { ArrowRightToLine, Check, Pencil, RotateCcw, Trash2, X } from "lucide-re
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { Chip } from "@/components/ui/chip";
+import { TaskChip } from "./task-chip";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Can } from "@/lib/auth/permissions";
@@ -18,6 +18,7 @@ import { useCancelTask, useCompleteTask, useDeleteTask, useReopenTask, useUpdate
 import { avatarTint, initials } from "../avatar-tint";
 import { DISPLAY_STATUS_CHIP_VARIANT, PRIORITY_CHIP_VARIANT } from "../task-style";
 import { LACTATION_ALERT_ICON, lactationAlertSeverity, parseLactationAlert } from "../lactation-alert";
+import { reminderAudience } from "../reminder-view";
 import { AssigneePicker } from "./assignee-picker";
 import { ReminderSheet } from "@/features/events/components/reminders/reminder-sheet";
 import { EditTaskSheet } from "./edit-task-sheet";
@@ -50,6 +51,7 @@ export function TaskDetailsSheet({ task, open, onOpenChange }: { task: Task | nu
 function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task; onOpenChange: (open: boolean) => void }) {
   const t = useTranslations("tasks.detailsSheet");
   const tCommon = useTranslations("tasks");
+  const tGlobal = useTranslations("common");
   const locale = useLocale() as Locale;
   const [reassigning, setReassigning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -69,12 +71,13 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
   const isCompleted = task.displayStatus === "completed";
   const isCancelled = task.displayStatus === "cancelled";
   const isClosed = isCompleted || isCancelled;
+  const isReminder = task.kind === "REMINDER";
 
   async function handleComplete() {
     try {
       const updated = await completeTask.mutateAsync({ id: task.id, dto: {} });
       setTask(updated);
-      toast.success(t("completedToast"));
+      toast.success(isReminder ? t("reminderDoneToast") : t("completedToast"));
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
@@ -86,7 +89,7 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
     try {
       const updated = await reopenTask.mutateAsync(task.id);
       setTask(updated);
-      toast.success(t("reopenedToast"));
+      toast.success(isReminder ? t("reminderReopenedToast") : t("reopenedToast"));
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
     }
@@ -98,7 +101,7 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
     try {
       const updated = await cancelTask.mutateAsync({ id: task.id, dto: { notes: cancelNote.trim() || undefined } });
       setTask(updated);
-      toast.success(t("cancelledToast"));
+      toast.success(isReminder ? t("reminderCancelledToast") : t("cancelledToast"));
       setCancelling(false);
       setCancelNote("");
     } catch (err) {
@@ -111,7 +114,7 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
   async function handleDelete() {
     try {
       await deleteTask.mutateAsync(task.id);
-      toast.success(t("deletedToast"));
+      toast.success(isReminder ? t("reminderDeletedToast") : t("deletedToast"));
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
@@ -128,6 +131,16 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
       toast.error(err instanceof ApiError ? err.message : t("genericError"));
     }
   }
+
+  const audience = reminderAudience(task);
+  const audienceText =
+    audience.type === "people"
+      ? tCommon("reminders.card.notifiedPeople", { count: audience.count })
+      : audience.type === "roles"
+        ? tCommon("reminders.card.notifiedRoles", { roles: audience.roles.map((r) => tCommon(`reminders.roles.${r}` as "reminders.roles.Owner")).join(", ") })
+        : audience.name
+          ? tCommon("reminders.card.notifiedAssignee", { name: audience.name })
+          : tCommon("reminders.card.notifiedNobody");
 
   const dueLabel =
     task.displayStatus === "overdue" && task.overdueByHours !== null
@@ -149,16 +162,16 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
         <div className="flex items-start justify-between">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <p className="text-xs font-bold text-muted-foreground">{task.reference}</p>
-              <Chip variant={DISPLAY_STATUS_CHIP_VARIANT[task.displayStatus]} subtle className="w-fit">
+              {isReminder ? null : <p className="text-xs font-bold text-muted-foreground">{task.reference}</p>}
+              <TaskChip variant={DISPLAY_STATUS_CHIP_VARIANT[task.displayStatus]} subtle className="w-fit">
                 {tCommon(`status.${task.displayStatus}`)}
-              </Chip>
+              </TaskChip>
             </div>
             {lactationAlert && LactationIcon ? (
-              <Chip variant={lactationAlertSeverity(lactationAlert.kind)} subtle className="w-fit gap-1.5">
+              <TaskChip variant={lactationAlertSeverity(lactationAlert.kind)} subtle className="w-fit gap-1.5">
                 <LactationIcon className="size-3.5" aria-hidden />
                 {tCommon(`lactationAlert.${lactationAlert.kind}`)}
-              </Chip>
+              </TaskChip>
             ) : null}
             <SheetTitle className={cn("text-xl font-bold text-foreground", isClosed && "line-through")}>{task.name}</SheetTitle>
           </div>
@@ -199,15 +212,17 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
       <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-1">
         <div className="flex flex-col gap-5 rounded-xl border border-border bg-card p-4 sm:grid sm:grid-cols-2 sm:gap-x-10 sm:gap-y-5">
           <InfoTile label={t("dueDate")}>
-            <Chip variant={task.displayStatus === "overdue" ? "destructive" : "muted"} className="w-fit">
+            <TaskChip variant={task.displayStatus === "overdue" ? "destructive" : "muted"} className="w-fit">
               {dueLabel}
-            </Chip>
+            </TaskChip>
           </InfoTile>
+          {!isReminder ? (
           <InfoTile label={t("taskPriority")}>
-            <Chip variant={PRIORITY_CHIP_VARIANT[task.priority]} subtle className="w-fit">
+            <TaskChip variant={PRIORITY_CHIP_VARIANT[task.priority]} subtle className="w-fit">
               {tCommon(`priority.${task.priority}`)}
-            </Chip>
+            </TaskChip>
           </InfoTile>
+          ) : null}
           <InfoTile label={t("category")}>
             <p className="text-sm font-bold text-foreground">{tCommon(`category.${task.category}`)}</p>
           </InfoTile>
@@ -233,6 +248,11 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
               {task.recurring && task.recurrenceType ? tCommon(`recurrence.${task.recurrenceType}`) : t("oneOff")}
             </p>
           </InfoTile>
+          {isReminder ? (
+            <InfoTile label={t("notifies")}>
+              <p className="text-sm font-bold text-foreground">{audienceText}</p>
+            </InfoTile>
+          ) : (
           <InfoTile label={t("assignTo")}>
             {task.assignedTo ? (
               <div className="flex items-center gap-1.5">
@@ -245,6 +265,7 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
               <p className="text-sm text-muted-foreground">{t("unassigned")}</p>
             )}
           </InfoTile>
+          )}
         </div>
 
         {isCompleted && task.completedAt ? (
@@ -267,7 +288,7 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
 
         {visibleDetails ? (
           <div className="flex flex-col gap-3">
-            <p className="text-xs font-medium text-muted-foreground">{t("description")}</p>
+            <p className="text-xs font-medium text-muted-foreground">{isReminder ? t("reminderDescription") : t("description")}</p>
             <p className="text-sm text-foreground">{visibleDetails}</p>
           </div>
         ) : null}
@@ -294,7 +315,7 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
           </div>
         ) : null}
 
-        {reassigning ? (
+        {reassigning && !isReminder && !isCancelled ? (
           <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted p-3">
             <p className="text-xs font-medium text-foreground">{t("reassignTo")}</p>
             <AssigneePicker value={task.assignedToId ?? undefined} onValueChange={(userId) => void handleReassign(userId)} disabled={updateTask.isPending} />
@@ -307,7 +328,7 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
             <textarea
               value={cancelNote}
               onChange={(e) => setCancelNote(e.target.value)}
-              placeholder={t("cancelReasonPlaceholder")}
+              placeholder={isReminder ? t("reminderCancelReasonPlaceholder") : t("cancelReasonPlaceholder")}
               rows={2}
               className="w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground"
             />
@@ -316,7 +337,7 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
                 {t("cancelReasonBack")}
               </Button>
               <Button type="button" variant="destructive" className="flex-1" onClick={() => void handleCancel()} disabled={cancelTask.isPending}>
-                {cancelTask.isPending ? "…" : t("cancelReasonConfirm")}
+                {cancelTask.isPending ? "…" : (isReminder ? t("reminderCancelTask") : t("cancelReasonConfirm"))}
               </Button>
             </div>
           </div>
@@ -325,22 +346,26 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
 
       <div className="flex flex-col gap-5 pt-5">
         <div className="border-t border-dashed border-border" />
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            className="h-[52px] flex-1 rounded-xl"
-            onClick={() => setReassigning((v) => !v)}
-            disabled={updateTask.isPending}
-          >
-            {t("reassign")}
-          </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {!isReminder && !isCancelled ? (
+            <Can I="task.update">
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-[52px] min-w-[8.5rem] flex-1 rounded-xl"
+                onClick={() => setReassigning((v) => !v)}
+                disabled={updateTask.isPending}
+              >
+                {t("reassign")}
+              </Button>
+            </Can>
+          ) : null}
           {isCompleted ? (
             <Can I="task.update">
               <Button
                 type="button"
                 variant="secondary"
-                className="h-[52px] flex-1 rounded-xl"
+                className="h-[52px] min-w-[8.5rem] flex-1 rounded-xl"
                 onClick={() => void handleReopen()}
                 disabled={reopenTask.isPending}
               >
@@ -354,18 +379,19 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
               <Button
                 type="button"
                 variant="secondary"
-                className="h-[52px] flex-1 rounded-xl"
+                className="h-[52px] min-w-[8.5rem] flex-1 rounded-xl"
                 onClick={() => setCancelling((v) => !v)}
                 disabled={cancelTask.isPending}
               >
                 <X className="size-4" aria-hidden />
-                {t("cancelTask")}
+                {isReminder ? t("reminderCancelTask") : t("cancelTask")}
               </Button>
             </Can>
           ) : null}
+          <Can I="task.complete">
           <Button
             type="button"
-            className="h-[52px] flex-1 rounded-xl"
+            className="h-[52px] min-w-[8.5rem] flex-1 rounded-xl"
             onClick={() => void handleComplete()}
             disabled={isClosed || completeTask.isPending}
           >
@@ -379,13 +405,14 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
             ) : completeTask.isPending ? (
               "…"
             ) : (
-              t("markComplete")
+              isReminder ? t("markDone") : t("markComplete")
             )}
           </Button>
+          </Can>
         </div>
       </div>
 
-      {task.category === "REMINDER" ? (
+      {task.kind === "REMINDER" ? (
         // RFE-164: a custom reminder is edited in the reminder form (repeat, audience, "N days after"), not the plain task form.
         <ReminderSheet key={task.id} open={editing} onOpenChange={setEditing} task={task} onSaved={setTask} />
       ) : (
@@ -394,9 +421,10 @@ function TaskDetailsSheetBody({ task: initialTask, onOpenChange }: { task: Task;
       <ConfirmDialog
         open={deleting}
         onOpenChange={setDeleting}
-        title={t("deleteConfirmTitle")}
-        description={t("deleteConfirmDescription")}
+        title={isReminder ? t("reminderDeleteConfirmTitle") : t("deleteConfirmTitle")}
+        description={isReminder ? t("reminderDeleteConfirmDescription") : t("deleteConfirmDescription")}
         confirmLabel={t("delete")}
+        cancelLabel={tGlobal("cancel")}
         onConfirm={handleDelete}
       />
     </SheetContent>

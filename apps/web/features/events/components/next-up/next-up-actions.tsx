@@ -22,8 +22,17 @@ export function SnoozeControl({ event }: { event: UpcomingEvent }) {
 
   async function snoozeTo(day: string) {
     try {
-      await snooze.mutateAsync({ taskId: event.ref.id, dueAt: snoozeDueAt(event.dueAt, day) });
-      toast.success(t("snoozedToast", { date: format.dateTime(new Date(`${day}T00:00:00`), { dateStyle: "medium" }) }));
+      await snooze.mutateAsync({
+        taskId: event.ref.id,
+        dueAt: snoozeDueAt(event.dueAt, day),
+      });
+      toast.success(
+        t("snoozedToast", {
+          date: format.dateTime(new Date(`${day}T00:00:00`), {
+            dateStyle: "medium",
+          }),
+        }),
+      );
       setOpen(false);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : t("failed"));
@@ -46,7 +55,9 @@ export function SnoozeControl({ event }: { event: UpcomingEvent }) {
         <DatePicker
           label={t("pickDate")}
           onChange={(day) => day && void snoozeTo(day)}
-          disabledDates={{ before: new Date(`${snoozeDay(today, 1)}T00:00:00`) }}
+          disabledDates={{
+            before: new Date(`${snoozeDay(today, 1)}T00:00:00`),
+          }}
         />
       </PopoverContent>
     </Popover>
@@ -62,7 +73,10 @@ export function SkipControl({ event }: { event: UpcomingEvent }) {
 
   async function confirm() {
     try {
-      await skip.mutateAsync({ taskId: event.ref.id, reason: reason.trim() || undefined });
+      await skip.mutateAsync({
+        taskId: event.ref.id,
+        reason: reason.trim() || undefined,
+      });
       toast.success(t("skippedToast"));
       setOpen(false);
     } catch (error) {

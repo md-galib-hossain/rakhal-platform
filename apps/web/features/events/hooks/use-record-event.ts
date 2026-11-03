@@ -100,6 +100,8 @@ export function useRecordEvent(cattleId: string) {
     onSuccess: () => {
       // An event moves state everywhere: the animal, its timeline, Next up, reproduction, health and the task list.
       invalidateAnimal(queryClient, cattleId, ["reproduction", "health", "healthcare", "tasks"]);
+      // A save may have opened a case: a cached dry run for the same input would still say "new case".
+      queryClient.removeQueries({ queryKey: ["events", "dry-run", cattleId] });
     },
   });
 }

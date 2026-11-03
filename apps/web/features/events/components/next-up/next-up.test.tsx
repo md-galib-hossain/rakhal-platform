@@ -34,8 +34,14 @@ vi.mock("../reminders/reminder-sheet", () => ({
 }));
 vi.mock("../../hooks/use-next-up", () => ({
   useNextUpActions: () => ({
-    snooze: { mutateAsync: (args: unknown) => snoozeMutate(args) as Promise<unknown>, isPending: false },
-    skip: { mutateAsync: (args: unknown) => skipMutate(args) as Promise<unknown>, isPending: false },
+    snooze: {
+      mutateAsync: (args: unknown) => snoozeMutate(args) as Promise<unknown>,
+      isPending: false,
+    },
+    skip: {
+      mutateAsync: (args: unknown) => skipMutate(args) as Promise<unknown>,
+      isPending: false,
+    },
   }),
 }));
 
@@ -52,7 +58,12 @@ const event = (over: Partial<UpcomingEvent> = {}): UpcomingEvent => ({
 });
 
 function renderStrip(events: UpcomingEvent[], opts: { canRecord?: boolean; locale?: "en" | "bn" } = {}) {
-  useUpcomingEvents.mockReturnValue({ isLoading: false, isError: false, data: { events, total: events.length }, refetch: vi.fn() });
+  useUpcomingEvents.mockReturnValue({
+    isLoading: false,
+    isError: false,
+    data: { events, total: events.length },
+    refetch: vi.fn(),
+  });
   const onRecord = vi.fn();
   const locale = opts.locale ?? "en";
   render(
@@ -78,7 +89,13 @@ describe("NextUp", () => {
   });
 
   it("a preg check due offers Record only, and Record opens the matching form with the reminder ref", () => {
-    const onRecord = renderStrip([event({ kind: "PREGNANCY_CHECK", labelKey: "cattle.upcoming.pregnancyCheck", ref: { type: "BREEDING_EVENT", id: "b1" } })]);
+    const onRecord = renderStrip([
+      event({
+        kind: "PREGNANCY_CHECK",
+        labelKey: "cattle.upcoming.pregnancyCheck",
+        ref: { type: "BREEDING_EVENT", id: "b1" },
+      }),
+    ]);
     expect(screen.queryByRole("button", { name: "Snooze" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Skip" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Record" }));
@@ -93,14 +110,31 @@ describe("NextUp", () => {
   });
 
   it("an information-only row has no buttons", () => {
-    renderStrip([event({ kind: "WITHDRAWAL_END", labelKey: "cattle.upcoming.milkWithdrawalEnd", actionable: false, ref: { type: "SAFETY_WITHDRAWAL", id: "w1" } })]);
+    renderStrip([
+      event({
+        kind: "WITHDRAWAL_END",
+        labelKey: "cattle.upcoming.milkWithdrawalEnd",
+        actionable: false,
+        ref: { type: "SAFETY_WITHDRAWAL", id: "w1" },
+      }),
+    ]);
     expect(screen.getByText("Information only")).toBeInTheDocument();
     expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Add reminder"]);
   });
 
   it("hides Record when the animal cannot take events, and Snooze/Skip without task permission", () => {
     allowTasks = false;
-    renderStrip([event(), event({ kind: "CALVING", ref: { type: "PREGNANCY", id: "p1" }, labelKey: "cattle.upcoming.calving" })], { canRecord: false });
+    renderStrip(
+      [
+        event(),
+        event({
+          kind: "CALVING",
+          ref: { type: "PREGNANCY", id: "p1" },
+          labelKey: "cattle.upcoming.calving",
+        }),
+      ],
+      { canRecord: false },
+    );
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
@@ -109,7 +143,10 @@ describe("NextUp", () => {
     fireEvent.click(screen.getByRole("button", { name: "Snooze" }));
     fireEvent.click(await screen.findByRole("button", { name: "Tomorrow" }));
     await waitFor(() => expect(snoozeMutate).toHaveBeenCalledTimes(1));
-    const args = snoozeMutate.mock.calls[0][0] as { taskId: string; dueAt: string };
+    const args = snoozeMutate.mock.calls[0][0] as {
+      taskId: string;
+      dueAt: string;
+    };
     expect(args.taskId).toBe("t1");
     expect(new Date(args.dueAt).getTime()).toBeGreaterThan(Date.now());
   });
@@ -117,9 +154,16 @@ describe("NextUp", () => {
   it("Skip sends the reason as the cancellation note", async () => {
     renderStrip([event()]);
     fireEvent.click(screen.getByRole("button", { name: "Skip" }));
-    fireEvent.change(await screen.findByLabelText(/Why skip it/), { target: { value: "Treated already" } });
+    fireEvent.change(await screen.findByLabelText(/Why skip it/), {
+      target: { value: "Treated already" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Skip it" }));
-    await waitFor(() => expect(skipMutate).toHaveBeenCalledWith({ taskId: "t1", reason: "Treated already" }));
+    await waitFor(() =>
+      expect(skipMutate).toHaveBeenCalledWith({
+        taskId: "t1",
+        reason: "Treated already",
+      }),
+    );
   });
 
   it("Add reminder opens the reminder form on this animal", () => {
@@ -138,14 +182,51 @@ describe("NextUp", () => {
     renderStrip([event()]);
     expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
 
-    useReminderTask.mockReturnValue({ data: { id: "t1", name: "Check hoof", category: "REMINDER" } });
+    useReminderTask.mockReturnValue({
+      data: { id: "t1", name: "Check hoof", kind: "REMINDER", category: "GENERAL" },
+    });
     renderStrip([event()]);
     fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
     expect(screen.getByRole("dialog")).toHaveTextContent("editing Check hoof");
   });
 
   it("renders in Bangla", () => {
-    renderStrip([event({ kind: "CALVING", ref: { type: "PREGNANCY", id: "p1" }, labelKey: "cattle.upcoming.calving" })], { locale: "bn" });
+    renderStrip(
+      [
+        event({
+          kind: "CALVING",
+          ref: { type: "PREGNANCY", id: "p1" },
+          labelKey: "cattle.upcoming.calving",
+        }),
+      ],
+      { locale: "bn" },
+    );
     expect(screen.getByRole("button", { name: "লিখুন" })).toBeInTheDocument();
+  });
+
+  const five = () => [1, 2, 3, 4, 5].map((n) => event({ labelParams: { title: `Task ${n}` }, ref: { type: "TASK", id: `t${n}` }, daysUntil: n }));
+
+  it("shows at most 3 cards with Show all (N) when there are more (RFE-187)", () => {
+    renderStrip(five());
+    expect(screen.getByText("Task 3")).toBeInTheDocument();
+    expect(screen.queryByText("Task 4")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show all (5)" })).toBeInTheDocument();
+  });
+
+  it("has no Show all with 3 or fewer", () => {
+    renderStrip(five().slice(0, 3));
+    expect(screen.queryByRole("button", { name: /Show all/ })).not.toBeInTheDocument();
+  });
+
+  it("lists overdue first", () => {
+    renderStrip([...five(), event({ labelParams: { title: "Late one" }, ref: { type: "TASK", id: "late" }, daysUntil: -4, urgency: "OVERDUE" })]);
+    expect(screen.getByText("Late one")).toBeInTheDocument();
+    expect(screen.queryByText("Task 3")).not.toBeInTheDocument();
+  });
+
+  it("Show all opens the full list", async () => {
+    renderStrip(five());
+    fireEvent.click(screen.getByRole("button", { name: "Show all (5)" }));
+    expect(await screen.findByText("Task 5")).toBeInTheDocument();
   });
 });

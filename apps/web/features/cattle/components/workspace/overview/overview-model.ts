@@ -14,6 +14,10 @@ export interface PhaseMarker {
   /** Recorded (filled) or projected (hollow). */
   recorded: boolean;
   date: string;
+  /** Days from today to `date`: negative = past, 0 = today, positive = ahead. */
+  fromToday: number;
+  /** Days between this marker and the one it is counted from (VWP length, calving→service, service→check, gestation); null for the calving anchor. */
+  gap: number | null;
 }
 export interface PhaseBar {
   markers: PhaseMarker[];
@@ -52,18 +56,28 @@ export function buildPhaseBar(input: {
   const at = (date: string) => clamp((dayDiff(anchor, date) / span) * 100);
 
   const markers: PhaseMarker[] = [];
+  const ahead = (date: string) => dayDiff(today, date);
   if (calvingDate) {
-    markers.push({ key: "calving", pct: 0, recorded: true, date: calvingDate });
+    markers.push({ key: "calving", pct: 0, recorded: true, date: calvingDate, fromToday: ahead(calvingDate), gap: null });
     const vwpEnd = addDaysLocalIso(calvingDate, vwp);
-    markers.push({ key: "vwp", pct: at(vwpEnd), recorded: vwpEnd <= today, date: vwpEnd });
+    markers.push({ key: "vwp", pct: at(vwpEnd), recorded: vwpEnd <= today, date: vwpEnd, fromToday: ahead(vwpEnd), gap: vwp });
   }
   if (bredDate) {
-    markers.push({ key: "bred", pct: at(bredDate), recorded: true, date: bredDate });
+    markers.push({ key: "bred", pct: at(bredDate), recorded: true, date: bredDate, fromToday: ahead(bredDate), gap: calvingDate ? dayDiff(calvingDate, bredDate) : null });
     const check = addDaysLocalIso(bredDate, PD_CHECK_AFTER_SERVICE);
-    markers.push({ key: "check", pct: at(check), recorded: pregnant || check <= today, date: check });
+    markers.push({ key: "check", pct: at(check), recorded: pregnant || check <= today, date: check, fromToday: ahead(check), gap: PD_CHECK_AFTER_SERVICE });
   }
-  if (dueDate) markers.push({ key: "due", pct: at(dueDate), recorded: false, date: dueDate });
+  if (dueDate) markers.push({ key: "due", pct: at(dueDate), recorded: false, date: dueDate, fromToday: ahead(dueDate), gap: bredDate ? dayDiff(bredDate, dueDate) : GESTATION_DAYS });
   return { markers, todayPct: calvingDate ? at(today) : null };
+}
+
+/**
+ * Calvings to show beside the phase bar. The count is its own profile field and can lag the calving date (an animal
+ * taken in with a "last calved" date but no count reads 0), so a known calving day counts as at least one: the bar
+ * and the header can no longer disagree.
+ */
+export function calvingsShown(totalCalvings: number | null | undefined, dim: number | null): number {
+  return Math.max(totalCalvings ?? 0, dim != null ? 1 : 0);
 }
 
 /** Milk figures for the card from the animal's daily records (`recent_milk_records`, any order). */

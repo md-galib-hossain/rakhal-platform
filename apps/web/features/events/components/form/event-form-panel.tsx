@@ -98,10 +98,13 @@ export function EventFormPanel({
     if (confirmExit) keepEditingRef.current?.querySelector("button")?.focus();
   }, [confirmExit]);
 
-  const liveErrors = useMemo(() => validateValues(def, values, { historical }), [def, values, historical]);
+  // The dry run is what tells us a Treatment will open a new case (finding TREATMENT_NEW_CASE), and only then is the
+  // Condition field shown - so the dry run itself must not wait for that field: it is gated on the other fields alone.
+  // Kept in state so the field does not blink away while the next dry run is in flight.
+  const [needsCondition, setNeedsCondition] = useState(false);  const liveErrors = useMemo(() => validateValues(def, values, { historical }), [def, values, historical]);
   const dryRequest = useMemo(
-    () => (Object.keys(liveErrors).length === 0 && date <= today ? buildRequest(def, values, { date, time, historical }) : null),
-    [def, values, date, time, historical, liveErrors, today],
+    () => (Object.keys(liveErrors).length === 0 && date <= today ? buildRequest(def, values, { date, time, historical, needsCondition }) : null),
+    [def, values, date, time, historical, liveErrors, today, needsCondition],
   );
   const debouncedRequest = useDebounced(dryRequest, 350);
   const dry = useEventDryRun({
@@ -125,6 +128,8 @@ export function EventFormPanel({
   const unsupported = unsupportedAtSave || dryUnsupported;
   const dryError =
     dry.error instanceof ApiError && (dry.error.status === 400 || dry.error.status === 422) && !dryUnsupported ? dry.error.message : null;
+  const dryNeedsCondition = dry.data ? dry.data.findings.some((f) => f.code === "TREATMENT_NEW_CASE") : undefined;
+  if (eventKey === "TREATMENT" && dryNeedsCondition !== undefined && dryNeedsCondition !== needsCondition) setNeedsCondition(dryNeedsCondition);
   const blocked = findings.some((f) => f.severity === "BLOCK") || Boolean(dryError);
 
   function findingText(finding: Finding): string {
@@ -171,10 +176,10 @@ export function EventFormPanel({
   }
 
   async function submit(another: boolean) {
-    const found = validateValues(def, values, { historical });
+    const found = validateValues(def, values, { historical, needsCondition });
     setErrors(found);
     if (Object.keys(found).length > 0 || date > today || blocked) return;
-    const request = buildRequest(def, values, { date, time, historical });
+    const request = buildRequest(def, values, { date, time, historical, needsCondition });
     // Send the switches only when the user changed one and the preview came from the server (its rule keys are the ones it
     // understands); a server that does not take the field yet is retried without it in `useRecordEvent`.
     if (dry.data?.source === "route" && followUps.some((item) => isOn(item) !== defaultOn(item))) {
@@ -187,6 +192,7 @@ export function EventFormPanel({
       if (ref) toast.success(message, { duration: 5000, action: { label: t("undo"), onClick: () => void undo(ref) } });
       else toast.success(message);
       if (another) {
+        setNeedsCondition(false);
         setValues(defaultValues(def));
         setErrors({});
         setToggles({});
@@ -199,13 +205,17 @@ export function EventFormPanel({
     } catch (error) {
       if (error instanceof EventUnavailableError || (error instanceof ApiError && error.details?.eventCode === "EVENT_TYPE_NOT_SUPPORTED")) {
         setUnsupportedAtSave(true);
+      } else if (error instanceof ApiError && error.details?.eventCode === "CONDITION_REQUIRED") {
+        // The preview missed that no case is open: show the Condition field with its error instead of a raw message.
+        setNeedsCondition(true);
+        setErrors({ condition: "required" });
       } else {
         setServerError(errorMessage(error));
       }
     }
   }
 
-  const shown = def.fields.filter((f) => !f.visibleWhen || f.visibleWhen(values, { historical }));
+  const shown = def.fields.filter((f) => !f.visibleWhen || f.visibleWhen(values, { historical, needsCondition }));
   const required = shown.filter((f) => !f.detail);
   const details = shown.filter((f) => f.detail);
   const title = `${tCatalogue(`${eventKey}.label`)} · ${cattle.name ?? cattle.tagNumber}`;
@@ -272,6 +282,8 @@ export function EventFormPanel({
   const fieldProps = (field: (typeof shown)[number]) => ({
     cattleId: cattle.id,
     field,
+    values,
+    setSibling: setValue,
     value: values[field.name],
     onChange: (v: FormValues[string]) => setValue(field.name, v),
     error: errors[field.name],

@@ -37,26 +37,26 @@ function HighlightTile({
       type={onClick ? "button" : undefined}
       onClick={onClick}
       className={cn(
-        "flex flex-1 flex-col justify-between gap-3 rounded-xl border border-border bg-card p-3 text-left",
+        "flex min-w-0 flex-1 flex-col justify-between gap-2 rounded-xl border border-border bg-card p-3 text-left sm:gap-3 last:odd:col-span-2 sm:last:odd:col-span-1",
         onClick &&
           "cursor-pointer transition-colors hover:border-primary/50 hover:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
       )}
     >
       <div className="flex items-center gap-2">
         <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", iconBg)}>{icon}</span>
-        <p className="text-sm font-medium text-foreground">{label}</p>
+        <p className="min-w-0 truncate text-sm font-medium text-foreground">{label}</p>
       </div>
       <div className="flex flex-col gap-1">
         <p
           className={cn(
-            "text-2xl font-bold text-foreground",
+            "text-xl font-bold text-foreground sm:text-2xl",
             tone === "warning" && "text-warning",
             tone === "destructive" && "text-destructive",
           )}
         >
           {value}
         </p>
-        {footnote ? <p className="text-xs text-muted-foreground">{footnote}</p> : null}
+        {footnote ? <p className="line-clamp-2 text-xs text-muted-foreground">{footnote}</p> : null}
       </div>
     </Wrapper>
   );
@@ -91,9 +91,9 @@ export function HealthStatStrip() {
       <p className="text-xl font-medium text-foreground">{t("title")}</p>
 
       {query.isLoading ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 xl:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-[104px] flex-1 rounded-xl" />
+            <Skeleton key={i} className="h-[96px] flex-1 rounded-xl" />
           ))}
         </div>
       ) : query.isError || !query.data ? (
@@ -104,7 +104,7 @@ export function HealthStatStrip() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 xl:grid-cols-5">
           <HighlightTile
             icon={<Activity className="size-4 text-destructive" aria-hidden />}
             iconBg="bg-destructive-tint"

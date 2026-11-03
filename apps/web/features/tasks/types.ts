@@ -1,5 +1,8 @@
 /** Mirrors the backend `TaskCategory` Prisma enum (`task.enums.prisma`). */
-export type TaskCategory = "FEEDING" | "HEALTHCARE" | "BREEDING" | "MAINTENANCE" | "MILKING" | "CALF_CARE" | "GENERAL" | "REMINDER";
+export type TaskCategory = "FEEDING" | "HEALTHCARE" | "BREEDING" | "MAINTENANCE" | "MILKING" | "CALF_CARE" | "GENERAL";
+
+/** RAKHAL-491 — a row is either work to do (`TASK`) or a custom reminder (`REMINDER`). `category` is the topic only. */
+export type TaskKind = "TASK" | "REMINDER";
 
 export type TaskPriority = "HIGH" | "MEDIUM" | "LOW";
 
@@ -21,6 +24,7 @@ export interface Task {
   reference: string;
   name: string;
   details: string | null;
+  kind: TaskKind;
   category: TaskCategory;
   priority: TaskPriority;
   status: TaskStatus;
@@ -89,13 +93,25 @@ export interface TaskHighlights {
   lateCompletionRatePct: number;
 }
 
+/** `meta.reminderHighlights` on `GET /tasks` — open reminders only, returned on every list call. */
+export interface ReminderHighlights {
+  upcoming: number;
+  overdue: number;
+  repeating: number;
+}
+
 export type TaskDatePresetId = "all" | "today" | "tomorrow" | "week" | "next7" | "month";
 
 /** Task Hub date filter: a shortcut id (range derived at render) or a user-picked day/range (`from === to` = one day). */
 export type TaskDateFilter = { id: TaskDatePresetId } | { id: "custom"; from: Date; to: Date };
 
 export interface TaskListFilters {
-  filter?: TaskListFilter;
+  /** View filter; `upcoming` (open and due from the server's now) is reminder-only on the UI. */
+  filter?: TaskListFilter | "upcoming";
+  /** Due-date order (default asc). */
+  sortOrder?: "asc" | "desc";
+  /** `task` | `reminder`; omit for both. */
+  kind?: "task" | "reminder";
   category?: TaskCategory;
   priority?: TaskPriority;
   search?: string;
@@ -106,12 +122,18 @@ export interface TaskListFilters {
    * `ListTaskQueryDto.dueFrom`/`.dueTo` (inclusive start / exclusive end). */
   dueFrom?: string;
   dueTo?: string;
+  /** Comma list of `TaskStatus` (server filter, e.g. `COMPLETED,CANCELLED`). */
+  status?: string;
+  /** `true` = repeating items only. */
+  recurring?: boolean;
 }
 
 /** Mirrors `CreateTaskDto`. */
 export interface CreateTaskPayload {
   name: string;
   details?: string;
+  /** RAKHAL-491: send `REMINDER` for a custom reminder (topic goes in `category`). */
+  kind?: TaskKind;
   category?: TaskCategory;
   priority?: TaskPriority;
   scheduledAt?: string;

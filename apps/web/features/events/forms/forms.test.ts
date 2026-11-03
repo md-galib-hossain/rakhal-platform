@@ -16,7 +16,8 @@ describe("form definitions", () => {
     for (const [key, d] of Object.entries(FORM_DEFS)) {
       // The AI form promotes every field the server requires (RFE-174, §3.8); they are conditional, so a given AI shows ~6.
       if (key === "SERVICE") continue;
-      expect(d!.fields.filter((f) => !f.detail).length, key).toBeLessThanOrEqual(4);
+      // Treatment's Condition only appears when no case is open (a fifth field only for that animal).
+      expect(d!.fields.filter((f) => !f.detail && f.name !== "condition").length, key).toBeLessThanOrEqual(4);
     }
   });
   it("covers every RFE-158 and RFE-159 event except the dispose ones", () => {

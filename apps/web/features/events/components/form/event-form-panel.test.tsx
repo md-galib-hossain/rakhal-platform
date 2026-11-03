@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import en from "@/i18n/messages/en.json";
@@ -17,18 +17,21 @@ globalThis.ResizeObserver ??= class {
 };
 
 const mutateAsync = vi.fn();
+const dry = vi.hoisted(() => ({ data: undefined as unknown }));
 vi.mock("../../hooks/use-animal-timeline", () => ({
   useAnimalTimeline: () => ({ items: [], isLoading: false, isError: false }),
 }));
 vi.mock("@/features/inventory/components/semen-batch-picker", () => ({ SemenBatchPicker: () => <div data-testid="semen-picker" /> }));
 vi.mock("@/features/settings/hooks/use-team", () => ({ useTeam: () => ({ data: { members: [{ name: "Rahim" }] } }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const FMD = vi.hoisted(() => ({ id: "m1", name: "FMD", currentStock: 10, stockStatus: "adequate", expiryStatus: "ok", unit: { symbol: "ml" } }));
 vi.mock("@/features/inventory/hooks/use-inventory", () => ({
-  useMedicineInfiniteList: () => ({ items: [{ id: "m1", name: "FMD" }], isLoading: false }),
+  useMedicineInfiniteList: () => ({ items: [FMD], isLoading: false, hasNextPage: false, isFetchingNextPage: false, isNextPageError: false, fetchNextPage: vi.fn() }),
+  useMedicineDetail: (id?: string) => ({ data: id === "m1" ? FMD : undefined }),
 }));
 vi.mock("../../hooks/use-record-event", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../hooks/use-record-event")>()),
-  useEventDryRun: () => ({ data: undefined, error: null }),
+  useEventDryRun: () => ({ data: dry.data, error: null }),
   useRecordEvent: () => ({ mutateAsync: (args: unknown) => mutateAsync(args) as Promise<unknown>, isPending: false }),
   useVoidEvent: () => ({ mutateAsync: vi.fn() }),
 }));
@@ -52,6 +55,7 @@ function renderForm(eventKey: EventKey, animal = cow(), locale: "en" | "bn" = "e
 
 beforeEach(() => {
   vi.clearAllMocks();
+  dry.data = undefined;
   mutateAsync.mockResolvedValue({ via: "route", body: { ref: "preg:1" } });
 });
 
@@ -154,11 +158,19 @@ describe("EventFormPanel", () => {
 });
 
 describe("health forms in the panel", () => {
+  // cmdk (the medicine picker's list) scrolls the active option into view; jsdom has no layout.
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
   /** The four fields a live health entry needs (server validation): medicine from stock, dose, unit, route. */
   function fillDose(opts: { nextDoseDays?: string } = {}) {
-    fireEvent.change(screen.getByLabelText(/Medicine \(from stock\)/), { target: { value: "m1" } });
+    fireEvent.click(screen.getByRole("combobox", { name: /Medicine \(from stock\)/ }));
+    fireEvent.click(screen.getByRole("option", { name: /FMD/ }));
     fireEvent.change(screen.getByLabelText(/^Dose/), { target: { value: "2" } });
-    fireEvent.change(screen.getByLabelText(/^Unit/), { target: { value: "ml" } });
+    // The unit is taken from the chosen medicine and locked.
+    expect(screen.getByLabelText(/^Unit/)).toHaveValue("ml");
+    expect(screen.getByLabelText(/^Unit/)).toHaveAttribute("readonly");
     fireEvent.change(screen.getByLabelText(/^Route/), { target: { value: "IM" } });
     if (opts.nextDoseDays) {
       fireEvent.click(screen.getByRole("button", { name: /More details/ }));
@@ -213,6 +225,42 @@ describe("health forms in the panel", () => {
       type: "TREATMENT",
       payload: { medicineId: "m1", doseAmount: 2, doseUnit: "ml", route: "IM" },
     });
+  });
+
+  const newCaseDryRun = { source: "route", findings: [{ code: "TREATMENT_NEW_CASE", severity: "INFO" }], followUps: [] };
+
+  it("treatment with no open case: asks what it is for, blocks until set, and sends the condition", async () => {
+    dry.data = newCaseDryRun;
+    renderForm("TREATMENT");
+    const condition = await screen.findByLabelText(/Condition/);
+    fillDose();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByText("Required")).toBeInTheDocument();
+    expect(mutateAsync).not.toHaveBeenCalled();
+
+    fireEvent.change(condition, { target: { value: "MASTITIS" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+    expect((mutateAsync.mock.calls[0][0] as { request: { payload: Record<string, unknown> } }).request.payload).toMatchObject({ condition: "MASTITIS", medicineId: "m1" });
+  });
+
+  it("treatment with an open case: no Condition field, and none is sent", async () => {
+    dry.data = { source: "route", findings: [{ code: "OPEN_CASE_EXISTS", severity: "INFO" }], followUps: [] };
+    renderForm("TREATMENT");
+    expect(screen.queryByLabelText(/Condition/)).not.toBeInTheDocument();
+    fillDose();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+    expect((mutateAsync.mock.calls[0][0] as { request: { payload: Record<string, unknown> } }).request.payload).not.toHaveProperty("condition");
+  });
+
+  it("a server CONDITION_REQUIRED shows the Condition field with its error", async () => {
+    mutateAsync.mockRejectedValueOnce(new ApiError("VALIDATION_ERROR", "condition required", 400, undefined, { eventCode: "CONDITION_REQUIRED", field: "condition" }));
+    renderForm("TREATMENT");
+    fillDose();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await screen.findByLabelText(/Condition/)).toBeInTheDocument();
+    expect(await screen.findByText("Required")).toBeInTheDocument();
   });
 
   it("while the server has no handler, shows a clear message and a Healthcare link instead of a dead form", async () => {

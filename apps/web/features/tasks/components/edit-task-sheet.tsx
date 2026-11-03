@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useUpdateTask } from "../hooks/use-tasks";
 import { editTaskSchema, type EditTaskFormInput } from "../schemas";
 import { CATEGORY_ORDER } from "../task-style";
+import { editedDueAt, localDateOf } from "../due-date";
 import { AssigneePicker } from "./assignee-picker";
 import type { Task, TaskPriority, UpdateTaskPayload } from "../types";
 
@@ -37,21 +38,21 @@ function toDefaults(task: Task): EditTaskFormInput {
     name: task.name,
     details: task.details ?? undefined,
     // A reminder is edited in the reminder form (RFE-164), so it never lands here; the plain form has no such category.
-    category: task.category === "REMINDER" ? undefined : task.category,
+    category: task.category,
     priority: task.priority,
-    dueAt: task.dueAt.slice(0, 10),
+    dueAt: localDateOf(task.dueAt),
     assignedToId: task.assignedToId ?? undefined,
     safetyCritical: task.safetyCritical,
   };
 }
 
-function toPayload(values: EditTaskFormInput): UpdateTaskPayload {
+function toPayload(values: EditTaskFormInput, original: Task): UpdateTaskPayload {
   return {
     name: values.name,
     details: values.details || undefined,
     category: values.category,
     priority: values.priority,
-    dueAt: new Date(`${values.dueAt}T09:00:00`).toISOString(),
+    dueAt: editedDueAt(original.dueAt, values.dueAt),
     assignedToId: values.assignedToId || undefined,
     safetyCritical: values.safetyCritical,
   };
@@ -103,7 +104,7 @@ function EditTaskSheetBody({
 
   async function onSubmit(values: EditTaskFormInput) {
     try {
-      const updated = await updateTask.mutateAsync({ id: task.id, dto: toPayload(values) });
+      const updated = await updateTask.mutateAsync({ id: task.id, dto: toPayload(values, task) });
       toast.success(t("updatedToast"));
       onUpdated(updated);
       onOpenChange(false);

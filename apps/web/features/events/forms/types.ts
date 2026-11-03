@@ -21,8 +21,11 @@ export interface FieldDef {
   unit?: string;
   /** `notes` sends the value as the event's top-level notes instead of inside `payload`. */
   target?: "payload" | "notes" | "none";
-  /** Hidden (and never validated or sent) while this returns false; `historical` = a past record. */
-  visibleWhen?: (values: FormValues, ctx: { historical: boolean }) => boolean;
+  /** Hidden (and never validated or sent) while this returns false; `historical` = a past record; `needsCondition` = the
+   * dry run said a new case will be opened (Treatment with no open case), so the server needs to know what for. */
+  visibleWhen?: (values: FormValues, ctx: { historical: boolean; needsCondition?: boolean }) => boolean;
+  /** Small helper line under the field; an i18n key under `events.form`. */
+  hintKey?: string;
 }
 
 export interface FormDef {

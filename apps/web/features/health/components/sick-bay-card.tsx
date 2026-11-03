@@ -48,7 +48,7 @@ export function SickBayCard({
           </Avatar>
           <span className="flex min-w-0 flex-col">
             <span className="truncate text-sm font-medium text-foreground">{item.cattle.name ?? item.cattle.tagNumber}</span>
-            <span className="truncate text-xs text-muted-foreground">{[item.cattle.tagNumber, item.shedName].filter(Boolean).join(" · ")}</span>
+            <span className="line-clamp-2 break-words text-xs text-muted-foreground">{[item.cattle.tagNumber, item.shedName].filter(Boolean).join(" · ")}</span>
           </span>
         </AnimalLink>
         <div className="flex shrink-0 flex-col items-end gap-1">

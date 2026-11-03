@@ -94,18 +94,13 @@ export function TimelineRow({ event, actions, actorName }: { event: TimelineEven
   const strike = voided && "line-through";
 
   return (
-    <li className={cn("flex items-start gap-2.5 py-2", voided && "opacity-60")}>
-      <span className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full", tint)} aria-hidden>
-        <Icon className="size-4" strokeWidth={1.75} />
+    <li className={cn("flex items-start gap-3 rounded-xl px-2 py-2.5 transition-colors hover:bg-muted/50 focus-within:bg-muted/50", voided && "opacity-60")}>
+      <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", tint)} aria-hidden>
+        <Icon className="size-[18px]" strokeWidth={1.75} />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-          <div className="flex min-w-0 max-w-full items-baseline gap-1 text-sm" title={summary ? `${title} · ${summary}` : title}>
-            <span className={cn("shrink-0 font-semibold text-foreground", strike)}>{title}</span>
-            {summary && summary !== title ? (
-              <span className={cn("min-w-0 truncate text-muted-foreground", strike)}>{summary}</span>
-            ) : null}
-          </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5" title={summary ? `${title} · ${summary}` : title}>
+          <span className={cn("text-sm font-semibold text-foreground", strike)}>{title}</span>
           {event.provenance === "HISTORICAL" ? <Chip variant="info">{t("history")}</Chip> : null}
           {voided ? <Chip variant="muted">{t("voided")}</Chip> : null}
           {warnings > 0 ? (
@@ -114,7 +109,10 @@ export function TimelineRow({ event, actions, actorName }: { event: TimelineEven
             </Chip>
           ) : null}
         </div>
-        {event.notes ? <p className={cn("text-sm text-muted-foreground", strike)}>{event.notes}</p> : null}
+        {summary && summary !== title ? (
+          <p className={cn("min-w-0 break-words text-sm text-muted-foreground", strike)}>{summary}</p>
+        ) : null}
+        {event.notes ? <p className={cn("text-sm italic text-muted-foreground/80", strike)}>{event.notes}</p> : null}
         {event.sourceEventId ? (
           <p className="flex items-center gap-1 text-xs text-muted-foreground">
             <CornerDownRight className="size-3.5 shrink-0" aria-hidden />

@@ -367,6 +367,28 @@
   --state-sick-text: #fda4af;
 }
 
+/* ── Text-on-tint status colours (AA for 12px text) ─────────────────────────
+   The brand tokens (--destructive #ef4444, --warning #f59e0b, --primary #00a86b, --info #3b82f6) are 2-3:1 on their own
+   15% tint in light mode. Use these for small text sitting on a tint; they equal the brand token in dark mode. */
+:root {
+  --destructive-text: #b91c1c;
+  --warning-text: #92400e;
+  --primary-text: #047857;
+  --info-text: #1d4ed8;
+}
+.dark {
+  --destructive-text: #f87171;
+  --warning-text: #fbbf24;
+  --primary-text: #1ec883;
+  --info-text: #60a5fa;
+}
+@theme inline {
+  --color-destructive-text: var(--destructive-text);
+  --color-warning-text: var(--warning-text);
+  --color-primary-text: var(--primary-text);
+  --color-info-text: var(--info-text);
+}
+
 /* ── Reduced motion ─────────────────────────────────────────────────────── */
 /* Keep the state change (fade in/out) but drop spatial movement: popovers, sheets and dialogs
    stop zooming/sliding yet still appear and disappear visibly. Spinners are left alone — a

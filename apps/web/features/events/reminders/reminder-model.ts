@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { CreateTaskPayload, Task, UpdateTaskPayload } from "@/features/tasks/types";
 
 /**
- * RFE-164 — custom reminder form model (03 §8.1). A reminder is a Task Hub task with `category: "REMINDER"`
+ * RFE-164 — custom reminder form model (03 §8.1). A reminder is a Task Hub task with `kind: "REMINDER"`
  * (RAKHAL-487), so this file only maps the form to `CreateTaskDto` / `UpdateTaskDto` and back. Error messages in the
  * schema are `events.reminders.errors.*` keys, translated by the component.
  */
@@ -114,7 +114,8 @@ export function buildCreatePayload(v: ReminderFormValues): CreateTaskPayload {
   const base: CreateTaskPayload = {
     name: v.title.trim(),
     ...(v.notes.trim() ? { details: v.notes.trim() } : {}),
-    category: "REMINDER",
+    kind: "REMINDER",
+    category: "GENERAL",
     ...(Number(v.leadDays) > 0 ? { remindDaysBefore: Number(v.leadDays) } : {}),
     ...repeatFields(v),
     ...audienceFields(v),

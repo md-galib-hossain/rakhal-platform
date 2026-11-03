@@ -8,12 +8,13 @@ import type {
   CreateTaskPayload,
   Task,
   TaskAssigneeOption,
+  ReminderHighlights,
   TaskHighlights,
   TaskListFilters,
   UpdateTaskPayload,
 } from "./types";
 
-export type TaskListPage = CursorPage<Task> & { meta: CursorMeta & { highlights: TaskHighlights } };
+export type TaskListPage = CursorPage<Task> & { meta: CursorMeta & { highlights: TaskHighlights; reminderHighlights?: ReminderHighlights } };
 
 /** `/tasks` — real backend routes (`task.controller.ts`), `task.*`-gated. */
 export const tasksApi = {
@@ -21,15 +22,18 @@ export const tasksApi = {
     return apiFetchPage<Task>("/tasks", {
       searchParams: {
         filter: filters.filter,
+        kind: filters.kind,
         category: filters.category,
         priority: filters.priority,
         search: filters.search,
         cattleId: filters.cattleId,
         dueFrom: filters.dueFrom,
         dueTo: filters.dueTo,
+        status: filters.status,
+        recurring: filters.recurring,
         cursor,
         limit,
-        sortOrder: "asc",
+        sortOrder: filters.sortOrder ?? "asc",
       },
     }) as Promise<TaskListPage>;
   },

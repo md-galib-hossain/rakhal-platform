@@ -62,7 +62,7 @@ describe("buildCreatePayload", () => {
     expect(buildCreatePayload(values({ notes: " look at the left hind " }))).toEqual({
       name: "Check hoof",
       details: "look at the left hind",
-      category: "REMINDER",
+      kind: "REMINDER", category: "GENERAL",
       recurring: false,
       assignedToId: "u1",
       dueAt: localToIso("2026-11-02", ""),
@@ -81,7 +81,7 @@ describe("buildCreatePayload", () => {
 
   it("'10 days after a treatment' sends the event and offset, never a date or animals", () => {
     const payload = buildCreatePayload(values({ when: "afterEvent", eventId: "evt-9", offsetDays: "10" }));
-    expect(payload).toMatchObject({ sourceEventId: "evt-9", offsetDays: 10, category: "REMINDER" });
+    expect(payload).toMatchObject({ sourceEventId: "evt-9", offsetDays: 10, kind: "REMINDER", category: "GENERAL" });
     expect(payload.dueAt).toBeUndefined();
     expect(payload.relatedCattleId).toBeUndefined();
     expect(payload.cattleIds).toBeUndefined();

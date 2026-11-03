@@ -73,18 +73,22 @@ export function HealthManagementCenterCard({
         <HealthFilterBar
           searchPlaceholder={t("searchPlaceholder")}
           actions={
-            <div className="flex items-center gap-2">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+              {/* Primary action first and filled; the secondary one is outlined. Stacked full-width on a phone so neither label truncates. */}
               <Button
-                variant="outline"
-                className="gap-2 border-destructive text-destructive hover:bg-destructive/5 rounded-xl h-11 px-4 text-sm font-semibold"
+                className="h-11 w-full gap-2 rounded-xl px-4 text-sm font-semibold sm:w-auto"
                 onClick={onReportSickness}
               >
-                <Stethoscope className="size-4" aria-hidden />
-                <span>{t("reportSickness")}</span>
+                <Stethoscope className="size-4 shrink-0" aria-hidden />
+                <span className="truncate">{t("reportSickness")}</span>
               </Button>
-              <Button className="gap-2 rounded-xl h-11 px-4 text-sm font-semibold" onClick={onRecordTreatment}>
-                <Syringe className="size-4" aria-hidden />
-                <span>{t("recordTreatment")}</span>
+              <Button
+                variant="outline"
+                className="h-11 w-full gap-2 rounded-xl px-4 text-sm font-semibold sm:w-auto"
+                onClick={onRecordTreatment}
+              >
+                <Syringe className="size-4 shrink-0" aria-hidden />
+                <span className="truncate">{t("recordTreatment")}</span>
               </Button>
             </div>
           }

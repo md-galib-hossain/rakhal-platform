@@ -31,7 +31,7 @@ const SHEET_CLASS =
 
 /**
  * Custom reminder form (RFE-164, 03 §8.1) — create, or edit when `task` is given. A reminder is a Task Hub task with
- * `category: "REMINDER"`; Next up and the Task Hub list it from there. `animal` pre-fills the workspace's animal.
+ * `kind: "REMINDER"`; Next up and the Task Hub list it from there. `animal` pre-fills the workspace's animal.
  */
 export function ReminderSheet({
   open,
@@ -107,7 +107,8 @@ function ReminderSheetBody({
   async function onCancelReminder() {
     if (!task) return;
     try {
-      await cancel.mutateAsync({ id: task.id });
+      const cancelled = await cancel.mutateAsync({ id: task.id });
+      onSaved?.(cancelled);
       toast.success(t("cancelledToast"));
       setConfirmCancel(false);
       onOpenChange(false);
