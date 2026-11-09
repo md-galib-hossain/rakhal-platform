@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { buildProtocolPreview, type PreviewRow } from "../protocol-preview";
-import type { HealthPlanStep } from "../types";
+import type { HealthPlanKind, HealthPlanStep } from "../types";
 
 const SHORT_DATE: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" };
 
@@ -17,10 +17,10 @@ function useDateFormatter() {
 
 /** The three facts a farmer wants before starting a protocol (EPIC D8): when it runs, when milk / meat is safe again,
  * and when the app will remind them. Used compact under the picker and as the head of the full timeline. */
-export function ProtocolPreviewSummary({ steps, startDate, className }: { steps: HealthPlanStep[]; startDate: string; className?: string }) {
+export function ProtocolPreviewSummary({ steps, startDate, kind, className }: { steps: HealthPlanStep[]; startDate: string; kind?: HealthPlanKind; className?: string }) {
   const t = useTranslations("health.healthPlan.preview");
   const fmt = useDateFormatter();
-  const preview = buildProtocolPreview(steps, startDate);
+  const preview = buildProtocolPreview(steps, startDate, new Date(), kind);
   if (!preview.firstDate || !preview.lastDate) return null;
 
   const upcoming = preview.firstStepReminders.filter((slot) => slot.willFire);
@@ -87,12 +87,12 @@ function RowItem({ row, last, fmt }: { row: PreviewRow; last: boolean; fmt: (d: 
 
 /** Day-by-day schedule with the real calendar dates the steps will be created on (the backend rule, mirrored in
  * `protocol-preview.ts`), so the preview and the Schedule tab agree. */
-export function ProtocolPreviewTimeline({ steps, startDate }: { steps: HealthPlanStep[]; startDate: string }) {
+export function ProtocolPreviewTimeline({ steps, startDate, kind }: { steps: HealthPlanStep[]; startDate: string; kind?: HealthPlanKind }) {
   const fmt = useDateFormatter();
-  const preview = buildProtocolPreview(steps, startDate);
+  const preview = buildProtocolPreview(steps, startDate, new Date(), kind);
   return (
     <div className="flex flex-col gap-4">
-      <ProtocolPreviewSummary steps={steps} startDate={startDate} />
+      <ProtocolPreviewSummary steps={steps} startDate={startDate} kind={kind} />
       <ol className="flex flex-col px-1">
         {preview.rows.map((row, index) => (
           <RowItem key={row.step.id} row={row} last={index === preview.rows.length - 1} fmt={fmt} />

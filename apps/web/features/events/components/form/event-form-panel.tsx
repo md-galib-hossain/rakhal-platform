@@ -311,28 +311,31 @@ export function EventFormPanel({
         }}
         noValidate
       >
-        <div className="@container flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-5 sm:px-6">
+        <div className="@container flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto bg-muted/30 px-4 py-5 sm:px-6">
           {serverError ? (
             <p role="alert" className="rounded-lg border border-destructive/40 bg-destructive-tint p-3 text-sm text-destructive">
               {serverError}
             </p>
           ) : null}
-          <WhenField date={date} time={time} showTime={Boolean(def.showTime)} today={today} onDateChange={setDate} onTimeChange={setTime} />
+          {/* Same card idiom as the workspace's WS_CARD (white, 1px border, 16px radius, no shadow). */}
+          <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-none @min-[480px]:p-5">
+            <WhenField date={date} time={time} showTime={Boolean(def.showTime)} today={today} onDateChange={setDate} onTimeChange={setTime} />
 
-          {required.map((field) => (
-            <FieldRenderer key={field.name} {...fieldProps(field)} />
-          ))}
-          {oneOfNote ? <p className="-mt-2 text-xs text-muted-foreground">{oneOfNote}</p> : null}
+            {required.map((field) => (
+              <FieldRenderer key={field.name} {...fieldProps(field)} />
+            ))}
+            {oneOfNote ? <p className="-mt-2 text-xs text-muted-foreground">{oneOfNote}</p> : null}
 
-          {past ? (
-            <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-foreground">
-              <Checkbox checked={historical} onCheckedChange={(checked) => setPastOverride(checked === true)} />
-              {t("pastRecord")}
-            </label>
-          ) : null}
+            {past ? (
+              <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-foreground">
+                <Checkbox checked={historical} onCheckedChange={(checked) => setPastOverride(checked === true)} />
+                {t("pastRecord")}
+              </label>
+            ) : null}
+          </div>
 
           {details.length > 0 ? (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4 shadow-none @min-[480px]:p-5">
               <button
                 type="button"
                 aria-expanded={showDetails}

@@ -1,5 +1,6 @@
 "use client"; // opens the cow modal on click
 
+import { WS_CARD } from "../workspace/workspace-grid";
 import { useTranslations } from "next-intl";
 import { Baby, Dna, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -11,7 +12,7 @@ import type { CattlePedigree } from "../../detail-types";
 
 type Person = { id: string | null; name: string | null; tag: string | null; farm_name?: string | null; is_external?: boolean };
 
-const GRID = "grid grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))] gap-3";
+const GRID = "grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3";
 
 function RelativeCard({ role, person: raw, missing }: { role: string; person: Person | null; missing: string }) {
   // The API sends a stub (no id/name/tag) for an unrecorded parent — treat it as absent.
@@ -24,7 +25,7 @@ function RelativeCard({ role, person: raw, missing }: { role: string; person: Pe
       <span className="text-xs font-medium text-muted-foreground">{role}</span>
       {person ? (
         <>
-          <span className="truncate text-sm font-semibold text-foreground">{label}</span>
+          <span className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
           <span className="flex flex-wrap items-center gap-1.5">
             {person.tag && person.name ? <span className="truncate text-xs text-muted-foreground">{person.tag}</span> : null}
             {person.is_external || person.farm_name ? (
@@ -59,7 +60,7 @@ export function FamilyCards({ data }: { data: CattlePedigree }) {
 
   if (!hasAny) {
     return (
-      <Card className="rounded-xl">
+      <Card className={WS_CARD}>
         <EmptyState icon={Dna} title={t("familyEmptyTitle")} description={t("familyEmptyDescription")} className="py-8" />
       </Card>
     );
@@ -68,7 +69,7 @@ export function FamilyCards({ data }: { data: CattlePedigree }) {
   return (
     <div className="flex flex-col gap-5">
       <section className="flex flex-col gap-2" aria-label={t("parents")}>
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <h3 className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           <Users className="size-4 text-muted-foreground" aria-hidden />
           {t("parents")}
         </h3>
@@ -80,7 +81,7 @@ export function FamilyCards({ data }: { data: CattlePedigree }) {
 
       {data.siblings.length > 0 ? (
         <section className="flex flex-col gap-2" aria-label={t("siblingsTitle")}>
-          <h3 className="text-sm font-semibold text-foreground">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {t("siblingsTitle")} <span className="font-normal text-muted-foreground">({data.siblings.length})</span>
           </h3>
           <div className={GRID}>
@@ -92,7 +93,7 @@ export function FamilyCards({ data }: { data: CattlePedigree }) {
       ) : null}
 
       <section className="flex flex-col gap-2" aria-label={t("offspringTitle")}>
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <h3 className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           <Baby className="size-4 text-muted-foreground" aria-hidden />
           {t("offspringTitle")} <span className="font-normal text-muted-foreground">({data.offspring.length})</span>
         </h3>

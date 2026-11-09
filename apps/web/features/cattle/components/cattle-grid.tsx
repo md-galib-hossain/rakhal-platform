@@ -269,6 +269,7 @@ export function CattleGrid({
             <SelectableCardOverlay
               key={cattle.id}
               canSelect={canSelect}
+              position="top-right"
               selected={isSelected(cattle.id)}
               onToggleSelect={() => onToggleSelect(cattle.id)}
               label={t("bulk.selectCard", { name: cattle.name ?? cattle.tagNumber })}

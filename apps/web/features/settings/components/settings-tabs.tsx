@@ -6,8 +6,8 @@ import { Bell, BellRing, Building2, CreditCard, KeySquare, SlidersHorizontal } f
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/empty-state";
 import { BillingSettingsView } from "@/features/subscription/components/billing/billing-settings-view";
-import { NotificationPreferencesView } from "@/features/notifications/components/notification-preferences-view";
 import { FollowUpRulesView } from "./follow-up-rules-view";
+import { NotificationSettingsLink } from "./notification-settings-link";
 import { ModulesSettingsView } from "./modules-settings-view";
 import { TeamSettingsView } from "./team-settings-view";
 import { WorkspaceSettingsView } from "./workspace-settings-view";
@@ -72,7 +72,7 @@ export function SettingsTabs() {
         ) : tab === "followUps" ? (
           <FollowUpRulesView />
         ) : tab === "notifications" ? (
-          <NotificationPreferencesView />
+          <NotificationSettingsLink />
         ) : (
           <EmptyState title={t("comingSoon")} description={t("comingSoonDescription")} />
         )}

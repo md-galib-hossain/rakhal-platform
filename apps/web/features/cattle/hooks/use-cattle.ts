@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
 import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
 import { useInfiniteCursorList } from "@/lib/hooks/use-infinite-cursor-list";
@@ -55,12 +55,14 @@ export function useCattleInfiniteList(filters: CattleListFilters) {
 
 /** RAKHAL-475 — the full upcoming-events list for the Next event popover. Lazy: only fetches while the
  * popover is open (`enabled`), so a 100-row list does not fire 100 requests. */
-export function useUpcomingEvents(id: string, enabled: boolean) {
+export function useUpcomingEvents(id: string, enabled: boolean, limit?: number) {
   return useQuery({
-    queryKey: qk.cattle.upcomingEvents(id),
-    queryFn: () => cattleApi.upcomingEvents(id),
+    queryKey: qk.cattle.upcomingEvents(id, limit),
+    queryFn: () => cattleApi.upcomingEvents(id, limit),
     enabled,
     staleTime: STALE_TIME,
+    // Growing `limit` (scroll-to-load-more) keeps the rows already on screen while the bigger page loads.
+    placeholderData: limit === undefined ? undefined : keepPreviousData,
   });
 }
 

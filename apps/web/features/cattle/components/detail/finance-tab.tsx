@@ -1,5 +1,7 @@
 "use client"; // live query + dynamic chart import + month state
 
+import { WS_CARD } from "../workspace/workspace-grid";
+import { DrillStat, DrillStats } from "../workspace/drill/drill-template";
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
@@ -8,7 +10,6 @@ import { ChevronLeft, ChevronRight, Wallet } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { cn } from "@/lib/utils";
-import { StatCard } from "@/components/shared/stat-card";
 import { ChartCard } from "@/components/shared/chart-card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
@@ -29,7 +30,6 @@ const TrendChartInner = dynamic(() => import("./charts/trend-chart-inner"), {
 });
 
 // Container-query-safe: tiles wrap by available width, never by viewport (the workspace is a modal).
-const AUTO_FIT_TILES = "grid grid-cols-[repeat(auto-fit,minmax(min(100%,140px),1fr))] gap-3";
 const AUTO_FIT_CARDS = "grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-4";
 
 function currentPeriod(offset: number): string {
@@ -51,11 +51,11 @@ export function FinanceTab({ cattleId }: { cattleId: string }) {
 
   if (query.isLoading) {
     return (
-      <div className={AUTO_FIT_TILES}>
+      <DrillStats>
         <CardSkeleton />
         <CardSkeleton />
         <CardSkeleton />
-      </div>
+      </DrillStats>
     );
   }
   if (query.isError) {
@@ -96,7 +96,7 @@ export function FinanceTab({ cattleId }: { cattleId: string }) {
     return (
       <div className="flex flex-col gap-4">
         {monthNav}
-        <Card className="rounded-xl">
+        <Card className={WS_CARD}>
           <EmptyState
             icon={Wallet}
             title={t("emptyTitle")}
@@ -114,11 +114,11 @@ export function FinanceTab({ cattleId }: { cattleId: string }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className={AUTO_FIT_TILES}>
-        <StatCard label={t("totalIncome")} value={<MoneyText amount={data.total_income} />} />
-        <StatCard label={t("totalCost")} value={<MoneyText amount={data.total_cost} />} />
-        <StatCard label={t("netProfit")} value={<MoneyText amount={data.net_profit} colorize />} />
-      </div>
+      <DrillStats>
+        <DrillStat label={t("totalIncome")} value={<MoneyText amount={data.total_income} />} />
+        <DrillStat label={t("totalCost")} value={<MoneyText amount={data.total_cost} />} />
+        <DrillStat label={t("netProfit")} value={<MoneyText amount={data.net_profit} colorize />} />
+      </DrillStats>
 
       {monthNav}
 
@@ -129,6 +129,7 @@ export function FinanceTab({ cattleId }: { cattleId: string }) {
 
       {chartHasData ? (
       <ChartCard
+        className="shadow-none"
         title={t("monthlyChart")}
         legend={
           <div className="flex items-center gap-3">
@@ -154,7 +155,7 @@ export function FinanceTab({ cattleId }: { cattleId: string }) {
         />
       </ChartCard>
       ) : (
-        <Card className="rounded-xl">
+        <Card className={WS_CARD}>
           <EmptyState icon={Wallet} title={t("chartEmpty")} className="py-8" />
         </Card>
       )}
@@ -178,7 +179,7 @@ function BreakdownCard({
   const t = useTranslations("cattle.detail.finance");
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-border p-4">
-      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{title}</p>
       {total === 0 ? (
         <p className="text-sm text-muted-foreground">{t("noData")}</p>
       ) : (

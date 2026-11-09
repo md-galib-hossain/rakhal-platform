@@ -697,7 +697,7 @@ export function PedigreeTab({ cattleId }: { cattleId: string }) {
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-foreground">{t("treeView")}</h3>
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("treeView")}</h3>
             <span className="text-xs text-muted-foreground">({t("panHint")})</span>
           </div>
           <div className="flex items-center gap-2">

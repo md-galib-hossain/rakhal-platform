@@ -3,16 +3,11 @@
 import { createContext, useCallback, useContext, useState } from "react";
 import dynamic from "next/dynamic";
 import { parseAsString, useQueryState } from "nuqs";
-import { useCattleDetail } from "../hooks/use-cattle";
 import type { CattleDetail, CattleListItem } from "../types";
 
 const CattleDetailSheet = dynamic(
   // eslint-disable-next-line import/no-cycle -- the workspace sections call back into this provider (MILESTONE 31)
   () => import("../components/detail/cattle-detail-sheet").then((m) => m.CattleDetailSheet),
-  { ssr: false },
-);
-const CattleFormDialog = dynamic(
-  () => import("../components/cattle-form-dialog").then((m) => m.CattleFormDialog),
   { ssr: false },
 );
 const CattleDisposeDialog = dynamic(
@@ -42,17 +37,16 @@ export function CattleDetailModalProvider({ children }: { children: React.ReactN
   const [viewId, setViewId] = useQueryState("view", parseAsString);
   const [, setRecordParam] = useQueryState("record", parseAsString);
   const [, setRefParam] = useQueryState("ref", parseAsString);
-  const [editingId, setEditingId] = useState<string | undefined>(undefined);
-  const [formOpen, setFormOpen] = useState(false);
   const [disposeTarget, setDisposeTarget] = useState<CattleListItem | CattleDetail | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CattleListItem | CattleDetail | null>(null);
   const [saleTarget, setSaleTarget] = useState<CattleListItem | CattleDetail | null>(null);
-
-  const editingDetail = useCattleDetail(editingId);
+  // Opened straight into an event form from another page (`record` option): show the form alone, not the profile sheet.
+  const [formOnly, setFormOnly] = useState(false);
 
   const openCattleDetail = useCallback(
     (id: string, options?: { record?: string; ref?: string }) => {
       void setViewId(id);
+      setFormOnly(Boolean(options?.record));
       if (options?.record) {
         void setRecordParam(options.record);
         void setRefParam(options.ref ?? null);
@@ -62,6 +56,7 @@ export function CattleDetailModalProvider({ children }: { children: React.ReactN
   );
 
   const closeCattleDetail = useCallback(() => {
+    setFormOnly(false);
     void setViewId(null);
   }, [setViewId]);
 
@@ -79,12 +74,8 @@ export function CattleDetailModalProvider({ children }: { children: React.ReactN
       {viewId != null && (
         <CattleDetailSheet
           cattleId={viewId ?? undefined}
+          formOnly={formOnly}
           onOpenChange={(open) => !open && closeCattleDetail()}
-          onEdit={(cattle) => {
-            closeCattleDetail();
-            setEditingId(cattle.id);
-            setFormOpen(true);
-          }}
           onDispose={(cattle) => {
             closeCattleDetail();
             setDisposeTarget(cattle);
@@ -93,18 +84,6 @@ export function CattleDetailModalProvider({ children }: { children: React.ReactN
             closeCattleDetail();
             setDeleteTarget(cattle);
           }}
-        />
-      )}
-
-      {formOpen && (
-        <CattleFormDialog
-          open={formOpen}
-          onOpenChange={(open) => {
-            setFormOpen(open);
-            if (!open) setEditingId(undefined);
-          }}
-          cattle={editingDetail.data}
-          loading={Boolean(editingId) && !editingDetail.data}
         />
       )}
 

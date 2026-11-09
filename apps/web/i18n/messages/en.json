@@ -206,23 +206,142 @@
     "notifications": "Notifications",
     "onboarding": "Onboarding"
   },
-  "notificationsPage": {
+  "notificationSheet": {
     "title": "Notifications",
-    "markAllRead": "Mark all read",
-    "preferences": "Preferences",
-    "loadError": "Could not load notifications.",
-    "empty": "No notifications",
-    "emptyDescription": "You're all caught up.",
-    "pageOf": "Page {page} of {total}",
-    "filters": {
-      "all": "All",
-      "unread": "Unread"
+    "description": "Your inbox, upcoming notifications and new reminders.",
+    "tabsLabel": "Notification sections",
+    "tabs": {
+      "inbox": "Inbox",
+      "upcoming": "Upcoming",
+      "new": "New"
+    },
+    "preferences": "Notification settings",
+    "preferencesTitle": "Notification settings",
+    "back": "Go back",
+    "inbox": {
+      "filterLabel": "Notification filter",
+      "filters": {
+        "all": "All",
+        "unread": "Unread"
+      },
+      "markAllRead": "Mark all read",
+      "unread": "Unread",
+      "errorTitle": "Something went wrong",
+      "loadError": "Could not load notifications.",
+      "empty": "No notifications",
+      "emptyUnread": "No unread notifications",
+      "emptyDescription": "You're all caught up.",
+      "loadMore": "Load more",
+      "shown": "Showing {shown} of {total}"
     },
     "priority": {
       "critical": "Critical",
       "high": "High",
       "medium": "Medium",
       "low": "Low"
+    },
+    "upcoming": {
+      "rangeLabel": "Time range",
+      "ranges": { "today": "Today", "week": "7 days", "fortnight": "14 days" },
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "errorTitle": "Something went wrong",
+      "loadError": "Could not load upcoming notifications.",
+      "empty": "Nothing coming up",
+      "emptyDescription": "No notifications are scheduled for this period.",
+      "source": { "system": "Automatic", "mine": "Yours", "shared": "Shared with you" },
+      "repeat": { "EVERY_N_DAYS": "Repeats every few days", "WEEKLY": "Repeats weekly", "MONTHLY": "Repeats monthly" },
+      "animals": "{count, plural, one {# animal} other {# animals}}",
+      "edit": "Edit {title}",
+      "pause": "Pause {title}",
+      "resume": "Resume {title}",
+      "cancel": "Cancel {title}",
+      "paused": "Reminder paused",
+      "resumed": "Reminder resumed",
+      "cancelled": "Reminder cancelled",
+      "actionError": "Could not update the reminder. Try again.",
+      "loadMore": "Load more",
+      "retry": "Retry",
+      "pausedTitle": "Paused",
+      "cancelConfirmTitle": "Cancel this reminder?",
+      "cancelConfirmBody": "\"{title}\" and all its upcoming notifications will be removed. This cannot be undone.",
+      "cancelConfirm": "Cancel reminder",
+      "keep": "Keep it"
+    },
+    "compose": {
+      "titleLabel": "Title",
+      "titlePlaceholder": "e.g. Check the north fence",
+      "notesLabel": "Notes (optional)",
+      "notesPlaceholder": "Anything you want to remember",
+      "whenLabel": "When",
+      "when": { "date": "On a date", "before": "Before the event", "after": "After the event" },
+      "dateLabel": "Date",
+      "daysBefore": "Days before",
+      "daysAfter": "Days after",
+      "anchorAbout": "About: {label}",
+      "anchorLinked": "Linked to a record",
+      "timeModeLabel": "Time of day",
+      "timeMode": { "at": "At a time", "allDay": "All day" },
+      "timeLabel": "Time",
+      "allDayHint": "All-day notices are sent at 08:00 farm time.",
+      "leadLabel": "Notify me",
+      "lead": { "0": "At the time", "60": "1 hour before", "1440": "1 day before", "10080": "1 week before" },
+      "repeatLabel": "Repeat",
+      "repeat": { "NEVER": "Never", "EVERY_N_DAYS": "Every N days", "WEEKLY": "Weekly", "MONTHLY": "Monthly" },
+      "everyN": "Every how many days",
+      "endsOn": "Stop repeating on",
+      "audienceLabel": "Who gets it",
+      "audience": { "me": "Me", "roles": "Roles", "people": "People" },
+      "onlyYou": "This notification will be sent to you.",
+      "roles": { "Owner": "Owner", "Manager": "Manager", "Worker": "Worker" },
+      "peopleLoading": "Loading team…",
+      "peopleError": "Could not load the team.",
+      "peopleEmpty": "No team members yet.",
+      "animalsLabel": "Animals (optional)",
+      "animalsPlaceholder": "Search animals by tag or name",
+      "animalsNone": "No animals selected.",
+      "animalChip": "Animal",
+      "removeAnimal": "Remove {animal}",
+      "preview": {
+        "title": "This will send on",
+        "idle": "Fill in the form to see when it will send.",
+        "loading": "Checking the schedule…",
+        "error": "Could not preview the schedule.",
+        "none": "Nothing would be sent with these settings.",
+        "recipients": "{count, plural, one {# person} other {# people}} will get it"
+      },
+      "submit": "Create notification",
+      "save": "Save changes",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "createdToast": "Notification scheduled",
+      "updatedToast": "Notification updated",
+      "genericError": "Something went wrong. Please try again.",
+      "loadError": "Could not load this notification.",
+      "retry": "Retry",
+      "errors": {
+        "titleRequired": "Enter a title",
+        "titleTooLong": "Title is too long (max 120)",
+        "notesTooLong": "Notes are too long (max 1000)",
+        "dateRequired": "Pick a date",
+        "timeInvalid": "Enter a valid time",
+        "offsetInvalid": "Enter a whole number of days (0 to 3650)",
+        "intervalInvalid": "Enter a number of days from 1 to 365",
+        "endBeforeStart": "The end date must be on or after the start date",
+        "leadRequired": "Pick at least one",
+        "leadNeedsTime": "These need a specific time",
+        "tooManyLeads": "Pick at most 4",
+        "tooManyPeople": "At most 100 people",
+        "tooManyAnimals": "At most 100 animals",
+        "rolesRequired": "Pick at least one role",
+        "peopleRequired": "Pick at least one person"
+      }
+    },
+    "comingSoon": {
+      "upcomingTitle": "Upcoming notifications are coming soon",
+      "upcomingBody": "Your next reminders and task alerts will show here, grouped by day.",
+      "newTitle": "New reminders are coming soon",
+      "newBody": "You will be able to create your own reminders from here."
     }
   },
   "onboarding": {
@@ -671,7 +790,9 @@
       },
       "emptyTitle": "Stock levels are healthy",
       "emptyDescription": "No low-stock items right now.",
-      "error": "Could not load stock alerts."
+      "error": "Could not load stock alerts.",
+      "daysLeft": "~{count}d left",
+      "viewInventory": "View inventory"
     },
     "feedCost": {
       "title": "Feed Cost",
@@ -1792,6 +1913,21 @@
       "selectedCount": "{count} selected",
       "addSelected": "Add Selected Animals",
       "allAnimalsAlreadyInGroup": "All farm animals are already in this group."
+    },
+    "profile": {
+      "title": "Edit {name}",
+      "identity": "Identity",
+      "origin": "Origin & family",
+      "physical": "Physical",
+      "weightHint": "Weight is recorded as a Weighed event, not edited here.",
+      "tagRequired": "Tag ID is required.",
+      "save": "Save changes",
+      "saving": "Saving…",
+      "close": "Close",
+      "savedToast": "Profile updated.",
+      "discardTitle": "Discard your changes?",
+      "keepEditing": "Keep editing",
+      "discard": "Discard"
     }
   },
   "inventory": {
@@ -3507,9 +3643,7 @@
         "dueInDays": "In {days, number} days",
         "overdueDays": "{days, plural, one {1 day overdue} other {# days overdue}}",
         "nextReminder": "Next reminder: {date} ({when})",
-        "reminderToday": "Reminder goes out today",
-        "reminderWhen": "{days, plural, =0 {on the day} one {1 day before} other {# days before}}",
-        "remindedDaily": "Reminded daily until it is done",
+        "remindMe": "Remind me",
         "medicine": "Medicine",
         "dose": "Dose",
         "action": "Action",
@@ -3825,9 +3959,9 @@
         "span": "{steps, plural, one {1 step} other {# steps}} over {days, plural, one {1 day} other {# days}}",
         "milkUntil": "Milk withheld until {date}",
         "meatUntil": "Meat withheld until {date}",
-        "remindersAll": "Reminders for the first step: {dates}. Every step is reminded 7 days, 3 days and 1 day before, and on the day.",
-        "remindersPartial": "The first step is close, so its reminders start later: {dates}. Later steps get all four.",
-        "remindersNone": "The first step's date has already passed — you'll get a daily reminder until it is recorded.",
+        "remindersAll": "You'll be notified about the first step on: {dates}. Later steps follow the same pattern.",
+        "remindersPartial": "The first step is close, so its notices start later: {dates}. Later steps get all of them.",
+        "remindersNone": "The first step's date has already passed — you'll get a daily notice until it is recorded.",
         "today": "Today",
         "tomorrow": "Tomorrow",
         "inDays": "In {days} days",
@@ -4668,7 +4802,6 @@
   "tasks": {
     "pageTitle": "Task Hub",
     "createTask": "Create Task",
-    "newReminder": "New reminder",
     "searchPlaceholder": "Search task by id",
     "priority": {
       "HIGH": "High",
@@ -4837,76 +4970,12 @@
       "genericError": "Something went wrong. Please try again.",
       "markDone": "Mark done",
       "notifies": "Who is told",
-      "reminderCancelTask": "Cancel reminder",
-      "reminderCancelReasonPlaceholder": "Why is this reminder being cancelled?",
-      "reminderCancelledToast": "Reminder cancelled",
-      "reminderDoneToast": "Reminder marked done",
-      "reminderReopenedToast": "Reminder reopened",
-      "reminderDeletedToast": "Reminder deleted",
-      "reminderDeleteConfirmTitle": "Delete this reminder?",
-      "reminderDeleteConfirmDescription": "This permanently removes the reminder. This can't be undone.",
-      "reminderDescription": "Notes"
+      "remindMe": "Remind me about this task"
     },
     "editSheet": {
       "title": "Edit Task",
       "save": "Save Changes",
       "updatedToast": "Task updated"
-    },
-    "segment": {
-      "label": "Task Hub view",
-      "tasks": "Tasks",
-      "reminders": "Reminders"
-    },
-    "reminders": {
-      "searchPlaceholder": "Search reminders",
-      "error": {
-        "title": "Could not load reminders."
-      },
-      "tabs": {
-        "upcoming": "Upcoming",
-        "overdue": "Overdue",
-        "repeating": "Repeating",
-        "done": "Done",
-        "label": "Reminder views"
-      },
-      "roles": {
-        "Owner": "Owner",
-        "Manager": "Manager",
-        "Worker": "Worker"
-      },
-      "empty": {
-        "upcoming": {
-          "title": "No upcoming reminders",
-          "description": "Use New reminder to be told about something on a date or after an event."
-        },
-        "overdue": {
-          "title": "No overdue reminders",
-          "description": "Nothing has been missed."
-        },
-        "repeating": {
-          "title": "No repeating reminders",
-          "description": "Reminders that repeat on a schedule will show up here."
-        },
-        "filteredTitle": "No reminders match these filters",
-        "filteredDescription": "Try another tab or date, or clear the filters.",
-        "done": {
-          "title": "No finished reminders yet",
-          "description": "Reminders you mark Done will show up here."
-        }
-      },
-      "card": {
-        "done": "Done",
-        "doneToast": "Reminder marked done",
-        "genericError": "Something went wrong. Please try again.",
-        "repeatsEveryN": "Repeats every {count, plural, one {day} other {# days}}",
-        "repeatsWeekly": "Repeats weekly",
-        "repeatsMonthly": "Repeats monthly",
-        "leadNotice": "Heads-up {count, plural, one {# day} other {# days}} before",
-        "notifiedPeople": "Tells {count, plural, one {# person} other {# people}}",
-        "notifiedRoles": "Tells {roles}",
-        "notifiedAssignee": "Tells {name}",
-        "notifiedNobody": "Tells the Owner and managers"
-      }
     }
   },
   "finance": {
@@ -7120,7 +7189,30 @@
       "bulkDisableAll": "Disable All",
       "filterByChannel": "Filter by channel:",
       "searchAlerts": "Search alerts...",
-      "noMatchingAlerts": "No alerts match your filter."
+      "noMatchingAlerts": "No alerts match your filter.",
+      "openInSheetTitle": "Notification settings",
+      "openInSheetDescription": "Choose which alerts you get, where they are delivered (Telegram, SMS, push) and your quiet hours. They open in the notification panel.",
+      "openInSheet": "Open notification settings",
+      "alertCount": "{count, plural, one {# alert} other {# alerts}}",
+      "mandatoryHint": "Safety alert: always on",
+      "toggleAlert": "Toggle {label}",
+      "mutedSuffix": "(Muted)",
+      "channelMutedToast": "{channel} alerts muted.",
+      "channelActiveToast": "{channel} alerts active.",
+      "hub": {
+        "telegramTagline": "Instant bot alerts",
+        "smsTagline": "Verified phone number",
+        "pushTagline": "Web & in-app bell",
+        "whatsappTagline": "WhatsApp API",
+        "emailTagline": "Digest & alerts",
+        "stateActive": "Active",
+        "stateMuted": "Muted (not sending)",
+        "stateNotConnected": "Not connected",
+        "seamReady": "Coming soon",
+        "toggleTelegram": "Toggle Telegram delivery",
+        "toggleSms": "Toggle SMS delivery",
+        "togglePush": "Toggle push delivery"
+      }
     },
     "serviceProviderPicker": {
       "selectProvider": "Select a technician",
@@ -9098,6 +9190,7 @@
     "workspace": {
       "title": "Animal workspace",
       "recordEvent": "Record event",
+      "remindMe": "Remind me about this animal",
       "allEvents": "All events…",
       "quickMenu": "Quick record",
       "shortcutHint": "Ctrl/Cmd+K",
@@ -9596,7 +9689,7 @@
       "error": "Could not load what is due.",
       "retry": "Try again",
       "nothingDue": "Nothing due",
-      "showAll": "Show all ({count})",
+      "loadingMore": "Loading more…",
       "more": "+{count} more",
       "infoOnly": "Information only",
       "record": "Record",
@@ -9615,95 +9708,7 @@
       "failed": "Could not update the reminder.",
       "recordOnList": "Record",
       "addReminder": "Add reminder",
-      "editReminder": "Edit"
-    },
-    "reminders": {
-      "title": "New reminder",
-      "titleFor": "New reminder · {animal}",
-      "editTitle": "Edit reminder",
-      "description": "Set what to remember, when, who is told and which animals it is about.",
-      "close": "Close",
-      "titleLabel": "Title",
-      "titlePlaceholder": "Check left hind hoof",
-      "notesLabel": "Notes",
-      "notesPlaceholder": "Anything to remember (optional)",
-      "whenLabel": "When",
-      "when": {
-        "date": "On a date",
-        "afterEvent": "After an event"
-      },
-      "date": "Date",
-      "time": "Time (optional)",
-      "daysAfter": "Days after",
-      "afterEventLabel": "After this event",
-      "eventPlaceholder": "Pick an event",
-      "eventsLoading": "Loading events…",
-      "noEvents": "No recorded events for this animal yet.",
-      "eventsError": "Could not load this animal's events.",
-      "dueOn": "Due {date}",
-      "follows": "Follows the {event} on {date}. Change that date and this reminder moves.",
-      "followsUnknown": "Follows a recorded event. Change that event's date and this reminder moves.",
-      "pickOneAnimal": "Pick one animal",
-      "repeatLabel": "Repeat",
-      "repeat": {
-        "NEVER": "Never",
-        "EVERY_N_DAYS": "Every N days",
-        "WEEKLY": "Weekly",
-        "MONTHLY": "Monthly"
-      },
-      "everyN": "Every how many days",
-      "endsOn": "Ends on (optional)",
-      "leadLabel": "Tell me",
-      "lead": {
-        "0": "On the day",
-        "1": "1 day before too",
-        "3": "3 days before too",
-        "7": "7 days before too"
-      },
-      "audienceLabel": "Who is told",
-      "audience": {
-        "assignee": "One person",
-        "roles": "Roles",
-        "people": "Named people"
-      },
-      "roles": {
-        "Owner": "Owner",
-        "Manager": "Manager",
-        "Worker": "Worker"
-      },
-      "peopleLoading": "Loading team…",
-      "animalsLabel": "Animals",
-      "animalsPlaceholder": "Add animals",
-      "animalsNone": "Not about a particular animal.",
-      "animalsLocked": "Animals cannot be changed after saving. Cancel this reminder and make a new one to change them.",
-      "removeAnimal": "Remove {animal}",
-      "save": "Save reminder",
-      "saving": "Saving…",
-      "cancel": "Cancel",
-      "cancelReminder": "Cancel this reminder",
-      "cancelConfirmTitle": "Cancel this reminder?",
-      "cancelConfirmBody": "It leaves Next up and the Task Hub, and nobody is reminded. Repeats stop too.",
-      "cancelConfirmAction": "Cancel reminder",
-      "keep": "Keep it",
-      "cancelledToast": "Reminder cancelled",
-      "createdToast": "Reminder saved",
-      "updatedToast": "Reminder updated",
-      "genericError": "Could not save the reminder. Try again.",
-      "errors": {
-        "titleRequired": "Give the reminder a title",
-        "titleTooLong": "Title is too long",
-        "notesTooLong": "Notes are too long",
-        "dateRequired": "Pick a date",
-        "timeInvalid": "Use a time like 08:30",
-        "oneAnimalForEvent": "Pick exactly one animal",
-        "eventRequired": "Pick the event",
-        "offsetInvalid": "Enter whole days, 0 or more",
-        "intervalInvalid": "Enter 1 to 365 days",
-        "endBeforeStart": "End date is before the first date",
-        "assigneeRequired": "Pick who to tell",
-        "rolesRequired": "Pick at least one role",
-        "peopleRequired": "Pick at least one person"
-      }
+      "remindMe": "Remind me"
     },
     "notifications": {
       "record": "Record",

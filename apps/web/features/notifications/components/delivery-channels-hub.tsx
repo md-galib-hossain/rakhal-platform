@@ -57,7 +57,7 @@ export function DeliveryChannelsHub({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-1 gap-3">
         {/* 1. TELEGRAM BOT CHANNEL */}
         <div
           data-testid="channel-card-telegram"
@@ -109,7 +109,7 @@ export function DeliveryChannelsHub({
                   <span className="text-[11px] text-muted-foreground">
                     {telegramStatus.data?.linked && telegramStatus.data.count > 0
                       ? t("telegram.activeChats", { count: telegramStatus.data.count })
-                      : "Instant Bot Alerts"}
+                      : t("hub.telegramTagline")}
                   </span>
                 </div>
               </div>
@@ -122,7 +122,7 @@ export function DeliveryChannelsHub({
                       {isTelegramMuted ? t("channelMuted") : t("channelActive")}
                     </span>
                     <Switch
-                      aria-label="Toggle Telegram notifications delivery"
+                      aria-label={t("hub.toggleTelegram")}
                       checked={!isTelegramMuted}
                       onCheckedChange={(active) => onToggleChannelMute("telegram", !active)}
                     />
@@ -140,9 +140,9 @@ export function DeliveryChannelsHub({
             <span className="text-[11px] text-muted-foreground">
               {isTelegramLinked
                 ? isTelegramActive
-                  ? "Active"
-                  : "Muted (not sending)"
-                : "Not connected"}
+                  ? t("hub.stateActive")
+                  : t("hub.stateMuted")
+                : t("hub.stateNotConnected")}
             </span>
 
             <Can I="notification.update">
@@ -210,7 +210,7 @@ export function DeliveryChannelsHub({
                     </Badge>
                   </div>
                   <span className="text-[11px] text-muted-foreground">
-                    Verified phone number
+                    {t("hub.smsTagline")}
                   </span>
                 </div>
               </div>
@@ -221,7 +221,7 @@ export function DeliveryChannelsHub({
                     {channelMutes.sms ? t("channelMuted") : t("channelActive")}
                   </span>
                   <Switch
-                    aria-label="Toggle SMS notifications delivery"
+                    aria-label={t("hub.toggleSms")}
                     checked={!channelMutes.sms}
                     onCheckedChange={(active) => onToggleChannelMute("sms", !active)}
                   />
@@ -236,7 +236,7 @@ export function DeliveryChannelsHub({
 
           <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
             <span className="text-[11px] text-muted-foreground">
-              {!channelMutes.sms ? "Active" : "Muted"}
+              {!channelMutes.sms ? t("channelActive") : t("channelMuted")}
             </span>
             <Button
               variant="outline"
@@ -283,7 +283,7 @@ export function DeliveryChannelsHub({
                     </Badge>
                   </div>
                   <span className="text-[11px] text-muted-foreground">
-                    Web & in-app bell
+                    {t("hub.pushTagline")}
                   </span>
                 </div>
               </div>
@@ -294,7 +294,7 @@ export function DeliveryChannelsHub({
                     {channelMutes.push ? t("channelMuted") : t("channelActive")}
                   </span>
                   <Switch
-                    aria-label="Toggle Push notifications delivery"
+                    aria-label={t("hub.togglePush")}
                     checked={!channelMutes.push}
                     onCheckedChange={(active) => onToggleChannelMute("push", !active)}
                   />
@@ -309,7 +309,7 @@ export function DeliveryChannelsHub({
 
           <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
             <span className="text-[11px] text-muted-foreground">
-              {!channelMutes.push ? "Active" : "Muted"}
+              {!channelMutes.push ? t("channelActive") : t("channelMuted")}
             </span>
             <Button
               variant="outline"
@@ -342,7 +342,7 @@ export function DeliveryChannelsHub({
                       {t("channelStatus.comingSoon")}
                     </Badge>
                   </div>
-                  <span className="text-[11px] text-muted-foreground">WhatsApp API</span>
+                  <span className="text-[11px] text-muted-foreground">{t("hub.whatsappTagline")}</span>
                 </div>
               </div>
             </div>
@@ -353,7 +353,7 @@ export function DeliveryChannelsHub({
           </div>
 
           <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
-            <span className="text-[11px] text-muted-foreground">Modular seam ready</span>
+            <span className="text-[11px] text-muted-foreground">{t("hub.seamReady")}</span>
             <Button variant="outline" size="sm" disabled className="h-7.5 px-2.5 text-xs text-muted-foreground">
               {t("channelAction.connect")}
             </Button>
@@ -380,7 +380,7 @@ export function DeliveryChannelsHub({
                       {t("channelStatus.comingSoon")}
                     </Badge>
                   </div>
-                  <span className="text-[11px] text-muted-foreground">Digest & Alerts</span>
+                  <span className="text-[11px] text-muted-foreground">{t("hub.emailTagline")}</span>
                 </div>
               </div>
             </div>
@@ -391,7 +391,7 @@ export function DeliveryChannelsHub({
           </div>
 
           <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
-            <span className="text-[11px] text-muted-foreground">Modular seam ready</span>
+            <span className="text-[11px] text-muted-foreground">{t("hub.seamReady")}</span>
             <Button variant="outline" size="sm" disabled className="h-7.5 px-2.5 text-xs text-muted-foreground">
               {t("channelAction.connect")}
             </Button>

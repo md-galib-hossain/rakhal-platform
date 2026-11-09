@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
+import { Clock, SkipForward } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { todayLocalIso } from "@/lib/local-date";
@@ -11,6 +12,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { UpcomingEvent } from "@/features/cattle/types";
 import { useNextUpActions } from "../../hooks/use-next-up";
 import { SNOOZE_DAYS, snoozeDay, snoozeDueAt } from "../../next-up-model";
+
+/** Secondary card actions: borderless icon + label, 44px tall on touch, so a card has one clear primary and no row of boxed twins. */
+export const QUIET_ACTION = "h-11 gap-1 px-1.5 text-[13px] text-muted-foreground hover:text-foreground sm:h-8";
 
 /** Snooze (1 / 3 / 7 days or a picked date) for a Task Hub reminder; the task keeps its time of day. */
 export function SnoozeControl({ event }: { event: UpcomingEvent }) {
@@ -42,7 +46,8 @@ export function SnoozeControl({ event }: { event: UpcomingEvent }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-11 w-full sm:h-9">
+        <Button type="button" variant="ghost" size="sm" className={QUIET_ACTION}>
+          <Clock className="size-4" aria-hidden />
           {t("snooze")}
         </Button>
       </PopoverTrigger>
@@ -87,7 +92,8 @@ export function SkipControl({ event }: { event: UpcomingEvent }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-11 w-full sm:h-9">
+        <Button type="button" variant="ghost" size="sm" className={QUIET_ACTION}>
+          <SkipForward className="size-4" aria-hidden />
           {t("skip")}
         </Button>
       </PopoverTrigger>

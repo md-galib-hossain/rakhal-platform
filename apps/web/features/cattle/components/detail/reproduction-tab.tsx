@@ -1,7 +1,7 @@
 "use client"; // live query
 
 import { useTranslations } from "next-intl";
-import { StatCard } from "@/components/shared/stat-card";
+import { DrillBody, DrillCard, DrillStat, DrillStats } from "../workspace/drill/drill-template";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -62,24 +62,25 @@ export function ReproductionTab({
   if (!data) return null;
 
   return (
-    <div className="flex flex-col gap-4">
+    <DrillBody>
       {/* RAKHAL-317-F — calculated-vs-farmer-expected calving date, only renders when pregnant. */}
       <PregnancyCalvingCard cattleId={cattleId} />
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))] gap-4">
-        <StatCard label={t("totalCalvings")} value={data.totalCalvings} />
-        <StatCard
+      <DrillStats>
+        <DrillStat label={t("totalCalvings")} value={data.totalCalvings} />
+        <DrillStat
           label={t("calvingInterval")}
           value={data.averageCalvingInterval != null ? t("days", { value: data.averageCalvingInterval }) : "—"}
+          muted={data.averageCalvingInterval == null}
         />
-        <StatCard
+        <DrillStat
           label={t("conceptionRate")}
           value={data.conceptionRate != null ? `${Math.round(data.conceptionRate * 100)}%` : "—"}
+          muted={data.conceptionRate == null}
         />
-      </div>
+      </DrillStats>
 
-      <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold text-foreground">{t("timeline.title")}</h3>
+      <DrillCard title={t("timeline.title")}>
         {timeline.isLoading ? (
           <CardSkeleton />
         ) : timeline.isError ? (
@@ -95,7 +96,7 @@ export function ReproductionTab({
             ))}
           </ul>
         )}
-      </div>
-    </div>
+      </DrillCard>
+    </DrillBody>
   );
 }

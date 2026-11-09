@@ -8,13 +8,12 @@ import type {
   CreateTaskPayload,
   Task,
   TaskAssigneeOption,
-  ReminderHighlights,
   TaskHighlights,
   TaskListFilters,
   UpdateTaskPayload,
 } from "./types";
 
-export type TaskListPage = CursorPage<Task> & { meta: CursorMeta & { highlights: TaskHighlights; reminderHighlights?: ReminderHighlights } };
+export type TaskListPage = CursorPage<Task> & { meta: CursorMeta & { highlights: TaskHighlights } };
 
 /** `/tasks` — real backend routes (`task.controller.ts`), `task.*`-gated. */
 export const tasksApi = {
@@ -22,7 +21,6 @@ export const tasksApi = {
     return apiFetchPage<Task>("/tasks", {
       searchParams: {
         filter: filters.filter,
-        kind: filters.kind,
         category: filters.category,
         priority: filters.priority,
         search: filters.search,

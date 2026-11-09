@@ -38,7 +38,6 @@ import {
   useSheds,
 } from "../hooks/use-cattle";
 import { BulkEventSheet } from "@/features/events/components/bulk/bulk-event-sheet";
-import { cattleApi } from "../api";
 import { buildCattleColumns } from "./cattle-columns";
 import { CattleGrid } from "./cattle-grid";
 import type {
@@ -111,9 +110,6 @@ export function CattleTable() {
   const addToAnimalGroup = useAddToAnimalGroup();
   const items = query.items;
   const [recordOpen, setRecordOpen] = useState(false);
-  /** Animals fetched by "Select all matching" that the infinite list has not loaded yet (the bulk sheet needs their facts). */
-  const [fetchedItems, setFetchedItems] = useState<CattleListItem[]>([]);
-  const [selectingAll, setSelectingAll] = useState(false);
   const [disposeDialogOpen, setDisposeDialogOpen] = useState(false);
   const [disposeType, setDisposeType] = useState<BulkDisposeType>("SALE");
   const columns = useMemo(
@@ -142,26 +138,9 @@ export function CattleTable() {
   const tEvents = useTranslations("events.bulk");
   const selectedAnimals = useMemo(() => {
     const byId = new Map<string, CattleListItem>();
-    for (const row of [...fetchedItems, ...items]) byId.set(row.id, row);
+    for (const row of items) byId.set(row.id, row);
     return selection.selectedIds.map((id) => byId.get(id)).filter((row): row is CattleListItem => Boolean(row));
-  }, [fetchedItems, items, selection.selectedIds]);
-
-  /** RFE-163 — selects up to 100 animals matching the current filters, loaded or not (the server cap per submit). */
-  async function selectAllMatching() {
-    setSelectingAll(true);
-    try {
-      const page = await cattleApi.list(filters, undefined, 100);
-      setFetchedItems(page.items);
-      const ids = page.items.map((row) => row.id);
-      setRowSelection(Object.fromEntries(ids.map((id) => [id, true])));
-      gridSelection.selectMany(ids);
-      toast.success(tEvents("selectedMatching", { count: ids.length }));
-    } catch {
-      toast.error(tEvents("selectMatchingFailed"));
-    } finally {
-      setSelectingAll(false);
-    }
-  }
+  }, [items, selection.selectedIds]);
 
   async function run(
     action: "change_shed" | "dispose",
@@ -218,12 +197,6 @@ export function CattleTable() {
           <List className="size-4" aria-hidden />
         </button>
       </div>
-
-      {canBulk && items.length > 0 ? (
-        <Button variant="outline" size="sm" className="min-h-11 w-fit" disabled={selectingAll} onClick={() => void selectAllMatching()}>
-          {tEvents("selectMatching")}
-        </Button>
-      ) : null}
 
       {mode === "table" ? (
         <div

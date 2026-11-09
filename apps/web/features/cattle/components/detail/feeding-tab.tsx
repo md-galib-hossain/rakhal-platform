@@ -1,5 +1,7 @@
 "use client"; // live queries + dynamic dialog state
 
+import { WS_CARD } from "../workspace/workspace-grid";
+import { DrillStat, DrillStats } from "../workspace/drill/drill-template";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
@@ -7,7 +9,6 @@ import { Utensils, Wheat } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { StatCard } from "@/components/shared/stat-card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -52,7 +53,7 @@ function FeedTodayCard({ cattleId }: { cattleId: string }) {
 
   return (
     <>
-      <Card className="flex flex-col gap-3 rounded-xl p-3">
+      <Card className={`${WS_CARD} flex flex-col gap-3`}>
         <p className="text-sm font-medium text-foreground">{t("feedToday")}</p>
         <div className="flex flex-col gap-2">
           {myMixtures.map((c) => (
@@ -68,10 +69,9 @@ function FeedTodayCard({ cattleId }: { cattleId: string }) {
           ))}
         </div>
         {efficiency.data ? (
-          <StatCard
-            label={t("feedAdherence")}
-            value={efficiency.data.adherence_pct != null ? `${efficiency.data.adherence_pct}%` : "—"}
-          />
+          <DrillStats>
+            <DrillStat label={t("feedAdherence")} value={efficiency.data.adherence_pct != null ? `${efficiency.data.adherence_pct}%` : "—"} />
+          </DrillStats>
         ) : null}
       </Card>
       <LogDistributionDialog concentrationId={feedTodayId} onOpenChange={(open) => !open && setFeedTodayId(null)} />
@@ -109,8 +109,8 @@ function RationDmiSection({ cattleId }: { cattleId: string }) {
         </Can>
       </div>
 
-      <Card className="flex flex-col gap-3 p-4">
-        <p className="text-sm font-semibold text-foreground">{t("assignedRation")}</p>
+      <Card className={`${WS_CARD} flex flex-col gap-3`}>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("assignedRation")}</p>
         {!ration.data?.concentration ? (
           <EmptyState
             icon={Wheat}
@@ -142,10 +142,10 @@ function RationDmiSection({ cattleId }: { cattleId: string }) {
         )}
       </Card>
 
-      <Card className="flex flex-col gap-3 p-4">
-        <p className="text-sm font-semibold text-foreground">{t("dmiTitle")}</p>
+      <Card className={`${WS_CARD} flex flex-col gap-3`}>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("dmiTitle")}</p>
         {dmi.data ? (
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,140px),1fr))] gap-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3">
             <div className="flex min-w-0 flex-col gap-1 rounded-lg border border-border p-3">
               <span className="text-xs text-muted-foreground">{t("expectedDmi")}</span>
               <p className="text-lg font-semibold text-foreground">{t("kgValue", { value: dmi.data.expected_dmi_kg.toFixed(1) })}</p>
@@ -183,15 +183,15 @@ function CalfFeedingSections({ cattleId }: { cattleId: string }) {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-foreground">{tCalf("colostrum")}</h3>
+        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{tCalf("colostrum")}</h3>
         <ColostrumTab calfId={cattleId} data={data} />
       </div>
       <div className="flex flex-col gap-3 border-t border-border pt-6">
-        <h3 className="text-sm font-semibold text-foreground">{tCalf("milk")}</h3>
+        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{tCalf("milk")}</h3>
         <MilkFeedingTab calfId={cattleId} data={data} />
       </div>
       <div className="flex flex-col gap-3 border-t border-border pt-6">
-        <h3 className="text-sm font-semibold text-foreground">{tCalf("starterFeed")}</h3>
+        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{tCalf("starterFeed")}</h3>
         <StarterFeedTab calfId={cattleId} data={data} />
       </div>
     </div>

@@ -1,24 +1,25 @@
 "use client"; // live upcoming-events query
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Plus } from "lucide-react";
+import { BellPlus, BellRing } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useUpcomingEvents } from "@/features/cattle/hooks/use-cattle";
 import { KIND_ICON, useEventText } from "@/features/cattle/components/upcoming-event-row";
 import type { UpcomingEvent } from "@/features/cattle/types";
-import { canSnoozeSkip, recordKeyFor } from "../../next-up-model";
-import type { ReminderAnimal } from "../../reminders/reminder-model";
-import { useReminderTask } from "../../reminders/use-reminders";
-import type { Task } from "@/features/tasks/types";
+import type { ComposerAnchor, ComposerAnimal } from "@/features/notifications/schedule-model";
+import { openRemindMe } from "@/features/notifications/sheet-store";
+import { canSnoozeSkip, recordKeyFor, remindAnchorFor } from "../../next-up-model";
 import type { EventKey } from "../../types";
-import { ReminderSheet } from "../reminders/reminder-sheet";
 import { SkipControl, SnoozeControl } from "./next-up-actions";
-import { capNextUp } from "./next-up-order";
+import { orderNextUp } from "./next-up-order";
+
+/** Rows fetched per step; the endpoint caps `limit` at 50, so that is the most the scroll will ever load. */
+const PAGE = 10;
+const MAX = 50;
 
 const DUE_TEXT: Record<string, string> = {
   destructive: "text-destructive",
@@ -27,32 +28,20 @@ const DUE_TEXT: Record<string, string> = {
   muted: "text-muted-foreground",
 };
 
-/** Edit for a custom reminder (RFE-164). Only a Task Hub task whose kind is REMINDER gets it; other tasks stay as they were. */
-function ReminderEditButton({ taskId, onEdit }: { taskId: string; onEdit: (task: Task) => void }) {
-  const t = useTranslations("events.nextUp");
-  const task = useReminderTask(taskId).data;
-  if (task?.kind !== "REMINDER") return null;
-  return (
-    <Button type="button" variant="outline" size="sm" className="h-11 sm:h-9" onClick={() => onEdit(task)}>
-      {t("editReminder")}
-    </Button>
-  );
-}
-
 function NextUpCard({
   event,
+  animal,
   canRecord,
   canEditTask,
+  canRemind,
   onRecord,
-  onEditReminder,
-  full,
 }: {
-  full?: boolean;
   event: UpcomingEvent;
+  animal?: ComposerAnimal;
   canRecord: boolean;
   canEditTask: boolean;
+  canRemind: boolean;
   onRecord: (key: EventKey, ref: string) => void;
-  onEditReminder: (task: Task) => void;
 }) {
   const t = useTranslations("events.nextUp");
   const text = useEventText(event);
@@ -60,10 +49,11 @@ function NextUpCard({
   const recordKey = canRecord ? recordKeyFor(event) : null;
   const overdue = text.variant === "destructive" || text.variant === "warning";
   const taskActions = canEditTask && canSnoozeSkip(event);
+  const anchor: ComposerAnchor | null = canRemind ? remindAnchorFor(event, text.label) : null;
 
   return (
     <Card
-      className={cn("flex shrink-0 flex-col gap-2 rounded-2xl p-3 shadow-none", full ? "w-full" : "w-[85%] snap-start sm:w-72 @min-[900px]/ws:w-full", overdue && "border-warning/40 bg-warning-tint")}
+      className={cn("flex w-full shrink-0 flex-col gap-2 rounded-2xl p-3 shadow-none", overdue && "border-warning/40 bg-warning-tint")}
     >
       <div className="flex items-start gap-3">
         <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", overdue ? "bg-warning/15" : "bg-muted")} aria-hidden>
@@ -80,19 +70,28 @@ function NextUpCard({
         </div>
       </div>
       {!event.actionable ? <p className="text-xs text-muted-foreground">{t("infoOnly")}</p> : null}
-      {recordKey || taskActions ? (
-        <div className="flex flex-col gap-2">
-          {recordKey ? (
-            <Button type="button" size="sm" className="h-11 w-full sm:h-9" onClick={() => onRecord(recordKey, event.ref.id)}>
-              {t("record")}
+      {recordKey ? (
+        <Button type="button" size="sm" className="h-11 w-full sm:h-9" onClick={() => onRecord(recordKey, event.ref.id)}>
+          {t("record")}
+        </Button>
+      ) : null}
+      {taskActions || anchor ? (
+        <div className="-ml-1.5 flex items-center">
+          {taskActions ? <SnoozeControl event={event} /> : null}
+          {taskActions ? <SkipControl event={event} /> : null}
+          {anchor ? (
+            // Icon-only (name + tooltip from the label) so Snooze and Skip never wrap, even with longer Bangla labels.
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="ml-auto h-11 w-11 px-0 text-muted-foreground hover:text-foreground sm:h-8 sm:w-8"
+              aria-label={t("remindMe")}
+              title={t("remindMe")}
+              onClick={() => openRemindMe({ anchor, animal })}
+            >
+              <BellRing className="size-4" aria-hidden />
             </Button>
-          ) : null}
-          {taskActions ? (
-            <div className="grid grid-cols-3 gap-2 [&>*]:min-w-0">
-              <ReminderEditButton taskId={event.ref.id} onEdit={onEditReminder} />
-              <SnoozeControl event={event} />
-              <SkipControl event={event} />
-            </div>
           ) : null}
         </div>
       ) : null}
@@ -102,8 +101,9 @@ function NextUpCard({
 
 /**
  * "Next up" (RFE-160, 03 §3.2): everything due for this animal, most urgent first, as cards with the actions that apply —
- * Record (opens the matching form; the server closes the reminder when the event is saved), Snooze and Skip for Task
- * Hub reminders, nothing for information-only rows. RFE-187: shows the 3 most urgent (overdue first) and a "Show all (N)" popover for the rest, so it never pushes the cards below it away.
+ * Record (opens the matching form; the server closes the task when the event is saved), Snooze and Skip for Task
+ * Hub tasks, **Remind me** (opens the notification sheet's New tab anchored to that task / health step), nothing for
+ * information-only rows. Overdue first, in one height-capped scroll list that loads more on scroll (no "Show all" click).
  */
 export function NextUp({
   cattleId,
@@ -112,24 +112,39 @@ export function NextUp({
   onRecord,
 }: {
   cattleId: string;
-  /** For "Add reminder": the reminder starts on this animal. */
-  animal?: ReminderAnimal;
+  /** For "Add reminder": the notice starts on this animal. */
+  animal?: ComposerAnimal;
   canRecord: boolean;
   onRecord: (key: EventKey, ref: string) => void;
 }) {
   const t = useTranslations("events.nextUp");
   const can = useCan();
-  const query = useUpcomingEvents(cattleId, true);
-  const [reminderOpen, setReminderOpen] = useState(false);
-  const [editing, setEditing] = useState<Task | null>(null);
-  const [allOpen, setAllOpen] = useState(false);
+  const [limit, setLimit] = useState(PAGE);
+  const query = useUpcomingEvents(cattleId, true, limit);
   const loaded = query.data?.events ?? [];
-  const { shown, all, overflow, count } = capNextUp(loaded, query.data?.total ?? loaded.length);
-  const hidden = count - all.length;
-  const record = (key: EventKey, ref: string) => {
-    setAllOpen(false);
-    onRecord(key, ref);
-  };
+  const events = orderNextUp(loaded);
+  const total = Math.max(query.data?.total ?? 0, loaded.length);
+  const canLoadMore = total > loaded.length && limit < MAX;
+  const canRemind = can("notification.create");
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const busy = query.isFetching;
+
+  // Infinite scroll: the endpoint has no cursor, so each step re-asks for a bigger `limit` (10 → 20 … 50); the previous
+  // rows stay on screen meanwhile (keepPreviousData) and nothing is fetched until the user actually scrolls to the end.
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !canLoadMore || busy || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setLimit((l) => Math.min(l + PAGE, MAX));
+      },
+      // root: null = the viewport, clipped by whichever ancestor scrolls (the sidebar column when wide, this list when stacked).
+      { rootMargin: "0px 0px 160px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [canLoadMore, busy, loaded.length]);
 
   return (
     <section aria-labelledby="next-up-heading" className="flex flex-col gap-3">
@@ -137,9 +152,9 @@ export function NextUp({
         <h2 id="next-up-heading" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {t("title")}
         </h2>
-        {canRecord && can("task.create") ? (
-          <Button type="button" variant="ghost" size="sm" className="h-11 gap-1 text-primary hover:text-primary sm:h-8" onClick={() => setReminderOpen(true)}>
-            <Plus className="size-4" aria-hidden />
+        {canRecord && canRemind ? (
+          <Button type="button" variant="ghost" size="sm" className="h-11 gap-1 text-primary hover:text-primary sm:h-8" onClick={() => openRemindMe({ animal })}>
+            <BellPlus className="size-4" aria-hidden />
             {t("addReminder")}
           </Button>
         ) : null}
@@ -153,53 +168,37 @@ export function NextUp({
             {t("retry")}
           </Button>
         </div>
-      ) : shown.length === 0 ? (
+      ) : events.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t("nothingDue")}</p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {/* Stacked: one swipeable row so the cards stay short; in the sidebar: a column of 3. */}
-          <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1 @min-[900px]/ws:mx-0 @min-[900px]/ws:snap-none @min-[900px]/ws:flex-col @min-[900px]/ws:overflow-visible @min-[900px]/ws:px-0">
-            {shown.map((event) => (
-              <NextUpCard
-                key={`${event.ref.type}:${event.ref.id}:${event.labelKey}`}
-                event={event}
-                canRecord={canRecord}
-                canEditTask={can("task.update")}
-                onRecord={onRecord}
-                onEditReminder={setEditing}
-              />
-            ))}
-          </div>
-          {overflow ? (
-            <Popover open={allOpen} onOpenChange={setAllOpen}>
-              <PopoverTrigger asChild>
-                <Button type="button" variant="outline" size="sm" className="h-11 w-full sm:h-9">
-                  {t("showAll", { count })}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="end" className="flex max-h-[min(70dvh,32rem)] w-[min(22rem,calc(100vw-2rem))] flex-col gap-3 overflow-y-auto p-3">
-                {all.map((event) => (
-                  <NextUpCard
-                    full
-                    key={`all:${event.ref.type}:${event.ref.id}:${event.labelKey}`}
-                    event={event}
-                    canRecord={canRecord}
-                    canEditTask={can("task.update")}
-                    onRecord={record}
-                    onEditReminder={(task) => {
-                      setAllOpen(false);
-                      setEditing(task);
-                    }}
-                  />
-                ))}
-                {hidden > 0 ? <p className="text-center text-xs font-semibold text-muted-foreground">{t("more", { count: hidden })}</p> : null}
-              </PopoverContent>
-            </Popover>
+        // One bounded, scrollable list (about three cards tall) so it never pushes "At a glance" away; the rest loads as you scroll.
+        <div
+          ref={scrollRef}
+          role="region"
+          aria-label={t("title")}
+          aria-busy={busy}
+          className="flex max-h-[26rem] flex-col gap-2 overflow-y-auto overscroll-contain pb-1 @min-[900px]/ws:max-h-none @min-[900px]/ws:overflow-visible"
+        >
+          {events.map((event) => (
+            <NextUpCard
+              key={`${event.ref.type}:${event.ref.id}:${event.labelKey}`}
+              event={event}
+              animal={animal}
+              canRecord={canRecord}
+              canEditTask={can("task.update")}
+              canRemind={canRemind}
+              onRecord={onRecord}
+            />
+          ))}
+          {canLoadMore ? (
+            <div ref={sentinelRef} className="py-2 text-center text-xs text-muted-foreground" aria-live="polite">
+              {busy ? t("loadingMore") : " "}
+            </div>
+          ) : total > events.length ? (
+            <p className="py-1 text-center text-xs font-medium text-muted-foreground">{t("more", { count: total - events.length })}</p>
           ) : null}
         </div>
       )}
-      <ReminderSheet open={reminderOpen} onOpenChange={setReminderOpen} animal={animal} />
-      <ReminderSheet key={editing?.id} open={editing !== null} onOpenChange={(open) => !open && setEditing(null)} task={editing ?? undefined} />
     </section>
   );
 }

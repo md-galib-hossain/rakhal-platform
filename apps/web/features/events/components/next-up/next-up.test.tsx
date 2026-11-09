@@ -16,21 +16,17 @@ globalThis.ResizeObserver ??= class {
 const snoozeMutate = vi.fn();
 const skipMutate = vi.fn();
 const useUpcomingEvents = vi.fn();
-const useReminderTask = vi.fn();
+const openRemindMe = vi.fn();
 let allowTasks = true;
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/lib/auth/permissions", () => ({ useCan: () => () => allowTasks }));
 vi.mock("@/features/cattle/hooks/use-cattle", () => ({
-  useUpcomingEvents: (id: string, enabled: boolean) => useUpcomingEvents(id, enabled) as unknown,
+  useUpcomingEvents: (id: string, enabled: boolean, limit?: number) => useUpcomingEvents(id, enabled, limit) as unknown,
 }));
-vi.mock("../../reminders/use-reminders", () => ({
-  useReminderTask: (id: string) => useReminderTask(id) as unknown,
-}));
-// The reminder form itself is covered in `reminder-sheet.test.tsx`; here only that the right entry opens it.
-vi.mock("../reminders/reminder-sheet", () => ({
-  ReminderSheet: ({ open, task, animal }: { open: boolean; task?: { name: string }; animal?: { tagNumber: string } }) =>
-    open ? <div role="dialog">{task ? `editing ${task.name}` : `new reminder for ${animal?.tagNumber ?? "nobody"}`}</div> : null,
+// The composer itself is covered in the notifications tests; here only that the right entry opens it with the right anchor.
+vi.mock("@/features/notifications/sheet-store", () => ({
+  openRemindMe: (req: unknown) => openRemindMe(req) as unknown,
 }));
 vi.mock("../../hooks/use-next-up", () => ({
   useNextUpActions: () => ({
@@ -77,7 +73,6 @@ function renderStrip(events: UpcomingEvent[], opts: { canRecord?: boolean; local
 beforeEach(() => {
   vi.clearAllMocks();
   allowTasks = true;
-  useReminderTask.mockReturnValue({ data: undefined });
   snoozeMutate.mockResolvedValue({});
   skipMutate.mockResolvedValue({});
 });
@@ -166,10 +161,10 @@ describe("NextUp", () => {
     );
   });
 
-  it("Add reminder opens the reminder form on this animal", () => {
+  it("Add reminder opens the notification sheet's New tab on this animal", () => {
     renderStrip([]);
     fireEvent.click(screen.getByRole("button", { name: "Add reminder" }));
-    expect(screen.getByRole("dialog")).toHaveTextContent("new reminder for A-12");
+    expect(openRemindMe).toHaveBeenCalledWith({ animal: { id: "c1", tagNumber: "A-12", name: "Lali" } });
   });
 
   it("Add reminder needs permission to create tasks and an animal that can take records", () => {
@@ -178,16 +173,24 @@ describe("NextUp", () => {
     expect(screen.queryByRole("button", { name: "Add reminder" })).not.toBeInTheDocument();
   });
 
-  it("only a custom reminder gets Edit, and Edit opens the form on that reminder", () => {
+  it("a task row's Remind me opens the composer anchored to that task", () => {
     renderStrip([event()]);
-    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
-
-    useReminderTask.mockReturnValue({
-      data: { id: "t1", name: "Check hoof", kind: "REMINDER", category: "GENERAL" },
+    fireEvent.click(screen.getByRole("button", { name: "Remind me" }));
+    expect(openRemindMe).toHaveBeenCalledWith({
+      anchor: { type: "TASK", id: "t1", label: expect.any(String) as string },
+      animal: { id: "c1", tagNumber: "A-12", name: "Lali" },
     });
-    renderStrip([event()]);
-    fireEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
-    expect(screen.getByRole("dialog")).toHaveTextContent("editing Check hoof");
+  });
+
+  it("a health step row anchors to the health step; a derived row (pregnancy) gets no Remind me", () => {
+    renderStrip([event({ kind: "HEALTH_STEP", labelKey: "cattle.upcoming.healthStep", ref: { type: "HEALTH_TASK", id: "h1" } })]);
+    fireEvent.click(screen.getByRole("button", { name: "Remind me" }));
+    expect(openRemindMe).toHaveBeenCalledWith(expect.objectContaining({ anchor: expect.objectContaining({ type: "HEALTH_STEP", id: "h1" }) as unknown }));
+  });
+
+  it("a derived row gets no Remind me", () => {
+    renderStrip([event({ kind: "CALVING", labelKey: "cattle.upcoming.calving", ref: { type: "PREGNANCY", id: "p1" } })]);
+    expect(screen.queryByRole("button", { name: "Remind me" })).not.toBeInTheDocument();
   });
 
   it("renders in Bangla", () => {
@@ -206,27 +209,30 @@ describe("NextUp", () => {
 
   const five = () => [1, 2, 3, 4, 5].map((n) => event({ labelParams: { title: `Task ${n}` }, ref: { type: "TASK", id: `t${n}` }, daysUntil: n }));
 
-  it("shows at most 3 cards with Show all (N) when there are more (RFE-187)", () => {
+  it("lists every loaded card inline — no Show all click", () => {
     renderStrip(five());
-    expect(screen.getByText("Task 3")).toBeInTheDocument();
-    expect(screen.queryByText("Task 4")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Show all (5)" })).toBeInTheDocument();
-  });
-
-  it("has no Show all with 3 or fewer", () => {
-    renderStrip(five().slice(0, 3));
+    expect(screen.getByText("Task 5")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Show all/ })).not.toBeInTheDocument();
   });
 
   it("lists overdue first", () => {
     renderStrip([...five(), event({ labelParams: { title: "Late one" }, ref: { type: "TASK", id: "late" }, daysUntil: -4, urgency: "OVERDUE" })]);
-    expect(screen.getByText("Late one")).toBeInTheDocument();
-    expect(screen.queryByText("Task 3")).not.toBeInTheDocument();
+    const titles = screen.getAllByText(/Task \d|Late one/).map((n) => n.textContent);
+    expect(titles[0]).toBe("Late one");
   });
 
-  it("Show all opens the full list", async () => {
+  it("starts with a page of 10 rows", () => {
     renderStrip(five());
-    fireEvent.click(screen.getByRole("button", { name: "Show all (5)" }));
-    expect(await screen.findByText("Task 5")).toBeInTheDocument();
+    expect(useUpcomingEvents).toHaveBeenLastCalledWith("c1", true, 10);
+  });
+
+  it("shows a sentinel, not a +N footer, while more rows can still be loaded", () => {
+    useUpcomingEvents.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: { events: five(), total: 9 }, refetch: vi.fn() });
+    render(
+      <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
+        <NextUp cattleId="c1" canRecord onRecord={vi.fn()} />
+      </NextIntlClientProvider>,
+    );
+    expect(screen.queryByText("+4 more")).not.toBeInTheDocument();
   });
 });

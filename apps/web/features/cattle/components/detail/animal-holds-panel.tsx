@@ -73,7 +73,7 @@ export function AnimalHoldsPanel({ cattleId }: { cattleId: string }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">{t("title")}</h3>
+        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("title")}</h3>
         <Can I="cattle.hold">
           <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
             {t("place")}

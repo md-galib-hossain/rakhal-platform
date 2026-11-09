@@ -1,10 +1,11 @@
 "use client"; // live queries
 
+import { WS_CARD } from "../workspace/workspace-grid";
+import { DrillStat, DrillStats } from "../workspace/drill/drill-template";
 import { useTranslations } from "next-intl";
 import { Droplet } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
-import { StatCard } from "@/components/shared/stat-card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -53,8 +54,8 @@ export function LactationSummaryCard({
 
   if (!isLactating) {
     return (
-      <Card className="rounded-xl p-4">
-        <h3 className="mb-3 text-sm font-semibold text-foreground">{t("title")}</h3>
+      <Card className={WS_CARD}>
+        <h3 className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("title")}</h3>
         <EmptyState
           icon={Droplet}
           title={t("notLactating")}
@@ -82,9 +83,9 @@ export function LactationSummaryCard({
   const { lactationToDate, peak, persistency } = data;
 
   return (
-    <Card className="flex flex-col gap-4 rounded-xl p-4">
+    <Card className={`${WS_CARD} flex flex-col gap-4`}>
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">{t("title")}</h3>
+        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("title")}</h3>
         <div className="flex items-center gap-2">
           {lactationStage ? (
             <Chip variant="primary">{tStage(`lactationStageOptions.${lactationStage}`)}</Chip>
@@ -105,12 +106,12 @@ export function LactationSummaryCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,120px),1fr))] gap-4">
-        <StatCard label={t("dim")} value={dim != null ? t("days", { value: dim }) : "—"} />
-        <StatCard label={t("today")} value={t("litres", { value: data.today })} />
-        <StatCard label={t("sevenDayAvg")} value={t("litres", { value: data.sevenDayAvgYield })} />
-        <StatCard label={t("thirtyDayAvg")} value={t("litres", { value: data.thirtyDayAvgYield })} />
-      </div>
+      <DrillStats>
+        <DrillStat label={t("dim")} value={dim != null ? t("days", { value: dim }) : "—"} />
+        <DrillStat label={t("today")} value={t("litres", { value: data.today })} />
+        <DrillStat label={t("sevenDayAvg")} value={t("litres", { value: data.sevenDayAvgYield })} />
+        <DrillStat label={t("thirtyDayAvg")} value={t("litres", { value: data.thirtyDayAvgYield })} />
+      </DrillStats>
 
       <div className="flex flex-col gap-2">
         <p className="text-xs font-medium text-muted-foreground">{t("lactationToDate")}</p>

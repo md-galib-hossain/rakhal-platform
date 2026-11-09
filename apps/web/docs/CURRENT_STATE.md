@@ -1,5 +1,9 @@
 # Frontend — Current State
 
+## 2026-11-04 — RFE-181: Edit profile drawer inside the Animal Workspace (frontend only)
+"Edit" in the workspace header now opens a 720px right drawer nested in the workspace (same Sheet, backdrop, `WS_CARD` cards and sticky footer as the 600px event drawer; full screen under 640px) instead of the old separate sheet. Cards: **Identity** (photo, name, tag, breed, gender, birth date, shed), **Origin & family** (source, mother, father), **Physical** (color, notes). Weight is not editable here (Weighed event) and is never resent. Inline tag validation, dirty guard (Esc / backdrop / X / Cancel ask before discarding), Save = primary; on save the animal detail + lists are invalidated, toast, close. RBAC unchanged (`cattle.update`). Shared pieces extracted to `features/cattle/components/profile-form/profile-form-shared.tsx` (payload builder, defaults, photo dropzone + `useStagedPhoto`, field controls); `cattle-form-dialog.tsx` now uses them and stays for Add animal (list, onboarding), left on its own bands (history step lives there; restyle not done). The modal context lost its edit form; `AnimalWorkspace` lost the `onEdit` prop. i18n `cattle.profile.*` (en + bn). Not in the drawer: animal group (the detail payload does not carry it).
+Gate: `tsc` 0, eslint 0 on touched files, `next build` 0, vitest cattle 14 files / 103 tests (new `profile-drawer.test.tsx`, 5 cases). Live (demo owner, `LIVECHK-164`): 1920 drawer 720px at right edge, 1280 720px with pinned footer + discard guard, 375 full screen with no horizontal scroll and Edit via `⋯`; renamed + moved to Milking Shed A, header updated, toast shown, shed persisted server-side; name restored afterwards. Browser pane was hidden so animations were finished by script.
+
 ## Business UX Phases 5 + 6: faster Record Purchase, row sheets, Sell milk shortcut, mobile cards (2026-10-19, no ticket #)
 **Record Purchase** (`record-purchase-dialog.tsx`): the supplier picker and the item picker both end in **+ New …** — a new supplier is name + phone (`QuickAddSupplierSheet`, `POST /settings/suppliers`, selected straight away); a new item is typed in `NewItemSheet` (Medicine = unit + form + category, Feed = unit + catalogue ingredient, Equipment = name) and sent as the backend's `lines[].newItem`, so the item, its stock, the journal and the payable are one transaction. Line kind defaults to the last one used (localStorage, try/catch); the picker chip shows the item's real stock (the fake `currentStock: 0` is gone) or "New item — created with this purchase". Medicine lines now carry an **expiry date** — `CreatePurchaseLineDto.expiryDate` is required for a medicine line and the old dialog never sent it (a real 400 for any medicine purchase). Payment is **Pay in full** (default, nothing to type) / **Part paid** (amount, 0 < amount < total) / **On credit**, plus a due date when something stays owed; no wallet and no method field — the backend resolves the farm's single account and `CreatePurchaseDto` has no method. Success toast links to Inventory and Finance. The dialog takes an optional `supplierId` (opened from a supplier's sheet).
 **Purchases table**: uses the server's `paymentStatus` / `outstanding` / `paidAmount` (the `payables?limit=100` cross-reference and its false "Paid in full" are gone); **Pay** row action (`PurchasePayDialog` -> shared `MakePaymentDialog`, `finance.create`); row click opens `PurchaseDetailSheet` (lines linking to their Inventory tab, payment history, Pay, Void, links to Finance / Activity). The **Due Date column was dropped** — the list row has no `dueDate` (`derivePurchasePayment` returns status / outstanding / paid only); the sheet shows it. Also fixed: the Purchasing page sent `status=` instead of `paymentStatus=`, so the payment-status filter never applied.
@@ -1651,3 +1655,44 @@ shipped - it was holding `features/feeding/**` and `features/feed/**`.
 Gate: `tsc --noEmit` 0 - `eslint` 0 errors on the changeset (one pre-existing `import/no-cycle` in
 `log-distribution-dialog.tsx`, untouched by this work) - both locales render - live-verified in the browser.
 
+
+## 2026-11-05 - RFE-188 (NV2-F01) notifications v2 API layer
+
+`features/notifications` gained the typed client for manual notifications: `notificationsApi.{upcoming,listSchedules,
+getSchedule,createSchedule,updateSchedule,pauseSchedule,resumeSchedule,cancelSchedule,previewSchedule}`, types, a zod
+`scheduleSchema` + pure `toScheduleRequest`, query keys (appended to `qk.notifications`) and hooks `useUpcoming`,
+`useSchedules`, `useSchedule`, `useCreateSchedule`, `useUpdateSchedule`, `usePauseSchedule`, `useResumeSchedule`,
+`useCancelSchedule`, `usePreviewSchedule`. Mutations write the returned schedule to the detail cache and invalidate the
+schedules + upcoming prefixes; no optimistic updates (occurrences are recomputed server-side). The old inbox,
+preferences and Telegram calls and the `/notifications` page are untouched (F02+ remove them). Validation messages are
+i18n keys under `notificationSheet.validation.*`; F04 adds the copy.
+
+Gate: `tsc --noEmit` 0 - `eslint` 0 on the changed files (2 pre-existing errors in `telegram-connect-dialog.tsx`) -
+`vitest` 122 files / 1094 tests green. `pnpm build` not run.
+
+## 2026-11-05 - RFE-189 (NV2-F02) notification sheet shell + Inbox
+
+The bell in `components/layout/notification-bell.tsx` now opens a right-side `Sheet` (`features/notifications/components/notification-sheet.tsx`, lazy-loaded with `next/dynamic` on first press) instead of the old popover. Tabs: **Inbox** (`inbox-tab.tsx`, real), **Upcoming** (`upcoming-tab-placeholder.tsx`, export `UpcomingTab`, F03 fills), **New** (`new-tab-placeholder.tsx`, export `NewTab`, F04 fills). The shell never needs editing by F03/F04/F05: each tab body is its own file. A gear in the header swaps the tabs for the unchanged `NotificationPreferencesView` (Telegram dialog included); F05 polishes it.
+
+Inbox keeps the old behaviour: all/unread filter, mark-read, mark-all-read, `notificationAction` deep links (a linked row now also closes the modal sheet). `GET /notifications` is still offset-paged, so "load more" requests a longer first page (`per_page` grows by 20) and keeps the previous list visible while loading. The Inbox query key keeps the `["notifications","list",...]` prefix so the existing mark-read invalidation reaches it. Polling: the bell badge polls every 60 s; the Inbox poll exists only while the sheet is mounted (React Query also pauses it while the browser tab is hidden).
+
+Removed: `app/(app)/notifications/**` (the URL now 404s), `notification-center-view.tsx`, the `notificationsPage` i18n block. New i18n namespace `notificationSheet.*` in bn + en (F04 adds its `validation.*` keys under the same namespace). No nav item, user-menu or topbar link pointed at `/notifications` (only the bell popover footer, now gone). Backend `src` has no link generating `/notifications` (only API route comments). Leftover bell-popover keys `topbar.{viewAll,noNotifications,notificationPreferences,markAllRead}` are now unused; F07 purges them.
+
+Seen, not changed: a seeded notification links to `/healthcare/cases/:id`, which has no frontend route (404 when clicked); backend link, out of this ticket.
+
+Gate: `tsc --noEmit` 0 (after clearing a stale generated `.next/dev/types` entry for the deleted route) - eslint 0 on the 6 changed files (repo-wide lint has pre-existing errors, e.g. `telegram-connect-dialog.tsx`) - `vitest` 122 files / 1094 tests green - `pnpm build` not run (dev server on 3005 running). Live-checked as owner on the dev stack: sheet opens, Inbox lists real rows, mark-read POST 201, row link closes the sheet, `/notifications` 404, no console errors from the sheet, 375 px has no horizontal overflow, bn and en both render. Worker role not checked live.
+
+## 2026-11-08 — RFE-190 Upcoming tab (NV2-F03)
+Notification sheet's Upcoming tab is real (`upcoming-tab.tsx`): day-grouped, range switch, source badge, pause/cancel/edit for own manual reminders, Paused list with resume. `onEdit` not wired in the sheet yet (F04). Not live-checked. See PROJECT_PROGRESS 2026-11-08.
+
+## 2026-11-08 — RFE-191 (NV2-F04) composer shipped (code), live check pending
+New tab of the notification sheet is the real composer (create + edit, user-picked time, audience by `notification.manage`, server preview). Details and contract gaps: `docs/PROJECT_PROGRESS.md` RFE-191. Not checked live (no farm for dev owner, browser pane hidden). Next: F06 passes `anchor`, F03 shell wires `editingId`.
+
+## 2026-11-08 — RFE-192 (NV2-F05) notification settings in the sheet shipped
+Gear in the notification sheet opens preferences, channels, quiet hours and Telegram inside the sheet; Settings > Notifications is now a button that opens it (shared `sheet-store`). Gated (tsc 0, eslint 0 errors, vitest 1128/1128), live-checked in bn at 1024 and 375px except the Settings-page click and en locale. Details: `docs/PROJECT_PROGRESS.md` RFE-192.
+
+## 2026-11-08 — RFE-193 (NV2-F06) reminder consumers rewired
+Task Hub (no Reminders segment, no `kind`), task details, Next up, Animal Workspace and health step cards now open the notification sheet's New tab through `openRemindMe` instead of the old reminder sheet; health notice copy follows the new leads. Gated (tsc 0, vitest 1132/1132, eslint 0 on touched files; build not run), not live-checked. F07 deletes the old reminder files. Details: `docs/PROJECT_PROGRESS.md` RFE-193.
+
+## 2026-11-08 — RFE-194 (NV2-F07) done: Notifications v2 frontend complete
+Old reminder UI, its i18n and dead task-reminder types are gone; the bell sheet (Inbox / Upcoming / New) is the only reminder surface. Playwright smoke `tests/e2e/notifications-sheet.spec.ts` written, not yet run. Open: `cattle-table.tsx` `tEvents` typecheck error (other lane); backend B08 cutover pending (frontend stays tolerant of `kind: REMINDER` rows until then).

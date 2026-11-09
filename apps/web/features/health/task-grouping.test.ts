@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayKeyOf, daysFromToday, groupScheduledTasks, nextReminder, reminderSchedule } from "./task-grouping";
+import { dayKeyOf, daysFromToday, groupScheduledTasks, nextReminder, noticeDaysFor, reminderSchedule } from "./task-grouping";
 import type { HealthTask } from "./types";
 
 /** Local-time constructor → ISO, so the tests read the same in any timezone the runner happens to use. */
@@ -24,28 +24,34 @@ describe("daysFromToday", () => {
   });
 });
 
-describe("reminderSchedule / nextReminder (mirrors the backend 7-3-1-day-of cadence)", () => {
+describe("reminderSchedule / nextReminder (automatic notice leads: round 7-1-day-of, treatment day-of)", () => {
   const now = local(2026, 10, 1, 9);
 
-  it("a step a week out has all four reminders still to come", () => {
+  it("a round step a week out has all three notices still to come", () => {
     const slots = reminderSchedule(iso(local(2026, 10, 8)), now);
-    expect(slots.map((s) => s.daysBefore)).toEqual([7, 3, 1, 0]);
+    expect(slots.map((s) => s.daysBefore)).toEqual([7, 1, 0]);
     expect(slots.every((s) => s.willFire)).toBe(true);
     expect(dayKeyOf(iso(slots[0].date))).toBe("2026-10-01");
-    expect(dayKeyOf(iso(slots[3].date))).toBe("2026-10-08");
+    expect(dayKeyOf(iso(slots[2].date))).toBe("2026-10-08");
   });
 
   it("stages already behind us are skipped, never back-filled", () => {
-    // due in 2 days: the 7-day and 3-day reminders would have been in the past
+    // due in 2 days: the 7-day notice would have been in the past
     const slots = reminderSchedule(iso(local(2026, 10, 3)), now);
-    expect(slots.map((s) => s.willFire)).toEqual([false, false, true, true]);
+    expect(slots.map((s) => s.willFire)).toEqual([false, true, true]);
   });
 
-  it("next reminder is the earliest one still to come", () => {
+  it("next notice is the earliest one still to come", () => {
     expect(nextReminder(iso(local(2026, 10, 8)), now)?.daysBefore).toBe(7);
-    expect(nextReminder(iso(local(2026, 10, 6)), now)?.daysBefore).toBe(3);
     expect(nextReminder(iso(local(2026, 10, 3)), now)?.daysBefore).toBe(1);
     expect(nextReminder(iso(local(2026, 10, 1)), now)?.daysBefore).toBe(0); // today counts
+  });
+
+  it("a treatment protocol is notified on the day only", () => {
+    expect(noticeDaysFor("TREATMENT")).toEqual([0]);
+    expect(noticeDaysFor("PREVENTION")).toEqual([7, 1, 0]);
+    expect(noticeDaysFor(undefined)).toEqual([7, 1, 0]);
+    expect(reminderSchedule(iso(local(2026, 10, 8)), now, noticeDaysFor("TREATMENT")).map((s) => s.daysBefore)).toEqual([0]);
   });
 
   it("there is no next reminder once the due day has passed (the daily overdue nag takes over)", () => {

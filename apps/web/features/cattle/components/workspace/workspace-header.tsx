@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowLeft, ChevronDown, Pencil, Plus, X } from "lucide-react";
+import { ArrowLeft, BellPlus, ChevronDown, Pencil, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RowActionsMenu, type RowAction } from "@/components/shared/row-actions-menu";
 import { useActiveLactation } from "@/features/reproduction/hooks/use-reproduction";
+import { openRemindMe } from "@/features/notifications/sheet-store";
 import { useMilkEligibility } from "@/features/milk/hooks/use-milk";
 import { avatarTint } from "../../avatar-tint";
 import type { CattleDetail } from "../../types";
@@ -169,6 +170,19 @@ export function WorkspaceHeader({
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
+          ) : null}
+          {canRecord ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-10 shrink-0 rounded-lg"
+              aria-label={t("remindMe")}
+              title={t("remindMe")}
+              onClick={() => openRemindMe({ animal: { id: cattle.id, tagNumber: cattle.tagNumber, name: cattle.name } })}
+            >
+              <BellPlus className="size-4" aria-hidden />
+            </Button>
           ) : null}
           {canEdit ? (
             <Button type="button" variant="outline" className="hidden h-10 gap-1.5 rounded-lg sm:inline-flex" onClick={onEdit}>

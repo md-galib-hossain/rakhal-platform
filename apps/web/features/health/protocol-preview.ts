@@ -1,5 +1,5 @@
-import { daysFromToday, reminderSchedule, type ReminderSlot } from "./task-grouping";
-import type { HealthCondition, HealthPlanListItem, HealthPlanStep } from "./types";
+import { daysFromToday, noticeDaysFor, reminderSchedule, type ReminderSlot } from "./task-grouping";
+import type { HealthCondition, HealthPlanKind, HealthPlanListItem, HealthPlanStep } from "./types";
 
 /** Pure helpers for the Protocols tab (RFE-136, EPIC_HEALTH_CENTER D8/D9): what applying a protocol will actually
  * schedule, before the user commits to it, and which protocols to suggest for a case. No React, no fetching. */
@@ -46,7 +46,7 @@ function latest(dates: Date[]): Date | null {
 /** What starting `steps` on `startIso` will create: a dated row per step (earliest first), the span, when milk / meat
  * is safe again, and when the first step's reminders go out. A withdrawal runs for N days after the step that gives the
  * medicine, so `until = step date + N`. */
-export function buildProtocolPreview(steps: HealthPlanStep[], startIso: string, now: Date = new Date()): ProtocolPreview {
+export function buildProtocolPreview(steps: HealthPlanStep[], startIso: string, now: Date = new Date(), kind?: HealthPlanKind): ProtocolPreview {
   const rows = [...steps]
     .sort((a, b) => a.dayNumber - b.dayNumber)
     .map((step) => {
@@ -65,7 +65,7 @@ export function buildProtocolPreview(steps: HealthPlanStep[], startIso: string, 
     lastDate,
     totalDays: firstDate && lastDate ? Math.round((lastDate.getTime() - firstDate.getTime()) / 86_400_000) + 1 : 0,
     withdrawal: { milkUntil: ends((s) => s.milkWithdrawalDays), meatUntil: ends((s) => s.meatWithdrawalDays) },
-    firstStepReminders: firstDate ? reminderSchedule(firstDate.toISOString(), now) : [],
+    firstStepReminders: firstDate ? reminderSchedule(firstDate.toISOString(), now, noticeDaysFor(kind)) : [],
   };
 }
 

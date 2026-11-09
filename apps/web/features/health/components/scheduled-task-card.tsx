@@ -1,11 +1,13 @@
 "use client"; // action button callbacks
 
 import { useTranslations } from "next-intl";
-import { ArrowRight, Bell, CalendarDays } from "lucide-react";
+import { ArrowRight, BellPlus, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Can } from "@/lib/auth/permissions";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
-import { daysFromToday, groupCompletedCount, isGroupOverdue, nextReminder, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";
+import { openRemindMe } from "@/features/notifications/sheet-store";
+import { daysFromToday, groupCompletedCount, isGroupOverdue, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";
 
 /** RFE-137 — relative wording ("In 3 days", "2 days overdue") matching the reminder notifications, so the card and
  * the bell say the same thing; the absolute date is the chip's tooltip. */
@@ -55,23 +57,9 @@ export function ScheduledTaskCard({
   // The instruction is shown only when it says something the title and the medicine line do not already say.
   const instruction = group.instruction && group.instruction !== group.title && group.instruction !== group.medicineName ? group.instruction : null;
 
-  // What the backend will do next for this step (RAKHAL-465): remind 7/3/1 days before and on the day, then daily
-  // until it is done. A finished group needs no reminder line.
-  let reminderText: string | null = null;
-  if (!isDone) {
-    const next = nextReminder(group.dueDateTime);
-    if (next) {
-      reminderText =
-        daysFromToday(next.date.toISOString()) === 0
-          ? t("reminderToday")
-          : t("nextReminder", {
-              date: next.date.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }),
-              when: t("reminderWhen", { days: next.daysBefore }),
-            });
-    } else if (overdue) {
-      reminderText = t("remindedDaily");
-    }
-  }
+  // NV2: the automatic notices (7 days / 1 day / day of for a round, day of for a treatment) are created by the
+  // backend; "Remind me" adds a manual one anchored to this step. A finished group needs neither.
+  const anchorTaskId = group.tasks.find((task) => task.status !== "COMPLETED")?.id ?? group.tasks[0]?.id;
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3">
@@ -90,11 +78,19 @@ export function ScheduledTaskCard({
         </div>
       ) : null}
 
-      {reminderText ? (
-        <p className={cn("flex items-center gap-1.5 text-xs", overdue ? "text-destructive" : "text-muted-foreground")}>
-          <Bell className="size-3.5 shrink-0" aria-hidden />
-          {reminderText}
-        </p>
+      {!isDone && anchorTaskId ? (
+        <Can I="notification.create">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className={cn("h-9 w-fit gap-1.5 px-2 text-xs", overdue ? "text-destructive hover:text-destructive" : "text-muted-foreground")}
+            onClick={() => openRemindMe({ anchor: { type: "HEALTH_STEP", id: anchorTaskId, label: group.title } })}
+          >
+            <BellPlus className="size-3.5 shrink-0" aria-hidden />
+            {t("remindMe")}
+          </Button>
+        </Can>
       ) : null}
 
       <div className="flex flex-col gap-1.5">

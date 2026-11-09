@@ -3,8 +3,7 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
-import { StatCard } from "@/components/shared/stat-card";
-import { ChartCard } from "@/components/shared/chart-card";
+import { DrillBody, DrillCard, DrillStat, DrillStats } from "../workspace/drill/drill-template";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -73,6 +72,12 @@ export function PerformanceTab({
   return <NonCalfPerformanceTab cattleId={cattleId} gender={gender} lactationStage={lactationStage} />;
 }
 
+/** Muted sub-line for a % change: "+4%" / "−2%", nothing when absent. */
+function pct(v: number | null | undefined): string | undefined {
+  if (v == null) return undefined;
+  return `${v > 0 ? "+" : ""}${v}%`;
+}
+
 function NonCalfPerformanceTab({
   cattleId,
   gender,
@@ -120,22 +125,17 @@ function NonCalfPerformanceTab({
   const lifetimeData = data.lifetime_yield.map((p) => ({ year: p.year, total: p.total_l }));
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))] gap-4">
-        <StatCard label={t("aqrScore")} value={data.aqr_score ?? "—"} delta={data.aqr_change_pct ?? undefined} deltaLabel="%" />
-        <StatCard
-          label={t("avgDailyYield")}
-          value={t("litres", { value: data.avg_daily_yield_7d })}
-          delta={data.yield_change_pct ?? undefined}
-          deltaLabel="%"
-        />
-        <StatCard
+    <DrillBody>
+      <DrillStats>
+        <DrillStat label={t("aqrScore")} value={data.aqr_score ?? "—"} muted={data.aqr_score == null} hint={pct(data.aqr_change_pct)} />
+        <DrillStat label={t("avgDailyYield")} value={t("litres", { value: data.avg_daily_yield_7d })} hint={pct(data.yield_change_pct)} />
+        <DrillStat
           label={t("liveWeight")}
           value={data.last_weight_kg != null ? t("kg", { value: data.last_weight_kg }) : "—"}
-          delta={data.weight_change_pct ?? undefined}
-          deltaLabel="%"
+          muted={data.last_weight_kg == null}
+          hint={pct(data.weight_change_pct)}
         />
-      </div>
+      </DrillStats>
 
       <div className="flex flex-wrap gap-2">
         <Can I="cattle.bcs">
@@ -152,13 +152,15 @@ function NonCalfPerformanceTab({
       <RecordBcsDialog cattleId={cattleId} open={bcsDialogOpen} onOpenChange={setBcsDialogOpen} />
       <RecordWeightDialog cattleId={cattleId} open={weightDialogOpen} onOpenChange={setWeightDialogOpen} />
 
-      <ChartCard
+      <DrillCard
         title={t("weightHistory")}
-        rangeControl={<WeightPeriodSelect value={weightPeriod} onChange={setWeightPeriod} />}
-        legend={
-          <div className="flex items-center gap-2">
-            <span className="h-1.5 w-3 rounded-full bg-success" />
-            <p className="text-xs font-medium text-muted-foreground">{t("actual")}</p>
+        action={
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-2">
+              <span className="h-1.5 w-3 rounded-full bg-success" />
+              <span className="text-xs font-medium text-muted-foreground">{t("actual")}</span>
+            </span>
+            <WeightPeriodSelect value={weightPeriod} onChange={setWeightPeriod} />
           </div>
         }
       >
@@ -173,7 +175,7 @@ function NonCalfPerformanceTab({
             series={[{ key: "weight", label: t("weightKg"), color: "var(--success)" }]}
           />
         )}
-      </ChartCard>
+      </DrillCard>
 
       {isFemale ? (
         <>
@@ -189,16 +191,15 @@ function NonCalfPerformanceTab({
         </>
       ) : null}
 
-      <ChartCard title={t("lifetimeYield")}>
+      <DrillCard title={t("lifetimeYield")}>
         {lifetimeData.length === 0 ? (
           <EmptyState title={t("noLifetimeData")} className="py-8" />
         ) : (
           <BarChartInner data={lifetimeData} xKey="year" yKey="total" minWidth={280} />
         )}
-      </ChartCard>
+      </DrillCard>
 
-      <div className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold text-foreground">{t("recentRecords")}</h3>
+      <DrillCard title={t("recentRecords")}>
         {data.recent_milk_records.length === 0 ? (
           <EmptyState title={t("noRecentRecords")} className="py-8" />
         ) : (
@@ -227,9 +228,9 @@ function NonCalfPerformanceTab({
             </TableBody>
           </Table>
         )}
-      </div>
+      </DrillCard>
 
       <MilkQualityTestsSection cattleId={cattleId} />
-    </div>
+    </DrillBody>
   );
 }

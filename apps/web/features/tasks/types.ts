@@ -1,7 +1,8 @@
 /** Mirrors the backend `TaskCategory` Prisma enum (`task.enums.prisma`). */
 export type TaskCategory = "FEEDING" | "HEALTHCARE" | "BREEDING" | "MAINTENANCE" | "MILKING" | "CALF_CARE" | "GENERAL";
 
-/** RAKHAL-491 — a row is either work to do (`TASK`) or a custom reminder (`REMINDER`). `category` is the topic only. */
+/** @deprecated NV2: reminders are notification schedules now. Read-only tolerance: a backend from before cutover
+ * migration B08 may still return `kind: "REMINDER"` rows, which `TasksView` drops; nothing sends it any more. */
 export type TaskKind = "TASK" | "REMINDER";
 
 export type TaskPriority = "HIGH" | "MEDIUM" | "LOW";
@@ -24,7 +25,8 @@ export interface Task {
   reference: string;
   name: string;
   details: string | null;
-  kind: TaskKind;
+  /** @deprecated Optional: absent once B08 drops the column. Never branch on it for new UI. */
+  kind?: TaskKind;
   category: TaskCategory;
   priority: TaskPriority;
   status: TaskStatus;
@@ -35,13 +37,6 @@ export interface Task {
   recurring: boolean;
   recurrenceType: TaskRecurrence | null;
   recurrenceEndDate: string | null;
-  /** RFE-164 — custom-reminder columns (RAKHAL-487). Optional: absent on rows from before they were typed. */
-  recurrenceIntervalDays?: number | null;
-  remindDaysBefore?: number | null;
-  notifyRoleNames?: string[];
-  recipientUserIds?: string[];
-  /** Set when the due date follows a linked animal event ("N days after"). */
-  reminderOffsetDays?: number | null;
   safetyCritical: boolean;
   source: TaskSource;
   /** Present on `SYSTEM_AUTO` tasks only (e.g. a repro-protocol step) — the domain event that
@@ -93,25 +88,15 @@ export interface TaskHighlights {
   lateCompletionRatePct: number;
 }
 
-/** `meta.reminderHighlights` on `GET /tasks` — open reminders only, returned on every list call. */
-export interface ReminderHighlights {
-  upcoming: number;
-  overdue: number;
-  repeating: number;
-}
-
 export type TaskDatePresetId = "all" | "today" | "tomorrow" | "week" | "next7" | "month";
 
 /** Task Hub date filter: a shortcut id (range derived at render) or a user-picked day/range (`from === to` = one day). */
 export type TaskDateFilter = { id: TaskDatePresetId } | { id: "custom"; from: Date; to: Date };
 
 export interface TaskListFilters {
-  /** View filter; `upcoming` (open and due from the server's now) is reminder-only on the UI. */
-  filter?: TaskListFilter | "upcoming";
+  filter?: TaskListFilter;
   /** Due-date order (default asc). */
   sortOrder?: "asc" | "desc";
-  /** `task` | `reminder`; omit for both. */
-  kind?: "task" | "reminder";
   category?: TaskCategory;
   priority?: TaskPriority;
   search?: string;
@@ -132,25 +117,15 @@ export interface TaskListFilters {
 export interface CreateTaskPayload {
   name: string;
   details?: string;
-  /** RAKHAL-491: send `REMINDER` for a custom reminder (topic goes in `category`). */
-  kind?: TaskKind;
   category?: TaskCategory;
   priority?: TaskPriority;
   scheduledAt?: string;
-  /** Required, except a REMINDER linked to an event (`sourceEventId` + `offsetDays`). */
   dueAt?: string;
   assignedToId?: string;
   recurring?: boolean;
   recurrenceType?: TaskRecurrence;
   recurrenceEndDate?: string;
   safetyCritical?: boolean;
-  /** RFE-164 reminders (`CreateTaskDto`, RAKHAL-487). */
-  remindDaysBefore?: number;
-  notifyRoleNames?: string[];
-  recipientUserIds?: string[];
-  sourceEventId?: string;
-  offsetDays?: number;
-  recurrenceIntervalDays?: number;
   /** Mutually exclusive with `cattleIds` — the backend rejects both set. */
   relatedCattleId?: string;
   /** Multi-cow target (user request, no ticket #). Mutually exclusive with `relatedCattleId`. */
@@ -168,14 +143,8 @@ export interface UpdateTaskPayload {
   dueAt?: string;
   assignedToId?: string;
   safetyCritical?: boolean;
-  /** RFE-164 reminders (`UpdateTaskDto`). `offsetDays` re-derives the due date of an event-linked reminder. */
-  remindDaysBefore?: number;
-  notifyRoleNames?: string[];
-  recipientUserIds?: string[];
-  offsetDays?: number;
   recurring?: boolean;
   recurrenceType?: TaskRecurrence;
-  recurrenceIntervalDays?: number;
   recurrenceEndDate?: string;
 }
 

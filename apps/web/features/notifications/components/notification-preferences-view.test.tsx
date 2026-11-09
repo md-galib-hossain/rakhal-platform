@@ -53,6 +53,14 @@ vi.mock("../hooks/use-notifications", () => ({
             email: false,
           },
         },
+        {
+          event_key: "scheduled_due",
+          label: "Due now",
+          category: "scheduling",
+          can_disable: true,
+          enabled: true,
+          channels: { in_app: true, push: true, sms: false, whatsapp: false, telegram: false, email: false },
+        },
       ],
     },
     isLoading: false,
@@ -108,6 +116,19 @@ describe("NotificationPreferencesView", () => {
     };
   });
 
+  it("renders whatever categories the API returns and locks mandatory events", () => {
+    renderWithProviders(<NotificationPreferencesView />);
+
+    // a category the UI has no label for still renders (falls back to its key), no event keys are hardcoded
+    expect(screen.getAllByText("scheduling").length).toBeGreaterThan(0);
+    expect(screen.getByText("Due now")).toBeInTheDocument();
+
+    const locked = screen.getByRole("switch", { name: /toggle cow sick alert/i });
+    expect(locked).toBeDisabled();
+    expect(screen.getByText("Safety alert: always on")).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: /toggle due now/i })).toBeEnabled();
+  });
+
   it("renders Delivery Channels Hub with Telegram, SMS, and Push cards", () => {
     renderWithProviders(<NotificationPreferencesView />);
 
@@ -144,7 +165,7 @@ describe("NotificationPreferencesView", () => {
     expect(screen.getByRole("button", { name: /disconnect/i })).toBeInTheDocument();
 
     // Find the toggle switch for Telegram
-    const toggle = screen.getByRole("switch", { name: /toggle telegram notifications delivery/i });
+    const toggle = screen.getByRole("switch", { name: /toggle telegram delivery/i });
     expect(toggle).toBeInTheDocument();
     expect(toggle).toHaveAttribute("aria-checked", "true");
 

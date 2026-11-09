@@ -30,7 +30,6 @@ vi.mock("./workspace-sections", () => ({
 vi.mock("@/features/events/components/event-picker/event-picker", () => ({ EventPicker: () => null }));
 vi.mock("@/features/events/components/event-picker/event-form-placeholder", () => ({ EventFormPlaceholder: () => null }));
 vi.mock("@/features/events/components/form/event-form-panel", () => ({ EventFormPanel: () => null }));
-vi.mock("@/features/events/components/reminders/reminder-sheet", () => ({ ReminderSheet: () => null }));
 
 const cow = { id: "c1", tagNumber: "T-1", herdStatus: "ACTIVE", deletedAt: null } as unknown as CattleDetail;
 const onOpenChange = vi.fn();
@@ -38,7 +37,7 @@ const onOpenChange = vi.fn();
 function renderWorkspace() {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <AnimalWorkspace cattleId="c1" onOpenChange={onOpenChange} onEdit={vi.fn()} onDispose={vi.fn()} onDelete={vi.fn()} />
+      <AnimalWorkspace cattleId="c1" onOpenChange={onOpenChange} onDispose={vi.fn()} onDelete={vi.fn()} />
     </NextIntlClientProvider>,
   );
 }

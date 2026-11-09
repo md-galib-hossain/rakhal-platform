@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import type { HealthActionType, HealthTask, MedicineRoute } from "./types";
+import type { HealthActionType, HealthPlanKind, HealthTask, MedicineRoute } from "./types";
 
 /** `YYYY-MM-DD` of an ISO instant on the **browser-local** calendar (the farm's day for a Bangladesh user) — the one
  * day key the Schedule tab uses for grouping, the calendar cells and the `?date=` deep link. `iso.slice(0, 10)` is
@@ -78,12 +78,19 @@ export function daysFromToday(dueDateTime: string, now: Date = new Date()): numb
   return Math.round((due.getTime() - today.getTime()) / 86_400_000);
 }
 
-/** Reminder cadence — mirrors the backend's `HEALTH_REMINDER_CADENCE` (RAKHAL-465): a step reminds 7, 3 and 1 day(s)
- * before and on the day. Earliest first. */
-export const REMINDER_DAYS_BEFORE = [7, 3, 1, 0] as const;
+/** Automatic notice leads for health steps (Notifications v2, `EPIC_NOTIFICATIONS_V2.md` §1 item 8; the backend's
+ * `HealthStepSourceResolver` is the source of truth): a preventive round notifies 7 days and 1 day before and on the
+ * day; a curative (treatment) step on the day only. Earliest first. */
+export const PREVENTIVE_NOTICE_DAYS: readonly number[] = [7, 1, 0];
+export const CURATIVE_NOTICE_DAYS: readonly number[] = [0];
+
+/** Treatment protocols are curative; prevention and fertility-care protocols are rounds. No kind = a round. */
+export function noticeDaysFor(kind?: HealthPlanKind): readonly number[] {
+  return kind === "TREATMENT" ? CURATIVE_NOTICE_DAYS : PREVENTIVE_NOTICE_DAYS;
+}
 
 export interface ReminderSlot {
-  daysBefore: (typeof REMINDER_DAYS_BEFORE)[number];
+  daysBefore: number;
   /** Local midnight of the day the reminder goes out. */
   date: Date;
   /** `false` once that day has passed — the backend never back-fills a stage, so it was (or will be) skipped. */
@@ -92,10 +99,10 @@ export interface ReminderSlot {
 
 /** The four reminder days for a step due `dueDateTime`, each marked as still to come or already skipped. RFE-136's
  * apply preview reads this for its "we'll remind you…" line. */
-export function reminderSchedule(dueDateTime: string, now: Date = new Date()): ReminderSlot[] {
+export function reminderSchedule(dueDateTime: string, now: Date = new Date(), noticeDays: readonly number[] = PREVENTIVE_NOTICE_DAYS): ReminderSlot[] {
   const due = startOfDay(new Date(dueDateTime));
   const today = startOfDay(now);
-  return REMINDER_DAYS_BEFORE.map((daysBefore) => {
+  return noticeDays.map((daysBefore) => {
     const date = new Date(due.getFullYear(), due.getMonth(), due.getDate() - daysBefore);
     return { daysBefore, date, willFire: date.getTime() >= today.getTime() };
   });
@@ -103,8 +110,8 @@ export function reminderSchedule(dueDateTime: string, now: Date = new Date()): R
 
 /** The next reminder still to come (today counts), or `null` once the due day has passed — from then on the
  * backend sends a daily overdue reminder instead. */
-export function nextReminder(dueDateTime: string, now: Date = new Date()): ReminderSlot | null {
-  return reminderSchedule(dueDateTime, now).find((slot) => slot.willFire) ?? null;
+export function nextReminder(dueDateTime: string, now: Date = new Date(), noticeDays: readonly number[] = PREVENTIVE_NOTICE_DAYS): ReminderSlot | null {
+  return reminderSchedule(dueDateTime, now, noticeDays).find((slot) => slot.willFire) ?? null;
 }
 
 export function isGroupOverdue(group: ScheduledTaskGroup): boolean {

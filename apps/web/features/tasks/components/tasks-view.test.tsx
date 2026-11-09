@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import en from "@/i18n/messages/en.json";
 import type { Task, TaskListFilters } from "../types";
@@ -31,11 +31,9 @@ type ListState = {
   isError: boolean;
   isNextPageError: boolean;
   highlights: { dueToday: number; overdue: number; blocked: number; lateCompletionRatePct: number };
-  reminderHighlights: { upcoming: number; overdue: number; repeating: number };
 };
 // Stable references (as the real hook returns from query data).
 const HIGHLIGHTS = { dueToday: 3, overdue: 2, blocked: 1, lateCompletionRatePct: 12 };
-const REMINDER_HIGHLIGHTS = { upcoming: 4, overdue: 5, repeating: 1 };
 let state: ListState;
 const seenFilters: TaskListFilters[] = [];
 vi.mock("../hooks/use-tasks", () => ({
@@ -47,13 +45,10 @@ vi.mock("../hooks/use-tasks", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("./create-task-sheet", () => ({ CreateTaskSheet: ({ open }: { open: boolean }) => (open ? <div>create-task-sheet</div> : null) }));
-vi.mock("@/features/events/components/reminders/reminder-sheet", () => ({ ReminderSheet: ({ open }: { open: boolean }) => (open ? <div>reminder-sheet</div> : null) }));
 vi.mock("./task-details-sheet", () => ({ TaskDetailsSheet: () => null }));
 vi.mock("./task-date-filter", () => ({ TaskDateFilterPicker: () => <div>date-filter</div>, taskPresetRange: () => null }));
 
 import { TasksView } from "./tasks-view";
-import { ReminderTabs } from "./reminder-tabs";
-import { ReminderCard } from "./reminder-card";
 
 const task = (over: Partial<Task> = {}): Task =>
   ({
@@ -70,12 +65,9 @@ const task = (over: Partial<Task> = {}): Task =>
     overdueByHours: null,
     recurring: false,
     recurrenceType: null,
-    recurrenceIntervalDays: null,
     cattleTags: [],
     relatedCattle: null,
     assignedTo: null,
-    recipientUserIds: [],
-    notifyRoleNames: [],
     ...over,
   }) as unknown as Task;
 
@@ -95,46 +87,37 @@ beforeEach(() => {
   allowed.clear();
   allowed.add("task.create");
   allowed.add("task.complete");
-  state = { items: [task()], isLoading: false, isError: false, isNextPageError: false, highlights: HIGHLIGHTS, reminderHighlights: REMINDER_HIGHLIGHTS };
+  state = { items: [task()], isLoading: false, isError: false, isNextPageError: false, highlights: HIGHLIGHTS };
 });
 
 describe("TasksView", () => {
-  it("switching segment keeps other URL params", () => {
-    search = "view=cow-9";
+  it("has no Reminders segment (reminders moved to the notification sheet)", () => {
     renderView();
-    fireEvent.mouseDown(screen.getByRole("tab", { name: /Reminders/ }), { button: 0 });
-    expect(replace).toHaveBeenCalledWith("/tasks?view=cow-9&segment=reminders", { scroll: false });
+    expect(screen.queryByRole("tab", { name: /Reminders/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /New reminder/ })).not.toBeInTheDocument();
   });
 
-  it("returning to Tasks removes only the segment param", () => {
-    search = "view=cow-9&segment=reminders";
-    renderView();
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "Tasks" }), { button: 0 });
-    expect(replace).toHaveBeenCalledWith("/tasks?view=cow-9", { scroll: false });
-  });
-
-  it("segment follows the URL after the navigation lands", () => {
-    const { rerender } = renderView();
-    fireEvent.mouseDown(screen.getByRole("tab", { name: /Reminders/ }), { button: 0 });
-    search = "segment=reminders"; // what the router would now report
-    rerender(ui(<TasksView />));
-    expect(screen.getByRole("tab", { name: /Reminders/ })).toHaveAttribute("data-state", "active");
-  });
-
-  it("Upcoming asks the server for filter=upcoming with no clock in the query", () => {
-    search = "segment=reminders";
+  it("lists tasks with no kind filter and no clock in the query", () => {
     renderView();
     const f = seenFilters.at(-1)!;
-    expect(f).toMatchObject({ kind: "reminder", filter: "upcoming", sortOrder: "asc" });
+    expect(f).toMatchObject({ filter: "all" });
+    expect(f).not.toHaveProperty("kind");
     expect(f.dueFrom).toBeUndefined();
     expect(JSON.stringify(seenFilters[0])).toBe(JSON.stringify(seenFilters.at(-1)));
   });
 
-  it("Done sorts newest first", () => {
+  it("an old ?segment=reminders bookmark just shows the task list", () => {
     search = "segment=reminders";
     renderView();
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "Done" }), { button: 0 });
-    expect(seenFilters.at(-1)).toMatchObject({ kind: "reminder", status: "COMPLETED,CANCELLED", sortOrder: "desc" });
+    expect(screen.getByText("Check hoof")).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("drops a legacy REMINDER row an older backend may still return", () => {
+    state = { ...state, items: [task(), task({ id: "r1", name: "Old reminder row", kind: "REMINDER" })] };
+    renderView();
+    expect(screen.getByText("Check hoof")).toBeInTheDocument();
+    expect(screen.queryByText("Old reminder row")).not.toBeInTheDocument();
   });
 
   it("loading phase shows a polite status, not cards or empty state", () => {
@@ -187,63 +170,13 @@ describe("TasksView", () => {
     renderView();
     expect(screen.getByText("12%")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /Overdue/ })).toHaveTextContent("2");
-    expect(screen.getByRole("tab", { name: /Reminders/ })).toHaveTextContent("9");
   });
 
-  it("inner tablists are labelled and controlled panels exist", () => {
+  it("the tablist is labelled and its controlled panel exists", () => {
     renderView();
     expect(screen.getByRole("tablist", { name: "Task views" })).toBeInTheDocument();
     const tab = screen.getByRole("tab", { name: /All Tasks/ });
     const panelId = tab.getAttribute("aria-controls")!;
     expect(document.getElementById(panelId)).toHaveAttribute("role", "tabpanel");
-    const outer = screen.getByRole("tab", { name: "Tasks" }).getAttribute("aria-controls")!;
-    expect(document.getElementById(outer)).toHaveAttribute("role", "tabpanel");
-  });
-});
-
-describe("ReminderTabs", () => {
-  const renderTabs = (counts?: Partial<Record<"upcoming" | "overdue" | "repeating" | "done", number>>) =>
-    render(ui(<ReminderTabs value="upcoming" onChange={vi.fn()} counts={counts} panelId="p" />));
-
-  it("shows counts with a destructive Overdue badge", () => {
-    renderTabs({ upcoming: 4, overdue: 5 });
-    expect(screen.getByRole("tab", { name: /Upcoming/ })).toHaveTextContent("4");
-    expect(screen.getByText("5").className).toContain("text-destructive");
-  });
-  it("omits badges when counts are unknown", () => {
-    renderTabs(undefined);
-    expect(screen.getByRole("tab", { name: "Upcoming" })).toHaveTextContent(/^Upcoming$/);
-  });
-  it("omits zero badges", () => {
-    renderTabs({ upcoming: 0 });
-    expect(screen.queryByText("0")).not.toBeInTheDocument();
-  });
-  it("labels the tablist and points every tab at the panel", () => {
-    renderTabs();
-    expect(screen.getByRole("tablist", { name: "Reminder views" })).toBeInTheDocument();
-    for (const tab of screen.getAllByRole("tab")) expect(tab).toHaveAttribute("aria-controls", "p");
-  });
-});
-
-describe("ReminderCard", () => {
-  const reminder = (over: Partial<Task> = {}) => task({ kind: "REMINDER", name: "Vaccinate", displayStatus: "pending", ...over });
-
-  it("offers Done on an open reminder to a user who can complete", () => {
-    render(ui(<ReminderCard task={reminder()} onOpen={vi.fn()} />));
-    fireEvent.click(screen.getByRole("button", { name: /Done/ }));
-    expect(completeMutate).toHaveBeenCalledWith({ id: "t1", dto: {} });
-  });
-  it("gates Done on task.complete", () => {
-    allowed.delete("task.complete");
-    render(ui(<ReminderCard task={reminder()} onOpen={vi.fn()} />));
-    expect(screen.queryByRole("button", { name: /Done/ })).not.toBeInTheDocument();
-  });
-  it("hides Done on a finished reminder", () => {
-    render(ui(<ReminderCard task={reminder({ displayStatus: "completed", status: "COMPLETED" })} onOpen={vi.fn()} />));
-    expect(screen.queryByRole("button", { name: /Done/ })).not.toBeInTheDocument();
-  });
-  it("describes the repeat", () => {
-    render(ui(<ReminderCard task={reminder({ recurring: true, recurrenceType: "WEEKLY" })} onOpen={vi.fn()} />));
-    expect(screen.getByText(/week/i)).toBeInTheDocument();
   });
 });

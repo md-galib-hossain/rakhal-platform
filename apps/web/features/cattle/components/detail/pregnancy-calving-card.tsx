@@ -1,5 +1,6 @@
 "use client"; // live query
 
+import { WS_CARD } from "../workspace/workspace-grid";
 import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
@@ -32,9 +33,9 @@ export function PregnancyCalvingCard({ cattleId }: { cattleId: string }) {
     isManual && data.calculatedCalvingDate != null && data.calculatedCalvingDate !== data.expectedCalvingDate;
 
   return (
-    <Card className="flex flex-col gap-2 rounded-xl p-4">
+    <Card className={`${WS_CARD} flex flex-col gap-2`}>
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">{t("title")}</h3>
+        <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("title")}</h3>
         <Chip variant={isManual ? "info" : "primary"}>{t(`source.${data.expectedCalvingDateSource}`)}</Chip>
       </div>
       <DateText date={data.expectedCalvingDate} className="text-lg font-bold text-foreground" />

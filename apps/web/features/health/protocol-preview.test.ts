@@ -83,14 +83,18 @@ describe("buildProtocolPreview", () => {
     expect(preview.withdrawal).toEqual({ milkUntil: null, meatUntil: null });
   });
 
-  it("lists the first step's four reminder days, marking the ones already past", () => {
+  it("lists the first step's notice days, marking the ones already past", () => {
     const preview = buildProtocolPreview([step(1)], "2026-10-12", now); // first step in 2 days
     expect(preview.firstStepReminders.map((r) => [r.daysBefore, r.willFire])).toEqual([
       [7, false],
-      [3, false],
       [1, true],
       [0, true],
     ]);
+  });
+
+  it("a treatment protocol only notifies on the day", () => {
+    const preview = buildProtocolPreview([step(1)], "2026-10-12", now, "TREATMENT");
+    expect(preview.firstStepReminders.map((r) => [r.daysBefore, r.willFire])).toEqual([[0, true]]);
   });
 
   it("copes with a protocol that has no steps", () => {

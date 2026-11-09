@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   Bell,
   Loader2,
+  Lock,
   Moon,
   Search,
   Send,
@@ -109,9 +110,9 @@ export function NotificationPreferencesView() {
 
     const channelName = t(`channels.${channel}`);
     if (muted) {
-      toast.info(`${channelName} alerts muted.`);
+      toast.info(t("channelMutedToast", { channel: channelName }));
     } else {
-      toast.success(`${channelName} alerts active.`);
+      toast.success(t("channelActiveToast", { channel: channelName }));
     }
   }
 
@@ -187,8 +188,15 @@ export function NotificationPreferencesView() {
     byCategory.set(item.category, list);
   }
 
+  // The API decides which categories exist: known ones keep their order, anything new is appended, not dropped.
+  const presentCategories: NotificationCategory[] = [
+    ...CATEGORY_ORDER.filter((c) => items.some((i) => i.category === c)),
+    ...Array.from(new Set(items.map((i) => i.category))).filter((c) => !CATEGORY_ORDER.includes(c)),
+  ];
+  const categoryLabel = (cat: NotificationCategory) => (t.has(`categories.${cat}`) ? t(`categories.${cat}`) : cat);
+
   return (
-    <div className="flex flex-col gap-8 pb-10">
+    <div className="flex flex-col gap-6 pb-6">
       {/* 1. DELIVERY CHANNELS HUB (Telegram, SMS, Push, WhatsApp, Email) */}
       <DeliveryChannelsHub
         telegramStatus={telegramStatus}
@@ -200,7 +208,7 @@ export function NotificationPreferencesView() {
       />
 
       {/* 2. QUIET HOURS (DND Window) */}
-      <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 sm:p-5">
+      <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
         <div className="flex items-center gap-2">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
             <Moon className="size-4" />
@@ -252,7 +260,7 @@ export function NotificationPreferencesView() {
 
       {/* 3. NOTIFICATION ROUTING & PERSONALIZATION */}
       <section className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col gap-3">
           <div>
             <h2 className="text-base font-semibold text-foreground tracking-tight">
               {t("routingTitle")}
@@ -263,7 +271,7 @@ export function NotificationPreferencesView() {
           </div>
 
           {/* Search Bar */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative w-full">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               type="text"
@@ -285,7 +293,7 @@ export function NotificationPreferencesView() {
           >
             {t("allCategories")}
           </Button>
-          {CATEGORY_ORDER.map((cat) => (
+          {presentCategories.map((cat) => (
             <Button
               key={cat}
               variant={selectedCategory === cat ? "primary" : "outline"}
@@ -293,7 +301,7 @@ export function NotificationPreferencesView() {
               onClick={() => setSelectedCategory(cat)}
               className="h-7 px-2.5 text-xs rounded-full"
             >
-              {t(`categories.${cat}`)}
+              {categoryLabel(cat)}
             </Button>
           ))}
         </div>
@@ -305,14 +313,14 @@ export function NotificationPreferencesView() {
           </div>
         ) : (
           <div className="flex flex-col gap-6">
-            {CATEGORY_ORDER.filter((c) => byCategory.has(c)).map((category) => (
+            {presentCategories.filter((c) => byCategory.has(c)).map((category) => (
               <div key={category} className="flex flex-col gap-2.5">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t(`categories.${category}`)}
+                    {categoryLabel(category)}
                   </h3>
                   <span className="text-[11px] text-muted-foreground">
-                    {byCategory.get(category)!.length} alerts
+                    {t("alertCount", { count: byCategory.get(category)!.length })}
                   </span>
                 </div>
 
@@ -325,27 +333,28 @@ export function NotificationPreferencesView() {
                     };
 
                     return (
-                      <div key={item.event_key} className="flex flex-col gap-3 p-4 sm:p-4.5">
+                      <div key={item.event_key} data-testid={`pref-${item.event_key}`} className="flex flex-col gap-3 p-4">
                         <div className="flex items-start justify-between gap-3">
-                          <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-2">
+                          <div className="flex min-w-0 flex-col gap-0.5">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className="text-sm font-medium text-foreground">
                                 {item.label}
                               </span>
                               {!item.can_disable ? (
-                                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 font-normal">
+                                <Badge variant="destructive" className="gap-1 text-[10px] px-1.5 py-0 font-normal">
+                                  <Lock className="size-2.5" aria-hidden />
                                   {t("mandatory")}
                                 </Badge>
                               ) : null}
                             </div>
-                            <span className="text-[11px] text-muted-foreground font-mono">
-                              {item.event_key}
-                            </span>
+                            {!item.can_disable ? (
+                              <span className="text-[11px] text-muted-foreground">{t("mandatoryHint")}</span>
+                            ) : null}
                           </div>
 
-                          <div className="flex items-center gap-2">
+                          <div className="flex shrink-0 items-center gap-2">
                             <Switch
-                              aria-label={`Toggle ${item.label}`}
+                              aria-label={t("toggleAlert", { label: item.label })}
                               checked={item.enabled}
                               disabled={!item.can_disable || update.isPending}
                               onCheckedChange={(checked) => toggleEnabled(item, checked)}
@@ -355,7 +364,7 @@ export function NotificationPreferencesView() {
 
                         {/* Channel personalization toggles: 2-color state (primary green for active, neutral muted for inactive) */}
                         {item.enabled ? (
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-1 border-t border-border/50">
+                          <div className="flex flex-col gap-2 pt-1 border-t border-border/50">
                             <span className="text-[11px] font-medium text-muted-foreground mr-1 flex items-center gap-1">
                               <SlidersHorizontal className="size-3" />
                               {t("deliveryVia")}
@@ -385,7 +394,7 @@ export function NotificationPreferencesView() {
                                   <span>{t("channels.telegram")}</span>
                                   {isMutedByChannel.telegram ? (
                                     <span className="text-[10px] font-normal no-underline text-muted-foreground">
-                                      (Muted)
+                                      {t("mutedSuffix")}
                                     </span>
                                   ) : null}
                                 </label>
@@ -412,7 +421,7 @@ export function NotificationPreferencesView() {
                                   <span>{t("channels.sms")}</span>
                                   {isMutedByChannel.sms ? (
                                     <span className="text-[10px] font-normal no-underline text-muted-foreground">
-                                      (Muted)
+                                      {t("mutedSuffix")}
                                     </span>
                                   ) : null}
                                 </label>

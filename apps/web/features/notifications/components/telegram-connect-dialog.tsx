@@ -45,6 +45,7 @@ export function TelegramConnectDialog({
   // Reset state when dialog opens / closes
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets local UI flags when the controlled dialog closes
       setIsSuccess(false);
       setCopied(false);
     }
@@ -54,6 +55,7 @@ export function TelegramConnectDialog({
   useEffect(() => {
     if (!open) return;
     if (statusQuery.data?.linked) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reacts to the polled link status (external system)
       setIsSuccess(true);
       void queryClient.invalidateQueries({
         queryKey: qk.notifications.preferences(),

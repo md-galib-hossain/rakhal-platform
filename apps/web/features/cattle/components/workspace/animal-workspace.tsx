@@ -14,7 +14,7 @@ import type { RowAction } from "@/components/shared/row-actions-menu";
 import { EventFormPlaceholder } from "@/features/events/components/event-picker/event-form-placeholder";
 import { EventPicker } from "@/features/events/components/event-picker/event-picker";
 import { EventFormPanel } from "@/features/events/components/form/event-form-panel";
-import { ReminderSheet } from "@/features/events/components/reminders/reminder-sheet";
+import { openRemindMe } from "@/features/notifications/sheet-store";
 import { DISPOSE_EVENTS, FORM_DEFS } from "@/features/events/forms/definitions";
 import { EVENT_KEYS, type EventKey } from "@/features/events/types";
 import { useCattleDetail, useRestoreCattle } from "../../hooks/use-cattle";
@@ -24,6 +24,7 @@ import { resolveSection, type SectionKey } from "./section-state";
 // eslint-disable-next-line import/no-cycle
 import { SectionBody, SectionSwitcher } from "./workspace-sections";
 import { WorkspaceHeader } from "./workspace-header";
+import { ProfileDrawer } from "./profile/profile-drawer";
 import { WorkspaceSkeleton } from "./workspace-skeleton";
 import { quickActionsFor } from "./quick-actions";
 import { WS_SHELL } from "./workspace-grid";
@@ -44,13 +45,14 @@ function isEventKey(value: string): value is EventKey {
 export function AnimalWorkspace({
   cattleId,
   onOpenChange,
-  onEdit,
   onDispose,
   onDelete,
+  formOnly = false,
 }: {
   cattleId: string | undefined;
+  /** Opened from another page's "Record …" button: show only the event form, not the workspace behind it. */
+  formOnly?: boolean;
   onOpenChange: (open: boolean) => void;
-  onEdit: (cattle: CattleDetail) => void;
   onDispose: (cattle: CattleDetail) => void;
   onDelete: (cattle: CattleDetail) => void;
 }) {
@@ -68,6 +70,8 @@ export function AnimalWorkspace({
   const [, setRef] = useQueryState("ref", parseAsString);
   const [drill, setDrill] = useState<DrillKey | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // RFE-181: Edit profile is a drawer inside the workspace, not a separate sheet.
+  const [editOpen, setEditOpen] = useState(false);
   const titleRef = useRef<HTMLHeadingElement>(null);
 
   const canSeeMoney = can("finance.read");
@@ -83,6 +87,13 @@ export function AnimalWorkspace({
   useEffect(() => {
     if (loadedId) titleRef.current?.focus();
   }, [loadedId]);
+
+  // An old `?record=REMINDER` link now opens the notification sheet's New tab for this animal, then clears the param.
+  useEffect(() => {
+    if (record !== "REMINDER" || !cattle) return;
+    openRemindMe({ animal: { id: cattle.id, tagNumber: cattle.tagNumber, name: cattle.name } });
+    void setRecord(null);
+  }, [record, cattle, setRecord]);
 
   // Ctrl/Cmd+K opens the event picker while the workspace is open; `GlobalSearch` stands down for the same key.
   useEffect(() => {
@@ -130,6 +141,22 @@ export function AnimalWorkspace({
     if (!isDeleted && can("cattle.delete")) actions.push({ key: "delete", label: tActions("delete"), destructive: true, onSelect: () => onDelete(cattle) });
   }
 
+  // Record-from-elsewhere (e.g. Reproduction "Record AI"): just the form, no profile sheet behind it. Esc/back/done close it all.
+  if (formOnly && cattleId) {
+    if (cattle && canRecord && record && isEventKey(record) && FORM_DEFS[record] && !DISPOSE_EVENTS.includes(record)) {
+      return (
+        <EventFormPanel
+          key={record}
+          eventKey={record}
+          cattle={cattle}
+          onBack={() => closeWorkspace(false)}
+          onDone={() => closeWorkspace(false)}
+        />
+      );
+    }
+    if (query.isLoading) return null;
+  }
+
   return (
     <Sheet open={Boolean(cattleId)} onOpenChange={closeWorkspace}>
       <SheetContent
@@ -170,7 +197,7 @@ export function AnimalWorkspace({
                 quickActions={quickActions}
                 onRecord={() => setPickerOpen(true)}
                 onQuickAction={(key) => void setRecord(key)}
-                onEdit={() => onEdit(cattle)}
+                onEdit={() => setEditOpen(true)}
                 onClose={() => closeWorkspace(false)}
               />
             ) : (
@@ -226,6 +253,7 @@ export function AnimalWorkspace({
             </Button>
           </div>
         ) : null}
+        {cattle && editOpen && can("cattle.update") ? <ProfileDrawer cattle={cattle} onClose={() => setEditOpen(false)} /> : null}
         {cattle && canRecord ? (
           <EventPicker
             open={pickerOpen}
@@ -235,6 +263,8 @@ export function AnimalWorkspace({
               setPickerOpen(false);
               // Sell / death / cull are the existing dispose dialog (RFE-159), not a form of their own.
               if (DISPOSE_EVENTS.includes(key)) onDispose(cattle);
+              // NV2: the picker's "Reminder" opens the notification sheet's New tab for this animal (not an event form).
+              else if (key === "REMINDER") openRemindMe({ animal: { id: cattle.id, tagNumber: cattle.tagNumber, name: cattle.name } });
               else void setRecord(key);
             }}
           />
@@ -251,16 +281,7 @@ export function AnimalWorkspace({
             }}
             onDone={() => void setRecord(null)}
           />
-        ) : cattle && canRecord && record === "REMINDER" ? (
-          // RFE-164: the picker's "Reminder" opens the reminder form (a Task Hub task), not an event form.
-          <ReminderSheet
-            open
-            onOpenChange={(open) => {
-              if (!open) void setRecord(null);
-            }}
-            animal={{ id: cattle.id, tagNumber: cattle.tagNumber, name: cattle.name }}
-          />
-        ) : cattle && canRecord && record && isEventKey(record) && !DISPOSE_EVENTS.includes(record) ? (
+        ) : cattle && canRecord && record && record !== "REMINDER" && isEventKey(record) && !DISPOSE_EVENTS.includes(record) ? (
           <EventFormPlaceholder
             eventKey={record}
             animalName={cattle.name ?? cattle.tagNumber}

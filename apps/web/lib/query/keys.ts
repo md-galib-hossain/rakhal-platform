@@ -67,7 +67,8 @@ export const qk = {
     reproductionSummary: (id: string) => ["cattle", "reproduction-summary", id] as const,
     healthSummary: (id: string) => ["cattle", "health-summary", id] as const,
     holds: (id: string) => ["cattle", "holds", id] as const,
-    upcomingEvents: (id: string) => ["cattle", "upcoming-events", id] as const,
+    // `limit` is the LAST element so invalidating `upcomingEvents(id)` still prefix-matches every page size.
+    upcomingEvents: (id: string, limit?: number) => (limit === undefined ? (["cattle", "upcoming-events", id] as const) : (["cattle", "upcoming-events", id, limit] as const)),
   },
   milk: {
     overview: (date: string | undefined, range?: string) => ["milk", "overview", date, range] as const,
@@ -308,6 +309,14 @@ export const qk = {
     preferences: () => ["notifications", "preferences"] as const,
     telegramStatus: () => ["notifications", "telegram", "status"] as const,
     telegramConnectSession: () => ["notifications", "telegram", "connectSession"] as const,
+    /** RFE-188 — Notifications v2. `schedulesAll`/`upcomingAll` are the invalidation prefixes. */
+    schedulesAll: () => ["notifications", "schedules"] as const,
+    schedules: (filters: { scope?: string; status?: string }) =>
+      ["notifications", "schedules", "list", filters] as const,
+    schedule: (id: string) => ["notifications", "schedules", "detail", id] as const,
+    upcomingAll: () => ["notifications", "upcoming"] as const,
+    upcoming: (filters: { from?: string; to?: string; sortOrder?: string }) =>
+      ["notifications", "upcoming", filters] as const,
   },
   /** RFE-153 — Reports v2 (`/reports*`). `all()` is the invalidation prefix for every reports read. */
   reports: {

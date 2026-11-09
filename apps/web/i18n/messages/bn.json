@@ -206,23 +206,142 @@
     "notifications": "বিজ্ঞপ্তি",
     "onboarding": "অনবোর্ডিং"
   },
-  "notificationsPage": {
+  "notificationSheet": {
     "title": "বিজ্ঞপ্তি",
-    "markAllRead": "সব পঠিত করুন",
-    "preferences": "সেটিংস",
-    "loadError": "বিজ্ঞপ্তি লোড করা যায়নি।",
-    "empty": "কোনো বিজ্ঞপ্তি নেই",
-    "emptyDescription": "আপনি সব দেখে ফেলেছেন।",
-    "pageOf": "পৃষ্ঠা {page} / {total}",
-    "filters": {
-      "all": "সব",
-      "unread": "অপঠিত"
+    "description": "আপনার ইনবক্স, আসন্ন বিজ্ঞপ্তি এবং নতুন রিমাইন্ডার।",
+    "tabsLabel": "বিজ্ঞপ্তির বিভাগ",
+    "tabs": {
+      "inbox": "ইনবক্স",
+      "upcoming": "আসন্ন",
+      "new": "নতুন"
+    },
+    "preferences": "বিজ্ঞপ্তির সেটিংস",
+    "preferencesTitle": "বিজ্ঞপ্তির সেটিংস",
+    "back": "ফিরে যান",
+    "inbox": {
+      "filterLabel": "বিজ্ঞপ্তি ফিল্টার",
+      "filters": {
+        "all": "সব",
+        "unread": "অপঠিত"
+      },
+      "markAllRead": "সব পঠিত করুন",
+      "unread": "অপঠিত",
+      "errorTitle": "কিছু ভুল হয়েছে",
+      "loadError": "বিজ্ঞপ্তি লোড করা যায়নি।",
+      "empty": "কোনো বিজ্ঞপ্তি নেই",
+      "emptyUnread": "কোনো অপঠিত বিজ্ঞপ্তি নেই",
+      "emptyDescription": "আপনি সব দেখে ফেলেছেন।",
+      "loadMore": "আরও দেখুন",
+      "shown": "{total}টির মধ্যে {shown}টি দেখানো হচ্ছে"
     },
     "priority": {
       "critical": "জরুরি",
       "high": "উচ্চ",
       "medium": "মাঝারি",
       "low": "নিম্ন"
+    },
+    "upcoming": {
+      "rangeLabel": "সময়সীমা",
+      "ranges": { "today": "আজ", "week": "৭ দিন", "fortnight": "১৪ দিন" },
+      "today": "আজ",
+      "tomorrow": "আগামীকাল",
+      "errorTitle": "কিছু ভুল হয়েছে",
+      "loadError": "আসন্ন বিজ্ঞপ্তি লোড করা যায়নি।",
+      "empty": "সামনে কিছু নেই",
+      "emptyDescription": "এই সময়ে কোনো বিজ্ঞপ্তি নির্ধারিত নেই।",
+      "source": { "system": "স্বয়ংক্রিয়", "mine": "আপনার", "shared": "আপনার সাথে শেয়ার করা" },
+      "repeat": { "EVERY_N_DAYS": "কয়েক দিন পরপর পুনরাবৃত্তি", "WEEKLY": "সাপ্তাহিক পুনরাবৃত্তি", "MONTHLY": "মাসিক পুনরাবৃত্তি" },
+      "animals": "{count, plural, one {# টি পশু} other {# টি পশু}}",
+      "edit": "{title} সম্পাদনা করুন",
+      "pause": "{title} বিরতি দিন",
+      "resume": "{title} আবার চালু করুন",
+      "cancel": "{title} বাতিল করুন",
+      "paused": "রিমাইন্ডার বিরতিতে আছে",
+      "resumed": "রিমাইন্ডার আবার চালু হয়েছে",
+      "cancelled": "রিমাইন্ডার বাতিল হয়েছে",
+      "actionError": "রিমাইন্ডার হালনাগাদ করা যায়নি। আবার চেষ্টা করুন।",
+      "loadMore": "আরও দেখুন",
+      "retry": "আবার চেষ্টা করুন",
+      "pausedTitle": "বিরতিতে",
+      "cancelConfirmTitle": "এই রিমাইন্ডার বাতিল করবেন?",
+      "cancelConfirmBody": "\"{title}\" এবং এর সব আসন্ন বিজ্ঞপ্তি মুছে যাবে। এটি ফেরানো যাবে না।",
+      "cancelConfirm": "রিমাইন্ডার বাতিল করুন",
+      "keep": "রেখে দিন"
+    },
+    "compose": {
+      "titleLabel": "শিরোনাম",
+      "titlePlaceholder": "যেমন: উত্তরের বেড়া দেখা",
+      "notesLabel": "নোট (ঐচ্ছিক)",
+      "notesPlaceholder": "মনে রাখার মতো কিছু লিখুন",
+      "whenLabel": "কখন",
+      "when": { "date": "নির্দিষ্ট তারিখে", "before": "ঘটনার আগে", "after": "ঘটনার পরে" },
+      "dateLabel": "তারিখ",
+      "daysBefore": "কত দিন আগে",
+      "daysAfter": "কত দিন পরে",
+      "anchorAbout": "বিষয়: {label}",
+      "anchorLinked": "একটি রেকর্ডের সাথে যুক্ত",
+      "timeModeLabel": "দিনের সময়",
+      "timeMode": { "at": "নির্দিষ্ট সময়ে", "allDay": "সারা দিন" },
+      "timeLabel": "সময়",
+      "allDayHint": "সারা দিনের বিজ্ঞপ্তি খামারের সময় সকাল ০৮:০০টায় যায়।",
+      "leadLabel": "আমাকে জানান",
+      "lead": { "0": "ঠিক সময়ে", "60": "১ ঘণ্টা আগে", "1440": "১ দিন আগে", "10080": "১ সপ্তাহ আগে" },
+      "repeatLabel": "পুনরাবৃত্তি",
+      "repeat": { "NEVER": "না", "EVERY_N_DAYS": "প্রতি N দিনে", "WEEKLY": "প্রতি সপ্তাহে", "MONTHLY": "প্রতি মাসে" },
+      "everyN": "কত দিন পরপর",
+      "endsOn": "পুনরাবৃত্তি শেষ হবে",
+      "audienceLabel": "কে পাবেন",
+      "audience": { "me": "আমি", "roles": "ভূমিকা", "people": "ব্যক্তি" },
+      "onlyYou": "এই বিজ্ঞপ্তি শুধু আপনার কাছে যাবে।",
+      "roles": { "Owner": "মালিক", "Manager": "ম্যানেজার", "Worker": "কর্মী" },
+      "peopleLoading": "দল লোড হচ্ছে…",
+      "peopleError": "দল লোড করা যায়নি।",
+      "peopleEmpty": "এখনও কোনো সদস্য নেই।",
+      "animalsLabel": "পশু (ঐচ্ছিক)",
+      "animalsPlaceholder": "ট্যাগ বা নাম দিয়ে পশু খুঁজুন",
+      "animalsNone": "কোনো পশু বাছাই করা হয়নি।",
+      "animalChip": "পশু",
+      "removeAnimal": "{animal} সরান",
+      "preview": {
+        "title": "যে সময়ে যাবে",
+        "idle": "কখন যাবে দেখতে ফর্মটি পূরণ করুন।",
+        "loading": "সময়সূচি যাচাই হচ্ছে…",
+        "error": "সময়সূচির প্রিভিউ দেখানো যায়নি।",
+        "none": "এই সেটিংসে কিছুই পাঠানো হবে না।",
+        "recipients": "{count, plural, one {# জন} other {# জন}} পাবেন"
+      },
+      "submit": "বিজ্ঞপ্তি তৈরি করুন",
+      "save": "পরিবর্তন সংরক্ষণ করুন",
+      "saving": "সংরক্ষণ হচ্ছে…",
+      "cancel": "বাতিল",
+      "createdToast": "বিজ্ঞপ্তি নির্ধারিত হয়েছে",
+      "updatedToast": "বিজ্ঞপ্তি হালনাগাদ হয়েছে",
+      "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।",
+      "loadError": "এই বিজ্ঞপ্তি লোড করা যায়নি।",
+      "retry": "আবার চেষ্টা করুন",
+      "errors": {
+        "titleRequired": "একটি শিরোনাম লিখুন",
+        "titleTooLong": "শিরোনাম অনেক বড় (সর্বোচ্চ ১২০)",
+        "notesTooLong": "নোট অনেক বড় (সর্বোচ্চ ১০০০)",
+        "dateRequired": "একটি তারিখ বাছাই করুন",
+        "timeInvalid": "সঠিক সময় লিখুন",
+        "offsetInvalid": "০ থেকে ৩৬৫০ এর মধ্যে পূর্ণসংখ্যা দিন",
+        "intervalInvalid": "১ থেকে ৩৬৫ এর মধ্যে দিন সংখ্যা দিন",
+        "endBeforeStart": "শেষ তারিখ শুরুর তারিখ বা তার পরে হতে হবে",
+        "leadRequired": "অন্তত একটি বাছাই করুন",
+        "leadNeedsTime": "এগুলোর জন্য নির্দিষ্ট সময় লাগবে",
+        "tooManyLeads": "সর্বোচ্চ ৪টি বাছাই করুন",
+        "tooManyPeople": "সর্বোচ্চ ১০০ জন",
+        "tooManyAnimals": "সর্বোচ্চ ১০০টি পশু",
+        "rolesRequired": "অন্তত একটি ভূমিকা বাছাই করুন",
+        "peopleRequired": "অন্তত একজনকে বাছাই করুন"
+      }
+    },
+    "comingSoon": {
+      "upcomingTitle": "আসন্ন বিজ্ঞপ্তি শীঘ্রই আসছে",
+      "upcomingBody": "এখানে আপনার পরবর্তী রিমাইন্ডার ও কাজের বিজ্ঞপ্তি দিন অনুযায়ী দেখা যাবে।",
+      "newTitle": "নতুন রিমাইন্ডার শীঘ্রই আসছে",
+      "newBody": "এখানে থেকে আপনি নিজের রিমাইন্ডার তৈরি করতে পারবেন।"
     }
   },
   "onboarding": {
@@ -671,7 +790,9 @@
       },
       "emptyTitle": "মজুদ পর্যাপ্ত আছে",
       "emptyDescription": "এই মুহূর্তে কোনো কম-মজুদ আইটেম নেই।",
-      "error": "মজুদ সতর্কতা লোড করা যায়নি।"
+      "error": "মজুদ সতর্কতা লোড করা যায়নি।",
+      "daysLeft": "প্রায় {count} দিন বাকি",
+      "viewInventory": "ইনভেন্টরি দেখুন"
     },
     "feedCost": {
       "title": "ফিড খরচ",
@@ -1792,6 +1913,21 @@
       "selectedCount": "{count} টি নির্বাচিত",
       "addSelected": "নির্বাচিত প্রাণী যোগ করুন",
       "allAnimalsAlreadyInGroup": "খামারের সব প্রাণী ইতিমধ্যেই এই গ্রুপে রয়েছে।"
+    },
+    "profile": {
+      "title": "{name} সম্পাদনা",
+      "identity": "পরিচয়",
+      "origin": "উৎস ও বংশ",
+      "physical": "শারীরিক",
+      "weightHint": "ওজন এখানে নয়, “ওজন মাপা” ইভেন্ট হিসেবে নথিভুক্ত হয়।",
+      "tagRequired": "ট্যাগ আইডি আবশ্যক।",
+      "save": "পরিবর্তন সংরক্ষণ",
+      "saving": "সংরক্ষণ হচ্ছে…",
+      "close": "বন্ধ করুন",
+      "savedToast": "প্রোফাইল হালনাগাদ হয়েছে।",
+      "discardTitle": "পরিবর্তনগুলো বাদ দেবেন?",
+      "keepEditing": "সম্পাদনা চালিয়ে যান",
+      "discard": "বাদ দিন"
     }
   },
   "inventory": {
@@ -3507,9 +3643,7 @@
         "dueInDays": "{days, number} দিন পর",
         "overdueDays": "{days, plural, one {১ দিন বকেয়া} other {# দিন বকেয়া}}",
         "nextReminder": "পরবর্তী রিমাইন্ডার: {date} ({when})",
-        "reminderToday": "রিমাইন্ডার আজই যাবে",
-        "reminderWhen": "{days, plural, =0 {সেদিনই} one {১ দিন আগে} other {# দিন আগে}}",
-        "remindedDaily": "সম্পন্ন না হওয়া পর্যন্ত প্রতিদিন রিমাইন্ডার যাবে",
+        "remindMe": "আমাকে মনে করিয়ে দিন",
         "medicine": "ওষুধ",
         "dose": "ডোজ",
         "action": "কাজ",
@@ -3825,9 +3959,9 @@
         "span": "{steps}টি ধাপ · {days} দিনে",
         "milkUntil": "{date} পর্যন্ত দুধ বিক্রি বন্ধ",
         "meatUntil": "{date} পর্যন্ত মাংস বিক্রি বন্ধ",
-        "remindersAll": "প্রথম ধাপের রিমাইন্ডার: {dates}। প্রতিটি ধাপের ৭ দিন, ৩ দিন ও ১ দিন আগে এবং সেদিনই রিমাইন্ডার আসবে।",
-        "remindersPartial": "প্রথম ধাপ কাছে, তাই রিমাইন্ডার দেরিতে শুরু হবে: {dates}। পরের ধাপগুলোতে চারটিই আসবে।",
-        "remindersNone": "প্রথম ধাপের তারিখ পেরিয়ে গেছে — রেকর্ড না করা পর্যন্ত প্রতিদিন রিমাইন্ডার পাবেন।",
+        "remindersAll": "প্রথম ধাপের বিজ্ঞপ্তি আসবে: {dates}। পরের ধাপগুলোতেও একই নিয়ম।",
+        "remindersPartial": "প্রথম ধাপ কাছে, তাই বিজ্ঞপ্তি দেরিতে শুরু হবে: {dates}। পরের ধাপগুলোতে সবকটিই আসবে।",
+        "remindersNone": "প্রথম ধাপের তারিখ পেরিয়ে গেছে — রেকর্ড না করা পর্যন্ত প্রতিদিন বিজ্ঞপ্তি পাবেন।",
         "today": "আজ",
         "tomorrow": "আগামীকাল",
         "inDays": "{days, number} দিন পর",
@@ -4668,7 +4802,6 @@
   "tasks": {
     "pageTitle": "টাস্ক হাব",
     "createTask": "টাস্ক তৈরি করুন",
-    "newReminder": "নতুন রিমাইন্ডার",
     "searchPlaceholder": "আইডি দিয়ে টাস্ক খুঁজুন",
     "priority": {
       "HIGH": "উচ্চ",
@@ -4837,76 +4970,12 @@
       "genericError": "কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।",
       "markDone": "সম্পন্ন করুন",
       "notifies": "কাকে জানানো হবে",
-      "reminderCancelTask": "রিমাইন্ডার বাতিল করুন",
-      "reminderCancelReasonPlaceholder": "কেন এই রিমাইন্ডারটি বাতিল করা হচ্ছে?",
-      "reminderCancelledToast": "রিমাইন্ডার বাতিল হয়েছে",
-      "reminderDoneToast": "রিমাইন্ডার সম্পন্ন হয়েছে",
-      "reminderReopenedToast": "রিমাইন্ডার পুনরায় চালু হয়েছে",
-      "reminderDeletedToast": "রিমাইন্ডার মুছে ফেলা হয়েছে",
-      "reminderDeleteConfirmTitle": "এই রিমাইন্ডারটি মুছবেন?",
-      "reminderDeleteConfirmDescription": "এটি স্থায়ীভাবে রিমাইন্ডারটি সরিয়ে দেবে। এটি পূর্বাবস্থায় ফেরানো যাবে না।",
-      "reminderDescription": "নোট"
+      "remindMe": "এই কাজের জন্য আমাকে মনে করিয়ে দিন"
     },
     "editSheet": {
       "title": "টাস্ক সম্পাদনা করুন",
       "save": "পরিবর্তন সংরক্ষণ করুন",
       "updatedToast": "টাস্ক আপডেট হয়েছে"
-    },
-    "segment": {
-      "label": "টাস্ক হাব ভিউ",
-      "tasks": "টাস্ক",
-      "reminders": "রিমাইন্ডার"
-    },
-    "reminders": {
-      "searchPlaceholder": "রিমাইন্ডার খুঁজুন",
-      "error": {
-        "title": "রিমাইন্ডার লোড করা যায়নি।"
-      },
-      "tabs": {
-        "upcoming": "আসছে",
-        "overdue": "দেরি হয়েছে",
-        "repeating": "বারবার",
-        "done": "সম্পন্ন",
-        "label": "রিমাইন্ডার ফিল্টার"
-      },
-      "roles": {
-        "Owner": "মালিক",
-        "Manager": "ম্যানেজার",
-        "Worker": "কর্মী"
-      },
-      "empty": {
-        "upcoming": {
-          "title": "আসন্ন কোনো রিমাইন্ডার নেই",
-          "description": "নতুন রিমাইন্ডার দিয়ে কোনো তারিখে বা ঘটনার পরে মনে করিয়ে দেওয়ার ব্যবস্থা করুন।"
-        },
-        "overdue": {
-          "title": "দেরি হওয়া কোনো রিমাইন্ডার নেই",
-          "description": "কিছুই বাদ পড়েনি।"
-        },
-        "repeating": {
-          "title": "বারবার হওয়া কোনো রিমাইন্ডার নেই",
-          "description": "নির্দিষ্ট সময় পরপর হওয়া রিমাইন্ডার এখানে দেখা যাবে।"
-        },
-        "filteredTitle": "এই ফিল্টারে কোনো রিমাইন্ডার নেই",
-        "filteredDescription": "অন্য ট্যাব বা তারিখ বেছে নিন, অথবা ফিল্টার মুছে দিন।",
-        "done": {
-          "title": "এখনও কোনো রিমাইন্ডার সম্পন্ন হয়নি",
-          "description": "সম্পন্ন করা রিমাইন্ডার এখানে দেখা যাবে।"
-        }
-      },
-      "card": {
-        "done": "সম্পন্ন",
-        "doneToast": "রিমাইন্ডার সম্পন্ন হয়েছে",
-        "genericError": "কিছু ভুল হয়েছে। আবার চেষ্টা করুন।",
-        "repeatsEveryN": "প্রতি {count} দিন পরপর",
-        "repeatsWeekly": "প্রতি সপ্তাহে",
-        "repeatsMonthly": "প্রতি মাসে",
-        "leadNotice": "{count} দিন আগে সতর্কতা",
-        "notifiedPeople": "{count} জনকে জানানো হবে",
-        "notifiedRoles": "জানানো হবে: {roles}",
-        "notifiedAssignee": "জানানো হবে: {name}",
-        "notifiedNobody": "জানানো হবে: মালিক ও ম্যানেজার"
-      }
     }
   },
   "finance": {
@@ -7120,7 +7189,30 @@
       "bulkDisableAll": "সব বন্ধ করুন",
       "filterByChannel": "চ্যানেল ফিল্টার:",
       "searchAlerts": "সতর্কতা খুঁজুন...",
-      "noMatchingAlerts": "কোন সতর্কতা পাওয়া যায়নি।"
+      "noMatchingAlerts": "কোন সতর্কতা পাওয়া যায়নি।",
+      "openInSheetTitle": "বিজ্ঞপ্তির সেটিংস",
+      "openInSheetDescription": "কোন সতর্কতা পাবেন, কোন মাধ্যমে (টেলিগ্রাম, এসএমএস, পুশ) পাবেন এবং নীরব সময় ঠিক করুন। এগুলো বিজ্ঞপ্তি প্যানেলে খোলে।",
+      "openInSheet": "বিজ্ঞপ্তির সেটিংস খুলুন",
+      "alertCount": "{count}টি সতর্কতা",
+      "mandatoryHint": "নিরাপত্তা সতর্কতা: সবসময় চালু",
+      "toggleAlert": "{label} চালু/বন্ধ করুন",
+      "mutedSuffix": "(নীরব)",
+      "channelMutedToast": "{channel} সতর্কতা নীরব করা হয়েছে।",
+      "channelActiveToast": "{channel} সতর্কতা চালু আছে।",
+      "hub": {
+        "telegramTagline": "তাৎক্ষণিক বট সতর্কতা",
+        "smsTagline": "যাচাইকৃত ফোন নম্বর",
+        "pushTagline": "ওয়েব ও অ্যাপের ঘণ্টা",
+        "whatsappTagline": "হোয়াটসঅ্যাপ এপিআই",
+        "emailTagline": "ডাইজেস্ট ও সতর্কতা",
+        "stateActive": "চালু",
+        "stateMuted": "নীরব (পাঠানো হচ্ছে না)",
+        "stateNotConnected": "সংযুক্ত নয়",
+        "seamReady": "শীঘ্রই আসছে",
+        "toggleTelegram": "টেলিগ্রাম ডেলিভারি চালু/বন্ধ",
+        "toggleSms": "এসএমএস ডেলিভারি চালু/বন্ধ",
+        "togglePush": "পুশ ডেলিভারি চালু/বন্ধ"
+      }
     },
     "serviceProviderPicker": {
       "selectProvider": "একজন টেকনিশিয়ান নির্বাচন করুন",
@@ -9098,6 +9190,7 @@
     "workspace": {
       "title": "পশুর ওয়ার্কস্পেস",
       "recordEvent": "ঘটনা লিখুন",
+      "remindMe": "এই পশুর জন্য আমাকে মনে করিয়ে দিন",
       "allEvents": "সব ঘটনা…",
       "quickMenu": "দ্রুত লিখুন",
       "shortcutHint": "Ctrl/Cmd+K",
@@ -9596,7 +9689,7 @@
       "error": "কী বাকি আছে তা আনা যায়নি।",
       "retry": "আবার চেষ্টা",
       "nothingDue": "কিছু বাকি নেই",
-      "showAll": "সব দেখুন ({count})",
+      "loadingMore": "আরও লোড হচ্ছে…",
       "more": "আরও {count}টি",
       "infoOnly": "শুধু তথ্য",
       "record": "লিখুন",
@@ -9615,95 +9708,7 @@
       "failed": "রিমাইন্ডার বদলানো যায়নি।",
       "recordOnList": "লিখুন",
       "addReminder": "রিমাইন্ডার যোগ",
-      "editReminder": "সম্পাদনা"
-    },
-    "reminders": {
-      "title": "নতুন রিমাইন্ডার",
-      "titleFor": "নতুন রিমাইন্ডার · {animal}",
-      "editTitle": "রিমাইন্ডার সম্পাদনা",
-      "description": "কী মনে রাখবেন, কখন, কাকে জানানো হবে এবং কোন পশুর জন্য — ঠিক করুন।",
-      "close": "বন্ধ করুন",
-      "titleLabel": "শিরোনাম",
-      "titlePlaceholder": "বাম পেছনের খুর দেখা",
-      "notesLabel": "নোট",
-      "notesPlaceholder": "মনে রাখার কিছু (ঐচ্ছিক)",
-      "whenLabel": "কখন",
-      "when": {
-        "date": "নির্দিষ্ট তারিখে",
-        "afterEvent": "কোনো ঘটনার পর"
-      },
-      "date": "তারিখ",
-      "time": "সময় (ঐচ্ছিক)",
-      "daysAfter": "কত দিন পর",
-      "afterEventLabel": "এই ঘটনার পর",
-      "eventPlaceholder": "ঘটনা বেছে নিন",
-      "eventsLoading": "ঘটনা লোড হচ্ছে…",
-      "noEvents": "এই পশুর কোনো নথিভুক্ত ঘটনা এখনও নেই।",
-      "eventsError": "এই পশুর ঘটনা লোড করা যায়নি।",
-      "dueOn": "{date} তারিখে",
-      "follows": "{date} তারিখের {event} অনুসরণ করে। সেই তারিখ বদলালে এই রিমাইন্ডারও সরে যাবে।",
-      "followsUnknown": "একটি নথিভুক্ত ঘটনা অনুসরণ করে। সেই ঘটনার তারিখ বদলালে এই রিমাইন্ডারও সরে যাবে।",
-      "pickOneAnimal": "একটি পশু বেছে নিন",
-      "repeatLabel": "পুনরাবৃত্তি",
-      "repeat": {
-        "NEVER": "কখনও না",
-        "EVERY_N_DAYS": "প্রতি N দিনে",
-        "WEEKLY": "সাপ্তাহিক",
-        "MONTHLY": "মাসিক"
-      },
-      "everyN": "কত দিন পর পর",
-      "endsOn": "শেষ হবে (ঐচ্ছিক)",
-      "leadLabel": "আমাকে জানান",
-      "lead": {
-        "0": "ঐ দিন",
-        "1": "১ দিন আগেও",
-        "3": "৩ দিন আগেও",
-        "7": "৭ দিন আগেও"
-      },
-      "audienceLabel": "কাকে জানানো হবে",
-      "audience": {
-        "assignee": "একজন",
-        "roles": "ভূমিকা",
-        "people": "নির্দিষ্ট ব্যক্তি"
-      },
-      "roles": {
-        "Owner": "মালিক",
-        "Manager": "ম্যানেজার",
-        "Worker": "কর্মী"
-      },
-      "peopleLoading": "টিম লোড হচ্ছে…",
-      "animalsLabel": "পশু",
-      "animalsPlaceholder": "পশু যোগ করুন",
-      "animalsNone": "কোনো নির্দিষ্ট পশুর জন্য নয়।",
-      "animalsLocked": "সংরক্ষণের পর পশু বদলানো যায় না। বদলাতে এই রিমাইন্ডার বাতিল করে নতুন করুন।",
-      "removeAnimal": "{animal} সরান",
-      "save": "রিমাইন্ডার সংরক্ষণ",
-      "saving": "সংরক্ষণ হচ্ছে…",
-      "cancel": "বাতিল",
-      "cancelReminder": "এই রিমাইন্ডার বাতিল করুন",
-      "cancelConfirmTitle": "এই রিমাইন্ডার বাতিল করবেন?",
-      "cancelConfirmBody": "এটি পরবর্তী কাজ ও টাস্ক হাব থেকে সরে যাবে, কাউকে মনে করানো হবে না। পুনরাবৃত্তিও বন্ধ হবে।",
-      "cancelConfirmAction": "রিমাইন্ডার বাতিল",
-      "keep": "রেখে দিন",
-      "cancelledToast": "রিমাইন্ডার বাতিল হয়েছে",
-      "createdToast": "রিমাইন্ডার সংরক্ষিত হয়েছে",
-      "updatedToast": "রিমাইন্ডার হালনাগাদ হয়েছে",
-      "genericError": "রিমাইন্ডার সংরক্ষণ করা যায়নি। আবার চেষ্টা করুন।",
-      "errors": {
-        "titleRequired": "রিমাইন্ডারের একটি শিরোনাম দিন",
-        "titleTooLong": "শিরোনাম অনেক বড়",
-        "notesTooLong": "নোট অনেক বড়",
-        "dateRequired": "একটি তারিখ বেছে নিন",
-        "timeInvalid": "০৮:৩০ এর মতো সময় দিন",
-        "oneAnimalForEvent": "ঠিক একটি পশু বেছে নিন",
-        "eventRequired": "ঘটনাটি বেছে নিন",
-        "offsetInvalid": "পূর্ণ সংখ্যায় দিন, ০ বা বেশি",
-        "intervalInvalid": "১ থেকে ৩৬৫ দিন দিন",
-        "endBeforeStart": "শেষের তারিখ প্রথম তারিখের আগে",
-        "assigneeRequired": "কাকে জানাবেন বেছে নিন",
-        "rolesRequired": "অন্তত একটি ভূমিকা বেছে নিন",
-        "peopleRequired": "অন্তত একজন বেছে নিন"
-      }
+      "remindMe": "আমাকে মনে করিয়ে দিন"
     },
     "notifications": {
       "record": "রেকর্ড করুন",

@@ -319,8 +319,8 @@ function ApplyHealthPlanDialogBody({ plan, onOpenChange }: { plan: HealthPlanLis
             ) : stockCheck.isError ? (
               <p className="text-xs text-muted-foreground">{t("stockCheckFailed")}</p>
             ) : null}
-            {/* RFE-136: real dates, when milk / meat is safe again and the reminder line — same dates the backend creates. */}
-            <ProtocolPreviewTimeline steps={plan.steps} startDate={startDate} />
+            {/* RFE-136: real dates, when milk / meat is safe again and the notice line — same dates the backend creates. */}
+            <ProtocolPreviewTimeline steps={plan.steps} startDate={startDate} kind={plan.stats?.kind} />
           </div>
         )}
       </div>
