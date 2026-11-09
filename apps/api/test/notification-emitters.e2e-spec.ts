@@ -132,6 +132,7 @@ describe('Notification emitters (e2e)', () => {
     await prisma.medicineStockMovement.deleteMany({
       where: { medicineId: med.id },
     });
+    await prisma.medicineBatch.deleteMany({ where: { medicineId: med.id } });
     await prisma.medicine.delete({ where: { id: med.id } });
   });
 });

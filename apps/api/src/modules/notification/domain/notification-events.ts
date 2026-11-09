@@ -120,8 +120,8 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     ch({ sms: true }),
   ),
   // ── Reproduction ──────────────────────────────────────────────────────────
-  // RAKHAL-485: calving / heat / pregnancy-check / dry-off reminders are Task Hub follow-ups now; the
-  // `follow_up_*` events below carry them (the old four keys were retired and their preferences migrated).
+  // RAKHAL-485: calving / heat / pregnancy-check / dry-off are Task Hub follow-ups; since RAKHAL-499 their timed
+  // notices ride the Notifications V2 engine (`scheduled_upcoming` / `scheduled_due` / `scheduled_overdue` below).
   evt(
     'vwp_complete_ready_ai',
     'VWP Complete — Ready for AI',
@@ -173,65 +173,6 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     'low',
     true,
     ch(),
-  ),
-  // RAKHAL-485 — follow-up tasks and custom reminders (one daily sweep, farm-local day).
-  evt(
-    'follow_up_upcoming',
-    'Follow-up Coming Up',
-    'operational',
-    'medium',
-    true,
-    ch(),
-  ),
-  evt(
-    'follow_up_due_today',
-    'Follow-up Due Today',
-    'operational',
-    'high',
-    true,
-    ch({ sms: true }),
-  ),
-  evt(
-    'follow_up_overdue',
-    'Follow-up Overdue',
-    'operational',
-    'high',
-    true,
-    ch({ sms: true }),
-  ),
-  // RAKHAL-465 — scheduled health steps (protocol doses/vaccinations). Split by urgency band so only the close-in
-  // reminders and the overdue nag are SMS-eligible once a provider is live; T-7/T-3 stay in-app + push.
-  evt(
-    'health_task_reminder',
-    'Health Step Coming Up',
-    'operational',
-    'medium',
-    true,
-    ch(),
-  ),
-  evt(
-    'health_task_due_tomorrow',
-    'Health Step Due Tomorrow',
-    'operational',
-    'high',
-    true,
-    ch({ sms: true }),
-  ),
-  evt(
-    'health_task_due_today',
-    'Health Step Due Today',
-    'operational',
-    'high',
-    true,
-    ch({ sms: true }),
-  ),
-  evt(
-    'health_task_overdue',
-    'Health Step Overdue',
-    'operational',
-    'high',
-    true,
-    ch({ sms: true }),
   ),
   // ── Financial ─────────────────────────────────────────────────────────────
   evt(
@@ -296,6 +237,26 @@ export const NOTIFICATION_EVENTS: NotificationEventDef[] = [
     true,
     ch({ sms: true }),
   ),
+  // ── Notifications v2 schedules (RAKHAL-493) ───────────────────────────────
+  // One key per urgency band so SMS eligibility stays per band (docs/EPIC_NOTIFICATIONS_V2.md §3.3).
+  evt('scheduled_upcoming', 'Coming Up', 'operational', 'medium', true, ch()),
+  evt(
+    'scheduled_due',
+    'Due Today',
+    'operational',
+    'high',
+    true,
+    ch({ sms: true }),
+  ),
+  evt(
+    'scheduled_overdue',
+    'Overdue',
+    'operational',
+    'high',
+    true,
+    ch({ sms: true }),
+  ),
+  evt('custom_reminder', 'Reminder', 'operational', 'medium', true, ch()),
   // ── Admin Outreach ────────────────────────────────────────────────────────
   evt(
     'admin_broadcast',

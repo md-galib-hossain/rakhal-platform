@@ -14,16 +14,16 @@ import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
 import { deriveOutstanding } from 'src/common/finance/txn-filters';
 import { computeRunwaySnapshot } from 'src/common/finance/runway';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
+import { NotificationScheduler } from 'src/modules/notification/application/services/notification-scheduler.service';
+import { OverdueNagService } from './overdue-nag.service';
 import { SubscriptionLifecycleService } from 'src/modules/subscription/application/services/subscription-lifecycle.service';
 import { RenewalReminderService } from 'src/modules/renewal/application/services/renewal-reminder.service';
 import { ReconciliationService } from 'src/modules/billing/application/services/reconciliation.service';
 import { BalanceService } from 'src/modules/finance-v2/accounts/application/balance.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
 import { HealthService } from 'src/modules/health/application/services/health.service';
-import { HealthReminderService } from 'src/modules/health/application/services/health-reminder.service';
 import { HealthCycleService } from 'src/modules/health/application/services/health-cycle.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
-import { FollowUpReminderService } from 'src/modules/animal-events/application/services/follow-up-reminder.service';
 import { FeedPlanFitSweepService } from 'src/modules/feed/application/services/feed-plan-fit-sweep.service';
 import { DEFAULT_SESSION_CONFIG } from 'src/modules/milk/domain/milk-anomaly';
 import { buildDailyYieldSeries } from 'src/modules/reproduction/domain/lactation-curve';
@@ -87,10 +87,11 @@ export class SchedulerService {
     private readonly healthService: HealthService,
     private readonly taskService: TaskService,
     private readonly feedFitSweep: FeedPlanFitSweepService,
-    private readonly healthReminders: HealthReminderService,
     private readonly healthCycles: HealthCycleService,
-    private readonly followUpReminders: FollowUpReminderService,
     private readonly farmClock: FarmClockService,
+    // RAKHAL-498 (Notifications v2): reconcile + overdue nag.
+    private readonly notificationScheduler: NotificationScheduler,
+    private readonly overdueNag: OverdueNagService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(SchedulerService.name);
@@ -100,11 +101,14 @@ export class SchedulerService {
   async runDailySweeps(): Promise<Record<string, number>> {
     const results: Record<string, number> = {};
     for (const [name, sweep] of [
+      // RAKHAL-498: runs first (heals lost jobs before anything else)
+      [
+        'notification_schedule_reconcile',
+        () => this.sweepNotificationReconcile(),
+      ],
       ['payment_overdue', () => this.sweepPaymentOverdue()],
       ['task_overdue', () => this.sweepTasksOverdue()],
       ['medicine_expiring_30_days', () => this.sweepMedicineExpiring()],
-      // RAKHAL-485: replaces the four bespoke calving / heat / pregnancy-check / dry-off sweeps.
-      ['follow_up_and_reminder_due', () => this.followUpReminders.sweepAll()],
       ['supplier_payment_due_soon', () => this.sweepSupplierPaymentDue()],
       ['survival_runway_warning', () => this.sweepSurvivalRunwayWarning()],
       ['semen_tank_low_ln2', () => this.sweepSemenTankLowLn2()],
@@ -121,10 +125,10 @@ export class SchedulerService {
       ['lactation_alerts', () => this.sweepLactationAlerts()],
       // MILESTONE 27 (RAKHAL-459b): stores each animal's program fit for the day; raises the 3-days-off-target digest.
       ['feed_plan_fit', () => this.feedFitSweep.sweepAll()],
-      // RAKHAL-465 (MILESTONE 29): protocol-step reminders at T-7/T-3/T-1/day-of + the daily overdue nag.
-      ['health_task_reminders', () => this.healthReminders.sweepAll()],
       // Protocols v2: re-enroll animals whose preventive protocol cycle (`cycleLengthDays`) has ended.
       ['health_cycle_repeat', () => this.healthCycles.sweepAll()],
+      // RAKHAL-498: one `scheduled_overdue` per rule/round/case group per day, capped at 30 days. After the sweeps above.
+      ['overdue_nag', () => this.overdueNag.sweepAll()],
     ] as const) {
       try {
         results[name] = await sweep();
@@ -138,6 +142,18 @@ export class SchedulerService {
   }
 
   // ---- sweeps -------------------------------------------------------------
+
+  /**
+   * RAKHAL-498 (docs/EPIC_NOTIFICATIONS_V2.md §3.6): the 05:00 durability backstop of the occurrence queue — enqueue
+   * job-less occurrences within 48 h, drop orphan jobs, advance stalled series, purge old rows. Returns the number of
+   * repairs made (0 on a healthy steady state; > 0 `enqueued` means Redis lost jobs).
+   */
+  private async sweepNotificationReconcile(): Promise<number> {
+    const r = await this.notificationScheduler.reconcile(new Date(), {
+      purge: true,
+    });
+    return r.enqueued + r.removed + r.advanced + r.purged;
+  }
 
   /**
    * Receivables past their due date (PRD §20.2). Re-reminds daily until
@@ -210,9 +226,8 @@ export class SchedulerService {
       where: {
         dueAt: { lt: now },
         status: { in: ['PENDING', 'IN_PROGRESS', 'BLOCKED'] },
-        // RAKHAL-485: follow-up rule tasks and custom reminders are nagged by the follow-up sweep.
+        // Rule tasks are nagged by `overdue_nag` (grouped, one per rule/day), never here: the two are disjoint.
         ruleKey: null,
-        kind: { not: 'REMINDER' },
       },
       select: { id: true, farmId: true, name: true, dueAt: true },
     });
@@ -402,7 +417,6 @@ export class SchedulerService {
     // equals the farm's local today.
     const tasks = await this.prisma.task.findMany({
       where: {
-        kind: 'TASK', // RAKHAL-491: reminders have their own sweep
         dueAt: {
           gte: new Date(now.getTime() - 2 * DAY_MS),
           lt: new Date(now.getTime() + 2 * DAY_MS),

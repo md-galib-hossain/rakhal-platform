@@ -12,6 +12,7 @@ import { FeedModule } from '../feed/feed.module';
 import { FarmTimeModule } from 'src/common/farm-time/farm-time.module';
 import { AnimalEventsModule } from '../animal-events/animal-events.module';
 import { SchedulerService } from './application/services/scheduler.service';
+import { OverdueNagService } from './application/services/overdue-nag.service';
 
 /**
  * Scheduled jobs (RAKHAL-095). Hosts the daily notification sweeps + the
@@ -34,7 +35,7 @@ import { SchedulerService } from './application/services/scheduler.service';
     FarmTimeModule,
     AnimalEventsModule,
   ],
-  providers: [SchedulerService],
+  providers: [SchedulerService, OverdueNagService],
   exports: [SchedulerService],
 })
 export class SchedulerModule {}

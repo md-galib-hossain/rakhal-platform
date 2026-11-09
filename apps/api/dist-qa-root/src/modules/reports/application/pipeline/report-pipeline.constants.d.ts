@@ -1,0 +1,16 @@
+import type { ReportErrorCategory } from '../../domain/contracts/enums';
+export declare const REPORTS_QUEUE = "reports-queue";
+export declare const REPORT_GENERATE_JOB = "generate";
+export declare const REPORT_JOB_ATTEMPTS = 3;
+export declare const REPORT_JOB_BACKOFF_MS = 5000;
+export declare const REPORT_WORKER_CONCURRENCY = 2;
+export declare const REPORT_PROCESSING_LEASE_MS: number;
+export declare const REPORT_TX_MAX_WAIT_MS = 5000;
+export declare const REPORT_TX_TIMEOUT_MS = 60000;
+export declare const REPORT_STATEMENT_TIMEOUT_MS = 20000;
+export declare const REPORT_LEASE_RECHECK_BUFFER_MS = 1000;
+export declare const REPORT_QUEUED_STALE_MS: number;
+export declare const REPORT_RECONCILE_BATCH = 200;
+export declare const DEFAULT_REPORT_RETENTION_DAYS = 365;
+export declare const SNAPSHOT_SCHEMA_VERSION = 1;
+export declare const SAFE_ERROR_MESSAGE: Readonly<Record<ReportErrorCategory, string>>;

@@ -25,6 +25,18 @@ declare module 'prom-client' {
       registers?: Registry[];
     });
     observe(labels: LabelValues<T>, value: number): void;
+    observe(value: number): void;
+  }
+
+  export class Gauge<T extends string = string> {
+    constructor(config: {
+      name: string;
+      help: string;
+      labelNames?: readonly T[];
+      registers?: Registry[];
+    });
+    set(value: number): void;
+    set(labels: LabelValues<T>, value: number): void;
   }
 
   export function collectDefaultMetrics(config?: {

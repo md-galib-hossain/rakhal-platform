@@ -31,34 +31,6 @@ export const notificationEn = {
     title: 'Bulk event recorded',
     message: '{{type}}: {{saved}} of {{requested}} animals recorded.',
   },
-  follow_up_upcoming: {
-    title: 'Coming up in {{days}} day(s): {{label}}',
-    message: '{{label}}: {{animals}}, due {{date}}.',
-  },
-  follow_up_due_today: {
-    title: 'Due today: {{label}}',
-    message: '{{label}}: {{animals}}, due today ({{date}}).',
-  },
-  follow_up_overdue: {
-    title: 'Overdue: {{label}}',
-    message: '{{label}}: {{animals}}, overdue since {{date}}.',
-  },
-  health_task_reminder: {
-    title: 'Health Step Due in {{days}} Days',
-    message: '{{label}}: {{count}} animal(s), due {{date}}.',
-  },
-  health_task_due_tomorrow: {
-    title: 'Health Step Due Tomorrow',
-    message: '{{label}}: {{count}} animal(s), due {{date}}.',
-  },
-  health_task_due_today: {
-    title: 'Health Step Due Today',
-    message: '{{label}}: {{count}} animal(s), due today ({{date}}).',
-  },
-  health_task_overdue: {
-    title: 'Health Step Overdue',
-    message: '{{label}}: {{count}} animal(s) overdue since {{date}}.',
-  },
   medicine_expiring_30_days: {
     title: 'Medicine Expiring in 30 Days',
     message: '{{name}} expires on {{date}}.',
@@ -99,6 +71,23 @@ export const notificationEn = {
   todays_tasks_ready: {
     title: "Today's Tasks Ready",
     message: 'You have {{count}} task(s) due today.',
+  },
+  scheduled_upcoming: {
+    title: 'Coming Up',
+    message: '{{label}}: {{animals}} animal(s) on {{date}}.',
+  },
+  scheduled_due: {
+    title: 'Due Today',
+    message: '{{label}}: {{animals}} animal(s) due {{date}}.',
+  },
+  scheduled_overdue: {
+    title: 'Overdue',
+    message: '{{label}}: {{animals}} animal(s) overdue since {{date}}.',
+  },
+  // The user's own text, shown verbatim (not translated).
+  custom_reminder: {
+    title: '{{title}}',
+    message: '{{body}}',
   },
   morbidity_outbreak: {
     title: 'Morbidity Outbreak Alert',

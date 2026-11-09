@@ -7,7 +7,7 @@
  * RAKHAL-470 adds the same two numbers to either kind — steps due today / overdue and the next due day (`PlanSchedule`).
  */
 
-import { farmDaysUntil } from './health-reminder-cadence';
+import { farmDaysUntil } from './health-farm-day';
 
 export type PlanKind = 'TREATMENT' | 'PREVENTION' | 'BREEDING';
 

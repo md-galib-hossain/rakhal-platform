@@ -18,8 +18,8 @@ import { ActivityModule } from '../activity/activity.module';
 import { AnimalEventEditService } from './application/services/animal-event-edit.service';
 import { CustomEventTypeService } from './application/services/custom-event-type.service';
 import { CustomTypesController } from './presentation/controllers/custom-types.controller';
+import { AnimalEventAnchorChecker } from './application/anchors/animal-event-anchor.checker';
 import { FollowUpService } from './application/services/follow-up.service';
-import { FollowUpReminderService } from './application/services/follow-up-reminder.service';
 import { BulkEventService } from './application/services/bulk-event.service';
 import { NotificationModule } from '../notification/notification.module';
 import { FarmTimeModule } from 'src/common/farm-time/farm-time.module';
@@ -63,13 +63,12 @@ import { CattleEventsController } from './presentation/controllers/cattle-events
     EventHandlerRegistry,
     AnimalEventWriteService,
     FollowUpService,
-    FollowUpReminderService,
     CustomEventTypeService,
     AnimalEventEditService,
     BulkEventService,
+    AnimalEventAnchorChecker,
   ],
   exports: [
-    FollowUpReminderService,
     EVENT_REGISTRY,
     AnimalEventTypesService,
     TimelineService,

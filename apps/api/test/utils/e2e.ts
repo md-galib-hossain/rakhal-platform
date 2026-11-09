@@ -15,6 +15,12 @@ import { PrismaService } from '../../src/core/database/prisma/prisma.service';
 import { PasswordService } from '../../src/modules/auth/application/services/password.service';
 import { LegalConsentService } from '../../src/modules/compliance/application/services/legal-consent.service';
 import { FarmService } from '../../src/modules/farm/application/services/farm.service';
+import { InMemoryScheduleQueue } from '../../src/modules/notification/application/queue/in-memory-schedule-queue';
+import {
+  FakeNotificationClock,
+  NOTIFICATION_CLOCK,
+} from '../../src/modules/notification/application/queue/notification-clock';
+import { SCHEDULE_QUEUE_PORT } from '../../src/modules/notification/application/queue/schedule-queue.port';
 
 /**
  * Shared e2e harness. Boots the real `AppModule` and faithfully reproduces the
@@ -220,4 +226,32 @@ function extractToken(body: unknown, ctx: string): string {
     );
   }
   return token;
+}
+
+/**
+ * Notifications v2 test seam (RAKHAL-493): swaps the BullMQ queue for an in-memory one, the clock for a fake one, so a spec moves time and calls `queue.runDue(clock.now(), id => processor.process(id))`
+ * instead of waiting. Pass `harness.configure` as `createTestApp({ configure })`.
+ */
+export interface NotificationV2Harness {
+  queue: InMemoryScheduleQueue;
+  clock: FakeNotificationClock;
+  configure: (builder: TestingModuleBuilder) => void;
+}
+
+export function createNotificationV2Harness(
+  start: Date = new Date(),
+): NotificationV2Harness {
+  const clock = new FakeNotificationClock(start);
+  const queue = new InMemoryScheduleQueue(() => clock.now());
+  return {
+    queue,
+    clock,
+    configure: (builder) => {
+      builder
+        .overrideProvider(SCHEDULE_QUEUE_PORT)
+        .useValue(queue)
+        .overrideProvider(NOTIFICATION_CLOCK)
+        .useValue(clock);
+    },
+  };
 }

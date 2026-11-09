@@ -8,7 +8,6 @@ import {
   Task,
   TaskAuditAction,
   TaskCategory,
-  TaskKind,
   TaskPriority,
   TaskRecurrence,
   TaskSource,
@@ -18,7 +17,6 @@ import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { displayStatus } from '../../domain/task-status';
-import { nextOccurrence } from 'src/modules/animal-events/domain/reminder-cadence';
 import { CreateTaskDto } from '../../presentation/dto/create-task.dto';
 import { ListTaskQueryDto } from '../../presentation/dto/list-task-query.dto';
 import { UpdateTaskDto } from '../../presentation/dto/update-task.dto';
@@ -48,14 +46,16 @@ export interface CreateTaskInternalInput {
   /** RAKHAL-484: `<ruleKey>:<sourceEventId>`; unique while the task is open. */
   followUpKey?: string;
   ruleKey?: string;
+  /** NV2-B04: a bulk caller creates many tasks, then calls `TaskNotificationProducer.syncByIds` once (one notice per group). */
+  skipNotify?: boolean;
 }
 
 type TaskWithAssignee = Task & {
   assignedTo: { id: string; name: string } | null;
   cattles: { cattleId: string }[];
-  recipients: { userId: string }[];
 };
 
+import { TaskNotificationProducer } from '../resolvers/task-notification.producer';
 import { eventApiContext } from 'src/modules/animal-events/application/event-api-context';
 
 @Injectable()
@@ -64,6 +64,7 @@ export class TaskService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly notifier: TaskNotificationProducer,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(TaskService.name);
@@ -84,237 +85,35 @@ export class TaskService {
       await this.assertCattleIds(farmId, dto.cattleIds);
     }
 
-    // RAKHAL-491: kind decides; the deprecated category=REMINDER is still accepted as a kind=REMINDER alias.
-    if (dto.kind === TaskKind.TASK && dto.category === TaskCategory.REMINDER) {
-      throw new BadRequestException(
-        'kind TASK conflicts with the legacy category REMINDER',
-      );
-    }
-    const isReminder =
-      dto.kind === TaskKind.REMINDER || dto.category === TaskCategory.REMINDER;
-    const link = isReminder
-      ? await this.resolveReminderLink(farmId, dto)
-      : null;
-    if (!isReminder && !dto.dueAt) {
+    if (!dto.dueAt) {
       throw new BadRequestException('dueAt is required');
     }
-    if (isReminder) {
-      this.assertRepeat(dto, link!.dueAt);
-      await this.assertMembers(farmId, dto.recipientUserIds);
-    }
-    // A reminder linked to an event defaults to that event's animal.
     const relatedCattleId = dto.cattleIds?.length
       ? undefined
-      : (dto.relatedCattleId ?? link?.cattleId);
+      : dto.relatedCattleId;
 
-    return this.present(
-      await this.insert({
-        farmId,
-        createdBy: userId,
-        name: dto.name,
-        details: dto.details,
-        category: this.topic(dto.category),
-        kind: isReminder ? TaskKind.REMINDER : TaskKind.TASK,
-        priority: dto.priority ?? TaskPriority.MEDIUM,
-        scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
-        dueAt: link ? link.dueAt : new Date(dto.dueAt!),
-        recurring: dto.recurring ?? false,
-        recurrenceType: dto.recurrenceType,
-        recurrenceEndDate: dto.recurrenceEndDate
-          ? new Date(dto.recurrenceEndDate)
-          : null,
-        safetyCritical: dto.safetyCritical ?? false,
-        source: TaskSource.MANUAL,
-        relatedCattleId,
-        cattleIds: dto.cattleIds,
-        assignedToId: dto.assignedToId,
-        ...(isReminder
-          ? {
-              remindDaysBefore: dto.remindDaysBefore,
-              notifyRoleNames: dto.notifyRoleNames,
-              recurrenceIntervalDays: dto.recurrenceIntervalDays,
-              recipientUserIds: dto.recipientUserIds,
-              ...(link?.sourceEventId
-                ? {
-                    sourceEventType: 'ANIMAL_EVENT',
-                    sourceEventId: link.sourceEventId,
-                    reminderOffsetDays: dto.offsetDays,
-                  }
-                : {}),
-            }
-          : {}),
-      }),
-    );
-  }
-
-  /**
-   * RAKHAL-487: a reminder is due on a fixed date OR relative to an animal event (event date +
-   * `offsetDays`). The linked event must be this farm's and not voided.
-   */
-  private async resolveReminderLink(
-    farmId: string,
-    dto: Pick<CreateTaskDto, 'dueAt' | 'sourceEventId' | 'offsetDays'>,
-  ): Promise<{
-    dueAt: Date;
-    sourceEventId?: string;
-    cattleId?: string;
-  }> {
-    if (dto.sourceEventId) {
-      if (dto.dueAt) {
-        throw new BadRequestException(
-          'Give either dueAt or sourceEventId with offsetDays, not both',
-        );
-      }
-      if (dto.offsetDays === undefined) {
-        throw new BadRequestException(
-          'offsetDays is required with sourceEventId',
-        );
-      }
-      const ev = await this.prisma.animalEvent.findFirst({
-        where: { id: dto.sourceEventId, farmId },
-        select: { id: true, cattleId: true, eventAt: true, status: true },
-      });
-      if (!ev) throw new NotFoundException('Source event not found');
-      if (ev.status === 'VOIDED') {
-        throw new BadRequestException('The source event is voided');
-      }
-      return {
-        dueAt: new Date(ev.eventAt.getTime() + dto.offsetDays * 86_400_000),
-        sourceEventId: ev.id,
-        cattleId: ev.cattleId,
-      };
-    }
-    if (!dto.dueAt) {
-      throw new BadRequestException(
-        'A reminder needs dueAt, or sourceEventId with offsetDays',
-      );
-    }
-    return { dueAt: new Date(dto.dueAt) };
-  }
-
-  /** Repeat rules: a type when recurring, an interval for EVERY_N_DAYS, an end after the first date. */
-  private assertRepeat(
-    dto: Pick<
-      CreateTaskDto,
-      | 'recurring'
-      | 'recurrenceType'
-      | 'recurrenceIntervalDays'
-      | 'recurrenceEndDate'
-    >,
-    firstDue: Date,
-  ) {
-    if (!dto.recurring) return;
-    if (!dto.recurrenceType) {
-      throw new BadRequestException(
-        'recurrenceType is required when repeating',
-      );
-    }
-    if (
-      dto.recurrenceType === TaskRecurrence.EVERY_N_DAYS &&
-      !dto.recurrenceIntervalDays
-    ) {
-      throw new BadRequestException(
-        'recurrenceIntervalDays is required for EVERY_N_DAYS',
-      );
-    }
-    if (
-      dto.recurrenceEndDate &&
-      new Date(dto.recurrenceEndDate).getTime() < firstDue.getTime()
-    ) {
-      throw new BadRequestException(
-        'recurrenceEndDate must not be before the first due date',
-      );
-    }
-  }
-
-  /** Named reminder recipients must be members of this farm. */
-  private async assertMembers(farmId: string, userIds?: string[]) {
-    const unique = Array.from(new Set(userIds ?? []));
-    if (!unique.length) return;
-    const found = await this.prisma.farmMember.count({
-      where: { farmId, userId: { in: unique } },
+    const created = await this.insert({
+      farmId,
+      createdBy: userId,
+      name: dto.name,
+      details: dto.details,
+      category: this.topic(dto.category),
+      priority: dto.priority ?? TaskPriority.MEDIUM,
+      scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
+      dueAt: new Date(dto.dueAt),
+      recurring: dto.recurring ?? false,
+      recurrenceType: dto.recurrenceType,
+      recurrenceEndDate: dto.recurrenceEndDate
+        ? new Date(dto.recurrenceEndDate)
+        : null,
+      safetyCritical: dto.safetyCritical ?? false,
+      source: TaskSource.MANUAL,
+      relatedCattleId,
+      cattleIds: dto.cattleIds,
+      assignedToId: dto.assignedToId,
     });
-    if (found !== unique.length) {
-      throw new BadRequestException(
-        'Every recipient must be a member of this farm',
-      );
-    }
-  }
-
-  /**
-   * RAKHAL-487: spawn the next occurrence of a repeating reminder, once. The claim (`spawnedNextAt`
-   * null -> now) is a single conditional update, so a second sweep or a completion racing the sweep
-   * spawns nothing more. Past occurrences are skipped so a long gap does not flood the hub.
-   */
-  async spawnNextReminder(
-    taskId: string,
-    now = new Date(),
-  ): Promise<Task | null> {
-    const task = await this.prisma.task.findUnique({
-      where: { id: taskId },
-      include: this.assigneeInclude(),
-    });
-    if (
-      !task ||
-      task.kind !== TaskKind.REMINDER ||
-      !task.recurring ||
-      !task.recurrenceType
-    ) {
-      return null;
-    }
-    const claim = await this.prisma.task.updateMany({
-      where: { id: taskId, spawnedNextAt: null },
-      data: { spawnedNextAt: now },
-    });
-    if (claim.count === 0) return null;
-
-    let nextDue = nextOccurrence(
-      task.dueAt,
-      task.recurrenceType,
-      task.recurrenceIntervalDays,
-    );
-    for (
-      let i = 0;
-      i < 400 && nextDue.getTime() < now.getTime() - 86_400_000;
-      i++
-    ) {
-      nextDue = nextOccurrence(
-        nextDue,
-        task.recurrenceType,
-        task.recurrenceIntervalDays,
-      );
-    }
-    if (
-      task.recurrenceEndDate &&
-      nextDue.getTime() > task.recurrenceEndDate.getTime()
-    ) {
-      return null;
-    }
-    // A reminder tied to an event is a one-off milestone: its repeats are free-standing.
-    return this.insert({
-      farmId: task.farmId,
-      createdBy: task.createdBy,
-      name: task.name,
-      details: task.details ?? undefined,
-      category: task.category,
-      kind: TaskKind.REMINDER,
-      priority: task.priority,
-      dueAt: nextDue,
-      recurring: true,
-      recurrenceType: task.recurrenceType,
-      recurrenceEndDate: task.recurrenceEndDate,
-      recurrenceIntervalDays: task.recurrenceIntervalDays ?? undefined,
-      safetyCritical: task.safetyCritical,
-      source: task.source,
-      relatedCattleId: task.relatedCattleId ?? undefined,
-      cattleIds: task.cattles.length
-        ? task.cattles.map((c) => c.cattleId)
-        : undefined,
-      assignedToId: task.assignedToId ?? undefined,
-      remindDaysBefore: task.remindDaysBefore ?? undefined,
-      notifyRoleNames: task.notifyRoleNames,
-      recipientUserIds: task.recipients.map((r) => r.userId),
-    });
+    await this.notifier.sync(farmId, [created]);
+    return this.present(created);
   }
 
   /**
@@ -323,12 +122,12 @@ export class TaskService {
    * record is identical to a manual task and shows up in the Task Hub.
    */
   async createInternal(input: CreateTaskInternalInput): Promise<Task> {
-    // RAKHAL-481: a HISTORICAL entry creates no reminder (hub §3.5). Callers
+    // RAKHAL-481: a HISTORICAL entry creates no follow-up notice (hub §3.5). Callers
     // of this seam ignore the row, so a placeholder keeps the signature.
     if (eventApiContext()?.historical)
       return { id: 'historical-skipped' } as Task;
     await this.assertAssignee(input.farmId, input.assignedToId);
-    return this.insert({
+    const created = await this.insert({
       farmId: input.farmId,
       createdBy: input.createdBy,
       name: input.name,
@@ -348,6 +147,8 @@ export class TaskService {
       followUpKey: input.followUpKey,
       ruleKey: input.ruleKey,
     });
+    if (!input.skipNotify) await this.notifier.sync(input.farmId, [created]);
+    return created;
   }
 
   /**
@@ -457,7 +258,7 @@ export class TaskService {
   /**
    * RAKHAL-399: close every non-completed task tied to a cattle row once
    * she's left the herd (sold/culled/deceased) — a disposed animal shouldn't
-   * keep generating "pregnancy check due" / "vaccination due" reminders.
+   * keep generating "pregnancy check due" / "vaccination due" notices.
    * Mirrors {@link completeBySourceEvent}'s shape and the same reasoning:
    * this is a *system* close on COMPLETED+note (MILESTONE 17 convention),
    * not the user-facing `cancel()` (RAKHAL-405).
@@ -502,54 +303,11 @@ export class TaskService {
 
   async update(farmId: string, userId: string, id: string, dto: UpdateTaskDto) {
     const existing = await this.getOrThrow(farmId, id);
-    if (dto.category === TaskCategory.REMINDER) {
-      throw new BadRequestException(
-        'category REMINDER is deprecated and cannot be set on update; kind is not changeable',
-      );
-    }
     await this.assertAssignee(farmId, dto.assignedToId);
-    await this.assertMembers(farmId, dto.recipientUserIds);
 
-    // RAKHAL-487: a new offset re-derives the due date from the linked event; an explicit dueAt
-    // detaches the reminder from the event's date.
-    let dueAt = dto.dueAt ? new Date(dto.dueAt) : undefined;
-    let reminderOffsetDays: number | null | undefined;
-    if (dto.offsetDays !== undefined) {
-      if (
-        existing.sourceEventType !== 'ANIMAL_EVENT' ||
-        !existing.sourceEventId
-      ) {
-        throw new BadRequestException(
-          'This reminder is not linked to an event',
-        );
-      }
-      const ev = await this.prisma.animalEvent.findFirst({
-        where: { id: existing.sourceEventId, farmId },
-        select: { eventAt: true },
-      });
-      if (!ev) throw new NotFoundException('Source event not found');
-      dueAt = new Date(ev.eventAt.getTime() + dto.offsetDays * 86_400_000);
-      reminderOffsetDays = dto.offsetDays;
-    } else if (dueAt && existing.reminderOffsetDays !== null) {
-      reminderOffsetDays = null;
-    }
-    const recurring = dto.recurring ?? existing.recurring;
-    if (existing.kind === TaskKind.REMINDER && recurring) {
-      this.assertRepeat(
-        {
-          recurring,
-          recurrenceType:
-            dto.recurrenceType ?? existing.recurrenceType ?? undefined,
-          recurrenceIntervalDays:
-            dto.recurrenceIntervalDays ??
-            existing.recurrenceIntervalDays ??
-            undefined,
-          recurrenceEndDate: dto.recurrenceEndDate,
-        },
-        dueAt ?? existing.dueAt,
-      );
-    }
+    const dueAt = dto.dueAt ? new Date(dto.dueAt) : undefined;
 
+    const oldKey = await this.notifier.keyOf(farmId, existing);
     const task = await this.prisma.task.update({
       where: { id },
       data: {
@@ -560,31 +318,18 @@ export class TaskService {
         status: dto.status,
         ...(dto.scheduledAt ? { scheduledAt: new Date(dto.scheduledAt) } : {}),
         ...(dueAt ? { dueAt } : {}),
-        ...(reminderOffsetDays !== undefined ? { reminderOffsetDays } : {}),
         assignedToId: dto.assignedToId,
         safetyCritical: dto.safetyCritical,
-        remindDaysBefore: dto.remindDaysBefore,
-        notifyRoleNames: dto.notifyRoleNames,
         recurring: dto.recurring,
         recurrenceType: dto.recurrenceType,
-        recurrenceIntervalDays: dto.recurrenceIntervalDays,
         ...(dto.recurrenceEndDate
           ? { recurrenceEndDate: new Date(dto.recurrenceEndDate) }
-          : {}),
-        ...(dto.recipientUserIds
-          ? {
-              recipients: {
-                deleteMany: {},
-                create: [...new Set(dto.recipientUserIds)].map((userId) => ({
-                  userId,
-                })),
-              },
-            }
           : {}),
       },
       include: this.assigneeInclude(),
     });
     await this.recordAudit(id, TaskAuditAction.UPDATED, userId);
+    await this.notifier.sync(farmId, [task], [oldKey]);
 
     this.log.info('Task updated', { taskId: id, farmId });
     return this.present(task);
@@ -621,6 +366,7 @@ export class TaskService {
     );
 
     const next = await this.maybeCreateNextRecurrence(existing, userId);
+    await this.notifier.sync(farmId, next ? [task, next] : [task]);
 
     this.log.info('Task completed', {
       taskId: id,
@@ -659,6 +405,7 @@ export class TaskService {
       include: this.assigneeInclude(),
     });
     await this.recordAudit(id, TaskAuditAction.REOPENED, userId);
+    await this.notifier.sync(farmId, [task]);
 
     this.log.info('Task reopened', { taskId: id, farmId });
     return this.present(task);
@@ -699,14 +446,17 @@ export class TaskService {
       userId,
       dto.notes ?? null,
     );
+    await this.notifier.sync(farmId, [task]);
 
     this.log.info('Task cancelled', { taskId: id, farmId });
     return this.present(task);
   }
 
   async remove(farmId: string, id: string) {
-    await this.getOrThrow(farmId, id);
+    const existing = await this.getOrThrow(farmId, id);
+    const key = await this.notifier.keyOf(farmId, existing);
     await this.prisma.task.delete({ where: { id } });
+    await this.notifier.cancelKeys(farmId, [key]);
     this.log.info('Task deleted', { taskId: id, farmId });
     return { deleted: true };
   }
@@ -751,7 +501,6 @@ export class TaskService {
     const where: Prisma.TaskWhereInput = {
       farmId,
       ...this.filterClause(query.filter, userId, now),
-      ...(query.kind ? { kind: this.kindOf(query.kind) } : {}),
       ...(query.recurring !== undefined ? { recurring: query.recurring } : {}),
       ...(query.category ? { category: query.category } : {}),
       ...(query.priority ? { priority: query.priority } : {}),
@@ -767,12 +516,9 @@ export class TaskService {
 
     const page = toCursorPage(rows, query);
     // Counters are farm-wide, not page-wide: first page only, later pages omit them.
-    const [highlights, reminderHighlights] = query.cursor
-      ? [undefined, undefined]
-      : await Promise.all([
-          this.highlights(farmId, now),
-          this.reminderHighlights(farmId, now),
-        ]);
+    const highlights = query.cursor
+      ? undefined
+      : await this.highlights(farmId, now);
 
     const cattleIds = page.items
       .flatMap((task) => [
@@ -796,7 +542,7 @@ export class TaskService {
 
     return {
       items,
-      meta: { ...page.meta, highlights, reminderHighlights },
+      meta: { ...page.meta, highlights },
     };
   }
 
@@ -832,30 +578,9 @@ export class TaskService {
     }
   }
 
-  /** Deprecated category REMINDER is never stored: it maps to the general topic. */
+  /** A missing category is the general topic. */
   private topic(category?: TaskCategory): TaskCategory {
-    return !category || category === TaskCategory.REMINDER
-      ? TaskCategory.GENERAL
-      : category;
-  }
-
-  private kindOf(kind: 'task' | 'reminder'): TaskKind {
-    return kind === 'reminder' ? TaskKind.REMINDER : TaskKind.TASK;
-  }
-
-  /** Reminder counters (RAKHAL-491): open reminders only; `highlights` counts kind=TASK only. */
-  private async reminderHighlights(farmId: string, now: Date) {
-    const open = {
-      farmId,
-      kind: TaskKind.REMINDER,
-      status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
-    };
-    const [upcoming, overdue, repeating] = await Promise.all([
-      this.prisma.task.count({ where: { ...open, dueAt: { gte: now } } }),
-      this.prisma.task.count({ where: { ...open, dueAt: { lt: now } } }),
-      this.prisma.task.count({ where: { ...open, recurring: true } }),
-    ]);
-    return { upcoming, overdue, repeating };
+    return category ?? TaskCategory.GENERAL;
   }
 
   private async highlights(farmId: string, now: Date) {
@@ -869,7 +594,6 @@ export class TaskService {
       this.prisma.task.count({
         where: {
           farmId,
-          kind: TaskKind.TASK,
           status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
           dueAt: { gte: dayStart, lt: dayEnd },
         },
@@ -877,18 +601,16 @@ export class TaskService {
       this.prisma.task.count({
         where: {
           farmId,
-          kind: TaskKind.TASK,
           status: { notIn: [TaskStatus.COMPLETED, TaskStatus.CANCELLED] },
           dueAt: { lt: now },
         },
       }),
       this.prisma.task.count({
-        where: { farmId, kind: TaskKind.TASK, status: TaskStatus.BLOCKED },
+        where: { farmId, status: TaskStatus.BLOCKED },
       }),
       this.prisma.task.findMany({
         where: {
           farmId,
-          kind: TaskKind.TASK,
           status: TaskStatus.COMPLETED,
           completedAt: { gte: monthStart },
         },
@@ -918,7 +640,6 @@ export class TaskService {
     name: string;
     details?: string;
     category: TaskCategory;
-    kind?: TaskKind;
     priority: TaskPriority;
     scheduledAt?: Date;
     dueAt: Date;
@@ -936,15 +657,7 @@ export class TaskService {
     sourceEventId?: string;
     followUpKey?: string;
     ruleKey?: string;
-    /** RAKHAL-487 (kind REMINDER). */
-    remindDaysBefore?: number;
-    notifyRoleNames?: string[];
-    reminderOffsetDays?: number;
-    recurrenceIntervalDays?: number;
-    recipientUserIds?: string[];
-  }): Promise<
-    Task & { cattles: { cattleId: string }[]; recipients: { userId: string }[] }
-  > {
+  }): Promise<Task & { cattles: { cattleId: string }[] }> {
     // Sequential per-farm reference with a small retry on the unique race.
     for (let attempt = 0; attempt < 5; attempt++) {
       // Highest numbered reference + 1, not a row count: a deleted task leaves a gap that a count
@@ -962,7 +675,6 @@ export class TaskService {
             name: data.name,
             details: data.details,
             category: data.category,
-            kind: data.kind ?? TaskKind.TASK,
             priority: data.priority,
             scheduledAt: data.scheduledAt,
             dueAt: data.dueAt,
@@ -977,10 +689,6 @@ export class TaskService {
             sourceEventId: data.sourceEventId,
             followUpKey: data.followUpKey,
             ruleKey: data.ruleKey,
-            remindDaysBefore: data.remindDaysBefore,
-            notifyRoleNames: data.notifyRoleNames ?? [],
-            reminderOffsetDays: data.reminderOffsetDays,
-            recurrenceIntervalDays: data.recurrenceIntervalDays,
             createdBy: data.createdBy,
           },
         });
@@ -993,20 +701,9 @@ export class TaskService {
             })),
           });
         }
-        const recipientUserIds = [...new Set(data.recipientUserIds ?? [])];
-        if (recipientUserIds.length) {
-          await this.prisma.taskRecipient.createMany({
-            data: recipientUserIds.map((userId) => ({
-              taskId: task.id,
-              userId,
-            })),
-          });
-        }
-
         return {
           ...task,
           cattles: (data.cattleIds ?? []).map((cattleId) => ({ cattleId })),
-          recipients: recipientUserIds.map((userId) => ({ userId })),
         };
       } catch (error) {
         // RAKHAL-484: a duplicate open follow-up is not a reference race; let the caller see it.
@@ -1024,16 +721,7 @@ export class TaskService {
     userId: string,
   ): Promise<Task | null> {
     if (!task.recurring || !task.recurrenceType) return null;
-    // RAKHAL-487: a repeating reminder spawns when it fires (the sweep); completing it must not spawn again.
-    if (task.kind === TaskKind.REMINDER) {
-      return this.spawnNextReminder(task.id);
-    }
-
-    const nextDue = this.addInterval(
-      task.dueAt,
-      task.recurrenceType,
-      task.recurrenceIntervalDays,
-    );
+    const nextDue = this.addInterval(task.dueAt, task.recurrenceType);
     if (
       task.recurrenceEndDate &&
       nextDue.getTime() > task.recurrenceEndDate.getTime()
@@ -1062,15 +750,9 @@ export class TaskService {
     });
   }
 
-  private addInterval(
-    date: Date,
-    type: TaskRecurrence,
-    intervalDays?: number | null,
-  ): Date {
+  private addInterval(date: Date, type: TaskRecurrence): Date {
     const next = new Date(date);
-    if (type === TaskRecurrence.EVERY_N_DAYS) {
-      next.setDate(next.getDate() + Math.max(1, intervalDays ?? 1));
-    } else if (type === TaskRecurrence.DAILY) next.setDate(next.getDate() + 1);
+    if (type === TaskRecurrence.DAILY) next.setDate(next.getDate() + 1);
     else if (type === TaskRecurrence.WEEKLY) next.setDate(next.getDate() + 7);
     else next.setMonth(next.getMonth() + 1);
     return next;
@@ -1109,7 +791,6 @@ export class TaskService {
     return {
       assignedTo: { select: { id: true, name: true } },
       cattles: { select: { cattleId: true } },
-      recipients: { select: { userId: true } },
       history: {
         orderBy: { createdAt: 'asc' },
         select: {
@@ -1149,7 +830,6 @@ export class TaskService {
     task: Task & {
       assignedTo?: { id: string; name: string } | null;
       cattles?: { cattleId: string }[];
-      recipients?: { userId: string }[];
       history?: {
         id: string;
         action: TaskAuditAction;
@@ -1163,7 +843,7 @@ export class TaskService {
   ) {
     const now = new Date();
     const display = displayStatus(task.status, task.dueAt, now);
-    const { cattles, recipients, history: historyRows, ...rest } = task;
+    const { cattles, history: historyRows, ...rest } = task;
     const cattleIds = [
       task.relatedCattleId,
       ...(cattles ?? []).map((c) => c.cattleId),
@@ -1205,7 +885,6 @@ export class TaskService {
     return {
       ...rest,
       cattleIds: (cattles ?? []).map((c) => c.cattleId),
-      recipientUserIds: (recipients ?? []).map((r) => r.userId),
       relatedCattle,
       cattleTags,
       history,

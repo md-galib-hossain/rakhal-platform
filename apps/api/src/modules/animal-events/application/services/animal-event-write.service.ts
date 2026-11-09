@@ -38,6 +38,11 @@ export interface RecordEventOptions {
   idempotencyKey?: string;
   /** RAKHAL-489: the `AnimalEventBatch` a bulk save belongs to; stamped on the header. */
   batchId?: string;
+  /**
+   * NV2-B05: when set, the follow-up engine does not announce each new task itself; it pushes the ids here and the
+   * caller announces them once after the commit (a bulk of N animals gives one schedule, not N).
+   */
+  taskSink?: string[];
 }
 
 /**
@@ -188,6 +193,7 @@ export class AnimalEventWriteService {
           warnings,
           customTypeId,
           batchId: opts.batchId,
+          taskSink: opts.taskSink,
         };
         const { eventId, detail } = await this.save(handler, dto, c, ruleEvent);
         const event = await this.prisma.animalEvent.findUniqueOrThrow({
@@ -263,6 +269,7 @@ export class AnimalEventWriteService {
             eventId,
             event: ruleEvent,
             toggles: dto.followUps,
+            taskSink: c.taskSink,
           });
           return { eventId, detail };
         }),
@@ -379,4 +386,5 @@ interface Common {
   warnings: EventFinding[];
   customTypeId?: string;
   batchId?: string;
+  taskSink?: string[];
 }

@@ -108,6 +108,7 @@ model Farm {
   financialDocuments        FinancialDocument[]         @relation("FarmToFinancialDocument")
   requirementOverrides      CattleRequirementOverride[]
   reports                   Report[]                    @relation("FarmToReport")
+  notificationSchedules     NotificationSchedule[]
 
   @@index([ownerId])
   @@index([slug])

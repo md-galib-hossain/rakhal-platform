@@ -17,6 +17,7 @@ import { BulkEventDto } from '../../presentation/dto/bulk-event.dto';
 import { RecordEventDto } from '../../presentation/dto/record-event.dto';
 import { eventError } from '../parse-payload';
 import { EVENT_REGISTRY } from './animal-event-types.service';
+import { TaskNotificationProducer } from 'src/modules/task/application/resolvers/task-notification.producer';
 import { AnimalEventWriteService } from './animal-event-write.service';
 
 /** Types whose payload differs per animal: a value for each one comes in `values`. */
@@ -52,6 +53,7 @@ export class BulkEventService {
     private readonly writer: AnimalEventWriteService,
     private readonly activity: ActivityLogService,
     private readonly notifications: NotificationService,
+    private readonly taskNotifier: TaskNotificationProducer,
     @Inject(EVENT_REGISTRY) private readonly registry: EventRegistry,
     logger: LoggerService,
   ) {
@@ -170,7 +172,9 @@ export class BulkEventService {
       };
     }
 
-    // Phase 2: one transaction, sorted locks, one batch row.
+    // Phase 2: one transaction, sorted locks, one batch row. NV2-B05: new follow-up task ids are collected and
+    // announced once after the commit, so N animals sharing a rule and due day give ONE schedule and ONE notice.
+    const taskSink: string[] = [];
     const batchId = await this.prisma.$transaction(
       async (tx) =>
         txStore.run({ tx }, async () => {
@@ -195,7 +199,7 @@ export class BulkEventService {
                 userId,
                 id,
                 recordDto(id),
-                { batchId: batch.id },
+                { batchId: batch.id, taskSink },
               )) as { event: { id: string }; findings: EventFinding[] };
               rows.set(id, {
                 ...rows.get(id)!,
@@ -231,6 +235,11 @@ export class BulkEventService {
       { timeout: 120_000, maxWait: 10_000 },
     );
 
+    await this.taskNotifier.syncByIds(farmId, taskSink).catch((err: unknown) =>
+      this.log.warn('Bulk follow-up notification sync failed', {
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
     const results = ordered();
     const saved = results.filter((r) => r.status === 'CREATED').length;
     await this.afterCommit(farmId, userId, dto, batchId, saved, ids.length);

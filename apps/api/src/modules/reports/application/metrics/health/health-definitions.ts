@@ -75,7 +75,7 @@ export const HEALTH_DEFINITIONS: readonly MetricDefinition[] = [
   def(
     'health.tasks_overdue',
     'tasks',
-    'HealthTasks with status in (PENDING, RESCHEDULED, OVERDUE) AND dueDateTime < generatedAt. DERIVED from dueDateTime, not the stored status (nothing writes OVERDUE). RESCHEDULED is included because it is a live status with a new dueDateTime, following LIVE_TASK_STATUSES in health-reminder.service.ts. Point-in-time: no comparison.',
+    'HealthTasks with status in (PENDING, RESCHEDULED, OVERDUE) AND dueDateTime < generatedAt. DERIVED from dueDateTime, not the stored status (nothing writes OVERDUE). RESCHEDULED is included because it is a live status with a new dueDateTime, following LIVE_TASK_STATUSES in health-step-notification.producer.ts. Point-in-time: no comparison.',
   ),
   def(
     'health.cases_repeated',

@@ -60,7 +60,7 @@ export const CLOSED_CASE_STATUSES: readonly string[] = [
 
 /**
  * Task statuses that can still be acted on. Mirrors LIVE_TASK_STATUSES in
- * health-reminder.service.ts (PENDING, RESCHEDULED, OVERDUE): a RESCHEDULED task keeps a live
+ * health-step-notification.producer.ts (PENDING, RESCHEDULED, OVERDUE): a RESCHEDULED task keeps a live
  * status with a new dueDateTime, so it is overdue when that new time has passed.
  */
 export const LIVE_TASK_STATUSES: readonly string[] = [

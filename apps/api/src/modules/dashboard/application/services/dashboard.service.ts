@@ -930,8 +930,7 @@ export class DashboardService {
     const dayEnd = new Date(dayStart.getTime() + DAY_MS);
 
     const todays = await this.prisma.task.findMany({
-      // RAKHAL-491: custom reminders (kind REMINDER) are not tasks.
-      where: { farmId, kind: 'TASK', dueAt: { gte: dayStart, lt: dayEnd } },
+      where: { farmId, dueAt: { gte: dayStart, lt: dayEnd } },
       orderBy: { dueAt: 'asc' },
       include: { assignedTo: { select: { name: true } } },
     });
@@ -1037,12 +1036,11 @@ export class DashboardService {
         },
       }),
       this.prisma.task.count({
-        where: { farmId, kind: 'TASK', dueAt: { gte: dayStart, lt: dayEnd } },
+        where: { farmId, dueAt: { gte: dayStart, lt: dayEnd } },
       }),
       this.prisma.task.count({
         where: {
           farmId,
-          kind: 'TASK',
           status: TaskStatus.COMPLETED,
           dueAt: { gte: dayStart, lt: dayEnd },
         },

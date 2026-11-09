@@ -1,0 +1,1 @@
+{"version":3,"file":"template.js","sourceRoot":"","sources":["../../../../../src/modules/reports/domain/contracts/template.ts"],"names":[],"mappings":";;AA+CA,8CAMC;AAND,SAAgB,iBAAiB,CAC/B,QAA6B,EAC7B,OAA4B;IAE5B,MAAM,GAAG,GAAG,IAAI,GAAG,CAAC,OAAO,CAAC,CAAC;IAC7B,OAAO,QAAQ,CAAC,KAAK,CAAC,CAAC,EAAE,EAAE,EAAE,CAAC,GAAG,CAAC,GAAG,CAAC,EAAE,CAAC,CAAC,CAAC;AAC7C,CAAC"}

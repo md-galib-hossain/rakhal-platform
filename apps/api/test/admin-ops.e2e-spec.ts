@@ -77,6 +77,7 @@ describe('Admin operations (e2e)', () => {
     }>(res);
     expect(body.queues.map((q) => q.name).sort()).toEqual([
       'email-queue',
+      'notification-occurrence', // RAKHAL-498
       'outbox-queue',
       'reports-queue',
     ]);

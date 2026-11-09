@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { ActivityLogModule, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { LoggerService } from 'src/core/logger/logger/logger.service';
 import { txStore } from 'src/core/database/prisma/tx-context';
 import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
+import { NotificationScheduler } from 'src/modules/notification/application/services/notification-scheduler.service';
 import { PermissionService } from 'src/modules/permission/application/services/permission.service';
 import { EventRegistry } from '../../domain/event-registry';
 import type { RuleEvent } from '../../domain/follow-up-rules';
@@ -62,7 +64,28 @@ export class AnimalEventEditService {
     private readonly permissions: PermissionService,
     private readonly activity: ActivityLogService,
     @Inject(EVENT_REGISTRY) private readonly registry: EventRegistry,
-  ) {}
+    private readonly scheduler: NotificationScheduler,
+    logger: LoggerService,
+  ) {
+    this.log = logger.setContext(AnimalEventEditService.name);
+  }
+
+  private readonly log: LoggerService;
+
+  /**
+   * NV2-B05: manual schedules anchored on this event follow its new date (`newAt`) or cancel (`null`, voided).
+   * After the commit, because it enqueues; a failure never undoes the edit (reconcile repairs a missing job).
+   */
+  private async reanchor(eventId: string, newAt: Date | null): Promise<void> {
+    try {
+      await this.scheduler.reanchor('ANIMAL_EVENT', eventId, newAt);
+    } catch (err) {
+      this.log.warn('Anchored schedule update failed', {
+        eventId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
   private async load(farmId: string, cattleId: string, eventId: string) {
     const ev = await this.prisma.animalEvent.findFirst({
@@ -139,6 +162,7 @@ export class AnimalEventEditService {
       { timeout: 30_000, maxWait: 10_000 },
     );
 
+    await this.reanchor(ev.id, null);
     await this.audit(farmId, actor.userId, cattleId, 'Animal event voided', {
       before: { status: ev.status, eventAt: ev.eventAt, notes: ev.notes },
       after: { status: 'VOIDED', reason },
@@ -209,11 +233,7 @@ export class AnimalEventEditService {
           }
           if (moves && newAt) {
             // Follow-ups were derived from the old date: cancel and derive again.
-            await this.followUps.cancelForEvent(ev.id, {
-              keepReminders: true,
-            });
-            // RAKHAL-487: custom reminders linked to this event follow its new date.
-            await this.followUps.moveReminders(ev.id, newAt);
+            await this.followUps.cancelForEvent(ev.id);
             const rule = await this.ruleEventFor(
               ev.id,
               ev.type,
@@ -235,6 +255,7 @@ export class AnimalEventEditService {
       { timeout: 30_000, maxWait: 10_000 },
     );
 
+    if (moves && newAt) await this.reanchor(ev.id, newAt);
     const after = await this.prisma.animalEvent.findUniqueOrThrow({
       where: { id: ev.id },
     });

@@ -1,12 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import {
-  TaskCategory,
-  TaskKind,
-  TaskPriority,
-  TaskSource,
-} from '@prisma/client';
+import { TaskCategory, TaskPriority, TaskSource } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { FarmSettingsService } from 'src/modules/farm-settings/farm-settings.service';
+import { TaskNotificationProducer } from 'src/modules/task/application/resolvers/task-notification.producer';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import {
   FOLLOW_UP_RULES,
@@ -21,6 +17,18 @@ import {
 import type { AnimalEventTypeKey } from '../../domain/catalogue';
 
 const OPEN = ['PENDING', 'IN_PROGRESS', 'BLOCKED'] as const;
+
+/** The Task columns the notification producer needs (plus `farmId`, to scope the refresh). */
+const NOTIFY_SELECT = {
+  id: true,
+  farmId: true,
+  status: true,
+  priority: true,
+  safetyCritical: true,
+  ruleKey: true,
+  dueAt: true,
+  assignedToId: true,
+} as const;
 
 /** One line of the "What happens next" list (dry run and real run). */
 export interface FollowUpPreviewItem {
@@ -45,6 +53,7 @@ export class FollowUpService {
     private readonly prisma: PrismaService,
     private readonly settings: FarmSettingsService,
     private readonly tasks: TaskService,
+    private readonly notifier: TaskNotificationProducer,
   ) {}
 
   async defaults(farmId: string): Promise<RuleDefaults> {
@@ -118,6 +127,8 @@ export class FollowUpService {
     eventId: string;
     event: RuleEvent;
     toggles?: { ruleKey: string; enabled: boolean }[];
+    /** NV2-B05: bulk callers collect the new task ids here and announce them once after the commit. */
+    taskSink?: string[];
   }): Promise<{ created: string[]; completed: number }> {
     const { farmId, cattleId, eventId, event } = args;
     const completed = await this.completeFor(cattleId, event.type, eventId);
@@ -129,6 +140,7 @@ export class FollowUpService {
       })
     )?.tagNumber;
     const created: string[] = [];
+    const newTaskIds: string[] = [];
     for (const { item, enabled } of await this.plan(
       farmId,
       event,
@@ -137,7 +149,9 @@ export class FollowUpService {
       if (item.kind !== 'TASK' || item.pastDue || !enabled) continue;
       const followUpKey = `${item.ruleKey}:${eventId}`;
       try {
-        await this.tasks.createInternal({
+        const task = await this.tasks.createInternal({
+          // NV2-B05: announced once for the whole event (or once per bulk), not per task.
+          skipNotify: true,
           farmId,
           createdBy: args.userId,
           name: `${item.title}${tag ? ` — ${tag}` : ''}`,
@@ -155,6 +169,7 @@ export class FollowUpService {
           ruleKey: item.ruleKey,
         });
         created.push(item.ruleKey);
+        newTaskIds.push(task.id);
       } catch (error) {
         // A parallel save already made this follow-up: the partial unique index held.
         const existing = await this.prisma.task.findFirst({
@@ -164,6 +179,8 @@ export class FollowUpService {
         if (!existing) throw error;
       }
     }
+    if (args.taskSink) args.taskSink.push(...newTaskIds);
+    else await this.notifier.syncByIds(farmId, newTaskIds);
     return { created, completed };
   }
 
@@ -175,62 +192,48 @@ export class FollowUpService {
   ): Promise<number> {
     const keys = rulesCompletedBy(type);
     if (!keys.length) return 0;
-    const res = await this.prisma.task.updateMany({
+    const rows = await this.prisma.task.findMany({
       where: {
         relatedCattleId: cattleId,
         ruleKey: { in: keys },
         status: { in: [...OPEN] },
         NOT: { sourceEventId: exceptEventId },
       },
+      select: NOTIFY_SELECT,
+    });
+    if (!rows.length) return 0;
+    const res = await this.prisma.task.updateMany({
+      where: { id: { in: rows.map((r) => r.id) }, status: { in: [...OPEN] } },
       data: { status: 'COMPLETED', completedAt: new Date() },
     });
+    await this.notifier.sync(
+      rows[0].farmId,
+      rows.map((r) => ({ ...r, status: 'COMPLETED' })),
+    );
     return res.count;
   }
 
-  /**
-   * Voiding the source event cancels its open follow-ups. Custom reminders linked to the event
-   * (RAKHAL-487) are cancelled too on a void, but kept on an edit (`keepReminders`): they follow
-   * the event's new date through {@link moveReminders} instead.
-   */
-  async cancelForEvent(
-    eventId: string,
-    opts: { keepReminders?: boolean } = {},
-  ): Promise<number> {
+  /** Voiding (or re-dating) the source event cancels its open follow-ups. */
+  async cancelForEvent(eventId: string): Promise<number> {
+    const where = {
+      sourceEventType: 'ANIMAL_EVENT',
+      sourceEventId: eventId,
+      status: { in: [...OPEN] },
+    };
+    const rows = await this.prisma.task.findMany({
+      where,
+      select: NOTIFY_SELECT,
+    });
+    if (!rows.length) return 0;
     const res = await this.prisma.task.updateMany({
-      where: {
-        sourceEventType: 'ANIMAL_EVENT',
-        sourceEventId: eventId,
-        status: { in: [...OPEN] },
-        ...(opts.keepReminders ? { kind: { not: TaskKind.REMINDER } } : {}),
-      },
+      where: { id: { in: rows.map((r) => r.id) }, status: { in: [...OPEN] } },
       data: { status: 'CANCELLED', cancelledAt: new Date() },
     });
+    await this.notifier.sync(
+      rows[0].farmId,
+      rows.map((r) => ({ ...r, status: 'CANCELLED' })),
+    );
     return res.count;
-  }
-
-  /** The source event moved: every open linked reminder is due the new date plus its own offset. */
-  async moveReminders(eventId: string, newEventAt: Date): Promise<number> {
-    const reminders = await this.prisma.task.findMany({
-      where: {
-        sourceEventType: 'ANIMAL_EVENT',
-        sourceEventId: eventId,
-        kind: TaskKind.REMINDER,
-        reminderOffsetDays: { not: null },
-        status: { in: [...OPEN] },
-      },
-      select: { id: true, reminderOffsetDays: true },
-    });
-    for (const r of reminders) {
-      await this.prisma.task.update({
-        where: { id: r.id },
-        data: {
-          dueAt: new Date(
-            newEventAt.getTime() + (r.reminderOffsetDays ?? 0) * 86_400_000,
-          ),
-        },
-      });
-    }
-    return reminders.length;
   }
 
   // ---- farm settings (GET / PUT /settings/follow-up-rules) -----------------

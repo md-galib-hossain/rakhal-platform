@@ -1,0 +1,155 @@
+/// Notifications v2 (RAKHAL-492, docs/EPIC_NOTIFICATIONS_V2.md §3.2). A schedule is a rule that produces
+/// notifications over time; an occurrence is one planned send (one anchor, one lead offset) and is the unit that is
+/// queued (BullMQ jobId = occurrence id), fired, skipped or cancelled. Postgres is the source of truth; Redis only
+/// holds delayed jobs for occurrences due within 48 h. Additive — nothing reads these tables until RAKHAL-493.
+
+enum NotificationOrigin {
+  SYSTEM
+  USER
+}
+
+enum ScheduleTrigger {
+  DATE
+  BEFORE_EVENT
+  AFTER_EVENT
+  SOURCE_DUE
+}
+
+enum ScheduleRepeat {
+  NONE
+  EVERY_N_DAYS
+  WEEKLY
+  MONTHLY
+}
+
+enum ScheduleStatus {
+  ACTIVE
+  PAUSED
+  DONE
+  CANCELLED
+}
+
+/// SOURCE = the source resolver decides (system schedules only).
+enum ScheduleAudienceMode {
+  SOURCE
+  USER
+  ROLES
+  USERS
+}
+
+/// Who resolves a SYSTEM schedule at fire time.
+enum ScheduleSourceType {
+  TASK
+  HEALTH_STEP
+}
+
+/// What a manual BEFORE/AFTER schedule is relative to.
+enum ScheduleAnchorType {
+  ANIMAL_EVENT
+  TASK
+  HEALTH_STEP
+}
+
+enum OccurrenceStatus {
+  SCHEDULED
+  FIRED
+  SKIPPED
+  CANCELLED
+}
+
+model NotificationSchedule {
+  id        String             @id @default(cuid())
+  farmId    String
+  origin    NotificationOrigin
+  /// null for SYSTEM
+  createdBy String?
+  status    ScheduleStatus     @default(ACTIVE)
+
+  /// USER: verbatim text. SYSTEM: copy comes from the catalogue + resolver params.
+  title    String?
+  body     String?
+  /// operational | health_safety | reproduction | ...
+  category String
+  /// critical | high | medium | low
+  priority String
+  /// Catalogue key used at fire time (the urgency band may override it).
+  eventKey String
+
+  trigger      ScheduleTrigger
+  /// First anchor, UTC (immutable except on edit / anchor move).
+  baseAnchorAt DateTime
+  /// CURRENT anchor of the series, UTC.
+  anchorAt     DateTime
+  /// true: a farm-local DATE; fire = day - lead days at `sendTime`.
+  allDay       Boolean         @default(true)
+  /// Farm-local HH:mm, used when `allDay`.
+  sendTime     String          @default("08:00")
+  /// Sorted desc, e.g. [10080,1440,0]. allDay needs multiples of 1440; max 4 entries, each <= 90 days.
+  leadMinutes  Int[]
+  /// BEFORE/AFTER_EVENT: signed distance from the anchor entity.
+  offsetDays   Int?
+
+  repeat         ScheduleRepeat @default(NONE)
+  /// EVERY_N_DAYS: 1..365
+  repeatInterval Int?
+  /// Inclusive farm-local end, stored as the UTC end of that day.
+  repeatEndDate  DateTime?
+  /// k in nextAnchor(base, k); hard cap 400.
+  seriesIndex    Int            @default(0)
+
+  audienceMode    ScheduleAudienceMode
+  /// USER / USERS; for SOURCE: display hint only (refreshed on upsert).
+  audienceUserIds String[]             @default([])
+  /// ROLES; for SOURCE: default [Owner, Manager].
+  audienceRoles   String[]             @default([])
+  /// Optional, max 100, display + link only.
+  animalIds       String[]             @default([])
+
+  /// SYSTEM only.
+  sourceType ScheduleSourceType?
+  /// SYSTEM only, e.g. "rule:BREEDING_TO_PREG_CHECK:2026-11-20", "id:<taskId>", "round:<applicationId>:<ymd>", "case:<caseId>:<ymd>".
+  sourceKey  String?
+  /// USER BEFORE/AFTER only.
+  anchorType ScheduleAnchorType?
+  anchorId   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm        Farm                     @relation(fields: [farmId], references: [id])
+  occurrences NotificationOccurrence[]
+
+  /// Idempotent upsertForSource (NULLs are distinct in Postgres, so USER rows never collide).
+  @@unique([farmId, sourceType, sourceKey])
+  @@index([farmId, status])
+  @@index([farmId, origin, createdBy])
+  /// reanchor on edit / cancel on void
+  @@index([anchorType, anchorId])
+}
+
+model NotificationOccurrence {
+  /// Also the BullMQ jobId.
+  id             String           @id @default(cuid())
+  scheduleId     String
+  /// Denormalised for purge + ops queries.
+  farmId         String
+  anchorAt       DateTime
+  leadMinutes    Int
+  /// UTC, computed with the farm timezone.
+  fireAt         DateTime
+  status         OccurrenceStatus @default(SCHEDULED)
+  /// SKIPPED/CANCELLED: LATE | NO_RECIPIENTS | SOURCE_GONE | ANIMALS_GONE | PAUSED | EDITED
+  reason         String?
+  firedAt        DateTime?
+  recipientCount Int?
+  createdAt      DateTime         @default(now())
+
+  schedule NotificationSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  /// Upsert is idempotent.
+  @@unique([scheduleId, anchorAt, leadMinutes])
+  /// reconcile + horizon top-up + purge
+  @@index([status, fireAt])
+  /// Upcoming + cancel-for-schedule
+  @@index([scheduleId, status, fireAt])
+}

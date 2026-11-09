@@ -1,0 +1,1 @@
+{"version":3,"file":"invoice-number.js","sourceRoot":"","sources":["../../../../src/modules/billing/domain/invoice-number.ts"],"names":[],"mappings":";;;AAWA,kDAEC;AATY,QAAA,qBAAqB,GAAG,SAAS,CAAC;AAO/C,SAAgB,mBAAmB,CAAC,MAAc,EAAE,KAAa;IAC/D,OAAO,GAAG,MAAM,IAAI,MAAM,CAAC,KAAK,CAAC,CAAC,QAAQ,CAAC,CAAC,EAAE,GAAG,CAAC,EAAE,CAAC;AACvD,CAAC"}

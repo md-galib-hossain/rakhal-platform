@@ -40,6 +40,7 @@ import { ActivityLogService } from 'src/modules/activity/application/services/ac
 import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
 import { TaskService } from 'src/modules/task/application/services/task.service';
 import { HealthOutcomesService } from './health-outcomes.service';
+import { HealthStepNotificationProducer } from '../resolvers/health-step-notification.producer';
 import { CattleService } from 'src/modules/cattle/application/services/cattle.service';
 import { ExpenseService } from 'src/modules/purchasing/application/expense.service';
 import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
@@ -120,6 +121,8 @@ export class HealthService {
     // Protocols v2 — optional + last so positional `new HealthService(...)` callers keep working.
     @Optional() private readonly protocolStock?: ProtocolStockService,
     @Optional() private readonly farmClock?: FarmClockService,
+    // RAKHAL-497 (Notifications v2) — optional + last; a no-op while NV2_ENABLED is off.
+    @Optional() private readonly stepNotices?: HealthStepNotificationProducer,
   ) {
     this.log = this.logger.setContext(HealthService.name);
   }
@@ -891,7 +894,10 @@ export class HealthService {
     await this.protocolStock?.assertInStock(farmId, plan.steps, 1);
     const dueOf = await this.dueResolver(farmId);
 
+    let pendingNotices: string[] | null = null;
     const result = await this.prisma.$transaction(async (tx) => {
+      const staleKeys =
+        (await this.stepNotices?.keysOfCase(tx, farmId, id)) ?? [];
       await tx.healthTask.deleteMany({
         where: { healthCaseId: id, status: HealthTaskStatus.PENDING },
       });
@@ -936,8 +942,12 @@ export class HealthService {
         },
         include: this.caseInclude(),
       });
+      pendingNotices =
+        (await this.stepNotices?.syncCases(tx, farmId, [id], staleKeys)) ??
+        null;
       return { healthCase: updatedCase, tasks };
     });
+    await this.stepNotices?.enqueueAfterCommit(pendingNotices);
     this.log.info('Health plan applied to case', {
       healthCaseId: id,
       healthPlanId: plan.id,
@@ -1103,6 +1113,7 @@ export class HealthService {
         toApply.length,
       );
       const dueOf = await this.dueResolver(farmId);
+      let pendingNotices: string[] | null = null;
       await this.prisma.$transaction(async (tx) => {
         for (const cattle of toApply) {
           const caseCode = await this.nextCaseCode(farmId, tx);
@@ -1163,7 +1174,14 @@ export class HealthService {
             status: 'applied',
           });
         }
+        pendingNotices =
+          (await this.stepNotices?.syncCases(
+            tx,
+            farmId,
+            applied.map((a) => a.healthCaseId),
+          )) ?? null;
       });
+      await this.stepNotices?.enqueueAfterCommit(pendingNotices);
     }
 
     this.log.info('Health plan bulk-applied', {
@@ -1233,6 +1251,7 @@ export class HealthService {
         toApply.length,
       );
       const dueOf = await this.dueResolver(farmId);
+      let pendingNotices: string[] | null = null;
       planApplicationId = await this.prisma.$transaction(async (tx) => {
         const application = join
           ? await tx.planApplication.update({
@@ -1302,8 +1321,12 @@ export class HealthService {
             status: 'applied',
           });
         }
+        pendingNotices =
+          (await this.stepNotices?.syncRound(tx, farmId, application.id)) ??
+          null;
         return application.id;
       });
+      await this.stepNotices?.enqueueAfterCommit(pendingNotices);
     }
 
     this.log.info('Preventive plan bulk-applied', {
@@ -1780,6 +1803,7 @@ export class HealthService {
         : null;
     const resolvedCost = deduction?.totalCost ?? 0;
 
+    let pendingNotices: string[] | null = null;
     const log = await this.prisma.$transaction(async (tx) => {
       const treatmentLog = await tx.treatmentLog.create({
         data: {
@@ -1823,8 +1847,14 @@ export class HealthService {
         dto,
       );
       const autoClosed = await this.updateCaseProgress(tx, id);
+      // RAKHAL-497: the completed step (and an auto-closed case) leaves its notice group.
+      if (task) {
+        pendingNotices =
+          (await this.stepNotices?.syncTasks(tx, farmId, [task.id])) ?? null;
+      }
       return { treatmentLog, withdrawal, autoClosed };
     });
+    await this.stepNotices?.enqueueAfterCommit(pendingNotices);
 
     // RAKHAL-419: post the treatment's cost to Finance after the log commits
     // (same after-commit convention the AQR/notification calls below already
@@ -2280,6 +2310,10 @@ export class HealthService {
         deletedAt: new Date(),
       },
     });
+    // RAKHAL-497: a closed case cancels its step notices.
+    await this.stepNotices?.enqueueAfterCommit(
+      await this.stepNotices.syncCases(null, farmId, [id]),
+    );
 
     // AQR: Animal Recovered (+5) + immutable Activity Log entry.
     await this.aqrService.applyEvent(farmId, healthCase.cattleId, 'recovered', {
@@ -2303,6 +2337,7 @@ export class HealthService {
     const healthCase = await this.getCaseOrThrow(farmId, id);
     const disposalCost =
       dto.disposalCost && dto.disposalCost > 0 ? dto.disposalCost : undefined;
+    let pendingNotices: string[] | null = null;
     const result = await this.prisma.$transaction(async (tx) => {
       const mortality = await tx.mortalityRecord.create({
         data: {
@@ -2346,8 +2381,12 @@ export class HealthService {
           reason: dto.primaryCauseOfDeath,
         },
       );
+      // RAKHAL-497: a closed case cancels its step notices.
+      pendingNotices =
+        (await this.stepNotices?.syncCases(tx, farmId, [id])) ?? null;
       return { mortality, healthCase: closedCase };
     });
+    await this.stepNotices?.enqueueAfterCommit(pendingNotices);
 
     // RAKHAL-399: same post-commit herd-exit cleanup every other disposition
     // path runs (cancel open tasks, release open holds) — see
@@ -2853,6 +2892,10 @@ export class HealthService {
     } else if (task.planEnrollmentId) {
       await this.updateEnrollmentProgress(this.prisma, task.planEnrollmentId);
     }
+    // RAKHAL-497: runs after the case/enrollment progress update so an auto-closed case empties its group.
+    await this.stepNotices?.enqueueAfterCommit(
+      await this.stepNotices.syncTasks(null, farmId, [id]),
+    );
     return updated;
   }
 
@@ -2970,6 +3013,7 @@ export class HealthService {
       ? new Date(dto.administeredAt)
       : new Date();
 
+    let pendingNotices: string[] | null = null;
     const { treatmentLog, withdrawal } = await this.prisma.$transaction(
       async (tx) => {
         const backingCase =
@@ -3038,9 +3082,12 @@ export class HealthService {
           },
         );
 
+        pendingNotices =
+          (await this.stepNotices?.syncTasks(tx, farmId, [task.id])) ?? null;
         return { treatmentLog, withdrawal };
       },
     );
+    await this.stepNotices?.enqueueAfterCommit(pendingNotices);
 
     if (resolvedCost > 0) {
       const posted = await this.expenseService.recordInventoryConsumption(
@@ -3109,25 +3156,44 @@ export class HealthService {
     dto: RescheduleHealthTaskDto,
   ) {
     const task = await this.getTaskOrThrow(farmId, id);
-    return this.prisma.healthTask.update({
-      where: { id },
-      data: {
-        status: HealthTaskStatus.RESCHEDULED,
-        rescheduledFrom: task.dueDateTime,
-        rescheduledTo: new Date(dto.newDueDateTime),
-        dueDateTime: new Date(dto.newDueDateTime),
-        taskDate: new Date(dto.newDueDateTime),
-        notes: dto.reason,
-      },
+    let pendingNotices: string[] | null = null;
+    // RAKHAL-497: the notice moves with the step — old group captured before the change, both re-synced after it.
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const oldKeys =
+        (await this.stepNotices?.keysOfTasks(tx, farmId, [id])) ?? [];
+      const row = await tx.healthTask.update({
+        where: { id },
+        data: {
+          status: HealthTaskStatus.RESCHEDULED,
+          rescheduledFrom: task.dueDateTime,
+          rescheduledTo: new Date(dto.newDueDateTime),
+          dueDateTime: new Date(dto.newDueDateTime),
+          taskDate: new Date(dto.newDueDateTime),
+          notes: dto.reason,
+        },
+      });
+      pendingNotices =
+        (await this.stepNotices?.syncTasks(tx, farmId, [id], oldKeys)) ?? null;
+      return row;
     });
+    await this.stepNotices?.enqueueAfterCommit(pendingNotices);
+    return updated;
   }
 
   async skipTask(farmId: string, id: string, dto: SkipHealthTaskDto) {
     await this.getTaskOrThrow(farmId, id);
-    return this.prisma.healthTask.update({
-      where: { id },
-      data: { status: HealthTaskStatus.SKIPPED, notes: dto.reason },
+    let pendingNotices: string[] | null = null;
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.healthTask.update({
+        where: { id },
+        data: { status: HealthTaskStatus.SKIPPED, notes: dto.reason },
+      });
+      pendingNotices =
+        (await this.stepNotices?.syncTasks(tx, farmId, [id])) ?? null;
+      return row;
     });
+    await this.stepNotices?.enqueueAfterCommit(pendingNotices);
+    return updated;
   }
 
   /**

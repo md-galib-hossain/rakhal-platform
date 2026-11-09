@@ -36,7 +36,7 @@ const OPEN_CASE_STATUSES = [
 
 /**
  * Open steps on animals still in the herd whose case is open / enrollment is active — the same "live" rule the
- * reminders use (`HealthReminderService`), so the number on a protocol card is the number a reminder talks about.
+ * health step notices use (`HealthStepSourceResolver`), so the number on a protocol card is the number a notice talks about.
  */
 export function liveStepWhere(farmId: string): Prisma.HealthTaskWhereInput {
   return {

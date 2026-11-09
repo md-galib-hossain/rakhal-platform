@@ -1,0 +1,35 @@
+import { Prisma } from '@prisma/client';
+import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
+import { JournalService } from 'src/modules/finance-v2/ledger/application/journal.service';
+import { MilkTankService } from 'src/modules/inventory/application/services/milk-tank.service';
+import { MedicineService } from 'src/modules/inventory/application/services/medicine.service';
+import { FeedItemService } from 'src/modules/inventory/application/services/feed-item.service';
+import { EquipmentService } from 'src/modules/inventory/application/services/equipment.service';
+import { CattleService } from 'src/modules/cattle/application/services/cattle.service';
+import { SaleService, SaleWithLines } from '../../sale.service';
+export declare class VoidSaleUseCase {
+    private readonly prisma;
+    private readonly saleService;
+    private readonly journalService;
+    private readonly milkTankService;
+    private readonly medicineService;
+    private readonly feedItemService;
+    private readonly equipmentService;
+    private readonly cattleService;
+    private readonly activityLog;
+    private readonly log;
+    constructor(prisma: PrismaService, saleService: SaleService, journalService: JournalService, milkTankService: MilkTankService, medicineService: MedicineService, feedItemService: FeedItemService, equipmentService: EquipmentService, cattleService: CattleService, activityLog: ActivityLogService, logger: LoggerService);
+    private recordVoidActivity;
+    cancelSale(farmId: string, userId: string, saleId: string, tx?: Prisma.TransactionClient): Promise<SaleWithLines>;
+    private cancelWithClient;
+    refundSale(farmId: string, userId: string, saleId: string, tx?: Prisma.TransactionClient): Promise<SaleWithLines>;
+    private refundWithClient;
+    private getVoidableSaleOrThrow;
+    private reverseSaleJournal;
+    private reverseJournalFor;
+    private reversePhysicalEffects;
+    private reverseMilkTankDecrement;
+    private restockInventoryLine;
+}

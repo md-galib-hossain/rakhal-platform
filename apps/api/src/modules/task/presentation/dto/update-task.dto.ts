@@ -1,16 +1,11 @@
 import { Transform } from 'class-transformer';
 import {
-  ArrayMaxSize,
-  IsArray,
   IsBoolean,
   IsEnum,
-  IsInt,
   IsISO8601,
   IsNotEmpty,
   IsOptional,
   IsString,
-  Max,
-  Min,
 } from 'class-validator';
 import {
   TaskCategory,
@@ -68,34 +63,6 @@ export class UpdateTaskDto {
   @IsBoolean()
   safetyCritical?: boolean;
 
-  // ---- RAKHAL-487: reminders ------------------------------------------------------------------
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(90)
-  remindDaysBefore?: number;
-
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(10)
-  @IsString({ each: true })
-  notifyRoleNames?: string[];
-
-  /** Replaces the whole named-recipient list. */
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(50)
-  @IsString({ each: true })
-  recipientUserIds?: string[];
-
-  /** Linked reminder only: re-derives the due date from the event date + this offset. */
-  @IsOptional()
-  @IsInt()
-  @Min(-3650)
-  @Max(3650)
-  offsetDays?: number;
-
   @IsOptional()
   @Transform(toBoolean)
   @IsBoolean()
@@ -104,12 +71,6 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsEnum(TaskRecurrence)
   recurrenceType?: TaskRecurrence;
-
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(365)
-  recurrenceIntervalDays?: number;
 
   @IsOptional()
   @IsISO8601()

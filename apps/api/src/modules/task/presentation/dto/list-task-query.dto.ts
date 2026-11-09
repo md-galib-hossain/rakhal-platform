@@ -25,25 +25,19 @@ export class ListTaskQueryDto extends CursorPaginationQueryDto {
   /**
    * View filter. `overdue` = open (not COMPLETED/CANCELLED) with `dueAt < now`; `upcoming` = open with
    * `dueAt >= now` (the exact complement of `overdue` for open items, same server `now` per request,
-   * same boundary as `meta.reminderHighlights.upcoming/overdue`).
+   * same boundary).
    */
   @IsOptional()
   @Transform(trimString)
   @IsIn(['my_tasks', 'all', 'overdue', 'upcoming', 'blocked'])
   filter?: TaskListFilter;
 
-  /** RAKHAL-491: `task` = work to do, `reminder` = custom reminders. Omitted = both. */
-  @IsOptional()
-  @Transform(trimString)
-  @IsIn(['task', 'reminder'])
-  kind?: 'task' | 'reminder';
-
   /**
    * RAKHAL-491 fix: comma-separated TaskStatus list, e.g. `COMPLETED,CANCELLED`. Exact server-side
-   * filter (an unknown value is a 400). Combines with `filter`, `kind`, search and the cursor.
+   * filter (an unknown value is a 400). Combines with `filter`, search and the cursor.
    *
-   * Response note: `meta.highlights` and `meta.reminderHighlights` are computed on the FIRST page
-   * only (no `cursor`); later pages omit them, so clients keep the first-page values.
+   * Response note: `meta.highlights` is computed on the FIRST page
+   * only (no `cursor`); later pages omit it, so clients keep the first-page values.
    */
   @IsOptional()
   @Transform(({ value }: { value: unknown }): unknown =>
@@ -59,7 +53,7 @@ export class ListTaskQueryDto extends CursorPaginationQueryDto {
   @IsEnum(TaskStatus, { each: true })
   status?: TaskStatus[];
 
-  /** RAKHAL-491 fix: `true` = repeating items only (`recurring` flag, same definition as `reminderHighlights.repeating`); `false` = one-off only. */
+  /** RAKHAL-491 fix: `true` = repeating items only (`recurring` flag); `false` = one-off only. */
   @IsOptional()
   @Transform(toBoolean)
   @IsBoolean()

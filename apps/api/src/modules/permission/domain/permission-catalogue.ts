@@ -190,7 +190,8 @@ const RESOURCES: ResourceDef[] = [
   {
     resource: 'notification',
     group: PermissionGroup.NOTIFICATION,
-    actions: ['read', 'update'],
+    // RAKHAL-494: `create` = own manual notifications (Worker: self only); `manage` = target others, every schedule.
+    actions: ['read', 'update', 'create', 'manage'],
   },
   {
     resource: 'team',
@@ -319,6 +320,7 @@ export const ROLE_PERMISSIONS: Record<SystemRoleName, string[]> = {
     'task.read',
     'task.complete',
     'notification.read',
+    'notification.create',
     'subscription.read',
     // Workers capture photos in the field + view them
     'media.read',

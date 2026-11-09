@@ -1,0 +1,30 @@
+import { CattleGender, CattleSourceType, HerdStatus, ProductionStatus } from '@prisma/client';
+import { HistoryItemDto, IntakeBreedingDto, IntakeHealthConditionDto, IntakeHeatDto, IntakeLactationDto, IntakePregnancyDto } from './intake.dto';
+export declare class CreateCattleDto {
+    name?: string;
+    tagNumber: string;
+    image?: string;
+    breedId?: string;
+    gender: CattleGender;
+    dateOfBirth?: string;
+    status?: HerdStatus;
+    productionStatus?: ProductionStatus;
+    intakePregnancy?: IntakePregnancyDto;
+    intakeLactation?: IntakeLactationDto;
+    intakeHealthCondition?: IntakeHealthConditionDto;
+    history?: HistoryItemDto[];
+    intakeBreeding?: IntakeBreedingDto;
+    intakeHeat?: IntakeHeatDto;
+    lactationStartDate?: string;
+    priorCalvings?: number;
+    dryOffStartDate?: string;
+    weightKg?: number;
+    bcs?: number;
+    shedId?: string;
+    animalGroupId?: string;
+    motherId?: string;
+    fatherId?: string;
+    sourceType?: CattleSourceType;
+    color?: string;
+    notes?: string;
+}

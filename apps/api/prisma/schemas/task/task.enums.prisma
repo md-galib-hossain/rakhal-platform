@@ -6,15 +6,6 @@ enum TaskCategory {
   MILKING
   CALF_CARE
   GENERAL
-  /// DEPRECATED (RAKHAL-491): reminders are `Task.kind = REMINDER` now; never written. Kept because dropping an enum value needs a hand-authored migration (TECH_DEBT).
-  REMINDER
-}
-
-/// RAKHAL-491: a custom reminder (title, notes, repeat, recipients) is delivered by the daily follow-up
-/// sweep; a TASK is work to do. One table, split by this column.
-enum TaskKind {
-  TASK
-  REMINDER
 }
 
 enum TaskPriority {
@@ -43,8 +34,6 @@ enum TaskRecurrence {
   DAILY
   WEEKLY
   MONTHLY
-  /// RAKHAL-487: repeats every `Task.recurrenceIntervalDays` days.
-  EVERY_N_DAYS
 }
 
 /// Task Hub activity/history section (user request, no ticket #). CREATED is never stored as a row

@@ -12,7 +12,7 @@
  * herd, on a case that is open / an enrollment that is active, count as due or overdue.
  */
 
-import { farmDaysUntil } from './health-reminder-cadence';
+import { farmDaysUntil } from './health-farm-day';
 
 export type RoundKeyParts =
   | { type: 'APPLICATION'; applicationId: string }

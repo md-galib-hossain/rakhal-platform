@@ -4,6 +4,9 @@ import { AuthModule } from '../auth/auth.module';
 import { TenantAccessModule } from '../tenant-access/tenant-access.module';
 import { PermissionModule } from '../permission/permission.module';
 import { SubscriptionModule } from '../subscription/subscription.module';
+import { NotificationModule } from '../notification/notification.module';
+import { TaskNotificationProducer } from './application/resolvers/task-notification.producer';
+import { TaskSourceResolver } from './application/resolvers/task-source.resolver';
 import { TaskService } from './application/services/task.service';
 import { TaskController } from './presentation/controllers/task.controller';
 
@@ -20,9 +23,10 @@ import { TaskController } from './presentation/controllers/task.controller';
     PermissionModule,
     LoggerModule,
     SubscriptionModule,
+    NotificationModule,
   ],
   controllers: [TaskController],
-  providers: [TaskService],
-  exports: [TaskService],
+  providers: [TaskService, TaskSourceResolver, TaskNotificationProducer],
+  exports: [TaskService, TaskNotificationProducer],
 })
 export class TaskModule {}

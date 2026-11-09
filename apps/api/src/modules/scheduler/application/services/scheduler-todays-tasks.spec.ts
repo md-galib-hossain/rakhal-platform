@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unnecessary-type-assertion */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
 import { SchedulerService } from './scheduler.service';
 
 describe('SchedulerService.sweepTodaysTasksReady — farm-local day (RAKHAL-477)', () => {
@@ -29,9 +29,9 @@ describe('SchedulerService.sweepTodaysTasksReady — farm-local day (RAKHAL-477)
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
-      {} as never,
       farmClock as never,
+      {} as never,
+      {} as never,
       logger as never,
     );
     return { svc, notifications };

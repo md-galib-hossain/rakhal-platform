@@ -5,20 +5,12 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
-  IsInt,
   IsISO8601,
   IsNotEmpty,
   IsOptional,
   IsString,
-  Max,
-  Min,
 } from 'class-validator';
-import {
-  TaskCategory,
-  TaskKind,
-  TaskPriority,
-  TaskRecurrence,
-} from '@prisma/client';
+import { TaskCategory, TaskPriority, TaskRecurrence } from '@prisma/client';
 import { toBoolean, trimString } from 'src/common/dto';
 
 /** Create a task (source = MANUAL). Tenant comes from the token. */
@@ -33,15 +25,10 @@ export class CreateTaskDto {
   @IsString()
   details?: string;
 
-  /** Topic only. The deprecated value REMINDER is accepted as an alias for kind=REMINDER. */
+  /** Topic only. */
   @IsOptional()
   @IsEnum(TaskCategory)
   category?: TaskCategory;
-
-  /** RAKHAL-491: TASK (default) or REMINDER (needs dueAt, or sourceEventId + offsetDays). */
-  @IsOptional()
-  @IsEnum(TaskKind)
-  kind?: TaskKind;
 
   @IsOptional()
   @IsEnum(TaskPriority)
@@ -51,52 +38,8 @@ export class CreateTaskDto {
   @IsISO8601()
   scheduledAt?: string;
 
-  /** Required, except a REMINDER linked to an event (`sourceEventId` + `offsetDays`). */
-  @IsOptional()
   @IsISO8601()
-  dueAt?: string;
-
-  // ---- RAKHAL-487: custom reminders (kind REMINDER) -----------------------------------------
-
-  /** Lead notice: also notify this many days before the due date (the day itself is always notified). */
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(90)
-  remindDaysBefore?: number;
-
-  /** Roles notified when no assignee / named users are given. Empty = Owner + Manager. */
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(10)
-  @IsString({ each: true })
-  notifyRoleNames?: string[];
-
-  /** Named farm members to notify (Q8). */
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(50)
-  @IsString({ each: true })
-  recipientUserIds?: string[];
-
-  /** Link to an animal event: the reminder is due that event's date + `offsetDays` and follows it. */
-  @IsOptional()
-  @Transform(trimString)
-  @IsString()
-  sourceEventId?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(-3650)
-  @Max(3650)
-  offsetDays?: number;
-
-  /** With `recurrenceType: EVERY_N_DAYS`. */
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(365)
-  recurrenceIntervalDays?: number;
+  dueAt!: string;
 
   @IsOptional()
   @Transform(trimString)

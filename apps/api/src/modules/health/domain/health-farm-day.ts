@@ -1,3 +1,5 @@
+import { dayKey, localDateIso } from 'src/common/farm-time/farm-time';
+
 /**
  * The farm's calendar day as real instants — pure, no I/O (RAKHAL-470). `HealthTask.dueDateTime` is a true instant, but
  * "due today" / "due up to Friday" are questions about the farm's own calendar day, so a day filter has to be cut at
@@ -44,4 +46,20 @@ export function farmDayEnd(ymd: string, timezone: string): Date {
   const [y, m, d] = ymd.split('-').map(Number);
   const next = new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
   return farmDayStart(next, timezone);
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Whole calendar days from today to `due`, both taken as the calendar date in `timezone` (negative once the day has
+ * passed). A step due at 23:30 farm time is "today" until midnight there, whatever the UTC clock says.
+ */
+export function farmDaysUntil(
+  due: Date,
+  timezone: string,
+  now: Date = new Date(),
+): number {
+  const dueDay = dayKey(localDateIso(timezone, due)).getTime();
+  const today = dayKey(localDateIso(timezone, now)).getTime();
+  return Math.round((dueDay - today) / DAY_MS);
 }

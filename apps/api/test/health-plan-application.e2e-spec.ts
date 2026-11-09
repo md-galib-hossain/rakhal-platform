@@ -16,6 +16,7 @@ describe('Health — preventive plan application (RAKHAL-415)', () => {
   let preventivePlanId: string;
   let cattleA: string;
   let cattleB: string;
+  let stamp: number;
 
   const auth = (u: AuthedUser): [string, string] => [
     'Authorization',
@@ -33,7 +34,7 @@ describe('Health — preventive plan application (RAKHAL-415)', () => {
       select: { id: true },
     });
 
-    const stamp = Date.now();
+    stamp = Date.now();
     const makeCow = () =>
       prisma.cattle
         .create({
@@ -165,7 +166,9 @@ describe('Health — preventive plan application (RAKHAL-415)', () => {
 
   it('a preventive plan application never appears in Sick Bay', async () => {
     const res = await request(server())
-      .get(api(`/health/sick-bay?search=E2E-RAKHAL415`))
+      // Scope to THIS run's cows (`stamp`); the bare prefix also matches every old
+      // E2E-RAKHAL415 cow in the shared dev DB, which other specs may have made sick.
+      .get(api(`/health/sick-bay?search=E2E-RAKHAL415-${stamp}`))
       .set(...auth(owner));
 
     expect(res.status).toBe(200);

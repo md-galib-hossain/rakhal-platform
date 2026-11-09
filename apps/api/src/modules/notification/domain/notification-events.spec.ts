@@ -17,7 +17,7 @@ describe('notification-events catalogue', () => {
     }
     // a couple of explicit safety-critical non-health events stay mandatory too
     expect(getEvent('safety_critical_task_overdue')?.canDisable).toBe(false);
-    expect(getEvent('follow_up_due_today')?.canDisable).toBe(true);
+    expect(getEvent('scheduled_due')?.canDisable).toBe(true);
   });
 
   it('always enables in_app + push by default', () => {

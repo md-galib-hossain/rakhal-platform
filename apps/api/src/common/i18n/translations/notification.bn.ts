@@ -30,34 +30,6 @@ export const notificationBn: typeof notificationEn = {
     message:
       '{{type}}: {{requested}}টির মধ্যে {{saved}}টি পশু নথিভুক্ত হয়েছে।',
   },
-  follow_up_upcoming: {
-    title: '{{days}} দিন পর: {{label}}',
-    message: '{{label}}: {{animals}}, তারিখ {{date}}।',
-  },
-  follow_up_due_today: {
-    title: 'আজ করণীয়: {{label}}',
-    message: '{{label}}: {{animals}}, আজ ({{date}})।',
-  },
-  follow_up_overdue: {
-    title: 'সময় পেরিয়ে গেছে: {{label}}',
-    message: '{{label}}: {{animals}}, {{date}} থেকে বকেয়া।',
-  },
-  health_task_reminder: {
-    title: '{{days}} দিন পর স্বাস্থ্য কাজ',
-    message: '{{label}}: {{count}}টি পশু, তারিখ {{date}}।',
-  },
-  health_task_due_tomorrow: {
-    title: 'আগামীকাল স্বাস্থ্য কাজ',
-    message: '{{label}}: {{count}}টি পশু, তারিখ {{date}}।',
-  },
-  health_task_due_today: {
-    title: 'আজ স্বাস্থ্য কাজ',
-    message: '{{label}}: {{count}}টি পশু, আজ ({{date}})।',
-  },
-  health_task_overdue: {
-    title: 'স্বাস্থ্য কাজের সময় পেরিয়ে গেছে',
-    message: '{{label}}: {{count}}টি পশু, {{date}} থেকে বকেয়া।',
-  },
   medicine_expiring_30_days: {
     title: '৩০ দিনের মধ্যে ওষুধের মেয়াদ শেষ হবে',
     message: '{{name}}-এর মেয়াদ {{date}} তারিখে শেষ হবে।',
@@ -99,6 +71,23 @@ export const notificationBn: typeof notificationEn = {
   todays_tasks_ready: {
     title: 'আজকের কাজ প্রস্তুত',
     message: 'আজ আপনার {{count}}টি কাজ বাকি আছে।',
+  },
+  scheduled_upcoming: {
+    title: 'আসন্ন কাজ',
+    message: '{{label}}: {{date}} তারিখে {{animals}}টি পশু।',
+  },
+  scheduled_due: {
+    title: 'আজ করণীয়',
+    message: '{{label}}: {{animals}}টি পশুর কাজ {{date}} তারিখে।',
+  },
+  scheduled_overdue: {
+    title: 'সময় পেরিয়ে গেছে',
+    message: '{{label}}: {{animals}}টি পশু, {{date}} থেকে বকেয়া।',
+  },
+  // ব্যবহারকারীর নিজের লেখা, হুবহু দেখানো হয় (অনুবাদ হয় না)।
+  custom_reminder: {
+    title: '{{title}}',
+    message: '{{body}}',
   },
   morbidity_outbreak: {
     title: 'রোগ প্রাদুর্ভাবের সতর্কতা',
