@@ -1,0 +1,4 @@
+# Keep line endings LF in the repo and in checkouts, including on Windows.
+# Prettier (.prettierrc "endOfLine": "lf") rejects CRLF, so a CRLF checkout makes eslint report
+# a prettier error on every line.
+* text=auto eol=lf

@@ -1,8 +1,14 @@
 allowBuilds:
-  '@nestjs/core': set this to true or false
-  '@prisma/engines': set this to true or false
-  '@scarf/scarf': set this to true or false
-  argon2: set this to true or false
-  msgpackr-extract: set this to true or false
-  prisma: set this to true or false
-  unrs-resolver: set this to true or false
+  # Nest only prints a funding message in its postinstall; nothing we need.
+  '@nestjs/core': false
+  # Downloads/places the Prisma query + schema engines. Required.
+  '@prisma/engines': true
+  prisma: true
+  # Telemetry only.
+  '@scarf/scarf': false
+  # Native password hashing (argon2). Required (builds or fetches the binding).
+  argon2: true
+  # Optional native speedup for BullMQ's msgpack; falls back to JS if it cannot build.
+  msgpackr-extract: true
+  # Native resolver used by eslint tooling.
+  unrs-resolver: true

@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Manual run, also the only trigger for the advisory e2e job below.
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Dummy values only. src/core/config/env/env.ts validates the environment at import time and calls
+# process.exit(1) when these are missing, which fails every spec that imports PrismaService.
+env:
+  DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+  JWT_ACCESS_SECRET: ci-access-secret-0123456789abcdef0123456789
+  JWT_REFRESH_SECRET: ci-refresh-secret-0123456789abcdef012345678
+  JWT_ADMIN_SECRET: ci-admin-secret-0123456789abcdef0123456789
+  REDIS_HOST: localhost
+  REDIS_PORT: "6379"
+  EMAIL_FROM: ci@example.test
+  EMAIL_VERIFICATION_BASE_URL: http://localhost:3000/verify
+  EMAIL_PASSWORD_RESET_BASE_URL: http://localhost:3000/reset
+
+jobs:
+  verify:
+    name: Install, migrate, build, unit tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # pnpm 11 is required: pnpm-workspace.yaml uses the pnpm 11 `allowBuilds` setting.
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm prisma:generate
+
+      # Applies every migration to an empty database, so a broken or out-of-order migration fails here.
+      - name: Apply migrations to an empty database
+        run: pnpm exec prisma migrate deploy --config prisma.config.ts
+
+      - run: pnpm build
+
+      # The unit suite includes a real-DB spec (sale-number allocator), hence the Postgres service.
+      - name: Unit tests
+        run: pnpm exec jest --silent
+
+      # ADVISORY until the existing lint debt (about 188 errors in 32 files, measured 2026-11-10) is cleared.
+      # Do not use `pnpm lint`: that script runs with --fix and would rewrite files in CI.
+      # Remove continue-on-error once lint is clean, so it becomes a required check.
+      - name: Lint (advisory)
+        continue-on-error: true
+        run: pnpm exec eslint "{src,apps,libs,test}/**/*.ts"
+
+  e2e:
+    name: E2E (manual, advisory, not yet verified in CI)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma:generate
+      - run: pnpm exec prisma migrate deploy --config prisma.config.ts
+      - run: pnpm seed
+      - run: pnpm test:e2e
