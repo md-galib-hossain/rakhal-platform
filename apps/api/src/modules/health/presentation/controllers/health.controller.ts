@@ -59,6 +59,16 @@ import {
   UndoReasonDto,
 } from '../dto/health-rounds.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  HealthCaseResponseDto,
+  HealthTaskResponseDto,
+  RecordTreatmentResponseDto,
+  RefreshSafetyWithdrawalsResponseDto,
+  SafetyWithdrawalResponseDto,
+  StockCheckResponseDto,
+  VoidTreatmentResponseDto,
+} from '../dto/health-response.dto';
 
 /** Healthcare (PRD §13). `/api/v1/health`. Token tenancy + RBAC. */
 @ApiTags('Health')
@@ -113,6 +123,7 @@ export class HealthController {
   }
 
   @Post('cases')
+  @ApiEnvelopeResponse(HealthCaseResponseDto, { status: 201 })
   @RequirePermission('healthcare.report-sickness')
   createCase(
     @CurrentFarmId() farmId: string,
@@ -143,6 +154,7 @@ export class HealthController {
   }
 
   @Post('treatments')
+  @ApiEnvelopeResponse(RecordTreatmentResponseDto, { status: 201 })
   @RequirePermission('healthcare.log-treatment')
   recordTreatment(
     @CurrentFarmId() farmId: string,
@@ -171,6 +183,7 @@ export class HealthController {
   }
 
   @Patch('cases/:id')
+  @ApiEnvelopeResponse(HealthCaseResponseDto)
   @RequirePermission('healthcare.update')
   updateCase(
     @CurrentFarmId() farmId: string,
@@ -334,6 +347,7 @@ export class HealthController {
 
   /** Void one recorded dose: stock back to its batches, expense reversed, withdrawal cancelled, step back to pending. */
   @Post('treatments/:id/void')
+  @ApiEnvelopeResponse(VoidTreatmentResponseDto)
   @HttpCode(200)
   @RequirePermission('healthcare.update')
   voidTreatment(
@@ -346,6 +360,7 @@ export class HealthController {
   }
 
   @Get('plans/:id/stock-check')
+  @ApiEnvelopeResponse(StockCheckResponseDto)
   @RequirePermission('healthcare.read')
   stockCheck(
     @CurrentFarmId() farmId: string,
@@ -401,6 +416,7 @@ export class HealthController {
   }
 
   @Post('tasks/:id/complete')
+  @ApiEnvelopeResponse(HealthTaskResponseDto, { status: 201 })
   @RequirePermission('healthcare.log-treatment')
   completeTask(
     @CurrentFarmId() farmId: string,
@@ -427,6 +443,7 @@ export class HealthController {
   }
 
   @Post('tasks/:id/reschedule')
+  @ApiEnvelopeResponse(HealthTaskResponseDto, { status: 201 })
   @RequirePermission('healthcare.update')
   rescheduleTask(
     @CurrentFarmId() farmId: string,
@@ -437,6 +454,7 @@ export class HealthController {
   }
 
   @Post('tasks/:id/skip')
+  @ApiEnvelopeResponse(HealthTaskResponseDto, { status: 201 })
   @RequirePermission('healthcare.update')
   skipTask(
     @CurrentFarmId() farmId: string,
@@ -456,6 +474,7 @@ export class HealthController {
   }
 
   @Post('safety-withdrawals/refresh')
+  @ApiEnvelopeResponse(RefreshSafetyWithdrawalsResponseDto, { status: 201 })
   @RequirePermission('healthcare.update')
   refreshSafetyWithdrawals(@CurrentFarmId() farmId: string) {
     return this.healthService.refreshSafetyWithdrawals(farmId);
@@ -467,6 +486,7 @@ export class HealthController {
    * permission as the sibling refresh route above (manager+, not worker).
    */
   @Post('safety-withdrawals/:id/release')
+  @ApiEnvelopeResponse(SafetyWithdrawalResponseDto, { status: 201 })
   @RequirePermission('healthcare.update')
   releaseWithdrawal(
     @CurrentFarmId() farmId: string,
