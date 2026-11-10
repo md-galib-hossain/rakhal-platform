@@ -65,6 +65,11 @@ jobs:
 
       - run: pnpm build
 
+      # Fails when a controller or DTO changed but openapi/*.json was not regenerated (run `pnpm gen:openapi`).
+      # Reuses the build above and needs no database: it scans controller metadata only (Nest preview mode).
+      - name: OpenAPI drift check
+        run: node dist/tools/generate-openapi.js --check
+
       # The unit suite includes a real-DB spec (sale-number allocator), hence the Postgres service.
       - name: Unit tests
         run: pnpm exec jest --silent
