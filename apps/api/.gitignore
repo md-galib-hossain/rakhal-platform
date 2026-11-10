@@ -57,3 +57,9 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 /generated/prisma
 secrets
+
+# QA build output, scratch, and local auth token (untracked 2026-11-10, monorepo M0 hygiene)
+/dist-qa
+/dist-qa-root
+/scratch-tmp
+/tok.json

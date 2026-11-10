@@ -1,6 +1,0 @@
-export declare enum EmailStatus {
-    QUEUED = "QUEUED",
-    PROCESSING = "PROCESSING",
-    SENT = "SENT",
-    FAILED = "FAILED"
-}

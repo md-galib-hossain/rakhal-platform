@@ -1,1 +1,0 @@
-{"version":3,"file":"common.bn.js","sourceRoot":"","sources":["../../../../src/common/i18n/translations/common.bn.ts"],"names":[],"mappings":";;;AAGa,QAAA,QAAQ,GAAoB;IACvC,YAAY,EAAE,wBAAwB;IACtC,gBAAgB,EAAE,oBAAoB;IACtC,uBAAuB,EAAE,+CAA+C;IACxE,kBAAkB,EAAE,gCAAgC;IACpD,iBAAiB,EAAE,gCAAgC;IACnD,WAAW,EAAE,iDAAiD;IAC9D,QAAQ,EAAE,sBAAsB;IAChC,aAAa,EAAE,sDAAsD;CACtE,CAAC"}
