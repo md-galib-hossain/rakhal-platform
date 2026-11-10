@@ -1,0 +1,24 @@
+# rakhal-platform apps/admin @ 3ccf4cf, next build, app routes.
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /analytics
+├ ƒ /api/auth/2fa/enable
+├ ƒ /api/auth/2fa/setup
+├ ƒ /api/auth/change-password
+├ ƒ /api/auth/login
+├ ƒ /api/auth/logout
+├ ƒ /api/directory/[resource]
+├ ƒ /api/export/[kind]
+├ ƒ /audit
+├ ƒ /change-password
+├ ƒ /communications
+├ ƒ /config
+├ ƒ /farms
+├ ƒ /farms/[id]
+├ ƒ /login
+├ ƒ /login/setup-2fa
+├ ƒ /plans
+├ ƒ /security
+├ ƒ /system
+├ ƒ /users
+└ ƒ /users/[id]

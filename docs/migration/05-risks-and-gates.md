@@ -67,5 +67,5 @@ Defaults kept for decisions 2, 4, 5 below until the owner says otherwise.
 
 ## Things explicitly out of scope
 
-The Flutter app (`rakhal-app`), database consolidation, splitting `admin-api` into its own service, and any
+Migrating the Flutter prototype (`rakhal-app`; superseded by `apps/mobile`, see ADR-005), database consolidation, splitting `admin-api` into its own service, and any
 change to production URLs before cutover.

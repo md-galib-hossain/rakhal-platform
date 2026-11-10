@@ -19,7 +19,8 @@ The aim is *one* place for web code and shared packages, with the deployable uni
 ## What this plan deliberately does **not** do
 
 - It does not merge the databases or change the schema. One Postgres, one Prisma schema, as today.
-- It does not move the Flutter app (`rakhal-app`, 1 commit, its own toolchain).
+- It does not migrate the Flutter prototype (`rakhal-app`, 1 commit). It is superseded by a new React Native
+  + Expo app built directly in this monorepo (`apps/mobile`, see ADR-005 and 06).
 - It does not change production URLs, PM2 process names, or nginx routing until the cutover step.
 - It does not touch the consumer repos while other agents hold files there (`docs/IN_FLIGHT.md` rules).
 
@@ -32,7 +33,9 @@ The aim is *one* place for web code and shared packages, with the deployable uni
 | 03 | [Shared UI dedupe](03-shared-ui-dedupe.md) | How do the two UI copies become one without a regression? |
 | 04 | [CI, deploy, cutover](04-ci-deploy-cutover.md) | How do three apps deploy from one repo, and how is cutover rolled back? |
 | 05 | [Risks and gates](05-risks-and-gates.md) | What must be true before each step, and what can go wrong? |
+| 06 | [Mobile track](06-mobile-track.md) | How does the Expo app get built in this repo, in parallel with M1-M5? |
 | ADR-004 | [Migration strategy](../decisions/ADR-004-migration-strategy.md) | The decisions, with alternatives. |
+| ADR-005 | [Mobile app in monorepo](../decisions/ADR-005-mobile-app-in-monorepo.md) | React Native + Expo, versions, sharing rules, offline. |
 
 ## The sequence at a glance
 
