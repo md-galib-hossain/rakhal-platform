@@ -3154,6 +3154,45 @@
         ],
         "type": "object"
       },
+      "CursorPageMetaDto": {
+        "properties": {
+          "count": {
+            "description": "Number of items actually returned on this page.",
+            "type": "number"
+          },
+          "endCursor": {
+            "description": "Pass as `cursor` to fetch the next page (null when empty).",
+            "nullable": true,
+            "type": "string"
+          },
+          "hasNextPage": {
+            "description": "True when another page exists after this one (fetch with `endCursor`).",
+            "type": "boolean"
+          },
+          "hasPreviousPage": {
+            "description": "True when this page was requested with a cursor.",
+            "type": "boolean"
+          },
+          "limit": {
+            "description": "The page size that was requested.",
+            "type": "number"
+          },
+          "startCursor": {
+            "description": "Cursor of the first item on this page (null when empty).",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "count",
+          "limit",
+          "hasNextPage",
+          "hasPreviousPage",
+          "startCursor",
+          "endCursor"
+        ],
+        "type": "object"
+      },
       "DisposeCattleDto": {
         "properties": {
           "date": {
@@ -3963,6 +4002,25 @@
         },
         "type": "object"
       },
+      "MilkAvailabilityResponseDto": {
+        "properties": {
+          "tanks": {
+            "items": {
+              "$ref": "#/components/schemas/MilkTankAvailabilityDto"
+            },
+            "type": "array"
+          },
+          "totalAvailableL": {
+            "description": "Sum of `availableL` across the tanks.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "tanks",
+          "totalAvailableL"
+        ],
+        "type": "object"
+      },
       "MilkLogEntryDto": {
         "properties": {
           "anomalyNote": {
@@ -4041,6 +4099,119 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "MilkQualityTestResponseDto": {
+        "properties": {
+          "cattleId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "fatPct": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lactationId": {
+            "type": "string"
+          },
+          "lactosePct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "milkUreaNitrogen": {
+            "description": "mg/dL. Milk Urea Nitrogen, a feed-protein-balance indicator.",
+            "nullable": true,
+            "type": "number"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "proteinPct": {
+            "type": "number"
+          },
+          "sampleDate": {
+            "description": "Day the sample was taken (UTC midnight).",
+            "format": "date-time",
+            "type": "string"
+          },
+          "somaticCellCount": {
+            "description": "Cells per mL. Elevated SCC is the primary mastitis/udder-health signal.",
+            "nullable": true,
+            "type": "number"
+          },
+          "source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MilkQualityTestSource"
+              }
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "cattleId",
+          "lactationId",
+          "sampleDate",
+          "fatPct",
+          "proteinPct",
+          "lactosePct",
+          "somaticCellCount",
+          "milkUreaNitrogen",
+          "source",
+          "notes",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "MilkQualityTestSource": {
+        "enum": [
+          "LAB",
+          "DEVICE",
+          "MANUAL"
+        ],
+        "type": "string"
+      },
+      "MilkTankAvailabilityDto": {
+        "properties": {
+          "availableL": {
+            "description": "Litres available to sell right now.",
+            "type": "number"
+          },
+          "tankId": {
+            "type": "string"
+          },
+          "tankName": {
+            "type": "string"
+          },
+          "totalCapacityL": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "tankId",
+          "tankName",
+          "availableL",
+          "totalCapacityL"
+        ],
         "type": "object"
       },
       "MortalityDto": {
@@ -19909,6 +20080,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MilkAvailabilityResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -20367,6 +20553,35 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/MilkQualityTestResponseDto"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/CursorPageMetaDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -20394,6 +20609,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MilkQualityTestResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -20425,11 +20662,26 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MilkQualityTestResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
             },
-            "description": ""
+            "description": "The cow's most recent test. When the cow has no test yet the body is empty (HTTP 200, no JSON): the response interceptor does not wrap null."
           }
         },
         "security": [

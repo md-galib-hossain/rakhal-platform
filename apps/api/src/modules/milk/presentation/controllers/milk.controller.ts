@@ -46,6 +46,12 @@ import { ReviewAnomalyDto } from '../dto/review-anomaly.dto';
 import { SaveMilkLogDto } from '../dto/save-milk-log.dto';
 import { SubmitMilkDto } from '../dto/submit-milk.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiEnvelopeResponse,
+  ApiPaginatedResponse,
+} from 'src/common/swagger/api-envelope';
+import { MilkAvailabilityResponseDto } from '../dto/milk-availability-response.dto';
+import { MilkQualityTestResponseDto } from '../dto/milk-quality-test-response.dto';
 
 /** Max Excel upload size for milk log import. */
 const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
@@ -75,6 +81,7 @@ export class MilkController {
    * `MilkAvailabilityService.lockAndValidate` at actual sale time. */
   @Get('availability')
   @RequirePermission('milk.read')
+  @ApiEnvelopeResponse(MilkAvailabilityResponseDto)
   availability(
     @CurrentFarmId() farmId: string,
     @Query() query: MilkAvailabilityQueryDto,
@@ -196,6 +203,7 @@ export class MilkController {
 
   @Post('quality-tests')
   @RequirePermission('milk.quality.create')
+  @ApiEnvelopeResponse(MilkQualityTestResponseDto, { status: 201 })
   createQualityTest(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -206,6 +214,10 @@ export class MilkController {
 
   @Get('quality-tests/latest')
   @RequirePermission('milk.quality.read')
+  @ApiEnvelopeResponse(MilkQualityTestResponseDto, {
+    description:
+      "The cow's most recent test. When the cow has no test yet the body is empty (HTTP 200, no JSON): the response interceptor does not wrap null.",
+  })
   latestQualityTest(
     @CurrentFarmId() farmId: string,
     @Query() query: LatestMilkQualityTestQueryDto,
@@ -215,6 +227,7 @@ export class MilkController {
 
   @Get('quality-tests')
   @RequirePermission('milk.quality.read')
+  @ApiPaginatedResponse(MilkQualityTestResponseDto)
   listQualityTests(
     @CurrentFarmId() farmId: string,
     @Query() query: ListMilkQualityTestQueryDto,
