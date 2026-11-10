@@ -103,7 +103,7 @@ describe('Business Reporting — Finance report generators (e2e, RAKHAL-379)', (
         }),
       },
     };
-    return res.body.data.id as string;
+    return res.body.data.id;
   }
 
   it('profit-loss groups revenue/expense by ledger account with farmer-facing names; netProfit is correct', async () => {

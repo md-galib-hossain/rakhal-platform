@@ -72,7 +72,7 @@ describe('Sales — SellAnimal use case (e2e, RAKHAL-345)', () => {
         }),
       },
     };
-    return (res.body as { data: { id: string; ledgerAccountId: string } }).data;
+    return res.body.data;
   }
 
   it('sells an animal atomically: Sale + AnimalSaleLine + CattleDisposition + Receivable + journal', async () => {

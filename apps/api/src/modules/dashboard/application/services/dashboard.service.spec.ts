@@ -121,7 +121,9 @@ describe('DashboardService — herdStatus', () => {
 
   beforeEach(() => {
     cache = {
-      getOrSet: jest.fn((_key, _ttl, factory) => factory()),
+      getOrSet: jest.fn((_key: string, _ttl: number, factory: () => unknown) =>
+        factory(),
+      ),
     };
   });
 
@@ -142,7 +144,6 @@ describe('DashboardService — herdStatus', () => {
       (overrides?.cache ?? cache) as never,
       logger as never,
     );
-
 
   it('categoryBreakdown sums exactly to totalActive for a known category mix', async () => {
     const service = make();
@@ -251,10 +252,13 @@ describe('DashboardService — priorities (grouped cattle rows)', () => {
       {} as never, // HealthService — unused by priorities()
       {} as never, // FarmSettingsService — unused by priorities()
       {} as never, // FeedDistributionService — unused by priorities()
-      { getOrSet: jest.fn((_k, _ttl, fn) => fn()) } as never,
+      {
+        getOrSet: jest.fn((_k: string, _ttl: number, fn: () => unknown) =>
+          fn(),
+        ),
+      } as never,
       logger as never,
     );
-
 
   it('omits the overdue-dose and pending-milk rows entirely when there are none', async () => {
     const service = make();
@@ -354,7 +358,9 @@ describe('DashboardService — priorities (grouped cattle rows)', () => {
         }),
       };
       const balance = {
-        getRakhalBalance: jest.fn().mockResolvedValue({ rakhalBalance: '50000' }),
+        getRakhalBalance: jest
+          .fn()
+          .mockResolvedValue({ rakhalBalance: '50000' }),
       };
 
       const farmSettingsMock = {
@@ -370,7 +376,9 @@ describe('DashboardService — priorities (grouped cattle rows)', () => {
       };
 
       // Prisma mocks for sub-calls inside overviewBatch
-      (prisma.cattle as Record<string, unknown>).count = jest.fn().mockResolvedValue(10);
+      (prisma.cattle as Record<string, unknown>).count = jest
+        .fn()
+        .mockResolvedValue(10);
       (prisma as Record<string, unknown>).reproductionProfile = {
         groupBy: jest.fn().mockResolvedValue([]),
       };
@@ -381,7 +389,6 @@ describe('DashboardService — priorities (grouped cattle rows)', () => {
         groupBy: jest.fn().mockResolvedValue([]),
       };
       (prisma as Record<string, unknown>).milkLogEntry = {
-
         findMany: jest.fn().mockResolvedValue([]),
         aggregate: jest.fn().mockResolvedValue({ _sum: { yieldL: 100 } }),
         groupBy: jest.fn().mockResolvedValue([]),
@@ -416,12 +423,16 @@ describe('DashboardService — priorities (grouped cattle rows)', () => {
         findFirst: jest.fn().mockResolvedValue(null),
       };
       (prisma as Record<string, unknown>).journalEntry = {
-        aggregate: jest.fn().mockResolvedValue({ _sum: { debit: 0, credit: 0 } }),
+        aggregate: jest
+          .fn()
+          .mockResolvedValue({ _sum: { debit: 0, credit: 0 } }),
         findMany: jest.fn().mockResolvedValue([]),
       };
 
       const customCache = {
-        getOrSet: jest.fn((_key, _ttl, factory) => factory()),
+        getOrSet: jest.fn(
+          (_key: string, _ttl: number, factory: () => unknown) => factory(),
+        ),
       };
 
       const service = new DashboardService(
@@ -436,7 +447,6 @@ describe('DashboardService — priorities (grouped cattle rows)', () => {
       );
 
       const result = await service.overviewBatch('farm-42');
-
 
       expect(customCache.getOrSet).toHaveBeenCalledWith(
         'dashboard:batch:farm-42',
@@ -461,4 +471,3 @@ describe('DashboardService — priorities (grouped cattle rows)', () => {
     });
   });
 });
-

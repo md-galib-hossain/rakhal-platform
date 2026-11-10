@@ -111,9 +111,7 @@ describe('RAKHAL-362 — Atomicity + invariant e2e suite', () => {
         }),
       },
     };
-    const account = (
-      res.body as { data: { id: string; ledgerAccountId: string } }
-    ).data;
+    const account = res.body.data;
     createdAccountIds.push(account.id);
     return account;
   }
@@ -272,7 +270,7 @@ describe('RAKHAL-362 — Atomicity + invariant e2e suite', () => {
         toFinancialAccountId: bankAccount.id,
         amount: 3_000,
         transactionDate: new Date().toISOString(),
-      } as never);
+      });
 
     const tank = await prisma.milkTank.findFirst({
       where: { farmId: owner.farmId, deletedAt: null, tankType: 'SELLABLE' },

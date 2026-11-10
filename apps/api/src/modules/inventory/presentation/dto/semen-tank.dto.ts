@@ -1,11 +1,5 @@
 import { Transform } from 'class-transformer';
-import {
-  IsInt,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  Min,
-} from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 import { trimString } from 'src/common/dto';
 
 /** Create an LN2 semen storage tank. Tenant comes from the token. */

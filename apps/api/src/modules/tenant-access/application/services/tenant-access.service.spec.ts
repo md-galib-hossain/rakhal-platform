@@ -17,10 +17,11 @@ describe('TenantAccessService', () => {
       farmMember: { findUnique: jest.fn() },
     };
     cache = {
-      getOrSet: jest.fn((_key, _ttl, factory) => factory()),
+      getOrSet: jest.fn((_key: string, _ttl: number, factory: () => unknown) =>
+        factory(),
+      ),
     };
   });
-
 
   it('returns a verified farm context for an active member', async () => {
     prisma.farm.findUnique.mockResolvedValue({
@@ -97,4 +98,3 @@ describe('TenantAccessService', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
-

@@ -13,7 +13,7 @@ describe('Health — void / delete / mortality stay in sync with AQR, Activity L
   let prisma: PrismaService;
   let owner: AuthedUser;
   let ownerUserId: string;
-  let financialAccountId: string;
+
   let medicineId: string;
 
   const auth = (u: AuthedUser): [string, string] => [
@@ -53,7 +53,7 @@ describe('Health — void / delete / mortality stay in sync with AQR, Activity L
         select: { id: true },
       })
     ).id;
-    financialAccountId = await seededCashAccountId(ctx, owner);
+    await seededCashAccountId(ctx, owner);
     const unit = await prisma.unit.findFirstOrThrow({
       where: { farmId: null, symbol: 'mL' },
     });

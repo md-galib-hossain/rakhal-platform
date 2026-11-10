@@ -93,7 +93,7 @@ describe('Purchasing — Purchase + PurchaseLine + Payable (e2e, RAKHAL-348)', (
         }),
       },
     };
-    return (res.body as { data: { id: string; ledgerAccountId: string } }).data;
+    return res.body.data;
   }
 
   it("ticket's own worked example: ৳30,000 feed purchase, ৳20,000 paid from Bank → Payable 10,000, inventory +quantity", async () => {

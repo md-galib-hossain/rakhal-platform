@@ -165,7 +165,9 @@ export class AuthService {
       now.getTime() + this.parseDurationToMs(this.config.refreshExpiresIn),
     );
 
-    let rotationResult;
+    let rotationResult: Awaited<
+      ReturnType<RefreshTokenService['completeRotation']>
+    >;
     try {
       rotationResult = await this.refreshTokenService.completeRotation({
         refreshTokenId: storedToken.id,

@@ -59,9 +59,7 @@ describe('Finance V2 — Other Income (e2e)', () => {
         }),
       },
     };
-    const account = (
-      res.body as { data: { id: string; ledgerAccountId: string } }
-    ).data;
+    const account = res.body.data;
     createdAccountIds.push(account.id);
     createdLedgerAccountIds.push(account.ledgerAccountId);
     return account;

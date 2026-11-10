@@ -76,7 +76,9 @@ describe('Admin communications (e2e)', () => {
     for (const id of adminIds) {
       await purgeAdminAudit(prisma, id);
       await prisma.platformAdminSession.deleteMany({ where: { adminId: id } });
-      await prisma.platformAdmin.delete({ where: { id } }).catch(() => undefined);
+      await prisma.platformAdmin
+        .delete({ where: { id } })
+        .catch(() => undefined);
     }
     for (const id of farmIds) {
       await prisma.notification.deleteMany({ where: { farmId: id } });
@@ -96,7 +98,10 @@ describe('Admin communications (e2e)', () => {
       .set('Authorization', `Bearer ${superToken}`)
       .expect(200);
 
-    const body = res.body as { data?: { totalUsers: number; telegramSubscribers: number }; totalUsers?: number };
+    const body = res.body as {
+      data?: { totalUsers: number; telegramSubscribers: number };
+      totalUsers?: number;
+    };
     const data = body.data ?? body;
     expect(data).toBeDefined();
     expect(typeof data.totalUsers).toBe('number');
@@ -115,7 +120,11 @@ describe('Admin communications (e2e)', () => {
       })
       .expect(200);
 
-    const body = res.body as { data?: { delivered: boolean; recipient: { id: string } }; success?: boolean; recipient?: { id: string } };
+    const body = res.body as {
+      data?: { delivered: boolean; recipient: { id: string } };
+      success?: boolean;
+      recipient?: { id: string };
+    };
     expect(body.success).toBe(true);
     expect(body.data?.recipient?.id).toBe(tenant.userId);
 
@@ -134,13 +143,18 @@ describe('Admin communications (e2e)', () => {
       .set('Authorization', `Bearer ${superToken}`)
       .send({
         title: 'Urgent Weather Advisory',
-        message: 'Severe heatwave advisory: ensure adequate hydration for dairy herds.',
+        message:
+          'Severe heatwave advisory: ensure adequate hydration for dairy herds.',
         targetAudience: 'all',
         targetUserIds: [tenant.userId],
       })
       .expect(200);
 
-    const body = res.body as { data?: { targetedCount: number }; success?: boolean; targetedCount?: number };
+    const body = res.body as {
+      data?: { targetedCount: number };
+      success?: boolean;
+      targetedCount?: number;
+    };
     expect(body.success).toBe(true);
     expect(body.data?.targetedCount).toBe(1);
   });

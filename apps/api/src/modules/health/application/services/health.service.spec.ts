@@ -237,14 +237,19 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
       const mockPrisma = {
         cattle: {
           findMany: jest.fn().mockResolvedValue([
-            { id: 'cow-1', tagNumber: 'TAG-1', name: 'Lokkhi', shedId: 'shed-1' },
+            {
+              id: 'cow-1',
+              tagNumber: 'TAG-1',
+              name: 'Lokkhi',
+              shedId: 'shed-1',
+            },
           ]),
         },
         healthCase: {
           findFirst: jest.fn(),
           findMany: jest.fn().mockResolvedValue([]),
         },
-        $transaction: jest.fn(async (callback) => {
+        $transaction: jest.fn((callback: (tx: unknown) => unknown) => {
           const tx = {
             healthCase: {
               create: createCaseMock,
@@ -256,7 +261,7 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
             medicineStockMovement: { updateMany: jest.fn() },
             safetyWithdrawal: { create: jest.fn() },
           };
-          return callback(tx);
+          return Promise.resolve(callback(tx));
         }),
       };
       const mockMedicineService = {
@@ -294,7 +299,7 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
         route: MedicineRoute.IM,
         treatedAt: '2026-10-27T10:00:00.000Z',
         careType: HealthCareType.PREVENTIVE,
-      } as never);
+      });
 
       expect(mockPrisma.healthCase.findFirst).not.toHaveBeenCalled();
       expect(createCaseMock).toHaveBeenCalledWith(
@@ -306,7 +311,7 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
             currentStep: 1,
             progressPercentage: 100,
             closeReason: 'preventive_routine',
-          }),
+          }) as unknown,
         }),
       );
       expect(result.appliedCount).toBe(1);
@@ -315,7 +320,9 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
         'cow-1',
         'treatment_completed',
         expect.objectContaining({
-          actionDetails: expect.stringContaining('Preventive / Wellness'),
+          actionDetails: expect.stringContaining(
+            'Preventive / Wellness',
+          ) as unknown,
         }),
       );
     });
@@ -326,14 +333,19 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
       const mockPrisma = {
         cattle: {
           findMany: jest.fn().mockResolvedValue([
-            { id: 'cow-1', tagNumber: 'TAG-1', name: 'Lokkhi', shedId: 'shed-1' },
+            {
+              id: 'cow-1',
+              tagNumber: 'TAG-1',
+              name: 'Lokkhi',
+              shedId: 'shed-1',
+            },
           ]),
         },
         healthCase: {
           findFirst: jest.fn().mockResolvedValue(openCase),
           findMany: jest.fn().mockResolvedValue([]),
         },
-        $transaction: jest.fn(async (callback) => {
+        $transaction: jest.fn((callback: (tx: unknown) => unknown) => {
           const tx = {
             healthCase: {
               create: createCaseMock,
@@ -355,7 +367,7 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
             medicineStockMovement: { updateMany: jest.fn() },
             safetyWithdrawal: { create: jest.fn() },
           };
-          return callback(tx);
+          return Promise.resolve(callback(tx));
         }),
       };
       const mockMedicineService = {
@@ -393,7 +405,7 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
         route: MedicineRoute.IM,
         treatedAt: '2026-10-27T10:00:00.000Z',
         careType: HealthCareType.CURATIVE,
-      } as never);
+      });
 
       expect(mockPrisma.healthCase.findFirst).toHaveBeenCalled();
       expect(createCaseMock).not.toHaveBeenCalled();
@@ -403,7 +415,9 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
         'cow-1',
         'treatment_completed',
         expect.objectContaining({
-          actionDetails: expect.stringContaining('Quick treatment administered'),
+          actionDetails: expect.stringContaining(
+            'Quick treatment administered',
+          ) as unknown,
         }),
       );
     });
@@ -420,7 +434,12 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
           doseUnit: 'ml',
           route: MedicineRoute.IM,
           administeredAt: new Date('2026-10-27T10:00:00Z'),
-          cattle: { id: 'cow-1', name: 'Lokkhi', tagNumber: 'TAG-1', image: null },
+          cattle: {
+            id: 'cow-1',
+            name: 'Lokkhi',
+            tagNumber: 'TAG-1',
+            image: null,
+          },
           healthCase: {
             id: 'case-1',
             caseCode: 'HC-001',
@@ -466,7 +485,7 @@ describe('HealthService — safety withdrawal release flow (RAKHAL-276)', () => 
           where: expect.objectContaining({
             farmId: 'farm-1',
             voidedAt: null,
-          }),
+          }) as unknown,
         }),
       );
       expect(page.items).toHaveLength(1);

@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type {
-  EmailLog,
-  EmailTemplate as PrismaEmailTemplate,
-} from '@prisma/client';
+import type { EmailLog } from '@prisma/client';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { EmailRepository } from 'src/modules/email/domain/repositories/email.repository';
 import { EmailStatus } from 'src/modules/email/domain/enums/email-status.enum';

@@ -125,7 +125,11 @@ export class AdminCommunicationsService {
     }
 
     if (targetUserIds.length === 0) {
-      return { targetedCount: 0, deliveredCount: 0, message: 'No recipients matched the target audience' };
+      return {
+        targetedCount: 0,
+        deliveredCount: 0,
+        message: 'No recipients matched the target audience',
+      };
     }
 
     // Resolve farms for users or fallback to 'system'

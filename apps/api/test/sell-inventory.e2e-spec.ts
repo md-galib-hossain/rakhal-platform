@@ -129,9 +129,7 @@ describe('Sales — SellInventoryItem (e2e, RAKHAL-346)', () => {
         }),
       },
     };
-    const account = (
-      res.body as { data: { id: string; ledgerAccountId: string } }
-    ).data;
+    const account = res.body.data;
     createdAccountIds.push(account.id);
     createdLedgerAccountIds.push(account.ledgerAccountId);
     return account;

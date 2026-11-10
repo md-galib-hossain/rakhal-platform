@@ -261,7 +261,9 @@ describe('Notifications — Telegram (e2e)', () => {
     // Bengali confirmation reply sent
     expect(replySpy).toHaveBeenCalledWith(
       112233,
-      expect.stringContaining('সফলভাবে রাখাল (Rakhal) অ্যাকাউন্টের সাথে যুক্ত হয়েছে'),
+      expect.stringContaining(
+        'সফলভাবে রাখাল (Rakhal) অ্যাকাউন্টের সাথে যুক্ত হয়েছে',
+      ),
     );
 
     await prisma.deviceToken.deleteMany({ where: { token: '112233' } });
@@ -293,7 +295,9 @@ describe('Notifications — Telegram (e2e)', () => {
 
     expect(replySpy).toHaveBeenCalledWith(
       223344,
-      expect.stringContaining('সফলভাবে রাখাল (Rakhal) অ্যাকাউন্টের সাথে যুক্ত হয়েছে'),
+      expect.stringContaining(
+        'সফলভাবে রাখাল (Rakhal) অ্যাকাউন্টের সাথে যুক্ত হয়েছে',
+      ),
     );
 
     await prisma.deviceToken.deleteMany({ where: { token: '223344' } });

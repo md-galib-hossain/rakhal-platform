@@ -70,7 +70,7 @@ describe('Business Reporting — Transactions feed (e2e, RAKHAL-370)', () => {
         }),
       },
     };
-    accountAId = accountA.body.data.id as string;
+    accountAId = accountA.body.data.id;
 
     const accountB = {
       body: {
@@ -81,7 +81,7 @@ describe('Business Reporting — Transactions feed (e2e, RAKHAL-370)', () => {
         }),
       },
     };
-    accountBId = accountB.body.data.id as string;
+    accountBId = accountB.body.data.id;
 
     const supplier = await prisma.supplier.create({
       data: { farmId, name: 'E2E-370 Feed Supplier' },
@@ -149,7 +149,7 @@ describe('Business Reporting — Transactions feed (e2e, RAKHAL-370)', () => {
         toFinancialAccountId: accountBId,
         amount: 200,
         transactionDate: new Date().toISOString(),
-      } as never);
+      });
 
     const res = await request(server())
       .get(api('/finance/transactions?type=FINANCE_TRANSFER'))

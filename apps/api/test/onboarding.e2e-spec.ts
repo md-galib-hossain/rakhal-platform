@@ -1,4 +1,4 @@
-﻿import request from 'supertest';
+import request from 'supertest';
 import { Workbook } from 'exceljs';
 import { PrismaService } from 'src/core/database/prisma/prisma.service';
 import { SYSTEM_ROLES } from 'src/modules/permission/domain/permission-catalogue';
@@ -24,7 +24,7 @@ describe('Onboarding (e2e)', () => {
   ];
   const api = (p: string): string => `${ctx.prefix}${p}`;
   const server = () => ctx.app.getHttpServer();
-  const uniquePhone = (): string => `017${String(Date.now()).slice(-8)}`;
+
   const uniqueEmail = (label: string): string =>
     `${label}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}@demo.rakhal.test`;
 

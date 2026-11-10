@@ -29,7 +29,6 @@ export class DashboardController {
     return this.dashboardService.priorities(farmId);
   }
 
-
   @Get('kpis')
   @RequirePermission('dashboard.read')
   kpis(@CurrentFarmId() farmId: string) {

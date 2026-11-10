@@ -175,9 +175,7 @@ describe('Finance V2 — Financial Accounts (e2e)', () => {
       },
     };
 
-    const account = (
-      res.body as { data: { id: string; ledgerAccountId: string } }
-    ).data;
+    const account = res.body.data;
     createdAccountIds.push(account.id);
     createdLedgerAccountIds.push(account.ledgerAccountId);
 
@@ -247,9 +245,7 @@ describe('Finance V2 — Financial Accounts (e2e)', () => {
         }),
       },
     };
-    const account = (
-      createRes.body as { data: { id: string; ledgerAccountId: string } }
-    ).data;
+    const account = createRes.body.data;
     createdAccountIds.push(account.id);
     createdLedgerAccountIds.push(account.ledgerAccountId);
 
@@ -316,9 +312,7 @@ describe('Finance V2 — Financial Accounts (e2e)', () => {
         }),
       },
     };
-    const account = (
-      createRes.body as { data: { id: string; ledgerAccountId: string } }
-    ).data;
+    const account = createRes.body.data;
     createdAccountIds.push(account.id);
     createdLedgerAccountIds.push(account.ledgerAccountId);
 
@@ -364,9 +358,7 @@ describe('Finance V2 — Financial Accounts (e2e)', () => {
         }),
       },
     };
-    const account = (
-      managerRes.body as { data: { id: string; ledgerAccountId: string } }
-    ).data;
+    const account = managerRes.body.data;
     createdAccountIds.push(account.id);
     createdLedgerAccountIds.push(account.ledgerAccountId);
 

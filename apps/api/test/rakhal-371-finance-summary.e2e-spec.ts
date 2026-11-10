@@ -66,7 +66,7 @@ describe('Business Reporting — Finance summary (e2e, RAKHAL-371)', () => {
         }),
       },
     };
-    accountId = account.body.data.id as string;
+    accountId = account.body.data.id;
   }, 30_000);
 
   afterAll(async () => {
