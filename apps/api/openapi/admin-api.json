@@ -616,6 +616,66 @@
         ],
         "type": "object"
       },
+      "BillingPlanDto": {
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "next_billing_date": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "price_per_month": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "price_per_month",
+          "currency",
+          "status",
+          "next_billing_date"
+        ],
+        "type": "object"
+      },
+      "BillingResponseDto": {
+        "properties": {
+          "current_plan": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BillingPlanDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "invoices": {
+            "description": "Always empty today: invoices are not listed here yet.",
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "payment_method": {
+            "description": "Always null today: payment methods are not stored yet.",
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "current_plan",
+          "payment_method",
+          "invoices"
+        ],
+        "type": "object"
+      },
       "BulkCattleDto": {
         "properties": {
           "action": {
@@ -3355,6 +3415,21 @@
         ],
         "type": "object"
       },
+      "DeleteRoleResponseDto": {
+        "properties": {
+          "deleted": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "deleted"
+        ],
+        "type": "object"
+      },
       "DeviceResponseDto": {
         "properties": {
           "createdAt": {
@@ -3610,6 +3685,142 @@
           "days",
           "confirm",
           "reason"
+        ],
+        "type": "object"
+      },
+      "FarmSettingsResponseDto": {
+        "properties": {
+          "address": {
+            "nullable": true,
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "district": {
+            "nullable": true,
+            "type": "string"
+          },
+          "division": {
+            "nullable": true,
+            "type": "string"
+          },
+          "farm_id": {
+            "type": "string"
+          },
+          "farm_name": {
+            "type": "string"
+          },
+          "farm_slug": {
+            "type": "string"
+          },
+          "operational_purpose": {
+            "nullable": true,
+            "type": "string"
+          },
+          "phone": {
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FarmStatus"
+              }
+            ]
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "upazila": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "timezone",
+          "farm_id",
+          "farm_slug",
+          "farm_name",
+          "description",
+          "division",
+          "district",
+          "upazila",
+          "operational_purpose",
+          "phone",
+          "address",
+          "status"
+        ],
+        "type": "object"
+      },
+      "FarmStatus": {
+        "enum": [
+          "ACTIVE",
+          "SUSPENDED",
+          "ARCHIVED"
+        ],
+        "type": "string"
+      },
+      "FarmUpdateResponseDto": {
+        "properties": {
+          "address": {
+            "nullable": true,
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "district": {
+            "nullable": true,
+            "type": "string"
+          },
+          "division": {
+            "nullable": true,
+            "type": "string"
+          },
+          "farm_id": {
+            "type": "string"
+          },
+          "farm_name": {
+            "type": "string"
+          },
+          "farm_slug": {
+            "type": "string"
+          },
+          "operational_purpose": {
+            "nullable": true,
+            "type": "string"
+          },
+          "phone": {
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "upazila": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "timezone",
+          "farm_id",
+          "farm_slug",
+          "farm_name",
+          "description",
+          "division",
+          "district",
+          "upazila",
+          "operational_purpose",
+          "phone",
+          "address",
+          "status"
         ],
         "type": "object"
       },
@@ -7553,6 +7764,64 @@
         ],
         "type": "string"
       },
+      "MilkSessionsSettingsDto": {
+        "properties": {
+          "active_sessions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "anomaly_threshold_pct": {
+            "type": "number"
+          },
+          "colostrum_window_days": {
+            "type": "number"
+          },
+          "evening_end": {
+            "type": "string"
+          },
+          "evening_start": {
+            "type": "string"
+          },
+          "milk_unit": {
+            "type": "string"
+          },
+          "morning_end": {
+            "type": "string"
+          },
+          "morning_start": {
+            "type": "string"
+          },
+          "night_end": {
+            "type": "string"
+          },
+          "night_start": {
+            "type": "string"
+          },
+          "noon_end": {
+            "type": "string"
+          },
+          "noon_start": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "active_sessions",
+          "morning_start",
+          "morning_end",
+          "noon_start",
+          "noon_end",
+          "evening_start",
+          "evening_end",
+          "night_start",
+          "night_end",
+          "milk_unit",
+          "anomaly_threshold_pct",
+          "colostrum_window_days"
+        ],
+        "type": "object"
+      },
       "MilkSubmitAnomalyDto": {
         "properties": {
           "cattleId": {
@@ -7858,6 +8127,123 @@
           "lifetime"
         ],
         "type": "string"
+      },
+      "ModulesCattleDto": {
+        "properties": {
+          "avg_daily_milk_target_range": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id_format": {
+            "type": "string"
+          },
+          "tag_prefix": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id_format",
+          "tag_prefix",
+          "avg_daily_milk_target_range"
+        ],
+        "type": "object"
+      },
+      "ModulesFinanceDto": {
+        "properties": {
+          "currency": {
+            "type": "string"
+          },
+          "currency_symbol": {
+            "type": "string"
+          },
+          "financial_year_start_month": {
+            "type": "number"
+          },
+          "survival_runway_critical_days": {
+            "type": "number"
+          },
+          "survival_runway_warning_days": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "currency",
+          "currency_symbol",
+          "survival_runway_warning_days",
+          "survival_runway_critical_days",
+          "financial_year_start_month"
+        ],
+        "type": "object"
+      },
+      "ModulesHealthDto": {
+        "properties": {
+          "herd_health_score_warning_pct": {
+            "type": "number"
+          },
+          "morbidity_outbreak_threshold_pct": {
+            "type": "number"
+          },
+          "scc_alert_threshold": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "herd_health_score_warning_pct",
+          "scc_alert_threshold",
+          "morbidity_outbreak_threshold_pct"
+        ],
+        "type": "object"
+      },
+      "ModulesReproductionDto": {
+        "properties": {
+          "dry_period_target_days": {
+            "type": "number"
+          },
+          "pregnancy_check_days": {
+            "type": "number"
+          },
+          "target_calving_interval_days": {
+            "type": "number"
+          },
+          "vwp_days": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "vwp_days",
+          "pregnancy_check_days",
+          "target_calving_interval_days",
+          "dry_period_target_days"
+        ],
+        "type": "object"
+      },
+      "ModulesSettingsResponseDto": {
+        "properties": {
+          "cattle": {
+            "$ref": "#/components/schemas/ModulesCattleDto"
+          },
+          "finance": {
+            "$ref": "#/components/schemas/ModulesFinanceDto"
+          },
+          "health": {
+            "$ref": "#/components/schemas/ModulesHealthDto"
+          },
+          "milk": {
+            "$ref": "#/components/schemas/MilkSessionsSettingsDto"
+          },
+          "reproduction": {
+            "$ref": "#/components/schemas/ModulesReproductionDto"
+          }
+        },
+        "required": [
+          "cattle",
+          "milk",
+          "reproduction",
+          "finance",
+          "health"
+        ],
+        "type": "object"
       },
       "MortalityDto": {
         "properties": {
@@ -8537,6 +8923,42 @@
           "allocations"
         ],
         "type": "object"
+      },
+      "PermissionCatalogueResponseDto": {
+        "properties": {
+          "permissions": {
+            "items": {
+              "$ref": "#/components/schemas/ResourcePermissionsDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "permissions"
+        ],
+        "type": "object"
+      },
+      "PermissionGroup": {
+        "enum": [
+          "GENERAL",
+          "DASHBOARD",
+          "CATTLE",
+          "REPRODUCTION",
+          "MILK",
+          "FEED",
+          "HEALTHCARE",
+          "CALF",
+          "INVENTORY",
+          "FINANCE",
+          "TASK",
+          "REPORTS",
+          "SCOREBOARD",
+          "ACTIVITY",
+          "SETTINGS",
+          "NOTIFICATION",
+          "TEAM"
+        ],
+        "type": "string"
       },
       "PreferenceItemDto": {
         "properties": {
@@ -9760,6 +10182,34 @@
         ],
         "type": "object"
       },
+      "ResourcePermissionsDto": {
+        "properties": {
+          "actions": {
+            "description": "Actions available on it.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "group": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PermissionGroup"
+              }
+            ]
+          },
+          "resource": {
+            "description": "Resource segment of the key, e.g. `cattle`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group",
+          "resource",
+          "actions"
+        ],
+        "type": "object"
+      },
       "RetryJobDto": {
         "properties": {
           "reason": {
@@ -9784,6 +10234,78 @@
         },
         "required": [
           "action"
+        ],
+        "type": "object"
+      },
+      "RoleListResponseDto": {
+        "properties": {
+          "catalogue": {
+            "items": {
+              "$ref": "#/components/schemas/ResourcePermissionsDto"
+            },
+            "type": "array"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleResponseDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "roles",
+          "catalogue"
+        ],
+        "type": "object"
+      },
+      "RoleResponseDto": {
+        "properties": {
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "editable": {
+            "description": "False for built-in roles.",
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_system": {
+            "type": "boolean"
+          },
+          "matrix": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "boolean"
+              },
+              "type": "object"
+            },
+            "description": "resource -> action -> allowed.",
+            "type": "object"
+          },
+          "member_count": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "permission_keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "is_system",
+          "editable",
+          "member_count",
+          "permission_keys",
+          "matrix"
         ],
         "type": "object"
       },
@@ -10488,6 +11010,50 @@
         ],
         "type": "string"
       },
+      "ServiceProviderListResponseDto": {
+        "properties": {
+          "service_providers": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceProviderResponseDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "service_providers"
+        ],
+        "type": "object"
+      },
+      "ServiceProviderResponseDto": {
+        "properties": {
+          "deleted_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "nullable": true,
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "phone",
+          "type",
+          "deleted_at"
+        ],
+        "type": "object"
+      },
       "SetFeedOverrideDto": {
         "properties": {
           "customAdfPct": {
@@ -10696,12 +11262,179 @@
         ],
         "type": "object"
       },
+      "ShedListItemDto": {
+        "properties": {
+          "capacity": {
+            "nullable": true,
+            "type": "number"
+          },
+          "code": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "current_count": {
+            "description": "Animals currently in this shed.",
+            "type": "number"
+          },
+          "deleted_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ShedPurpose"
+              }
+            ]
+          },
+          "responsible_member": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ShedResponsibleMemberDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "code",
+          "description",
+          "capacity",
+          "purpose",
+          "responsible_member",
+          "current_count",
+          "deleted_at",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ShedPurpose": {
+        "enum": [
+          "MILKING",
+          "HEIFER",
+          "DRY",
+          "CALF",
+          "QUARANTINE",
+          "GENERAL"
+        ],
+        "type": "string"
+      },
+      "ShedResponseDto": {
+        "properties": {
+          "capacity": {
+            "nullable": true,
+            "type": "number"
+          },
+          "code": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "purpose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ShedPurpose"
+              }
+            ]
+          },
+          "responsibleMemberId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "code",
+          "description",
+          "capacity",
+          "purpose",
+          "deletedAt",
+          "createdAt",
+          "updatedAt",
+          "farmId",
+          "responsibleMemberId"
+        ],
+        "type": "object"
+      },
+      "ShedResponsibleMemberDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "SkipHealthTaskDto": {
         "properties": {
           "reason": {
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "SoftDeleteResponseDto": {
+        "properties": {
+          "deleted_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "deleted_at"
+        ],
         "type": "object"
       },
       "StepScheduleOverrideDto": {
@@ -10832,12 +11565,258 @@
         ],
         "type": "object"
       },
+      "SupplierListResponseDto": {
+        "properties": {
+          "suppliers": {
+            "items": {
+              "$ref": "#/components/schemas/SupplierResponseDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "suppliers"
+        ],
+        "type": "object"
+      },
+      "SupplierResponseDto": {
+        "properties": {
+          "category": {
+            "nullable": true,
+            "type": "string"
+          },
+          "contact": {
+            "nullable": true,
+            "type": "string"
+          },
+          "deleted_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "payment_terms": {
+            "nullable": true,
+            "type": "string"
+          },
+          "payment_terms_days": {
+            "type": "number"
+          },
+          "phone": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "contact",
+          "phone",
+          "category",
+          "payment_terms",
+          "payment_terms_days",
+          "notes",
+          "deleted_at"
+        ],
+        "type": "object"
+      },
       "TargetSex": {
         "enum": [
           "FEMALE",
           "MALE"
         ],
         "type": "string"
+      },
+      "TeamChangeRoleResponseDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "role"
+        ],
+        "type": "object"
+      },
+      "TeamInviteResponseDto": {
+        "properties": {
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "invite_id": {
+            "type": "string"
+          },
+          "sms_sent": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "invite_id",
+          "sms_sent",
+          "expires_at"
+        ],
+        "type": "object"
+      },
+      "TeamInviteRowDto": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "invite_id": {
+            "type": "string"
+          },
+          "last_active_at": {
+            "description": "Always null.",
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "phone": {
+            "nullable": true,
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "invite_id",
+          "name",
+          "phone",
+          "email",
+          "role",
+          "status",
+          "last_active_at",
+          "expires_at"
+        ],
+        "type": "object"
+      },
+      "TeamListResponseDto": {
+        "properties": {
+          "members": {
+            "description": "Active members and pending invites, in one list.",
+            "items": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/TeamMemberDto"
+                },
+                {
+                  "$ref": "#/components/schemas/TeamInviteRowDto"
+                }
+              ]
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "members"
+        ],
+        "type": "object"
+      },
+      "TeamMemberDto": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_owner": {
+            "type": "boolean"
+          },
+          "last_active_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "member_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "description": "Always null.",
+            "nullable": true,
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "member_id",
+          "name",
+          "phone",
+          "email",
+          "role",
+          "status",
+          "last_active_at",
+          "is_owner"
+        ],
+        "type": "object"
+      },
+      "TeamRemoveMemberResponseDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "removed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "removed"
+        ],
+        "type": "object"
+      },
+      "TeamRevokeInviteResponseDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "revoked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "revoked"
+        ],
+        "type": "object"
       },
       "TelegramChatDto": {
         "properties": {

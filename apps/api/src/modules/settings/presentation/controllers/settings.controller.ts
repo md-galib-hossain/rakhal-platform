@@ -20,6 +20,14 @@ import { UpdateFarmSettingsDto } from '../dto/update-farm-settings.dto';
 import { CreateShedDto } from '../dto/create-shed.dto';
 import { UpdateShedDto } from '../dto/update-shed.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  FarmSettingsResponseDto,
+  FarmUpdateResponseDto,
+  ShedListItemDto,
+  ShedResponseDto,
+  SoftDeleteResponseDto,
+} from '../dto/settings-response.dto';
 
 /** Settings (PRD Â§21 / API Â§18). `/api/v1/settings`. Token tenancy + RBAC. */
 @ApiTags('Settings')
@@ -39,12 +47,14 @@ export class SettingsController {
 
   @Get('farm')
   @RequirePermission('settings.read')
+  @ApiEnvelopeResponse(FarmSettingsResponseDto)
   getFarm(@CurrentFarmId() farmId: string) {
     return this.settingsService.getFarm(farmId);
   }
 
   @Patch('farm')
   @RequirePermission('settings.update')
+  @ApiEnvelopeResponse(FarmUpdateResponseDto)
   updateFarm(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -57,18 +67,21 @@ export class SettingsController {
 
   @Get('sheds')
   @RequirePermission('settings.read')
+  @ApiEnvelopeResponse(ShedListItemDto, { isArray: true })
   listSheds(@CurrentFarmId() farmId: string) {
     return this.settingsService.listSheds(farmId);
   }
 
   @Post('sheds')
   @RequirePermission('settings.update')
+  @ApiEnvelopeResponse(ShedResponseDto, { status: 201 })
   createShed(@CurrentFarmId() farmId: string, @Body() dto: CreateShedDto) {
     return this.settingsService.createShed(farmId, dto);
   }
 
   @Patch('sheds/:id')
   @RequirePermission('settings.update')
+  @ApiEnvelopeResponse(ShedResponseDto)
   updateShed(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
@@ -79,6 +92,7 @@ export class SettingsController {
 
   @Delete('sheds/:id')
   @RequirePermission('settings.update')
+  @ApiEnvelopeResponse(SoftDeleteResponseDto)
   deleteShed(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.settingsService.deleteShed(farmId, id);
   }

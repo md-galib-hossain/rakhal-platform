@@ -19,6 +19,13 @@ import { RolesService } from '../../application/services/roles.service';
 import { CreateRoleDto } from '../dto/create-role.dto';
 import { UpdateRolePermissionsDto } from '../dto/update-role-permissions.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  DeleteRoleResponseDto,
+  PermissionCatalogueResponseDto,
+  RoleListResponseDto,
+  RoleResponseDto,
+} from '../dto/settings-response.dto';
 
 /**
  * Roles & Permissions (RAKHAL-031, PRD Â§21.4 / API Â§18). `/api/v1/settings`.
@@ -39,18 +46,21 @@ export class RolesController {
 
   @Get('permissions')
   @RequirePermission('settings.read')
+  @ApiEnvelopeResponse(PermissionCatalogueResponseDto)
   getCatalogue() {
     return this.rolesService.getCatalogue();
   }
 
   @Get('roles')
   @RequirePermission('settings.read')
+  @ApiEnvelopeResponse(RoleListResponseDto)
   listRoles(@CurrentFarmId() farmId: string) {
     return this.rolesService.listRoles(farmId);
   }
 
   @Post('roles')
   @RequirePermission('settings.roles-manage')
+  @ApiEnvelopeResponse(RoleResponseDto, { status: 201 })
   createRole(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -61,6 +71,7 @@ export class RolesController {
 
   @Patch('roles/:id/permissions')
   @RequirePermission('settings.roles-manage')
+  @ApiEnvelopeResponse(RoleResponseDto)
   updateRolePermissions(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -72,6 +83,7 @@ export class RolesController {
 
   @Delete('roles/:id')
   @RequirePermission('settings.roles-manage')
+  @ApiEnvelopeResponse(DeleteRoleResponseDto)
   deleteRole(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,

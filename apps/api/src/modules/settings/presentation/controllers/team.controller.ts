@@ -19,6 +19,14 @@ import { TeamService } from '../../application/services/team.service';
 import { InviteTeamMemberDto } from '../dto/invite-team-member.dto';
 import { ChangeMemberRoleDto } from '../dto/change-member-role.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  TeamChangeRoleResponseDto,
+  TeamInviteResponseDto,
+  TeamListResponseDto,
+  TeamRemoveMemberResponseDto,
+  TeamRevokeInviteResponseDto,
+} from '../dto/settings-response.dto';
 
 /** Settings â†’ Team (PRD Â§21.4 / API Â§18). `/api/v1/settings/team`. Token tenancy + RBAC. */
 @ApiTags('Team')
@@ -36,12 +44,14 @@ export class TeamController {
 
   @Get()
   @RequirePermission('team.read')
+  @ApiEnvelopeResponse(TeamListResponseDto)
   list(@CurrentFarmId() farmId: string) {
     return this.teamService.listTeam(farmId);
   }
 
   @Post('invite')
   @RequirePermission('team.invite')
+  @ApiEnvelopeResponse(TeamInviteResponseDto, { status: 201 })
   invite(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -52,18 +62,21 @@ export class TeamController {
 
   @Post('invites/:id/resend')
   @RequirePermission('team.invite')
+  @ApiEnvelopeResponse(TeamInviteResponseDto, { status: 201 })
   resend(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.teamService.resendInvite(farmId, id);
   }
 
   @Delete('invites/:id')
   @RequirePermission('team.invite')
+  @ApiEnvelopeResponse(TeamRevokeInviteResponseDto)
   revokeInvite(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.teamService.revokeInvite(farmId, id);
   }
 
   @Patch(':id/role')
   @RequirePermission('team.invite')
+  @ApiEnvelopeResponse(TeamChangeRoleResponseDto)
   changeRole(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -75,6 +88,7 @@ export class TeamController {
 
   @Delete(':id')
   @RequirePermission('team.remove')
+  @ApiEnvelopeResponse(TeamRemoveMemberResponseDto)
   remove(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
