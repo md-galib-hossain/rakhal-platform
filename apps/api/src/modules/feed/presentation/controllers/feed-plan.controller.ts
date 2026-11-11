@@ -30,6 +30,15 @@ import {
   PreviewPlanFitDto,
   UpdateFeedPlanDto,
 } from '../dto/feed-plan.dto';
+import {
+  ApiEnvelopeResponse,
+  ApiPaginatedResponse,
+} from 'src/common/swagger/api-envelope';
+import {
+  ApplyFeedPlanResponseDto,
+  FeedPlanArchiveResponseDto,
+  FeedPlanResponseDto,
+} from 'src/modules/feed/presentation/dto/feed-response.dto';
 
 /**
  * Feed Plans (MILESTONE 27, RAKHAL-455). `/api/v1/feed/plans`. Same guard chain + subscription gate
@@ -56,12 +65,14 @@ export class FeedPlanController {
 
   @Get()
   @RequirePermission('feed.read')
+  @ApiPaginatedResponse(FeedPlanResponseDto)
   list(@CurrentFarmId() farmId: string, @Query() query: ListFeedPlansQueryDto) {
     return this.plans.list(farmId, query);
   }
 
   @Get(':id')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedPlanResponseDto)
   get(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.plans.get(farmId, id);
   }
@@ -89,6 +100,7 @@ export class FeedPlanController {
 
   @Post()
   @RequirePermission('feed.create')
+  @ApiEnvelopeResponse(FeedPlanResponseDto, { status: 201 })
   create(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -99,6 +111,7 @@ export class FeedPlanController {
 
   @Patch(':id')
   @RequirePermission('feed.update')
+  @ApiEnvelopeResponse(FeedPlanResponseDto)
   update(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -111,6 +124,7 @@ export class FeedPlanController {
   /** Refused (409) while applied, unless `?removeAssignments=true` ("Remove from all & delete"). */
   @Delete(':id')
   @RequirePermission('feed.delete')
+  @ApiEnvelopeResponse(FeedPlanArchiveResponseDto)
   archive(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -123,6 +137,7 @@ export class FeedPlanController {
   /** Apply this plan to cows / a group / the herd, replacing the target's active program (RAKHAL-456). */
   @Post(':id/apply')
   @RequirePermission('feed.update')
+  @ApiEnvelopeResponse(ApplyFeedPlanResponseDto, { status: 201 })
   apply(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,

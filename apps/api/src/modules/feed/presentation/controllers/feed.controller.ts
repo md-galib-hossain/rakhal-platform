@@ -58,6 +58,23 @@ import { VoidFeedCattleItemDto } from '../dto/void-feed-cattle-item.dto';
 import { FeedFeedingGridService } from '../../application/services/feed-feeding-grid.service';
 import { FeedPlanService } from '../../application/services/feed-plan.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiEnvelopeResponse,
+  ApiPaginatedResponse,
+} from 'src/common/swagger/api-envelope';
+import {
+  FeedCostSummaryDto,
+  FeedDistributionListItemDto,
+  FeedDistributionResponseDto,
+  FeedDmiComparisonDto,
+  FeedEfficiencyDto,
+  FeedIngredientOverrideResponseDto,
+  FeedIngredientResponseDto,
+  FeedStockDetailResponseDto,
+  FeedStockResponseDto,
+  ResetOverrideResponseDto,
+} from 'src/modules/feed/presentation/dto/feed-response.dto';
+import { BulkDeleteResponseDto } from 'src/modules/inventory/presentation/dto/inventory-response.dto';
 
 /**
  * Feed Formulator (PRD §12 / API §8). `/api/v1/feed`. Token tenancy + RBAC +
@@ -92,6 +109,7 @@ export class FeedController {
   // ---- Ingredients --------------------------------------------------------
   @Get('ingredients')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedIngredientResponseDto, { isArray: true })
   listIngredients(
     @CurrentFarmId() farmId: string,
     @Query() query: ListIngredientsQueryDto,
@@ -105,6 +123,7 @@ export class FeedController {
    * POST/DELETE, kept static for clarity/precedent per this controller's other bulk/static routes). */
   @Get('ingredients/paged')
   @RequirePermission('feed.read')
+  @ApiPaginatedResponse(FeedIngredientResponseDto)
   listIngredientsPaged(
     @CurrentFarmId() farmId: string,
     @Query() query: ListIngredientsQueryDto,
@@ -114,6 +133,7 @@ export class FeedController {
 
   @Post('ingredients/custom')
   @RequirePermission('feed.create')
+  @ApiEnvelopeResponse(FeedIngredientResponseDto, { status: 201 })
   createCustomIngredient(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -124,6 +144,7 @@ export class FeedController {
 
   @Patch('ingredients/custom/:id')
   @RequirePermission('feed.update')
+  @ApiEnvelopeResponse(FeedIngredientResponseDto)
   updateCustomIngredient(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
@@ -134,6 +155,7 @@ export class FeedController {
 
   @Delete('ingredients/custom/:id')
   @RequirePermission('feed.delete')
+  @ApiEnvelopeResponse(FeedIngredientResponseDto)
   deactivateCustomIngredient(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
@@ -143,6 +165,7 @@ export class FeedController {
 
   @Post('ingredients/:id/override')
   @RequirePermission('feed.update')
+  @ApiEnvelopeResponse(FeedIngredientOverrideResponseDto, { status: 201 })
   setOverride(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -154,6 +177,7 @@ export class FeedController {
 
   @Delete('ingredients/:id/override')
   @RequirePermission('feed.update')
+  @ApiEnvelopeResponse(ResetOverrideResponseDto)
   resetOverride(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.ingredients.resetOverride(farmId, id);
   }
@@ -253,6 +277,7 @@ export class FeedController {
    * routes are GET/PATCH/DELETE, but keeping the static route grouped above them for clarity). */
   @Post('concentrations/bulk-delete')
   @RequirePermission('feed.delete')
+  @ApiEnvelopeResponse(BulkDeleteResponseDto, { status: 201 })
   bulkDeleteConcentrations(
     @CurrentFarmId() farmId: string,
     @Body() dto: BulkDeleteConcentrationDto,
@@ -371,6 +396,7 @@ export class FeedController {
   /** Actual vs expected dry-matter intake for a cow (2026-08-13, user request). */
   @Get('cattle/:cattleId/dmi')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedDmiComparisonDto)
   dmiComparison(
     @CurrentFarmId() farmId: string,
     @Param('cattleId') cattleId: string,
@@ -382,6 +408,7 @@ export class FeedController {
   // ---- Feed distribution (§12.5) -----------------------------------------
   @Get('distributions')
   @RequirePermission('feed.read')
+  @ApiPaginatedResponse(FeedDistributionListItemDto)
   listDistributions(
     @CurrentFarmId() farmId: string,
     @Query() query: ListDistributionQueryDto,
@@ -391,6 +418,7 @@ export class FeedController {
 
   @Post('distributions')
   @RequirePermission('feed.distribution-log')
+  @ApiEnvelopeResponse(FeedDistributionResponseDto, { status: 201 })
   logDistribution(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -477,6 +505,7 @@ export class FeedController {
    * Reports need this, not just the per-lactation view Reproduction already has). */
   @Get('cost-summary')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedCostSummaryDto)
   costSummary(@CurrentFarmId() farmId: string, @Query('days') days?: string) {
     return this.distributions.getFarmFeedCostSummary(
       farmId,
@@ -486,6 +515,7 @@ export class FeedController {
 
   @Get('efficiency')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedEfficiencyDto)
   efficiency(
     @CurrentFarmId() farmId: string,
     @Query() query: FeedEfficiencyQueryDto,
@@ -495,6 +525,7 @@ export class FeedController {
 
   @Get('distributions/:id')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedDistributionResponseDto)
   getDistribution(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.distributions.get(farmId, id);
   }
@@ -502,6 +533,7 @@ export class FeedController {
   /** Next-day leftover weigh-in (2026-08-13, user request). */
   @Patch('distributions/:id/refusal')
   @RequirePermission('feed.distribution-log')
+  @ApiEnvelopeResponse(FeedDistributionResponseDto)
   patchRefusal(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
@@ -513,6 +545,7 @@ export class FeedController {
   // ---- Feed stock (§12.5 follow-up — TMR ↔ Inventory linkage) -------------
   @Get('stock')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedStockResponseDto, { isArray: true })
   listStock(
     @CurrentFarmId() farmId: string,
     @Query() query: ListFeedStockQueryDto,
@@ -525,6 +558,7 @@ export class FeedController {
    * `:id` routes are GET/DELETE, but keeping it grouped for clarity/precedent). */
   @Post('stock/bulk-delete')
   @RequirePermission('feed.delete')
+  @ApiEnvelopeResponse(BulkDeleteResponseDto, { status: 201 })
   bulkDeleteStock(
     @CurrentFarmId() farmId: string,
     @Body() dto: BulkDeleteStockDto,
@@ -534,6 +568,7 @@ export class FeedController {
 
   @Get('stock/:id')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedStockDetailResponseDto)
   getStock(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.stock.get(farmId, id);
   }
@@ -542,6 +577,7 @@ export class FeedController {
    * deleted"). Soft-delete, same as `removeConcentration` above. */
   @Delete('stock/:id')
   @RequirePermission('feed.delete')
+  @ApiEnvelopeResponse(FeedStockResponseDto)
   archiveStock(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.stock.archive(farmId, id);
   }
@@ -550,6 +586,7 @@ export class FeedController {
    * lab report) — the recipe's on-paper values at finalize time are only a starting estimate. */
   @Patch('stock/:id/nutrition')
   @RequirePermission('feed.update')
+  @ApiEnvelopeResponse(FeedStockResponseDto)
   updateStockNutrition(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,

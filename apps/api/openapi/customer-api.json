@@ -435,6 +435,39 @@
         ],
         "type": "object"
       },
+      "ApplyFeedPlanResponseDto": {
+        "properties": {
+          "assignments": {
+            "items": {
+              "$ref": "#/components/schemas/FeedPlanAssignmentBaseDto"
+            },
+            "type": "array"
+          },
+          "leaves_group_program": {
+            "items": {
+              "$ref": "#/components/schemas/LeavesGroupProgramDto"
+            },
+            "type": "array"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "replaced": {
+            "description": "Earlier assignments this apply replaced.",
+            "items": {
+              "$ref": "#/components/schemas/FeedPlanAssignmentNamedDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "plan_id",
+          "assignments",
+          "replaced",
+          "leaves_group_program"
+        ],
+        "type": "object"
+      },
       "ApplyHealthPlanDto": {
         "properties": {
           "healthPlanId": {
@@ -3522,6 +3555,258 @@
         ],
         "type": "object"
       },
+      "FeedClass": {
+        "enum": [
+          "FORAGE",
+          "CONCENTRATE",
+          "MINERAL",
+          "VITAMIN",
+          "ADDITIVE",
+          "OTHER"
+        ],
+        "type": "string"
+      },
+      "FeedConcentrationKind": {
+        "enum": [
+          "CONCENTRATE_TEMPLATE",
+          "FEED_MIXTURE"
+        ],
+        "type": "string"
+      },
+      "FeedCostSummaryDto": {
+        "properties": {
+          "cost_per_cow_per_day": {
+            "nullable": true,
+            "type": "number"
+          },
+          "cost_per_litre": {
+            "nullable": true,
+            "type": "number"
+          },
+          "days": {
+            "type": "number"
+          },
+          "headcount": {
+            "type": "number"
+          },
+          "total_cost": {
+            "type": "number"
+          },
+          "total_litres": {
+            "type": "number"
+          },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/FeedCostTrendPointDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "days",
+          "total_cost",
+          "cost_per_cow_per_day",
+          "cost_per_litre",
+          "headcount",
+          "total_litres",
+          "trend"
+        ],
+        "type": "object"
+      },
+      "FeedCostTrendPointDto": {
+        "properties": {
+          "date": {
+            "description": "Calendar day, YYYY-MM-DD.",
+            "type": "string"
+          },
+          "total_cost": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "total_cost"
+        ],
+        "type": "object"
+      },
+      "FeedDistributionLineDto": {
+        "properties": {
+          "actual_kg": {
+            "type": "number"
+          },
+          "ingredient_id": {
+            "type": "string"
+          },
+          "line_cost": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "planned_kg": {
+            "type": "number"
+          },
+          "price_per_kg": {
+            "type": "number"
+          },
+          "refusal_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "ingredient_id",
+          "name",
+          "planned_kg",
+          "actual_kg",
+          "refusal_kg",
+          "price_per_kg",
+          "line_cost"
+        ],
+        "type": "object"
+      },
+      "FeedDistributionListItemDto": {
+        "properties": {
+          "cattle_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "concentration_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "distributed_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "total_actual_cost": {
+            "type": "number"
+          },
+          "total_actual_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "concentration_id",
+          "cattle_id",
+          "distributed_at",
+          "total_actual_kg",
+          "total_actual_cost",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "FeedDistributionResponseDto": {
+        "properties": {
+          "cattle_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "concentration_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "distributed_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "forage_decrements": {
+            "nullable": true,
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FeedDistributionLineDto"
+            },
+            "type": "array"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "total_actual_cost": {
+            "type": "number"
+          },
+          "total_actual_kg": {
+            "type": "number"
+          },
+          "total_planned_cost": {
+            "type": "number"
+          },
+          "total_planned_kg": {
+            "type": "number"
+          },
+          "total_refusal_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "concentration_id",
+          "cattle_id",
+          "distributed_at",
+          "total_planned_kg",
+          "total_actual_kg",
+          "total_refusal_kg",
+          "total_planned_cost",
+          "total_actual_cost",
+          "notes",
+          "forage_decrements",
+          "items",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "FeedDmiComparisonDto": {
+        "properties": {
+          "actual_dmi_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "delta_pct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "expected_dmi_kg": {
+            "type": "number"
+          },
+          "match_level": {
+            "nullable": true,
+            "type": "string"
+          },
+          "program": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedProgramRefDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "expected_dmi_kg",
+          "actual_dmi_kg",
+          "delta_pct",
+          "match_level",
+          "program"
+        ],
+        "type": "object"
+      },
       "FeedDraftEntryDto": {
         "properties": {
           "cattleId": {
@@ -3565,6 +3850,72 @@
         ],
         "type": "object"
       },
+      "FeedEfficiencyDto": {
+        "properties": {
+          "actual_cost": {
+            "type": "number"
+          },
+          "actual_kg": {
+            "type": "number"
+          },
+          "adherence_pct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "cattle_id": {
+            "type": "string"
+          },
+          "cattle_name": {
+            "type": "string"
+          },
+          "consumed_kg": {
+            "type": "number"
+          },
+          "distributions": {
+            "type": "number"
+          },
+          "feed_cost_per_litre": {
+            "nullable": true,
+            "type": "number"
+          },
+          "litres_produced": {
+            "type": "number"
+          },
+          "period": {
+            "type": "string"
+          },
+          "planned_cost": {
+            "type": "number"
+          },
+          "planned_kg": {
+            "type": "number"
+          },
+          "refusal_kg": {
+            "type": "number"
+          },
+          "refusal_pct": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "distributions",
+          "planned_kg",
+          "actual_kg",
+          "refusal_kg",
+          "consumed_kg",
+          "planned_cost",
+          "actual_cost",
+          "adherence_pct",
+          "refusal_pct",
+          "litres_produced",
+          "feed_cost_per_litre",
+          "cattle_id",
+          "cattle_name",
+          "period"
+        ],
+        "type": "object"
+      },
       "FeedEntryLineDto": {
         "properties": {
           "feedItemId": {
@@ -3600,6 +3951,520 @@
         ],
         "type": "object"
       },
+      "FeedIngredientOverrideResponseDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "customAdfPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "customCalciumPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "customCpPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "customDmPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "customFatPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "customMeMjPerKgDm": {
+            "nullable": true,
+            "type": "number"
+          },
+          "customNdfPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "customPhosphorusPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "customPricePerKg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "customRdpPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "customRupPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "customStarchPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "customTdnPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ingredientId": {
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "nutritionSource": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NutritionSource"
+              }
+            ],
+            "nullable": true
+          },
+          "sourceRef": {
+            "nullable": true,
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "ingredientId",
+          "customPricePerKg",
+          "customDmPct",
+          "customCpPct",
+          "customMeMjPerKgDm",
+          "customFatPct",
+          "customNdfPct",
+          "customRdpPct",
+          "customRupPct",
+          "customStarchPct",
+          "customAdfPct",
+          "customCalciumPct",
+          "customPhosphorusPct",
+          "customTdnPct",
+          "nutritionSource",
+          "sourceRef",
+          "notes",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "FeedIngredientResponseDto": {
+        "properties": {
+          "effective_price_per_kg": {
+            "type": "number"
+          },
+          "feed_class": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedClass"
+              }
+            ]
+          },
+          "feed_sub_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedSubType"
+              }
+            ],
+            "nullable": true
+          },
+          "has_nutrition_override": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_available_bd": {
+            "type": "boolean"
+          },
+          "is_custom": {
+            "type": "boolean"
+          },
+          "name_bn": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name_en": {
+            "type": "string"
+          },
+          "nutrient_group": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedNutrientGroup"
+              }
+            ],
+            "nullable": true
+          },
+          "nutrition": {
+            "$ref": "#/components/schemas/FeedNutritionDto"
+          },
+          "nutrition_source": {
+            "nullable": true,
+            "type": "string"
+          },
+          "nutrition_source_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IngredientNutritionSource"
+              }
+            ]
+          },
+          "override_notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "price_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/IngredientPriceSource"
+              }
+            ]
+          },
+          "price_updated_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "rakhal_price_per_kg": {
+            "type": "number"
+          },
+          "source_ref": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name_en",
+          "name_bn",
+          "feed_class",
+          "feed_sub_type",
+          "nutrient_group",
+          "is_custom",
+          "nutrition_source",
+          "nutrition_source_type",
+          "source_ref",
+          "rakhal_price_per_kg",
+          "price_updated_at",
+          "effective_price_per_kg",
+          "price_source",
+          "has_nutrition_override",
+          "is_available_bd",
+          "nutrition",
+          "override_notes"
+        ],
+        "type": "object"
+      },
+      "FeedNutrientGroup": {
+        "enum": [
+          "PROTEIN",
+          "ENERGY",
+          "FIBER"
+        ],
+        "type": "string"
+      },
+      "FeedNutritionDto": {
+        "properties": {
+          "adf_pct": {
+            "type": "number"
+          },
+          "calcium_pct": {
+            "type": "number"
+          },
+          "cp_pct": {
+            "type": "number"
+          },
+          "dm_pct": {
+            "type": "number"
+          },
+          "fat_pct": {
+            "type": "number"
+          },
+          "me_mj_per_kg_dm": {
+            "type": "number"
+          },
+          "ndf_pct": {
+            "type": "number"
+          },
+          "phosphorus_pct": {
+            "type": "number"
+          },
+          "rdp_pct": {
+            "type": "number"
+          },
+          "rup_pct": {
+            "type": "number"
+          },
+          "starch_pct": {
+            "type": "number"
+          },
+          "tdn_pct": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dm_pct",
+          "cp_pct",
+          "me_mj_per_kg_dm",
+          "fat_pct",
+          "ndf_pct",
+          "rdp_pct",
+          "rup_pct",
+          "starch_pct",
+          "adf_pct",
+          "calcium_pct",
+          "phosphorus_pct",
+          "tdn_pct"
+        ],
+        "type": "object"
+      },
+      "FeedPlanAppliedToDto": {
+        "properties": {
+          "cattle_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "group_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "herd": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cattle_ids",
+          "group_ids",
+          "herd"
+        ],
+        "type": "object"
+      },
+      "FeedPlanArchiveResponseDto": {
+        "properties": {
+          "archived": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "removed_assignments": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "archived",
+          "removed_assignments"
+        ],
+        "type": "object"
+      },
+      "FeedPlanAssignmentBaseDto": {
+        "properties": {
+          "animal_group_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "applied_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "applied_by": {
+            "type": "string"
+          },
+          "cattle_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "removed_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "removed_by": {
+            "nullable": true,
+            "type": "string"
+          },
+          "target_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedPlanTarget"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "plan_id",
+          "target_type",
+          "cattle_id",
+          "animal_group_id",
+          "applied_at",
+          "applied_by",
+          "removed_at",
+          "removed_by"
+        ],
+        "type": "object"
+      },
+      "FeedPlanAssignmentListItemDto": {
+        "properties": {
+          "animal_group_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "applied_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "applied_by": {
+            "type": "string"
+          },
+          "cattle_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "plan_kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedPlanKind"
+              }
+            ]
+          },
+          "plan_name": {
+            "type": "string"
+          },
+          "removed_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "removed_by": {
+            "nullable": true,
+            "type": "string"
+          },
+          "target_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedPlanTarget"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "plan_id",
+          "target_type",
+          "cattle_id",
+          "animal_group_id",
+          "applied_at",
+          "applied_by",
+          "removed_at",
+          "removed_by",
+          "plan_name",
+          "plan_kind"
+        ],
+        "type": "object"
+      },
+      "FeedPlanAssignmentNamedDto": {
+        "properties": {
+          "animal_group_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "applied_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "applied_by": {
+            "type": "string"
+          },
+          "cattle_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "plan_name": {
+            "type": "string"
+          },
+          "removed_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "removed_by": {
+            "nullable": true,
+            "type": "string"
+          },
+          "target_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedPlanTarget"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "plan_id",
+          "target_type",
+          "cattle_id",
+          "animal_group_id",
+          "applied_at",
+          "applied_by",
+          "removed_at",
+          "removed_by",
+          "plan_name"
+        ],
+        "type": "object"
+      },
+      "FeedPlanKind": {
+        "enum": [
+          "PLAN",
+          "TMR_SHORTCUT",
+          "CONCENTRATE_SHORTCUT"
+        ],
+        "type": "string"
+      },
       "FeedPlanLineDto": {
         "properties": {
           "concentrationId": {
@@ -3626,6 +4491,445 @@
           "kgPerDay"
         ],
         "type": "object"
+      },
+      "FeedPlanLineResponseDto": {
+        "properties": {
+          "concentration_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "feed_item_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kg_per_day": {
+            "type": "number"
+          },
+          "line_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedPlanLineType"
+              }
+            ]
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "recipe_kind": {
+            "nullable": true,
+            "type": "string"
+          },
+          "sort_order": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "line_type",
+          "feed_item_id",
+          "concentration_id",
+          "name",
+          "recipe_kind",
+          "kg_per_day",
+          "sort_order"
+        ],
+        "type": "object"
+      },
+      "FeedPlanLineType": {
+        "enum": [
+          "FEED_ITEM",
+          "PREPARED"
+        ],
+        "type": "string"
+      },
+      "FeedPlanResponseDto": {
+        "properties": {
+          "applied_to": {
+            "$ref": "#/components/schemas/FeedPlanAppliedToDto"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedPlanKind"
+              }
+            ]
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/FeedPlanLineResponseDto"
+            },
+            "type": "array"
+          },
+          "made_for_animal_group_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "made_for_cattle_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reference_requirement": {
+            "description": "The requirement snapshot the plan was built against (free-form JSON, or null).",
+            "nullable": true,
+            "type": "object"
+          },
+          "total_kg_per_day": {
+            "type": "number"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "notes",
+          "made_for_cattle_id",
+          "made_for_animal_group_id",
+          "reference_requirement",
+          "is_active",
+          "applied_to",
+          "lines",
+          "total_kg_per_day",
+          "created_at",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "FeedPlanTarget": {
+        "enum": [
+          "INDIVIDUAL",
+          "GROUP",
+          "HERD"
+        ],
+        "type": "string"
+      },
+      "FeedProgramRefDto": {
+        "properties": {
+          "conflict": {
+            "type": "boolean"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "plan_name": {
+            "type": "string"
+          },
+          "via": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedProgramVia"
+              }
+            ]
+          }
+        },
+        "required": [
+          "plan_id",
+          "plan_name",
+          "via",
+          "conflict"
+        ],
+        "type": "object"
+      },
+      "FeedProgramVia": {
+        "enum": [
+          "INDIVIDUAL",
+          "GROUP",
+          "HERD"
+        ],
+        "type": "string"
+      },
+      "FeedStockDetailResponseDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "current_stock_kg": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedConcentrationKind"
+              }
+            ]
+          },
+          "movements": {
+            "items": {
+              "$ref": "#/components/schemas/FeedStockMovementDto"
+            },
+            "type": "array"
+          },
+          "nutrition": {
+            "$ref": "#/components/schemas/FeedStockNutritionDto"
+          },
+          "nutrition_profile_id": {
+            "type": "string"
+          },
+          "nutrition_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NutritionSource"
+              }
+            ]
+          },
+          "produced_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "produced_cost_tk": {
+            "type": "number"
+          },
+          "produced_qty_kg": {
+            "type": "number"
+          },
+          "source_concentration_id": {
+            "type": "string"
+          },
+          "source_concentration_version": {
+            "type": "number"
+          },
+          "source_ref": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "source_concentration_id",
+          "source_concentration_version",
+          "produced_at",
+          "produced_qty_kg",
+          "current_stock_kg",
+          "produced_cost_tk",
+          "created_at",
+          "nutrition",
+          "nutrition_source",
+          "source_ref",
+          "nutrition_profile_id",
+          "movements"
+        ],
+        "type": "object"
+      },
+      "FeedStockMovementDto": {
+        "properties": {
+          "change_kg": {
+            "type": "number"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "distribution_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedStockMovementReason"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "change_kg",
+          "reason",
+          "distribution_id",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "FeedStockMovementReason": {
+        "enum": [
+          "PRODUCED",
+          "FED",
+          "ADJUSTMENT"
+        ],
+        "type": "string"
+      },
+      "FeedStockNutritionDto": {
+        "properties": {
+          "adf_pct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "calcium_pct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "cp_pct": {
+            "type": "number"
+          },
+          "dm_pct": {
+            "type": "number"
+          },
+          "fat_pct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "me_mj_per_kg_dm": {
+            "type": "number"
+          },
+          "ndf_pct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "phosphorus_pct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "rdp_pct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "rup_pct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "starch_pct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "tdn_pct": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "dm_pct",
+          "cp_pct",
+          "me_mj_per_kg_dm",
+          "fat_pct",
+          "ndf_pct",
+          "rdp_pct",
+          "rup_pct",
+          "starch_pct",
+          "adf_pct",
+          "calcium_pct",
+          "phosphorus_pct",
+          "tdn_pct"
+        ],
+        "type": "object"
+      },
+      "FeedStockResponseDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "current_stock_kg": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedConcentrationKind"
+              }
+            ]
+          },
+          "nutrition": {
+            "$ref": "#/components/schemas/FeedStockNutritionDto"
+          },
+          "nutrition_profile_id": {
+            "type": "string"
+          },
+          "nutrition_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NutritionSource"
+              }
+            ]
+          },
+          "produced_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "produced_cost_tk": {
+            "type": "number"
+          },
+          "produced_qty_kg": {
+            "type": "number"
+          },
+          "source_concentration_id": {
+            "type": "string"
+          },
+          "source_concentration_version": {
+            "type": "number"
+          },
+          "source_ref": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "source_concentration_id",
+          "source_concentration_version",
+          "produced_at",
+          "produced_qty_kg",
+          "current_stock_kg",
+          "produced_cost_tk",
+          "created_at",
+          "nutrition",
+          "nutrition_source",
+          "source_ref",
+          "nutrition_profile_id"
+        ],
+        "type": "object"
+      },
+      "FeedSubType": {
+        "enum": [
+          "GREEN_FODDER",
+          "ROUGHAGE",
+          "SILAGE",
+          "HAY",
+          "STRAW",
+          "GRAIN",
+          "OILCAKE",
+          "BY_PRODUCT",
+          "COMPOUND_PELLET",
+          "PREMIX",
+          "SUPPLEMENT",
+          "OTHER"
+        ],
+        "type": "string"
       },
       "FinalizeConcentrationDto": {
         "properties": {
@@ -4526,6 +5830,22 @@
         ],
         "type": "object"
       },
+      "IngredientNutritionSource": {
+        "enum": [
+          "REFERENCE",
+          "MANUFACTURER",
+          "LAB",
+          "FARM_ESTIMATE"
+        ],
+        "type": "string"
+      },
+      "IngredientPriceSource": {
+        "enum": [
+          "rakhal_market",
+          "farm_override"
+        ],
+        "type": "string"
+      },
       "IntakeBreedingDto": {
         "properties": {
           "breedingDate": {
@@ -4675,6 +5995,30 @@
         },
         "required": [
           "accept_data_visibility_terms"
+        ],
+        "type": "object"
+      },
+      "LeavesGroupProgramDto": {
+        "properties": {
+          "cattle_id": {
+            "type": "string"
+          },
+          "group_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "plan_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cattle_id",
+          "group_id",
+          "plan_id",
+          "plan_name"
         ],
         "type": "object"
       },
@@ -5838,6 +7182,15 @@
           "meMjPerKgDm"
         ],
         "type": "object"
+      },
+      "NutritionSource": {
+        "enum": [
+          "REFERENCE",
+          "MANUFACTURER",
+          "LAB",
+          "FARM_ESTIMATE"
+        ],
+        "type": "string"
       },
       "Object": {
         "properties": {},
@@ -7250,6 +8603,21 @@
         },
         "required": [
           "newDueDateTime"
+        ],
+        "type": "object"
+      },
+      "ResetOverrideResponseDto": {
+        "properties": {
+          "ingredient_id": {
+            "type": "string"
+          },
+          "price_source": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ingredient_id",
+          "price_source"
         ],
         "type": "object"
       },
@@ -14514,6 +15882,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedDmiComparisonDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -14856,6 +16246,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/BulkDeleteResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15139,6 +16551,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedCostSummaryDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15229,6 +16663,35 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/FeedDistributionListItemDto"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/CursorPageMetaDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15256,6 +16719,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedDistributionResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15284,6 +16769,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedDistributionResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15322,6 +16829,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedDistributionResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15359,6 +16888,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedEfficiencyDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15670,6 +17221,31 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/FeedIngredientResponseDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15699,6 +17275,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedIngredientResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15727,6 +17325,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedIngredientResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15763,6 +17383,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedIngredientResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15877,6 +17519,35 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/FeedIngredientResponseDto"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/CursorPageMetaDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15905,6 +17576,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ResetOverrideResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15941,6 +17634,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedIngredientOverrideResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -16033,6 +17748,35 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/FeedPlanAssignmentListItemDto"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/CursorPageMetaDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -16061,6 +17805,28 @@
         ],
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedPlanAssignmentNamedDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -16152,6 +17918,35 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/FeedPlanResponseDto"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/CursorPageMetaDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -16179,6 +17974,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedPlanResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -16249,6 +18066,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedPlanArchiveResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -16275,6 +18114,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedPlanResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -16311,6 +18172,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedPlanResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -16349,6 +18232,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ApplyFeedPlanResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -16626,6 +18531,31 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/FeedStockResponseDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -16655,6 +18585,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/BulkDeleteResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -16683,6 +18635,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedStockResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -16709,6 +18683,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedStockDetailResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -16747,6 +18743,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedStockResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -21240,6 +23258,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/BulkDeleteResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },

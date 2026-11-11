@@ -11,6 +11,14 @@ import { SubscriptionFeatureGuard } from 'src/modules/subscription/presentation/
 import { RequireFeature } from 'src/modules/subscription/presentation/decorators/require-feature.decorator';
 import { FeedPlanAssignmentService } from '../../application/services/feed-plan-assignment.service';
 import { ListPlanAssignmentsQueryDto } from '../dto/feed-plan.dto';
+import {
+  ApiEnvelopeResponse,
+  ApiPaginatedResponse,
+} from 'src/common/swagger/api-envelope';
+import {
+  FeedPlanAssignmentListItemDto,
+  FeedPlanAssignmentNamedDto,
+} from 'src/modules/feed/presentation/dto/feed-response.dto';
 
 /**
  * Feed program assignments (MILESTONE 27, RAKHAL-456). `/api/v1/feed/plan-assignments`. Apply lives on
@@ -35,6 +43,7 @@ export class FeedPlanAssignmentController {
   /** Active and ended, newest first: `?cattleId=` / `?animalGroupId=` / `?planId=` / `?status=`. */
   @Get()
   @RequirePermission('feed.read')
+  @ApiPaginatedResponse(FeedPlanAssignmentListItemDto)
   list(
     @CurrentFarmId() farmId: string,
     @Query() query: ListPlanAssignmentsQueryDto,
@@ -45,6 +54,7 @@ export class FeedPlanAssignmentController {
   /** Ends the program on that target (the row is kept, `removedAt` set). */
   @Post(':id/remove')
   @RequirePermission('feed.update')
+  @ApiEnvelopeResponse(FeedPlanAssignmentNamedDto, { status: 201 })
   remove(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,

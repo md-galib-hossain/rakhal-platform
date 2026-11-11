@@ -25,6 +25,8 @@ import { UpdateFeedBatchNutritionDto } from '../dto/update-feed-batch-nutrition.
 import { ListFeedItemQueryDto } from '../dto/list-feed-item-query.dto';
 import { UpdateFeedItemDto } from '../dto/update-feed-item.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import { BulkDeleteResponseDto } from 'src/modules/inventory/presentation/dto/inventory-response.dto';
 
 /** Inventory → Feed tab, "Purchased" view. `/api/v1/inventory/feed-items`. Token tenancy + RBAC. */
 @ApiTags('Inventory')
@@ -53,6 +55,7 @@ export class FeedItemController {
   /** Multi-select delete (bulk-action dock, 2026-07-21) — registered before the `:id` routes. */
   @Post('bulk-delete')
   @RequirePermission('inventory.delete')
+  @ApiEnvelopeResponse(BulkDeleteResponseDto, { status: 201 })
   bulkDelete(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
