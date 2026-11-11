@@ -12,3 +12,24 @@ allowBuilds:
   msgpackr-extract: true
   # Native resolver used by eslint tooling.
   unrs-resolver: true
+
+# RD-143 (2026-11-11): patch vulnerable transitive dependencies without waiting for their parents to release.
+# Each pin is the lowest version that fixes every open advisory for that package line. Revisit and delete a pin
+# once the parent package ships a release that already depends on a fixed version (check with `pnpm why <pkg>`).
+overrides:
+  # Express 5 request path.
+  multer: '>=2.5.0'
+  proxy-addr: '>=2.0.8'
+  body-parser: '>=2.4.0'
+  # Excel / archive libraries (exceljs -> archiver -> glob -> minimatch -> brace-expansion), one pin per major.
+  'brace-expansion@^1': '1.1.20'
+  'brace-expansion@^2': '2.1.6'
+  'brace-expansion@^5': '5.0.11'
+  # Build and test tooling.
+  fast-uri: '>=3.1.7 <4'
+  'js-yaml@^3': '3.15.2'
+  'js-yaml@^4': '4.3.2'
+  handlebars: '>=4.7.10'
+  # Reached only through the Prisma CLI.
+  hono: '>=4.12.25'
+  mysql2: '>=3.22.0'
