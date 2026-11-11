@@ -6,6 +6,7 @@ import { runGoldenVectors, type DigitSystem, type GoldenResult, type Locale } fr
 import { Redirect } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { PixelRatio, Pressable, ScrollView, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Heading, Text } from '../../src/components/primitives/Text.tsx';
 import { TextScaleProvider } from '../../src/components/primitives/TextScaleContext.tsx';
 import { messages, type MessageKey } from '../../src/i18n/messages.ts';
@@ -147,6 +148,7 @@ function Gallery() {
   const { colors, tokens, preference, setPreference } = useTheme();
   const { locale, digits, setLocale, setDigits, t } = useLocale();
   const format = useFormat();
+  const insets = useSafeAreaInsets();
   const [scale, setScale] = useState<number | null>(null);
   const [selfTest, setSelfTest] = useState<GoldenResult | null>(null);
   const [probe, setProbe] = useState<string[] | null>(null);
@@ -154,8 +156,15 @@ function Gallery() {
   const sampleDate = new Date(Date.UTC(2026, 10, 11, 6, 0, 0));
   const page = (
     <ScrollView
+      testID="gallery-scroll"
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ padding: tokens.spacing.lg, gap: tokens.spacing.lg }}
+      contentContainerStyle={{
+        paddingTop: insets.top + tokens.spacing.lg,
+        paddingBottom: insets.bottom + tokens.spacing.lg,
+        paddingLeft: insets.left + tokens.spacing.lg,
+        paddingRight: insets.right + tokens.spacing.lg,
+        gap: tokens.spacing.lg,
+      }}
     >
       <Heading>{t('gallery.title')}</Heading>
 

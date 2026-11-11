@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import { useColorScheme } from 'react-native';
+import { StyleSheet, useColorScheme } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { memoryPrefs, PREF_KEYS } from './storage/prefs.ts';
 import { LocaleProvider } from './providers/LocaleProvider.tsx';
 import { ThemeProvider } from './providers/ThemeProvider.tsx';
@@ -32,15 +33,19 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+const INSETS = { top: 40, bottom: 24, left: 0, right: 0 };
+
 async function mount(theme: 'light' | 'dark', locale: 'bn' | 'en') {
   const themeStore = memoryPrefs({ [PREF_KEYS.theme]: theme });
   const localeStore = memoryPrefs({ [PREF_KEYS.locale]: locale });
   await render(
-    <ThemeProvider storage={themeStore}>
-      <LocaleProvider storage={localeStore}>
-        <Gallery />
-      </LocaleProvider>
-    </ThemeProvider>,
+    <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 360, height: 800 }, insets: INSETS }}>
+      <ThemeProvider storage={themeStore}>
+        <LocaleProvider storage={localeStore}>
+          <Gallery />
+        </LocaleProvider>
+      </ThemeProvider>
+    </SafeAreaProvider>,
   );
   await waitFor(() => expect(screen.getByText(locale === 'bn' ? 'ডিজাইন গ্যালারি' : 'Design gallery')).toBeTruthy());
 }
@@ -58,6 +63,16 @@ describe('dev gallery', () => {
     expect(screen.getByText('৳-12,34,567')).toBeTruthy();
     expect(screen.getAllByText('দুগ্ধ উৎপাদন ক্ষমতা').length).toBeGreaterThan(0);
     expect(screen.getByText(/PixelRatio\.getFontScale\(\) = /)).toBeTruthy();
+  });
+
+  it('pads the scroll content by the safe-area insets', async () => {
+    await mount('light', 'en');
+    const style = StyleSheet.flatten(screen.getByTestId('gallery-scroll').props.contentContainerStyle) as {
+      paddingTop: number;
+      paddingBottom: number;
+    };
+    expect(style.paddingTop).toBeGreaterThan(INSETS.top);
+    expect(style.paddingBottom).toBeGreaterThan(INSETS.bottom);
   });
 
   it('runs the formatter self-test and the Intl probe on demand', async () => {
