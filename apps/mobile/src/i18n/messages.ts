@@ -49,6 +49,21 @@ export const en = {
   'gallery.sample.conjunct': 'Milk production capacity',
   'gallery.herdCount': '{count} cows in the herd',
   'gallery.greeting': 'Hello, {name}',
+  // WP3 component kit (foundation + states): a11y names, stepper, toast, error states
+  'a11y.loading': 'Loading',
+  'a11y.fieldWithUnit': '{label}, {unit}',
+  'field.optional': 'optional',
+  'stepper.increase': 'Increase {label} by {step}',
+  'stepper.decrease': 'Decrease {label} by {step}',
+  'toast.undo': 'Undo',
+  'toast.dismiss': 'Dismiss',
+  'state.error.generic.title': 'Could not load this',
+  'state.error.network.title': 'No internet connection',
+  'state.error.network.message': 'Check your connection and try again.',
+  'state.error.server.title': 'The server had a problem',
+  'state.error.server.message': 'This is not your fault. Try again in a moment.',
+  'state.error.session.title': 'You were signed out',
+  'state.error.session.message': 'Sign in again to continue.',
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -84,6 +99,20 @@ export const bn: Record<MessageKey, string> = {
   'gallery.sample.conjunct': 'দুগ্ধ উৎপাদন ক্ষমতা',
   'gallery.herdCount': 'পালে {count}টি গরু আছে',
   'gallery.greeting': 'স্বাগতম, {name}',
+  'a11y.loading': 'লোড হচ্ছে',
+  'a11y.fieldWithUnit': '{label}, {unit}',
+  'field.optional': 'ঐচ্ছিক',
+  'stepper.increase': '{label} {step} বাড়ান',
+  'stepper.decrease': '{label} {step} কমান',
+  'toast.undo': 'ফিরিয়ে নিন',
+  'toast.dismiss': 'বন্ধ করুন',
+  'state.error.generic.title': 'এটি লোড করা যায়নি',
+  'state.error.network.title': 'ইন্টারনেট সংযোগ নেই',
+  'state.error.network.message': 'সংযোগ দেখে আবার চেষ্টা করুন।',
+  'state.error.server.title': 'সার্ভারে সমস্যা হয়েছে',
+  'state.error.server.message': 'এটি আপনার ভুল নয়। কিছুক্ষণ পরে আবার চেষ্টা করুন।',
+  'state.error.session.title': 'আপনি লগ আউট হয়েছেন',
+  'state.error.session.message': 'চালিয়ে যেতে আবার সাইন ইন করুন।',
 };
 
 export const messages: Record<Locale, Record<MessageKey, string>> = { en, bn };
