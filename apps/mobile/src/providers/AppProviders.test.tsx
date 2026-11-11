@@ -16,6 +16,7 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 );
 
 import { memoryPrefs, PREF_KEYS, type PrefStorage } from '../storage/prefs.ts';
+import { useToast } from '../components/feedback/Toast.tsx';
 import { AppProviders } from './AppProviders.tsx';
 import { useLocale } from './LocaleProvider.tsx';
 import { useTheme } from './ThemeProvider.tsx';
@@ -83,6 +84,19 @@ describe('AppProviders', () => {
     );
     await waitFor(() => expect(screen.getByText('content')).toBeTruthy());
     expect(mockHide).toHaveBeenCalledTimes(1);
+  });
+
+  it('provides useToast to ready children (ToastProvider is inside the gated tree)', async () => {
+    mockUseFonts.mockReturnValue([true, null]);
+    function Probe() {
+      return <Text>{typeof useToast().show}</Text>;
+    }
+    await render(
+      <AppProviders storage={memoryPrefs()}>
+        <Probe />
+      </AppProviders>,
+    );
+    await waitFor(() => expect(screen.getByText('function')).toBeTruthy());
   });
 
   it('still renders on a font error (never bricks) and logs it', async () => {

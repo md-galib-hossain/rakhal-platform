@@ -1,5 +1,5 @@
 /**
- * Root provider composition (spec W2-8): Theme > Locale > children.
+ * Root provider composition (spec W2-8): Theme > Locale > Toast > children (Toast only mounts once ready, with the children).
  *
  * Prefs are read ONCE (loadPrefsBounded) and seeded into both providers via `initialPrefs`, so Locale never waits
  * on Theme. Nothing is rendered (children or not) until fonts are loaded-or-errored-or-timed-out AND the prefs
@@ -11,6 +11,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { asyncStoragePrefs } from '../storage/async-storage-prefs.ts';
 import { HYDRATION_TIMEOUT_MS, loadPrefsBounded, type PrefStorage, type Prefs } from '../storage/prefs.ts';
+import { ToastProvider } from '../components/feedback/Toast.tsx';
 import { LocaleProvider } from './LocaleProvider.tsx';
 import { ThemeProvider } from './ThemeProvider.tsx';
 import { useAppReady } from './useAppReady.ts';
@@ -48,7 +49,7 @@ export function AppProviders({
   return (
     <ThemeProvider storage={storage} initialPrefs={prefs}>
       <LocaleProvider storage={storage} initialPrefs={prefs}>
-        {ready ? children : null}
+        {ready ? <ToastProvider>{children}</ToastProvider> : null}
       </LocaleProvider>
     </ThemeProvider>
   );
