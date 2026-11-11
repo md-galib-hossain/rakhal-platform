@@ -26,6 +26,17 @@ import { UpdatePreferencesDto } from '../dto/update-preferences.dto';
 import { RegisterDeviceDto } from '../dto/register-device.dto';
 import { SetRoutingDto } from '../dto/set-routing.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  ChannelRoutingResponseDto,
+  DeviceResponseDto,
+  MarkAllReadResponseDto,
+  MarkReadResponseDto,
+  NotificationListResponseDto,
+  NotificationPreferencesResponseDto,
+  RegisterDeviceResponseDto,
+  UnregisterDeviceResponseDto,
+} from '../dto/notification-response.dto';
 
 /**
  * Notifications (PRD §20 / API §17). `/api/v1/notifications`. The bell feed is
@@ -46,6 +57,7 @@ export class NotificationController {
   // ---- Push device tokens (PRD §20.1) ------------------------------------
   @Post('devices')
   @RequirePermission('notification.read')
+  @ApiEnvelopeResponse(RegisterDeviceResponseDto, { status: 201 })
   registerDevice(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -56,12 +68,14 @@ export class NotificationController {
 
   @Get('devices')
   @RequirePermission('notification.read')
+  @ApiEnvelopeResponse(DeviceResponseDto, { isArray: true })
   listDevices(@CurrentUserId() userId: string) {
     return this.devices.list(userId);
   }
 
   @Delete('devices')
   @RequirePermission('notification.read')
+  @ApiEnvelopeResponse(UnregisterDeviceResponseDto)
   unregisterDevice(
     @CurrentUserId() userId: string,
     @Body() dto: RegisterDeviceDto,
@@ -71,6 +85,7 @@ export class NotificationController {
 
   @Get()
   @RequirePermission('notification.read')
+  @ApiEnvelopeResponse(NotificationListResponseDto)
   list(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -82,6 +97,7 @@ export class NotificationController {
 
   @Post(':id/read')
   @RequirePermission('notification.read')
+  @ApiEnvelopeResponse(MarkReadResponseDto, { status: 201 })
   markRead(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -92,6 +108,7 @@ export class NotificationController {
 
   @Post('read-all')
   @RequirePermission('notification.read')
+  @ApiEnvelopeResponse(MarkAllReadResponseDto, { status: 201 })
   markAllRead(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -101,6 +118,7 @@ export class NotificationController {
 
   @Get('preferences')
   @RequirePermission('notification.read')
+  @ApiEnvelopeResponse(NotificationPreferencesResponseDto)
   getPreferences(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -110,6 +128,7 @@ export class NotificationController {
 
   @Patch('preferences')
   @RequirePermission('notification.update')
+  @ApiEnvelopeResponse(NotificationPreferencesResponseDto)
   updatePreferences(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -121,12 +140,14 @@ export class NotificationController {
   // ---- Channel routing (RAKHAL-256, §20.1a) — per-farm overrides ----------
   @Get('routing')
   @RequirePermission('notification.read')
+  @ApiEnvelopeResponse(ChannelRoutingResponseDto)
   getRouting(@CurrentFarmId() farmId: string) {
     return this.routing.getFarmRouting(farmId);
   }
 
   @Put('routing/:eventKey')
   @RequirePermission('notification.update')
+  @ApiEnvelopeResponse(ChannelRoutingResponseDto)
   setRouting(
     @CurrentFarmId() farmId: string,
     @Param('eventKey') eventKey: string,
@@ -137,6 +158,7 @@ export class NotificationController {
 
   @Delete('routing/:eventKey')
   @RequirePermission('notification.update')
+  @ApiEnvelopeResponse(ChannelRoutingResponseDto)
   deleteRouting(
     @CurrentFarmId() farmId: string,
     @Param('eventKey') eventKey: string,

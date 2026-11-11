@@ -17,6 +17,13 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { TelegramLinkService } from '../../application/services/telegram-link.service';
 import type { TelegramUpdate } from '../../application/services/telegram-link.service';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  TelegramConnectSessionResponseDto,
+  TelegramLinkTokenResponseDto,
+  TelegramStatusResponseDto,
+  UnlinkTelegramResponseDto,
+} from '../dto/notification-response.dto';
 
 const WEBHOOK_SECRET_HEADER = 'x-telegram-bot-api-secret-token';
 
@@ -36,6 +43,7 @@ export class TelegramLinkController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
   @RequirePermission('notification.read')
+  @ApiEnvelopeResponse(TelegramConnectSessionResponseDto)
   getConnectSession(
     @CurrentUserId() userId: string,
     @CurrentFarmId() farmId: string,
@@ -47,6 +55,7 @@ export class TelegramLinkController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
   @RequirePermission('notification.read')
+  @ApiEnvelopeResponse(TelegramLinkTokenResponseDto)
   getLinkToken(
     @CurrentUserId() userId: string,
     @CurrentFarmId() farmId: string,
@@ -58,6 +67,7 @@ export class TelegramLinkController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
   @RequirePermission('notification.read')
+  @ApiEnvelopeResponse(TelegramStatusResponseDto)
   getStatus(@CurrentUserId() userId: string) {
     return this.telegramLink.getUserStatus(userId);
   }
@@ -66,6 +76,7 @@ export class TelegramLinkController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, SessionGuard, FarmContextGuard, PermissionGuard)
   @RequirePermission('notification.read')
+  @ApiEnvelopeResponse(UnlinkTelegramResponseDto)
   unlink(@CurrentUserId() userId: string) {
     return this.telegramLink.unlinkUser(userId);
   }

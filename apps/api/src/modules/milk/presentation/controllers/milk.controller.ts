@@ -52,6 +52,18 @@ import {
 } from 'src/common/swagger/api-envelope';
 import { MilkAvailabilityResponseDto } from '../dto/milk-availability-response.dto';
 import { MilkQualityTestResponseDto } from '../dto/milk-quality-test-response.dto';
+import {
+  MilkAnomalyItemDto,
+  MilkEligibilityResponseDto,
+  MilkImportConfirmResponseDto,
+  MilkImportPreviewResponseDto,
+  MilkLogCalendarResponseDto,
+  MilkLogEntryRowDto,
+  MilkLogTableResponseDto,
+  MilkOverviewResponseDto,
+  MilkSaveLogResponseDto,
+  MilkSubmitResponseDto,
+} from '../dto/milk-log-response.dto';
 
 /** Max Excel upload size for milk log import. */
 const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
@@ -91,6 +103,7 @@ export class MilkController {
 
   @Get('overview')
   @RequirePermission('milk.read')
+  @ApiEnvelopeResponse(MilkOverviewResponseDto)
   overview(
     @CurrentFarmId() farmId: string,
     @Query() query: MilkOverviewQueryDto,
@@ -100,6 +113,7 @@ export class MilkController {
 
   @Get('log')
   @RequirePermission('milk.read')
+  @ApiEnvelopeResponse(MilkLogTableResponseDto)
   logTable(@CurrentFarmId() farmId: string, @Query() query: MilkLogQueryDto) {
     return this.milkService.logTable(farmId, query);
   }
@@ -107,6 +121,7 @@ export class MilkController {
   /** RAKHAL-434: per-day entry status for the calendar picker. */
   @Get('log/calendar')
   @RequirePermission('milk.read')
+  @ApiEnvelopeResponse(MilkLogCalendarResponseDto)
   logCalendar(
     @CurrentFarmId() farmId: string,
     @Query() query: MilkLogCalendarQueryDto,
@@ -116,6 +131,7 @@ export class MilkController {
 
   @Post('log')
   @RequirePermission('milk.log')
+  @ApiEnvelopeResponse(MilkSaveLogResponseDto, { status: 201 })
   saveLog(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -126,6 +142,7 @@ export class MilkController {
 
   @Post('submit')
   @RequirePermission('milk.log')
+  @ApiEnvelopeResponse(MilkSubmitResponseDto, { status: 201 })
   submit(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -136,12 +153,14 @@ export class MilkController {
 
   @Get('cattle/:id/eligibility')
   @RequirePermission('milk.read')
+  @ApiEnvelopeResponse(MilkEligibilityResponseDto)
   eligibility(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.milkService.getMilkEligibility(farmId, id);
   }
 
   @Get('anomalies')
   @RequirePermission('milk.read')
+  @ApiPaginatedResponse(MilkAnomalyItemDto)
   anomalies(
     @CurrentFarmId() farmId: string,
     @Query() query: MilkAnomalyQueryDto,
@@ -151,6 +170,7 @@ export class MilkController {
 
   @Post('anomalies/:id/review')
   @RequirePermission('milk.update')
+  @ApiEnvelopeResponse(MilkLogEntryRowDto, { status: 201 })
   reviewAnomaly(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
@@ -165,6 +185,7 @@ export class MilkController {
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: IMPORT_MAX_BYTES } }),
   )
+  @ApiEnvelopeResponse(MilkImportPreviewResponseDto, { status: 201 })
   importPreview(
     @CurrentFarmId() farmId: string,
     @UploadedFile() file: Express.Multer.File,
@@ -174,6 +195,7 @@ export class MilkController {
 
   @Post('import/confirm')
   @RequirePermission('milk.log')
+  @ApiEnvelopeResponse(MilkImportConfirmResponseDto, { status: 201 })
   importConfirm(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,

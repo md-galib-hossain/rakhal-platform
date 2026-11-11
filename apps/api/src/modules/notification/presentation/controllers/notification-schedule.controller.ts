@@ -32,6 +32,16 @@ import { CreateNotificationScheduleDto } from '../dto/create-notification-schedu
 import { ListNotificationSchedulesQueryDto } from '../dto/list-notification-schedules-query.dto';
 import { UpcomingNotificationsQueryDto } from '../dto/upcoming-notifications-query.dto';
 import { UpdateNotificationScheduleDto } from '../dto/update-notification-schedule.dto';
+import {
+  ApiEnvelopeResponse,
+  ApiPaginatedResponse,
+} from 'src/common/swagger/api-envelope';
+import {
+  CancelScheduleResponseDto,
+  NotificationScheduleResponseDto,
+  SchedulePreviewResponseDto,
+  UpcomingOccurrenceDto,
+} from '../dto/notification-response.dto';
 
 type AuthedRequest = Request & {
   auth: { user: { permissionsVersion: number } };
@@ -68,6 +78,7 @@ export class NotificationScheduleController {
 
   @Get('upcoming')
   @RequirePermission('notification.read')
+  @ApiPaginatedResponse(UpcomingOccurrenceDto)
   async upcoming(
     @Req() req: AuthedRequest,
     @CurrentFarmId() farmId: string,
@@ -83,6 +94,7 @@ export class NotificationScheduleController {
 
   @Get('schedules')
   @RequirePermission('notification.read')
+  @ApiPaginatedResponse(NotificationScheduleResponseDto)
   async list(
     @Req() req: AuthedRequest,
     @CurrentFarmId() farmId: string,
@@ -100,6 +112,7 @@ export class NotificationScheduleController {
   @Post('schedules/preview')
   @RequirePermission('notification.create')
   @ThrottleWrite()
+  @ApiEnvelopeResponse(SchedulePreviewResponseDto, { status: 201 })
   async preview(
     @Req() req: AuthedRequest,
     @CurrentFarmId() farmId: string,
@@ -116,6 +129,7 @@ export class NotificationScheduleController {
   @Post('schedules')
   @RequirePermission('notification.create')
   @ThrottleWrite()
+  @ApiEnvelopeResponse(NotificationScheduleResponseDto, { status: 201 })
   async create(
     @Req() req: AuthedRequest,
     @CurrentFarmId() farmId: string,
@@ -131,6 +145,7 @@ export class NotificationScheduleController {
 
   @Get('schedules/:id')
   @RequirePermission('notification.read')
+  @ApiEnvelopeResponse(NotificationScheduleResponseDto)
   async get(
     @Req() req: AuthedRequest,
     @CurrentFarmId() farmId: string,
@@ -147,6 +162,7 @@ export class NotificationScheduleController {
   @Patch('schedules/:id')
   @RequirePermission('notification.create')
   @ThrottleWrite()
+  @ApiEnvelopeResponse(NotificationScheduleResponseDto)
   async update(
     @Req() req: AuthedRequest,
     @CurrentFarmId() farmId: string,
@@ -164,6 +180,7 @@ export class NotificationScheduleController {
 
   @Post('schedules/:id/pause')
   @RequirePermission('notification.create')
+  @ApiEnvelopeResponse(NotificationScheduleResponseDto, { status: 201 })
   async pause(
     @Req() req: AuthedRequest,
     @CurrentFarmId() farmId: string,
@@ -179,6 +196,7 @@ export class NotificationScheduleController {
 
   @Post('schedules/:id/resume')
   @RequirePermission('notification.create')
+  @ApiEnvelopeResponse(NotificationScheduleResponseDto, { status: 201 })
   async resume(
     @Req() req: AuthedRequest,
     @CurrentFarmId() farmId: string,
@@ -194,6 +212,7 @@ export class NotificationScheduleController {
 
   @Delete('schedules/:id')
   @RequirePermission('notification.create')
+  @ApiEnvelopeResponse(CancelScheduleResponseDto)
   async cancel(
     @Req() req: AuthedRequest,
     @CurrentFarmId() farmId: string,

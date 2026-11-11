@@ -913,6 +913,21 @@
         ],
         "type": "object"
       },
+      "CancelScheduleResponseDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "type": "object"
+      },
       "CancelTaskDto": {
         "properties": {
           "notes": {
@@ -965,6 +980,20 @@
         "required": [
           "currentPassword",
           "newPassword"
+        ],
+        "type": "object"
+      },
+      "ChannelRoutingResponseDto": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/RoutingEventDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "events"
         ],
         "type": "object"
       },
@@ -3323,6 +3352,35 @@
           "hasPreviousPage",
           "startCursor",
           "endCursor"
+        ],
+        "type": "object"
+      },
+      "DeviceResponseDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastSeenAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "platform",
+          "provider",
+          "createdAt",
+          "lastSeenAt"
         ],
         "type": "object"
       },
@@ -6200,6 +6258,33 @@
         },
         "type": "object"
       },
+      "MarkAllReadResponseDto": {
+        "properties": {
+          "updated": {
+            "description": "How many notifications were marked read.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "updated"
+        ],
+        "type": "object"
+      },
+      "MarkReadResponseDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "read": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "read"
+        ],
+        "type": "object"
+      },
       "MediaUrlsDto": {
         "properties": {
           "asset_id": {
@@ -6638,6 +6723,65 @@
         ],
         "type": "string"
       },
+      "MilkAnomalyItemDto": {
+        "properties": {
+          "avg7dL": {
+            "nullable": true,
+            "type": "number"
+          },
+          "cattleId": {
+            "type": "string"
+          },
+          "date": {
+            "description": "Calendar day, YYYY-MM-DD.",
+            "type": "string"
+          },
+          "dropPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "reviewed": {
+            "type": "boolean"
+          },
+          "session": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MilkSession"
+              }
+            ]
+          },
+          "tag": {
+            "type": "string"
+          },
+          "workerNote": {
+            "nullable": true,
+            "type": "string"
+          },
+          "yieldL": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "cattleId",
+          "name",
+          "tag",
+          "date",
+          "session",
+          "yieldL",
+          "avg7dL",
+          "dropPct",
+          "workerNote",
+          "reviewed"
+        ],
+        "type": "object"
+      },
       "MilkAvailabilityResponseDto": {
         "properties": {
           "tanks": {
@@ -6656,6 +6800,205 @@
           "totalAvailableL"
         ],
         "type": "object"
+      },
+      "MilkDayTotalDto": {
+        "properties": {
+          "totalL": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "totalL"
+        ],
+        "type": "object"
+      },
+      "MilkDisposition": {
+        "enum": [
+          "SALEABLE",
+          "WITHHELD",
+          "COLOSTRUM",
+          "CALF_FEED",
+          "DISCARDED",
+          "HOUSEHOLD_USE"
+        ],
+        "type": "string"
+      },
+      "MilkEligibilityResponseDto": {
+        "properties": {
+          "isSaleable": {
+            "description": "True when this cow’s milk can be sold now.",
+            "type": "boolean"
+          },
+          "primaryStatus": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MilkEligibilityStatus"
+              }
+            ]
+          },
+          "reasons": {
+            "description": "Every active restriction, not just the winning one.",
+            "items": {
+              "$ref": "#/components/schemas/MilkRestrictionReason"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "isSaleable",
+          "primaryStatus",
+          "reasons"
+        ],
+        "type": "object"
+      },
+      "MilkEligibilityStatus": {
+        "enum": [
+          "SALEABLE",
+          "WITHHELD",
+          "COLOSTRUM",
+          "DISCARD_REQUIRED"
+        ],
+        "type": "string"
+      },
+      "MilkImportConfirmResponseDto": {
+        "properties": {
+          "failedGroups": {
+            "type": "number"
+          },
+          "imported": {
+            "type": "number"
+          },
+          "skipped": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "imported",
+          "skipped",
+          "failedGroups"
+        ],
+        "type": "object"
+      },
+      "MilkImportPreviewResponseDto": {
+        "properties": {
+          "errors": {
+            "type": "number"
+          },
+          "importSessionId": {
+            "description": "Pass this to `POST /milk/import/confirm`.",
+            "format": "uuid",
+            "type": "string"
+          },
+          "ready": {
+            "type": "number"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/MilkImportPreviewRowDto"
+            },
+            "type": "array"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "importSessionId",
+          "total",
+          "ready",
+          "errors",
+          "rows"
+        ],
+        "type": "object"
+      },
+      "MilkImportPreviewRowDto": {
+        "properties": {
+          "date": {
+            "nullable": true,
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "row": {
+            "description": "Spreadsheet row number.",
+            "type": "number"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MilkImportRowStatus"
+              }
+            ]
+          },
+          "tag": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "row",
+          "date",
+          "tag",
+          "status"
+        ],
+        "type": "object"
+      },
+      "MilkImportRowStatus": {
+        "enum": [
+          "ready",
+          "error"
+        ],
+        "type": "string"
+      },
+      "MilkLogCalendarDayDto": {
+        "properties": {
+          "date": {
+            "description": "Calendar day, YYYY-MM-DD.",
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MilkLogDayStatus"
+              }
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "status"
+        ],
+        "type": "object"
+      },
+      "MilkLogCalendarResponseDto": {
+        "properties": {
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/MilkLogCalendarDayDto"
+            },
+            "type": "array"
+          },
+          "month": {
+            "description": "Month, YYYY-MM.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "month",
+          "days"
+        ],
+        "type": "object"
+      },
+      "MilkLogDayStatus": {
+        "enum": [
+          "complete",
+          "partial",
+          "missing",
+          "future",
+          "before_farm"
+        ],
+        "type": "string"
       },
       "MilkLogEntryDto": {
         "properties": {
@@ -6680,6 +7023,264 @@
         "required": [
           "cattleId",
           "yieldL"
+        ],
+        "type": "object"
+      },
+      "MilkLogEntryRowDto": {
+        "properties": {
+          "anomalyFlag": {
+            "type": "boolean"
+          },
+          "anomalyNote": {
+            "nullable": true,
+            "type": "string"
+          },
+          "cattleId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "disposition": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MilkDisposition"
+              }
+            ]
+          },
+          "editReason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "logDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "reviewAction": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewNote": {
+            "nullable": true,
+            "type": "string"
+          },
+          "reviewed": {
+            "type": "boolean"
+          },
+          "session": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MilkSession"
+              }
+            ]
+          },
+          "submitted": {
+            "type": "boolean"
+          },
+          "submittedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "tankId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "tankType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MilkTankType"
+              }
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "yieldL": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "cattleId",
+          "logDate",
+          "session",
+          "yieldL",
+          "tankType",
+          "tankId",
+          "disposition",
+          "anomalyFlag",
+          "anomalyNote",
+          "reviewed",
+          "reviewAction",
+          "reviewNote",
+          "submitted",
+          "submittedAt",
+          "editReason",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "MilkLogEntrySessionsDto": {
+        "properties": {
+          "anomalyFlag": {
+            "type": "boolean"
+          },
+          "dispositions": {
+            "additionalProperties": {
+              "enum": [
+                "SALEABLE",
+                "WITHHELD",
+                "COLOSTRUM",
+                "CALF_FEED",
+                "DISCARDED",
+                "HOUSEHOLD_USE"
+              ]
+            },
+            "description": "Disposition per session key (for example `morning`).",
+            "type": "object"
+          },
+          "eveningL": {
+            "nullable": true,
+            "type": "number"
+          },
+          "morningL": {
+            "nullable": true,
+            "type": "number"
+          },
+          "nightL": {
+            "nullable": true,
+            "type": "number"
+          },
+          "noonL": {
+            "nullable": true,
+            "type": "number"
+          },
+          "submittedSessions": {
+            "description": "Sessions already submitted for this day.",
+            "items": {
+              "$ref": "#/components/schemas/MilkSession"
+            },
+            "type": "array"
+          },
+          "tank": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MilkTankKind"
+              }
+            ]
+          },
+          "tankId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "tankLocked": {
+            "type": "boolean"
+          },
+          "totalL": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "morningL",
+          "noonL",
+          "eveningL",
+          "nightL",
+          "totalL",
+          "tank",
+          "tankLocked",
+          "tankId",
+          "anomalyFlag",
+          "submittedSessions",
+          "dispositions"
+        ],
+        "type": "object"
+      },
+      "MilkLogTableResponseDto": {
+        "properties": {
+          "date": {
+            "description": "Calendar day, YYYY-MM-DD.",
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/MilkLogTableRowDto"
+            },
+            "type": "array"
+          },
+          "sessionConfig": {
+            "description": "Sessions this farm has configured.",
+            "items": {
+              "$ref": "#/components/schemas/MilkSession"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "date",
+          "sessionConfig",
+          "entries"
+        ],
+        "type": "object"
+      },
+      "MilkLogTableRowDto": {
+        "properties": {
+          "avgYield7d": {
+            "nullable": true,
+            "type": "number"
+          },
+          "cattleId": {
+            "type": "string"
+          },
+          "log": {
+            "$ref": "#/components/schemas/MilkLogEntrySessionsDto"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "prevDayYieldL": {
+            "nullable": true,
+            "type": "number"
+          },
+          "productionStatus": {
+            "type": "string"
+          },
+          "shed": {
+            "nullable": true,
+            "type": "string"
+          },
+          "tag": {
+            "type": "string"
+          },
+          "withholding": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "cattleId",
+          "name",
+          "tag",
+          "shed",
+          "avgYield7d",
+          "prevDayYieldL",
+          "productionStatus",
+          "withholding",
+          "log"
         ],
         "type": "object"
       },
@@ -6735,6 +7336,91 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "MilkOverviewResponseDto": {
+        "properties": {
+          "costPerLitreToday": {
+            "description": "Always null today: cost per litre is not computed yet.",
+            "nullable": true,
+            "type": "number"
+          },
+          "date": {
+            "description": "Calendar day, YYYY-MM-DD.",
+            "type": "string"
+          },
+          "marketValueToday": {
+            "nullable": true,
+            "type": "number"
+          },
+          "sameDayLastWeek": {
+            "$ref": "#/components/schemas/MilkDayTotalDto"
+          },
+          "sameDayLastYear": {
+            "$ref": "#/components/schemas/MilkDayTotalDto"
+          },
+          "sessionsStatus": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Status per session key (for example `morning`).",
+            "type": "object"
+          },
+          "today": {
+            "$ref": "#/components/schemas/MilkOverviewTodayDto"
+          },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/MilkTrendPointDto"
+            },
+            "type": "array"
+          },
+          "trendRange": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MilkTrendRange"
+              }
+            ]
+          },
+          "yesterday": {
+            "$ref": "#/components/schemas/MilkDayTotalDto"
+          }
+        },
+        "required": [
+          "date",
+          "today",
+          "yesterday",
+          "sameDayLastWeek",
+          "sameDayLastYear",
+          "costPerLitreToday",
+          "marketValueToday",
+          "sessionsStatus",
+          "trendRange",
+          "trend"
+        ],
+        "type": "object"
+      },
+      "MilkOverviewTodayDto": {
+        "properties": {
+          "calfL": {
+            "type": "number"
+          },
+          "sellableL": {
+            "type": "number"
+          },
+          "totalL": {
+            "type": "number"
+          },
+          "withholdingL": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "totalL",
+          "sellableL",
+          "withholdingL",
+          "calfL"
+        ],
         "type": "object"
       },
       "MilkQualityTestResponseDto": {
@@ -6825,6 +7511,117 @@
           "MANUAL"
         ],
         "type": "string"
+      },
+      "MilkRestrictionReason": {
+        "description": "Every active restriction, not just the winning one.",
+        "enum": [
+          "COLOSTRUM_PERIOD",
+          "MEDICINE_WITHDRAWAL",
+          "MASTITIS",
+          "VETERINARY_HOLD",
+          "ABNORMAL_MILK",
+          "OTHER"
+        ],
+        "type": "string"
+      },
+      "MilkSaveLogResponseDto": {
+        "properties": {
+          "anomaliesFlagged": {
+            "type": "number"
+          },
+          "saved": {
+            "type": "number"
+          },
+          "sessionTotalL": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "saved",
+          "anomaliesFlagged",
+          "sessionTotalL"
+        ],
+        "type": "object"
+      },
+      "MilkSession": {
+        "description": "Sessions this farm has configured.",
+        "enum": [
+          "MORNING",
+          "NOON",
+          "EVENING",
+          "NIGHT"
+        ],
+        "type": "string"
+      },
+      "MilkSubmitAnomalyDto": {
+        "properties": {
+          "cattleId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "yieldL": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "cattleId",
+          "name",
+          "yieldL"
+        ],
+        "type": "object"
+      },
+      "MilkSubmitResponseDto": {
+        "properties": {
+          "activityLogCreated": {
+            "type": "boolean"
+          },
+          "anomalies": {
+            "items": {
+              "$ref": "#/components/schemas/MilkSubmitAnomalyDto"
+            },
+            "type": "array"
+          },
+          "date": {
+            "description": "Calendar day, YYYY-MM-DD.",
+            "type": "string"
+          },
+          "mainTankUpdated": {
+            "type": "boolean"
+          },
+          "sellableTotalL": {
+            "type": "number"
+          },
+          "session": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MilkSession"
+              }
+            ]
+          },
+          "totalCowsLogged": {
+            "type": "number"
+          },
+          "withholdingTankUpdated": {
+            "type": "boolean"
+          },
+          "withholdingTotalL": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "session",
+          "totalCowsLogged",
+          "sellableTotalL",
+          "withholdingTotalL",
+          "mainTankUpdated",
+          "withholdingTankUpdated",
+          "activityLogCreated",
+          "anomalies"
+        ],
+        "type": "object"
       },
       "MilkTankActivity": {
         "enum": [
@@ -6918,6 +7715,13 @@
           "totalCapacityL"
         ],
         "type": "object"
+      },
+      "MilkTankKind": {
+        "enum": [
+          "SELLABLE",
+          "WITHHOLDING"
+        ],
+        "type": "string"
       },
       "MilkTankResponseDto": {
         "properties": {
@@ -7028,6 +7832,33 @@
         ],
         "type": "string"
       },
+      "MilkTrendPointDto": {
+        "properties": {
+          "date": {
+            "description": "Calendar day, YYYY-MM-DD.",
+            "type": "string"
+          },
+          "totalL": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "date",
+          "totalL"
+        ],
+        "type": "object"
+      },
+      "MilkTrendRange": {
+        "enum": [
+          "7d",
+          "30d",
+          "3m",
+          "6m",
+          "1y",
+          "lifetime"
+        ],
+        "type": "string"
+      },
       "MortalityDto": {
         "properties": {
           "additionalNotes": {
@@ -7100,6 +7931,266 @@
           "weightKg",
           "milkTargetL",
           "items"
+        ],
+        "type": "object"
+      },
+      "NotificationCategory": {
+        "enum": [
+          "health_safety",
+          "reproduction",
+          "operational",
+          "financial",
+          "inventory"
+        ],
+        "type": "string"
+      },
+      "NotificationChannelsDto": {
+        "properties": {
+          "email": {
+            "type": "boolean"
+          },
+          "in_app": {
+            "type": "boolean"
+          },
+          "push": {
+            "type": "boolean"
+          },
+          "sms": {
+            "type": "boolean"
+          },
+          "telegram": {
+            "type": "boolean"
+          },
+          "whatsapp": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "in_app",
+          "push",
+          "sms",
+          "whatsapp",
+          "telegram",
+          "email"
+        ],
+        "type": "object"
+      },
+      "NotificationItemDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "data": {
+            "description": "Free-form payload attached to the notification (JSON).",
+            "nullable": true,
+            "type": "object"
+          },
+          "id": {
+            "type": "string"
+          },
+          "link": {
+            "nullable": true,
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string"
+          },
+          "read": {
+            "type": "boolean"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "priority",
+          "title",
+          "message",
+          "link",
+          "data",
+          "read",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "NotificationListResponseDto": {
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/NotificationPageMetaDto"
+          },
+          "notifications": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationItemDto"
+            },
+            "type": "array"
+          },
+          "unread_count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "unread_count",
+          "notifications",
+          "meta"
+        ],
+        "type": "object"
+      },
+      "NotificationOrigin": {
+        "enum": [
+          "SYSTEM",
+          "USER"
+        ],
+        "type": "string"
+      },
+      "NotificationPageMetaDto": {
+        "properties": {
+          "page": {
+            "type": "number"
+          },
+          "per_page": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "page",
+          "per_page",
+          "total"
+        ],
+        "type": "object"
+      },
+      "NotificationPreferencesResponseDto": {
+        "properties": {
+          "preferences": {
+            "items": {
+              "$ref": "#/components/schemas/PreferenceItemDto"
+            },
+            "type": "array"
+          },
+          "quiet_hours": {
+            "$ref": "#/components/schemas/QuietHoursDto"
+          }
+        },
+        "required": [
+          "quiet_hours",
+          "preferences"
+        ],
+        "type": "object"
+      },
+      "NotificationScheduleResponseDto": {
+        "properties": {
+          "all_day": {
+            "type": "boolean"
+          },
+          "anchor": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScheduleAnchorDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "animal_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "audience": {
+            "$ref": "#/components/schemas/ScheduleAudienceDto"
+          },
+          "body": {
+            "nullable": true,
+            "type": "string"
+          },
+          "can_edit": {
+            "type": "boolean"
+          },
+          "created_at": {
+            "type": "string"
+          },
+          "created_by": {
+            "nullable": true,
+            "type": "string"
+          },
+          "date": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lead_minutes": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "next_fire_at": {
+            "nullable": true,
+            "type": "string"
+          },
+          "offset_days": {
+            "nullable": true,
+            "type": "number"
+          },
+          "repeat": {
+            "$ref": "#/components/schemas/ScheduleRepeatDto"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScheduleStatus"
+              }
+            ]
+          },
+          "time": {
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "nullable": true,
+            "type": "string"
+          },
+          "trigger": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScheduleTrigger"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "body",
+          "status",
+          "trigger",
+          "date",
+          "time",
+          "all_day",
+          "anchor",
+          "offset_days",
+          "repeat",
+          "lead_minutes",
+          "audience",
+          "animal_ids",
+          "created_by",
+          "next_fire_at",
+          "created_at",
+          "can_edit"
         ],
         "type": "object"
       },
@@ -7447,51 +8538,39 @@
         ],
         "type": "object"
       },
-      "PreferenceChannelsDto": {
-        "properties": {
-          "email": {
-            "type": "boolean"
-          },
-          "in_app": {
-            "type": "boolean"
-          },
-          "push": {
-            "type": "boolean"
-          },
-          "sms": {
-            "type": "boolean"
-          },
-          "telegram": {
-            "type": "boolean"
-          },
-          "whatsapp": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "in_app",
-          "push",
-          "sms",
-          "whatsapp",
-          "telegram",
-          "email"
-        ],
-        "type": "object"
-      },
       "PreferenceItemDto": {
         "properties": {
+          "can_disable": {
+            "description": "False for mandatory (health and safety) events.",
+            "type": "boolean"
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NotificationCategory"
+              }
+            ]
+          },
           "channels": {
-            "$ref": "#/components/schemas/PreferenceChannelsDto"
+            "$ref": "#/components/schemas/NotificationChannelsDto"
           },
           "enabled": {
             "type": "boolean"
           },
           "event_key": {
             "type": "string"
+          },
+          "label": {
+            "type": "string"
           }
         },
         "required": [
-          "event_key"
+          "event_key",
+          "label",
+          "category",
+          "can_disable",
+          "enabled",
+          "channels"
         ],
         "type": "object"
       },
@@ -7783,9 +8862,11 @@
       "QuietHoursDto": {
         "properties": {
           "end": {
+            "nullable": true,
             "type": "string"
           },
           "start": {
+            "nullable": true,
             "type": "string"
           }
         },
@@ -8476,6 +9557,29 @@
         ],
         "type": "object"
       },
+      "RegisterDeviceResponseDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "registered": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "registered",
+          "id",
+          "platform",
+          "provider"
+        ],
+        "type": "object"
+      },
       "RegisterDto": {
         "properties": {
           "email": {
@@ -8683,6 +9787,42 @@
         ],
         "type": "object"
       },
+      "RoutingEventDto": {
+        "properties": {
+          "can_disable": {
+            "type": "boolean"
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NotificationCategory"
+              }
+            ]
+          },
+          "channels": {
+            "$ref": "#/components/schemas/NotificationChannelsDto"
+          },
+          "event_key": {
+            "type": "string"
+          },
+          "farm_override": {
+            "description": "True when this farm overrides the default.",
+            "type": "boolean"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_key",
+          "label",
+          "category",
+          "can_disable",
+          "channels",
+          "farm_override"
+        ],
+        "type": "object"
+      },
       "SafetyWithdrawalResponseDto": {
         "properties": {
           "cattleId": {
@@ -8832,16 +9972,14 @@
       "ScheduleAnchorDto": {
         "properties": {
           "id": {
-            "maxLength": 64,
             "type": "string"
           },
           "type": {
-            "enum": [
-              "ANIMAL_EVENT",
-              "TASK",
-              "HEALTH_STEP"
-            ],
-            "type": "string"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScheduleAnchorType"
+              }
+            ]
           }
         },
         "required": [
@@ -8850,39 +9988,51 @@
         ],
         "type": "object"
       },
+      "ScheduleAnchorType": {
+        "enum": [
+          "ANIMAL_EVENT",
+          "TASK",
+          "HEALTH_STEP"
+        ],
+        "type": "string"
+      },
       "ScheduleAudienceDto": {
         "properties": {
           "mode": {
-            "enum": [
-              "USER",
-              "ROLES",
-              "USERS"
-            ],
-            "type": "string"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScheduleAudienceMode"
+              }
+            ]
           },
           "roles": {
             "items": {
               "type": "string"
             },
-            "maxItems": 20,
             "type": "array"
-          },
-          "user_id": {
-            "maxLength": 64,
-            "type": "string"
           },
           "user_ids": {
             "items": {
               "type": "string"
             },
-            "maxItems": 101,
             "type": "array"
           }
         },
         "required": [
-          "mode"
+          "mode",
+          "user_ids",
+          "roles"
         ],
         "type": "object"
+      },
+      "ScheduleAudienceMode": {
+        "enum": [
+          "SOURCE",
+          "USER",
+          "ROLES",
+          "USERS"
+        ],
+        "type": "string"
       },
       "ScheduleDowngradeDto": {
         "properties": {
@@ -8903,28 +10053,89 @@
         ],
         "type": "object"
       },
-      "ScheduleRepeatDto": {
+      "SchedulePreviewFireTimeDto": {
         "properties": {
-          "end_date": {
+          "fire_at": {
             "type": "string"
           },
-          "interval": {
+          "lead_minutes": {
             "type": "number"
           },
-          "type": {
-            "enum": [
-              "NEVER",
-              "EVERY_N_DAYS",
-              "WEEKLY",
-              "MONTHLY"
-            ],
+          "local": {
             "type": "string"
           }
         },
         "required": [
-          "type"
+          "fire_at",
+          "local",
+          "lead_minutes"
         ],
         "type": "object"
+      },
+      "SchedulePreviewResponseDto": {
+        "properties": {
+          "all_day": {
+            "type": "boolean"
+          },
+          "next_fire_times": {
+            "items": {
+              "$ref": "#/components/schemas/SchedulePreviewFireTimeDto"
+            },
+            "type": "array"
+          },
+          "recipient_count": {
+            "type": "number"
+          },
+          "timezone": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "timezone",
+          "all_day",
+          "next_fire_times",
+          "recipient_count"
+        ],
+        "type": "object"
+      },
+      "ScheduleRepeatDto": {
+        "properties": {
+          "end_date": {
+            "nullable": true,
+            "type": "string"
+          },
+          "interval": {
+            "nullable": true,
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "interval",
+          "end_date"
+        ],
+        "type": "object"
+      },
+      "ScheduleStatus": {
+        "enum": [
+          "ACTIVE",
+          "PAUSED",
+          "DONE",
+          "CANCELLED"
+        ],
+        "type": "string"
+      },
+      "ScheduleTrigger": {
+        "enum": [
+          "DATE",
+          "BEFORE_EVENT",
+          "AFTER_EVENT",
+          "SOURCE_DUE"
+        ],
+        "type": "string"
       },
       "SellAnimalDto": {
         "properties": {
@@ -9628,6 +10839,96 @@
         ],
         "type": "string"
       },
+      "TelegramChatDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "TelegramConnectSessionResponseDto": {
+        "properties": {
+          "botUsername": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "deepLink": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "description": "Seconds until the code expires.",
+            "type": "number"
+          },
+          "qrPayload": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "configured",
+          "botUsername",
+          "code",
+          "expiresIn",
+          "deepLink",
+          "qrPayload"
+        ],
+        "type": "object"
+      },
+      "TelegramLinkTokenResponseDto": {
+        "properties": {
+          "configured": {
+            "type": "boolean"
+          },
+          "deepLink": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "configured",
+          "deepLink"
+        ],
+        "type": "object"
+      },
+      "TelegramStatusResponseDto": {
+        "properties": {
+          "chats": {
+            "items": {
+              "$ref": "#/components/schemas/TelegramChatDto"
+            },
+            "type": "array"
+          },
+          "configured": {
+            "type": "boolean"
+          },
+          "count": {
+            "type": "number"
+          },
+          "linked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "configured",
+          "linked",
+          "count",
+          "chats"
+        ],
+        "type": "object"
+      },
       "TransferResponseDto": {
         "properties": {
           "amount": {
@@ -9750,6 +11051,97 @@
           "farmId",
           "createdAt",
           "updatedAt"
+        ],
+        "type": "object"
+      },
+      "UnlinkTelegramResponseDto": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "unlinked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "unlinked",
+          "count"
+        ],
+        "type": "object"
+      },
+      "UnregisterDeviceResponseDto": {
+        "properties": {
+          "removed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "removed"
+        ],
+        "type": "object"
+      },
+      "UpcomingOccurrenceDto": {
+        "properties": {
+          "animals_count": {
+            "type": "number"
+          },
+          "body": {
+            "nullable": true,
+            "type": "string"
+          },
+          "can_edit": {
+            "type": "boolean"
+          },
+          "category": {
+            "type": "string"
+          },
+          "fire_at": {
+            "type": "string"
+          },
+          "fire_at_local": {
+            "type": "string"
+          },
+          "link": {
+            "nullable": true,
+            "type": "string"
+          },
+          "occurrence_id": {
+            "type": "string"
+          },
+          "origin": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/NotificationOrigin"
+              }
+            ]
+          },
+          "priority": {
+            "type": "string"
+          },
+          "repeat": {
+            "type": "string"
+          },
+          "schedule_id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "occurrence_id",
+          "schedule_id",
+          "fire_at",
+          "fire_at_local",
+          "title",
+          "body",
+          "origin",
+          "category",
+          "priority",
+          "link",
+          "animals_count",
+          "repeat",
+          "can_edit"
         ],
         "type": "object"
       },
