@@ -4,7 +4,7 @@
  * under reduce motion. The list is ONE accessible node (label "Loading", busy); blocks are hidden from a11y.
  * Blocks use fixed heights: they hold no text, so this is allowed (spec 1.1).
  */
-import { useEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
 import { Animated, Easing, View, type DimensionValue } from 'react-native';
 import { useLocale } from '../../providers/LocaleProvider.tsx';
 import { useTheme } from '../../providers/ThemeProvider.tsx';
@@ -15,8 +15,11 @@ import { Card } from './Card.tsx';
 const PULSE_LOW = 0.5;
 const PULSE_MS = 800;
 
+/** Shared opacity value for a list: the card variant keeps its Card surface static and fades only the bars. */
+const PulseValueContext = createContext<Animated.Value | null>(null);
+
 /** Shared opacity loop. Under reduce motion it never starts and the value stays at 1. */
-function Pulse({ children }: { children: ReactNode }) {
+function usePulseValue(): Animated.Value {
   const reduceMotion = useReduceMotion();
   const opacity = useRef(new Animated.Value(1)).current;
 
@@ -38,11 +41,28 @@ function Pulse({ children }: { children: ReactNode }) {
     };
   }, [reduceMotion, opacity]);
 
+  return opacity;
+}
+
+/** Fades its children with the shared value of the enclosing list, or an own loop when standalone. */
+function PulseView({ children, shared }: { children: ReactNode; shared: Animated.Value }) {
   return (
-    <Animated.View testID="skeleton-pulse" style={{ opacity }}>
+    <Animated.View testID="skeleton-pulse" style={{ opacity: shared }}>
       {children}
     </Animated.View>
   );
+}
+
+function Pulse({ children }: { children: ReactNode }) {
+  const opacity = usePulseValue();
+  return <PulseView shared={opacity}>{children}</PulseView>;
+}
+
+/** Bars of a card: pulse with the list's value (the Card surface itself never fades). */
+function CardBars({ children }: { children: ReactNode }) {
+  const shared = useContext(PulseValueContext);
+  if (!shared) return <Pulse>{children}</Pulse>;
+  return <PulseView shared={shared}>{children}</PulseView>;
 }
 
 interface BlockProps {
@@ -103,28 +123,34 @@ function SkeletonRow() {
 function SkeletonCard() {
   return (
     <Card testID="skeleton-row">
-      <View style={{ minHeight: 72, gap: spacing.sm }}>
-        <Block width="50%" height={16} />
-        <Block height={12} />
-        <Block width="70%" height={12} />
-      </View>
+      <CardBars>
+        <View style={{ minHeight: 72, gap: spacing.sm }}>
+          <Block width="50%" height={16} />
+          <Block height={12} />
+          <Block width="70%" height={12} />
+        </View>
+      </CardBars>
     </Card>
   );
 }
 
 export function SkeletonList({ rows = 6, variant = 'row' }: SkeletonListProps) {
   const { t } = useLocale();
+  const opacity = usePulseValue();
   const count = Math.max(0, Math.floor(rows));
   const Item = variant === 'card' ? SkeletonCard : SkeletonRow;
+  const items = Array.from({ length: count }, (_, i) => <Item key={i} />);
   return (
     <View accessible accessibilityLabel={t('a11y.loading')} accessibilityState={{ busy: true }} testID="skeleton-list">
-      <Pulse>
-        <View style={{ gap: variant === 'card' ? spacing.md : spacing.sm }}>
-          {Array.from({ length: count }, (_, i) => (
-            <Item key={i} />
-          ))}
-        </View>
-      </Pulse>
+      <PulseValueContext.Provider value={opacity}>
+        {variant === 'card' ? (
+          <View style={{ gap: spacing.md }}>{items}</View>
+        ) : (
+          <PulseView shared={opacity}>
+            <View style={{ gap: spacing.sm }}>{items}</View>
+          </PulseView>
+        )}
+      </PulseValueContext.Provider>
     </View>
   );
 }

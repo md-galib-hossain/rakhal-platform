@@ -71,7 +71,7 @@ function Stack({ children }: { children: ReactNode }) {
 
 function Row({ children }: { children: ReactNode }) {
   const { tokens } = useTheme();
-  return <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.sm }}>{children}</View>;
+  return <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: tokens.spacing.sm }}>{children}</View>;
 }
 
 const noop = (): void => {};

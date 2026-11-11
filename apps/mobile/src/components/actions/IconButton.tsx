@@ -52,6 +52,8 @@ export function IconButton({
       style={{
         minWidth: box,
         minHeight: box,
+        // Keep the square size inside a stretching (alignItems: stretch) row.
+        alignSelf: 'flex-start',
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,

@@ -15,7 +15,7 @@ import { radius, spacing } from '../../theme/tokens.ts';
 import { Glyph } from '../internal/Glyph.tsx';
 import { PressableSurface } from '../internal/PressableSurface.tsx';
 import { Text } from '../primitives/Text.tsx';
-import { CHIP_METRICS, chipColors } from './chip-style.ts';
+import { CHIP_METRICS, chipColors, withLineSlack } from './chip-style.ts';
 
 export type ChipAccent = 'sessionMorning' | 'sessionNoon' | 'sessionEvening' | 'sessionNight';
 
@@ -47,6 +47,8 @@ export function Chip({ label, selected, onPress, accentColor, disabled = false, 
         minHeight: CHIP_METRICS.minHeight,
         minWidth: CHIP_METRICS.minWidth,
         maxWidth: '100%',
+        // Let the pill itself shrink to the row width so the label gets a bounded width and wraps (Android Yoga).
+        flexShrink: 1,
         paddingHorizontal: CHIP_METRICS.paddingHorizontal,
         paddingVertical: CHIP_METRICS.paddingVertical,
         flexDirection: 'row',
@@ -90,8 +92,8 @@ export function Chip({ label, selected, onPress, accentColor, disabled = false, 
           />
         )}
       </View>
-      <Text role="button" color={look.label} script={script} style={{ flexShrink: 1, textAlign: 'center' }}>
-        {label}
+      <Text role="button" color={look.label} script={script} style={{ flexShrink: 1, flexGrow: 0, textAlign: 'center' }}>
+        {withLineSlack(label)}
       </Text>
     </PressableSurface>
   );

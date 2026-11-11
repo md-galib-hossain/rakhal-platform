@@ -68,6 +68,15 @@ describe('SkeletonList', () => {
     expect(flatStyle(cards[0]!).borderRadius).toBe(radius.lg);
   });
 
+  it('card variant: the Card surface keeps the card fill (not the bar colour) and sits outside the pulse', async () => {
+    await mount(<SkeletonList variant="card" rows={1} />);
+    const card = screen.getByTestId('skeleton-row', HIDDEN);
+    expect(flatStyle(card).backgroundColor).toBe(allColors.light.card);
+    expect(flatStyle(card).backgroundColor).not.toBe(allColors.light.border);
+    for (let n = card.parent; n; n = n.parent) expect(n.props.testID).not.toBe('skeleton-pulse');
+    expect(screen.getAllByTestId('skeleton-pulse', HIDDEN)).toHaveLength(1);
+  });
+
   it('no row count below 0 and fractional counts are floored', async () => {
     const first = await mount(<SkeletonList rows={-3} />);
     expect(screen.queryAllByTestId('skeleton-row', HIDDEN)).toHaveLength(0);

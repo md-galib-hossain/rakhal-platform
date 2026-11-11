@@ -40,6 +40,13 @@ describe('IconButton', () => {
     expect(btn().props.hitSlop).toBeUndefined();
   });
 
+  it.each(['md', 'lg'] as const)('size %s root keeps equal minWidth/minHeight and does not stretch in a row', async (size) => {
+    await mount(<IconButton testID="ib" icon="plus" accessibilityLabel="Add" size={size} onPress={() => {}} />);
+    const s = flatStyle(btn());
+    expect(s.minWidth).toBe(s.minHeight);
+    expect(s.alignSelf).toBe('flex-start');
+  });
+
   it('defaults to size md and variant secondary', async () => {
     await mount(<IconButton testID="ib" icon="close" accessibilityLabel="Close" onPress={() => {}} />);
     expectTouchTarget(btn(), 48, { requireWidth: true });

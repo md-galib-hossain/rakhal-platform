@@ -5,6 +5,7 @@ import { mount, restoreMount } from '../../test-utils/mount.tsx';
 import { expectNoFixedTextHeight, expectTouchTarget, findNodes, flatStyle } from '../../test-utils/touch-target.ts';
 import { allColors, fontFamily, radius } from '../../theme/tokens.ts';
 import { Chip, ChipGroup } from './Chip.tsx';
+import { LINE_SLACK, withLineSlack } from './chip-style.ts';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'),
@@ -95,6 +96,35 @@ describe('Chip sizing', () => {
     expect(label.props.ellipsizeMode).toBeUndefined();
     expect(flatStyle(label)).toMatchObject({ flexShrink: 1, textAlign: 'center' });
     expect(flatStyle(chip()).maxWidth).toBe('100%');
+  });
+});
+
+describe('Chip multi-word Bangla label (device defect: clipped to first word)', () => {
+  it.each([1, 2])('lets the chip and its label shrink so the label wraps (fontScale %s)', async (fontScale) => {
+    await mount(<Chip testID="c" label="দুগ্ধ উৎপাদন" selected={false} onPress={noop} />, { locale: 'bn', fontScale });
+    const root = flatStyle(chip());
+    expect(root.flexShrink).toBe(1);
+    expect(root.height).toBeUndefined();
+    expect(root.minHeight).toBe(48);
+    const label = findNodes(chip(), (n) => n.type === 'Text')[0]!;
+    expect(label.props.numberOfLines).toBeUndefined();
+    expect(flatStyle(label)).toMatchObject({ flexShrink: 1, flexGrow: 0 });
+    expect(flatStyle(label).height).toBeUndefined();
+  });
+
+  it('gives a multi-word label trailing line slack, keeps the accessible name clean, leaves one-word labels alone', async () => {
+    // Root cause (Android only): the label box is exactly the measured width, the painted layout needs a sub-pixel more,
+    // so the last word wraps into a one-line-tall box and is clipped. The slack is a trailing hair space on the text.
+    await mount(<Chip testID="c" label="দুগ্ধ উৎপাদন" selected={false} onPress={noop} />, { locale: 'bn' });
+    const label = findNodes(chip(), (n) => n.type === 'Text')[0]!;
+    expect(label.props.children).toBe(`দুগ্ধ উৎপাদন${LINE_SLACK}`);
+    expect(chip().props.accessibilityLabel).toBe('দুগ্ধ উৎপাদন');
+
+    await mount(<Chip testID="c2" label="সকাল" selected={false} onPress={noop} />, { locale: 'bn' });
+    expect(screen.getByText('সকাল')).toBeTruthy();
+    expect(withLineSlack('Option 2')).toBe(`Option 2${LINE_SLACK}`);
+    expect(withLineSlack('Noon')).toBe('Noon');
+    expect(LINE_SLACK).toBe(String.fromCharCode(0x200a));
   });
 });
 

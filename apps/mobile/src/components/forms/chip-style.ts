@@ -17,6 +17,20 @@ export const CHIP_METRICS = {
   gap: 8,
 } as const;
 
+/**
+ * U+200A HAIR SPACE. A pill is sized to its label, so the label box is exactly the width Yoga measured. On Android
+ * the painted layout of a multi-word Bangla label can need a sub-pixel more than that box, so the last word wraps to
+ * a second line that the one-line-tall box clips (Pixel 8 emulator: the label painted only its first word). A
+ * trailing hair space is counted in the measured width but hangs past the last glyph, giving the line that slack.
+ * The accessible name is the `label` prop on the pressable, so screen readers never hear it.
+ */
+export const LINE_SLACK = ' ';
+
+/** Label text for a chip: adds the trailing slack only when the label has a wrap point (a space). */
+export function withLineSlack(label: string): string {
+  return /\s/.test(label.trim()) ? `${label}${LINE_SLACK}` : label;
+}
+
 export interface ChipColors {
   fill: AnyColorName;
   label: AnyColorName;
