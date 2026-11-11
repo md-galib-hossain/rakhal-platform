@@ -34,6 +34,8 @@ export type Mounted = Awaited<ReturnType<typeof render>> & { colors: AllColorTok
 export async function mount(ui: ReactElement, options: MountOptions = {}): Promise<Mounted> {
   const { scheme = 'light', locale = 'en', digits = 'latn', fontScale = 1 } = options;
   (useColorScheme as jest.Mock<() => unknown>).mockImplementation(() => scheme);
+  // A second mount() in one test would otherwise bind `real` to the first mock and recurse forever.
+  if (jest.isMockFunction(Dimensions.get)) (Dimensions.get as unknown as jest.Mock).mockRestore();
   const real = Dimensions.get.bind(Dimensions);
   jest.spyOn(Dimensions, 'get').mockImplementation(((dim: string) => ({
     ...real(dim as 'window'),
