@@ -1,6 +1,6 @@
 "use client"; // fetches the detailed concentration on open
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -33,14 +33,13 @@ function DetailBody({ id, onOpenChange }: { id: string; onOpenChange: (open: boo
   const t = useTranslations("feed.detail");
   const detail = useConcentrationDetail(id);
   const ingredients = useFeedIngredients();
-  const [durationDays, setDurationDays] = useState<number>(1);
-
   const detailDuration = detail.data?.duration_days;
-  useEffect(() => {
-    if (detailDuration && detailDuration > 0) {
-      setDurationDays(detailDuration);
-    }
-  }, [detailDuration]);
+  // The user's own edit, remembered together with the server value it was made against. When the server
+  // value changes the edit is dropped and the new value shows, which is what the old sync effect did.
+  const [edit, setEdit] = useState<{ base: number | null | undefined; days: number } | null>(null);
+  const durationDays =
+    edit && edit.base === detailDuration ? edit.days : detailDuration && detailDuration > 0 ? detailDuration : 1;
+  const setDurationDays = (days: number) => setEdit({ base: detailDuration, days });
 
   // Needed only for the per-line "rate" annotation (e.g. "20%" DM) shown alongside the server-
   // computed kg values below — the kg/cost figures themselves come from `serverContributions`.

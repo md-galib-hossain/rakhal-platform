@@ -95,8 +95,19 @@ function NodeCard({
 
   return (
     <div
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
       onClick={(e) => {
         if (node?.id) {
+          e.stopPropagation();
+          openCattleDetail(node.id);
+        }
+      }}
+      onKeyDown={(e) => {
+        // Only the card itself, not a control inside it.
+        if (e.target !== e.currentTarget) return;
+        if (node?.id && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
           e.stopPropagation();
           openCattleDetail(node.id);
         }
@@ -710,6 +721,7 @@ export function PedigreeTab({ cattleId }: { cattleId: string }) {
 
         <div
           ref={setContainer}
+          role="presentation"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}

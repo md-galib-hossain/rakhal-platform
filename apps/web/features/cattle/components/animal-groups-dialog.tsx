@@ -58,6 +58,12 @@ import {
 import { ANIMAL_CATEGORY_VARIANT } from "../utils/animal-category-style";
 import type { AnimalGroup, CattleListItem } from "../types";
 
+/** Moves focus into the input when it mounts. Module-level so its identity is stable: an inline arrow in `ref`
+ * would run again on every render and pull focus back while the user types in another field. */
+function focusOnMount(el: HTMLInputElement | null) {
+  el?.focus();
+}
+
 export interface AnimalGroupsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -468,7 +474,7 @@ export function AnimalGroupsDialog({ open, onOpenChange }: AnimalGroupsDialogPro
                           onChange={(e) => setFormName(e.target.value)}
                           placeholder={t("groupNamePlaceholder")}
                           maxLength={80}
-                          autoFocus
+                          ref={focusOnMount}
                         />
                       </div>
                       <div className="flex flex-col gap-1.5">
@@ -717,7 +723,7 @@ function AddAnimalsToGroupDialog({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
-              autoFocus
+              ref={focusOnMount}
             />
           </div>
 

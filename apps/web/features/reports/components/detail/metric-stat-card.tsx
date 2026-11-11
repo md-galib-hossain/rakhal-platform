@@ -21,9 +21,11 @@ const DOMAIN_ICON: Record<ReportDomain, LucideIcon> = {
   cow_profile: PawPrint,
 };
 
-function getDomainIcon(metricId: string): LucideIcon {
+/** A plain function (not a component) so the icon is looked up from the static map, never created during render. */
+function renderDomainIcon(metricId: string) {
   const prefix = metricId.split(".")[0] as ReportDomain;
-  return DOMAIN_ICON[prefix] ?? Activity;
+  const Icon = DOMAIN_ICON[prefix] ?? Activity;
+  return <Icon className="size-4.5" aria-hidden />;
 }
 
 /** One scalar figure. Non-value states print their words ("Not recorded"), never 0. */
@@ -41,7 +43,6 @@ export function MetricStatCard({
   const name = resolveMetricLabel(metric.metricId, tr);
   const source = resolveSourceLabel(metric.source, tr);
   const isValue = metric.value.state === "value";
-  const Icon = getDomainIcon(metric.metricId);
 
   return (
     <Card
@@ -54,7 +55,7 @@ export function MetricStatCard({
           {source ? <p className="text-xs text-muted-foreground">{source}</p> : null}
         </div>
         <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-          <Icon className="size-4.5" aria-hidden />
+          {renderDomainIcon(metric.metricId)}
         </span>
       </div>
 

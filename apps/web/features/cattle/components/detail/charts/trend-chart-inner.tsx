@@ -58,7 +58,7 @@ export default function TrendChartInner<T extends object>({
               }}
               formatter={
                 valueFormatter
-                  ? (val: any, name: any) => [
+                  ? (val, name) => [
                       typeof val === "number" ? valueFormatter(val) : val,
                       name,
                     ]

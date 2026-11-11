@@ -241,6 +241,7 @@ function UnifiedGrid({
     if (targetCattleId && targetHandledRef.current !== targetCattleId) {
       if (ordered.some((c) => c.cattle_id === targetCattleId)) {
         targetHandledRef.current = targetCattleId;
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- reacting to a deep-link param, once per target (guarded by the ref)
         setSelected(new Set([targetCattleId]));
       }
     }
@@ -427,7 +428,7 @@ function UnifiedGrid({
             kg: hasKg ? String(kgNumber) : "",
           }));
         } else {
-          let updated = [...cur];
+          const updated = [...cur];
           for (const bs of bulkSources) {
             const key = sourceKey(bs);
             const same = (l: RowLine) => l.source != null && sourceKey(l.source) === key;
