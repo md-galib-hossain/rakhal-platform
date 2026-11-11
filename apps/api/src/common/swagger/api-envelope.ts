@@ -65,6 +65,8 @@ interface EnvelopeOptions {
   /** HTTP status of the success response. Defaults to 200 (use 201 for creates). */
   status?: number;
   description?: string;
+  /** `data` is a plain (non-paginated) array of the model. For cursor pages use `ApiPaginatedResponse`. */
+  isArray?: boolean;
 }
 
 type SchemaObject = Extract<ApiResponseOptions, { schema: unknown }>['schema'];
@@ -87,7 +89,7 @@ export function ApiEnvelopeResponse<T>(
         required: ['success', 'data'],
         properties: {
           success: SUCCESS,
-          data: ref,
+          data: options.isArray ? { type: 'array', items: ref } : ref,
         },
       },
     }),

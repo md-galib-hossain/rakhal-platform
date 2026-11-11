@@ -9,6 +9,11 @@ import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { ReceivableService } from '../../application/receivable.service';
 import { ListReceivablesQueryDto } from '../dto/list-receivables-query.dto';
+import {
+  ApiEnvelopeResponse,
+  ApiPaginatedResponse,
+} from 'src/common/swagger/api-envelope';
+import { ReceivableResponseDto } from 'src/modules/finance-v2/presentation/dto/finance-response.dto';
 
 /**
  * Finance V2 → Receivables (RAKHAL-340, `FINANCE_V2_DESIGN.md` §4.3, §4.6).
@@ -43,6 +48,7 @@ export class ReceivableController {
 
   @Get()
   @RequirePermission('finance.read')
+  @ApiPaginatedResponse(ReceivableResponseDto)
   list(
     @CurrentFarmId() farmId: string,
     @Query() query: ListReceivablesQueryDto,
@@ -52,6 +58,7 @@ export class ReceivableController {
 
   @Get(':id')
   @RequirePermission('finance.read')
+  @ApiEnvelopeResponse(ReceivableResponseDto)
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.receivables.findOne(farmId, id);
   }

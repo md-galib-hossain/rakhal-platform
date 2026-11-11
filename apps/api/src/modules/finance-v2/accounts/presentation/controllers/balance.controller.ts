@@ -8,6 +8,8 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { BalanceService } from '../../application/balance.service';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import { RakhalBalanceResponseDto } from 'src/modules/finance-v2/presentation/dto/finance-response.dto';
 
 /**
  * Finance V2 → Balance projection (RAKHAL-336, `FINANCE_V2_DESIGN.md` §3).
@@ -35,6 +37,7 @@ export class BalanceController {
 
   @Get()
   @RequirePermission('finance.accounts')
+  @ApiEnvelopeResponse(RakhalBalanceResponseDto)
   getRakhalBalance(@CurrentFarmId() farmId: string) {
     return this.balance.getRakhalBalance(farmId);
   }

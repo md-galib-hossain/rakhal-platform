@@ -10,6 +10,12 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { PaymentService } from '../../application/payment.service';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
 import { AllocatePaymentDto } from '../dto/allocate-payment.dto';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  PaymentAllocationDto,
+  PaymentResponseDto,
+  PaymentWithAllocationsResponseDto,
+} from 'src/modules/finance-v2/presentation/dto/finance-response.dto';
 
 /**
  * Finance V2 → Payments (RAKHAL-337, `FINANCE_V2_DESIGN.md` §4.5, §4.6).
@@ -35,6 +41,7 @@ export class PaymentController {
 
   @Post()
   @RequirePermission('finance.create')
+  @ApiEnvelopeResponse(PaymentResponseDto, { status: 201 })
   record(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -45,18 +52,21 @@ export class PaymentController {
 
   @Get()
   @RequirePermission('finance.read')
+  @ApiEnvelopeResponse(PaymentResponseDto, { isArray: true })
   findAll(@CurrentFarmId() farmId: string) {
     return this.payments.findAll(farmId);
   }
 
   @Get(':id')
   @RequirePermission('finance.read')
+  @ApiEnvelopeResponse(PaymentWithAllocationsResponseDto)
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.payments.findOne(farmId, id);
   }
 
   @Post(':id/allocations')
   @RequirePermission('finance.create')
+  @ApiEnvelopeResponse(PaymentAllocationDto, { status: 201, isArray: true })
   allocate(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,

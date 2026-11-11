@@ -13,6 +13,34 @@
         ],
         "type": "object"
       },
+      "AccountBalanceDto": {
+        "properties": {
+          "balance": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FinancialAccountType"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "balance"
+        ],
+        "type": "object"
+      },
       "ActivateSubscriptionDto": {
         "properties": {
           "confirm": {
@@ -493,6 +521,66 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "BalanceBreakdownDto": {
+        "properties": {
+          "bank": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "type": "string"
+          },
+          "cash": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "type": "string"
+          },
+          "mfs": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "cash",
+          "bank",
+          "mfs"
+        ],
+        "type": "object"
+      },
+      "BankAccountDetailDto": {
+        "properties": {
+          "accountNumber": {
+            "type": "string"
+          },
+          "bankName": {
+            "type": "string"
+          },
+          "branch": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "financialAccountId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "financialAccountId",
+          "bankName",
+          "accountNumber",
+          "branch",
+          "createdAt",
+          "updatedAt"
+        ],
         "type": "object"
       },
       "BulkCattleDto": {
@@ -3460,6 +3548,93 @@
         },
         "type": "object"
       },
+      "FinancialAccountResponseDto": {
+        "properties": {
+          "bankDetail": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankAccountDetailDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdById": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "ledgerAccountId": {
+            "type": "string"
+          },
+          "mfsDetail": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MfsAccountDetailDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FinancialAccountType"
+              }
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "farmId",
+          "type",
+          "ledgerAccountId",
+          "currency",
+          "isPrimary",
+          "deletedAt",
+          "createdById",
+          "createdAt",
+          "updatedAt",
+          "bankDetail",
+          "mfsDetail"
+        ],
+        "type": "object"
+      },
+      "FinancialAccountType": {
+        "enum": [
+          "CASH",
+          "BANK",
+          "MFS"
+        ],
+        "type": "string"
+      },
       "FollowUpToggleDto": {
         "properties": {
           "enabled": {
@@ -4148,6 +4323,82 @@
         },
         "type": "object"
       },
+      "IncomeCategoryResponseDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "farmId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isSystem": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isSystem",
+          "farmId",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "IncomeResponseDto": {
+        "properties": {
+          "amount": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "type": "string"
+          },
+          "categoryId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdById": {
+            "type": "string"
+          },
+          "date": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "financialAccountId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "categoryId",
+          "description",
+          "amount",
+          "date",
+          "financialAccountId",
+          "createdById",
+          "createdAt"
+        ],
+        "type": "object"
+      },
       "IntakeBreedingDto": {
         "properties": {
           "breedingDate": {
@@ -4485,6 +4736,58 @@
           "SC",
           "ORAL",
           "TOPICAL",
+          "OTHER"
+        ],
+        "type": "string"
+      },
+      "MfsAccountDetailDto": {
+        "properties": {
+          "accountType": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "financialAccountId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "phoneNumber": {
+            "type": "string"
+          },
+          "provider": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MfsProvider"
+              }
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "financialAccountId",
+          "provider",
+          "phoneNumber",
+          "accountType",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "MfsProvider": {
+        "enum": [
+          "BKASH",
+          "NAGAD",
+          "ROCKET",
+          "UPAY",
           "OTHER"
         ],
         "type": "string"
@@ -4926,6 +5229,191 @@
         ],
         "type": "object"
       },
+      "PaymentAllocationDto": {
+        "properties": {
+          "amount": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "payableId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "paymentId": {
+            "type": "string"
+          },
+          "receivableId": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "paymentId",
+          "receivableId",
+          "payableId",
+          "amount",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "PaymentDirection": {
+        "enum": [
+          "INCOMING",
+          "OUTGOING"
+        ],
+        "type": "string"
+      },
+      "PaymentMethod": {
+        "enum": [
+          "CASH",
+          "BANK_TRANSFER",
+          "MFS"
+        ],
+        "type": "string"
+      },
+      "PaymentResponseDto": {
+        "properties": {
+          "amount": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdById": {
+            "type": "string"
+          },
+          "direction": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentDirection"
+              }
+            ]
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "financialAccountId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              }
+            ]
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "referenceNumber": {
+            "nullable": true,
+            "type": "string"
+          },
+          "transactionDate": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "amount",
+          "direction",
+          "financialAccountId",
+          "method",
+          "transactionDate",
+          "referenceNumber",
+          "notes",
+          "createdById",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "PaymentWithAllocationsResponseDto": {
+        "properties": {
+          "allocations": {
+            "items": {
+              "$ref": "#/components/schemas/PaymentAllocationDto"
+            },
+            "type": "array"
+          },
+          "amount": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdById": {
+            "type": "string"
+          },
+          "direction": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentDirection"
+              }
+            ]
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "financialAccountId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethod"
+              }
+            ]
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "referenceNumber": {
+            "nullable": true,
+            "type": "string"
+          },
+          "transactionDate": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "amount",
+          "direction",
+          "financialAccountId",
+          "method",
+          "transactionDate",
+          "referenceNumber",
+          "notes",
+          "createdById",
+          "createdAt",
+          "allocations"
+        ],
+        "type": "object"
+      },
       "PreferenceChannelsDto": {
         "properties": {
           "email": {
@@ -5273,6 +5761,97 @@
           "end"
         ],
         "type": "object"
+      },
+      "RakhalBalanceResponseDto": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/AccountBalanceDto"
+            },
+            "type": "array"
+          },
+          "breakdown": {
+            "$ref": "#/components/schemas/BalanceBreakdownDto"
+          },
+          "rakhalBalance": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rakhalBalance",
+          "breakdown",
+          "accounts"
+        ],
+        "type": "object"
+      },
+      "ReceivableResponseDto": {
+        "properties": {
+          "closedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "customerId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "dueDate": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "outstanding": {
+            "description": "Computed from the payment allocations on every read, never stored. Decimal string.",
+            "type": "string"
+          },
+          "saleId": {
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReceivableStatus"
+              }
+            ]
+          },
+          "totalAmount": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "saleId",
+          "customerId",
+          "totalAmount",
+          "dueDate",
+          "closedAt",
+          "createdAt",
+          "outstanding",
+          "status"
+        ],
+        "type": "object"
+      },
+      "ReceivableStatus": {
+        "enum": [
+          "UNPAID",
+          "PARTIALLY_PAID",
+          "PAID",
+          "OVERDUE"
+        ],
+        "type": "string"
       },
       "RecordAiDto": {
         "properties": {
@@ -6755,6 +7334,58 @@
         "required": [
           "confirm",
           "reason"
+        ],
+        "type": "object"
+      },
+      "TransferResponseDto": {
+        "properties": {
+          "amount": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdById": {
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "feeAmount": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "type": "string"
+          },
+          "fromFinancialAccountId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "toFinancialAccountId": {
+            "type": "string"
+          },
+          "transactionDate": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "fromFinancialAccountId",
+          "toFinancialAccountId",
+          "amount",
+          "feeAmount",
+          "transactionDate",
+          "notes",
+          "createdById",
+          "createdAt"
         ],
         "type": "object"
       },
@@ -15198,10 +15829,25 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "type": "object"
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/FinancialAccountResponseDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
                   },
-                  "type": "array"
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
                 }
               }
             },
@@ -15235,6 +15881,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FinancialAccountResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -15261,6 +15922,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FinancialAccountResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -15296,6 +15972,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FinancialAccountResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -15339,6 +16030,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FinancialAccountResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -15374,6 +16080,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FinancialAccountResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -15419,6 +16140,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FinancialAccountResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -15454,6 +16190,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FinancialAccountResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -15526,6 +16277,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RakhalBalanceResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -15549,6 +16315,31 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/IncomeResponseDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15576,6 +16367,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/IncomeResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15595,6 +16408,31 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/IncomeCategoryResponseDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15622,6 +16460,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/IncomeCategoryResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15650,6 +16510,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/IncomeResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15688,6 +16570,31 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/PaymentResponseDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15715,6 +16622,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15746,6 +16675,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PaymentWithAllocationsResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -15788,6 +16732,31 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/PaymentAllocationDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15868,6 +16837,35 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/ReceivableResponseDto"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/CursorPageMetaDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -15934,6 +16932,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ReceivableResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -16221,6 +17234,31 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/TransferResponseDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -16266,6 +17304,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/TransferResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -24960,8 +26020,8 @@
             "schema": {
               "enum": [
                 "CANCELLED",
-                "DRAFT",
                 "CONFIRMED",
+                "DRAFT",
                 "REFUNDED",
                 "PARTIALLY_REFUNDED"
               ],

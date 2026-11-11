@@ -19,6 +19,8 @@ import { FinancialAccountService } from '../../application/financial-account.ser
 import { CreateFinancialAccountDto } from '../dto/create-financial-account.dto';
 import { SetOpeningBalanceDto } from '../dto/set-opening-balance.dto';
 import { UpdateFinancialAccountDto } from '../dto/update-financial-account.dto';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import { FinancialAccountResponseDto } from 'src/modules/finance-v2/presentation/dto/finance-response.dto';
 
 /**
  * Finance V2 → Financial Accounts (RAKHAL-335, `FINANCE_V2_DESIGN.md` §3,
@@ -45,6 +47,7 @@ export class FinancialAccountController {
 
   @Post()
   @RequirePermission('finance.accounts')
+  @ApiEnvelopeResponse(FinancialAccountResponseDto, { status: 201 })
   create(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -55,6 +58,7 @@ export class FinancialAccountController {
 
   @Get()
   @RequirePermission('finance.accounts')
+  @ApiEnvelopeResponse(FinancialAccountResponseDto, { isArray: true })
   findAll(@CurrentFarmId() farmId: string) {
     return this.accounts.findAll(farmId);
   }
@@ -62,6 +66,7 @@ export class FinancialAccountController {
   /** The farm's one account (created as "Main Wallet" on first use). Declared before `:id`. */
   @Get('farm-account')
   @RequirePermission('finance.accounts')
+  @ApiEnvelopeResponse(FinancialAccountResponseDto)
   farmAccount(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -71,12 +76,14 @@ export class FinancialAccountController {
 
   @Get(':id')
   @RequirePermission('finance.accounts')
+  @ApiEnvelopeResponse(FinancialAccountResponseDto)
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.accounts.findOne(farmId, id);
   }
 
   @Patch(':id')
   @RequirePermission('finance.accounts')
+  @ApiEnvelopeResponse(FinancialAccountResponseDto)
   update(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
@@ -87,6 +94,7 @@ export class FinancialAccountController {
 
   @Patch(':id/opening-balance')
   @RequirePermission('finance.accounts')
+  @ApiEnvelopeResponse(FinancialAccountResponseDto)
   setOpeningBalance(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
@@ -103,6 +111,7 @@ export class FinancialAccountController {
 
   @Patch(':id/primary')
   @RequirePermission('finance.accounts')
+  @ApiEnvelopeResponse(FinancialAccountResponseDto)
   setPrimary(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
@@ -113,6 +122,7 @@ export class FinancialAccountController {
 
   @Patch(':id/archive')
   @RequirePermission('finance.accounts')
+  @ApiEnvelopeResponse(FinancialAccountResponseDto)
   archive(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,

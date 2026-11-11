@@ -15,6 +15,8 @@ import { PermissionGuard } from 'src/modules/permission/presentation/guards/perm
 import { SubscriptionGuard } from 'src/modules/subscription/presentation/guards/subscription.guard';
 import { RequirePermission } from 'src/modules/permission/presentation/decorators/require-permission.decorator';
 import { TransferService } from '../../application/transfer.service';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import { TransferResponseDto } from 'src/modules/finance-v2/presentation/dto/finance-response.dto';
 
 /**
  * Finance V2 → Transfers (RAKHAL-338, `FINANCE_V2_DESIGN.md` §4.4). Routes
@@ -53,12 +55,14 @@ export class TransferController {
 
   @Get()
   @RequirePermission('finance.transfer')
+  @ApiEnvelopeResponse(TransferResponseDto, { isArray: true })
   findAll(@CurrentFarmId() farmId: string) {
     return this.transfers.findAll(farmId);
   }
 
   @Get(':id')
   @RequirePermission('finance.transfer')
+  @ApiEnvelopeResponse(TransferResponseDto)
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.transfers.findOne(farmId, id);
   }

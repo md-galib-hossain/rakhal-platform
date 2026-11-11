@@ -21,6 +21,11 @@ class Probe {
   many() {
     return null;
   }
+
+  @ApiEnvelopeResponse(ThingDto, { isArray: true })
+  list() {
+    return null;
+  }
 }
 
 interface StoredResponse {
@@ -52,6 +57,16 @@ describe('ApiEnvelopeResponse / ApiPaginatedResponse (RD-140)', () => {
         data: { $ref: '#/components/schemas/ThingDto' },
       },
     });
+  });
+
+  it('documents a plain (non-paginated) array as data: Model[] with no meta', () => {
+    const { schema } = responses('list')['200'];
+    expect(schema.required).toEqual(['success', 'data']);
+    expect(schema.properties.data).toEqual({
+      type: 'array',
+      items: { $ref: '#/components/schemas/ThingDto' },
+    });
+    expect(schema.properties.meta).toBeUndefined();
   });
 
   it('honours status and description (create routes use 201)', () => {

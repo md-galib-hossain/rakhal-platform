@@ -10,6 +10,11 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { IncomeService } from '../../application/income.service';
 import { CreateIncomeCategoryDto } from '../dto/create-income-category.dto';
 import { RecordOtherIncomeDto } from '../dto/record-other-income.dto';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  IncomeCategoryResponseDto,
+  IncomeResponseDto,
+} from 'src/modules/finance-v2/presentation/dto/finance-response.dto';
 
 /**
  * Finance V2 → Other Income (RAKHAL-350, `FINANCE_V2_DESIGN.md` §1.3, §5.1).
@@ -40,12 +45,14 @@ export class IncomeController {
 
   @Get('categories')
   @RequirePermission('finance.read')
+  @ApiEnvelopeResponse(IncomeCategoryResponseDto, { isArray: true })
   listCategories(@CurrentFarmId() farmId: string) {
     return this.income.listCategories(farmId);
   }
 
   @Post('categories')
   @RequirePermission('finance.create')
+  @ApiEnvelopeResponse(IncomeCategoryResponseDto, { status: 201 })
   createCategory(
     @CurrentFarmId() farmId: string,
     @Body() dto: CreateIncomeCategoryDto,
@@ -55,6 +62,7 @@ export class IncomeController {
 
   @Post()
   @RequirePermission('finance.create')
+  @ApiEnvelopeResponse(IncomeResponseDto, { status: 201 })
   record(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -65,12 +73,14 @@ export class IncomeController {
 
   @Get()
   @RequirePermission('finance.read')
+  @ApiEnvelopeResponse(IncomeResponseDto, { isArray: true })
   findAll(@CurrentFarmId() farmId: string) {
     return this.income.findAll(farmId);
   }
 
   @Get(':id')
   @RequirePermission('finance.read')
+  @ApiEnvelopeResponse(IncomeResponseDto)
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.income.findOne(farmId, id);
   }
