@@ -38,6 +38,17 @@ export function resolveOpaque(fg: string, bg: string): string {
   return toHex([f[0] * a + b[0] * (1 - a), f[1] * a + b[1] * (1 - a), f[2] * a + b[2] * (1 - a)]);
 }
 
+/**
+ * Opaque colour of `fg` drawn over the opaque `bg` at a real-valued `alpha` (0..1), composited in sRGB space like RN does.
+ * Used to measure pressed overlays (e.g. 12% foreground over a button fill). Both colours must be opaque hex.
+ */
+export function blend(fg: string, bg: string, alpha: number): string {
+  if (!Number.isFinite(alpha) || alpha < 0 || alpha > 1) throw new Error(`blend alpha must be within 0..1, got ${alpha}`);
+  const f = hexToRgb(fg);
+  const b = hexToRgb(bg);
+  return toHex([f[0] * alpha + b[0] * (1 - alpha), f[1] * alpha + b[1] * (1 - alpha), f[2] * alpha + b[2] * (1 - alpha)]);
+}
+
 function channel(v: number): number {
   const s = v / 255;
   return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
