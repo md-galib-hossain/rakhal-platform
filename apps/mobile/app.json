@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Rakhal",
+    "slug": "rakhal",
+    "scheme": "rakhal",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "plugins": [
+      "expo-router",
+      ["expo-splash-screen", { "backgroundColor": "#055640", "dark": { "backgroundColor": "#06301f" } }],
+      "expo-font"
+    ],
+    "experiments": {}
+  }
+}

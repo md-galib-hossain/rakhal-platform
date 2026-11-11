@@ -1,0 +1,53 @@
+{
+  "name": "@rakhal/mobile",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "expo-router/entry",
+  "description": "Rakhal native app (React Native + Expo, ADR-005). WP2 scaffold: Expo Router entry, toolchain; no providers, navigation or API yet.",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test:node": "node --test \"test/*.test.ts\" && node scripts/check-token-drift.ts",
+    "test:components": "jest --ci",
+    "test": "pnpm run test:node && pnpm run test:components",
+    "check:tokens": "node scripts/check-token-drift.ts",
+    "check:tokens:live": "node scripts/check-token-drift.ts --live",
+    "refresh:web-snapshot": "node scripts/refresh-web-snapshot.ts",
+    "check:contrast": "node scripts/check-contrast.ts"
+  },
+  "dependencies": {
+    "@expo-google-fonts/inter": "0.4.2",
+    "@expo-google-fonts/noto-sans-bengali": "0.4.4",
+    "@expo/metro-runtime": "~58.0.17",
+    "@rakhal/domain": "workspace:*",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~58.0.23",
+    "expo-constants": "~58.0.15",
+    "expo-font": "~58.0.11",
+    "expo-linking": "~58.0.16",
+    "expo-router": "~58.0.30",
+    "expo-splash-screen": "~58.0.13",
+    "expo-status-bar": "~58.0.4",
+    "react": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-safe-area-context": "~5.11.1",
+    "react-native-screens": "~4.30.1"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.5.2",
+    "@rakhal/config": "workspace:*",
+    "@react-native/jest-preset": "0.88.1",
+    "@testing-library/react-native": "^14.1.0",
+    "@types/node": "^24",
+    "@types/react": "~19.3.0",
+    "eslint": "^9",
+    "jest": "^30.5.2",
+    "jest-expo": "~58.0.14",
+    "test-renderer": "1.3.0",
+    "typescript": "~5.9.3"
+  }
+}
