@@ -377,3 +377,20 @@ Next: Verity + Critica review of the whole WP2 diff, fix blockers, then device/e
 Verity (no Critical/High; Android Metro export OK, 6 font TTFs bundled) and Critica (no blockers) reviewed WP2. Fixed M1-M4 plus a root-layout test: themed placeholder screen, bounded (4 s) prefs and font hydration, single parallel prefs read, root error boundary + safe formatter variants.
 Current evidence: mobile typecheck/lint exit 0, node tests 129/129 with drift OK, Jest 10 suites / 85 tests, domain 225, `turbo run typecheck test lint --force` 15/15, lockfile md5 `400911d76221c379d6a4047253024a03`. Supersedes the 124/74 counts above.
 Still unverified on device: splash, dark first frame, 200% scale and lineHeight scaling, Hermes formatter self-test, iOS.
+
+## WP3 status (core component kit)
+
+Built (commits C1-C9, plus C10 dev gallery, spec `docs/mobile/wp3-component-spec.md`): C1 foundations (layout rules, press overlay, focus ring, reduce-motion hook, drawn `Glyph`, `PressableSurface`, test utils), C2 Button + IconButton, C3 Card + StatusBadge + Skeleton/SkeletonList, C4 TextField + decimal input + StepperField, C5 Chip + ChipGroup, C6 ListRow, C7 EmptyState/ErrorState, C8 SheetModal + ConfirmSheet, C9 Toast + ToastProvider (in `AppProviders`) + haptics no-op seam, C10 dev route `app/dev/components.tsx` (full variant/state matrix) with the theme/locale/font-scale controls extracted to `src/dev/GalleryControls.tsx` and shared with `app/dev/gallery.tsx` (which links to it in `__DEV__`).
+Current evidence: mobile typecheck/lint exit 0, node tests 217/217 with token drift OK, Jest 27 suites / 404 tests, `turbo run typecheck test lint` 15/15, lockfile md5 (CR-stripped) `400911d76221c379d6a4047253024a03`. Supersedes the 129 node / 85 Jest counts above.
+Deviations: none recorded in the C1-C9 commit messages. The spec's open owner questions (section 7: icons, haptics, number pad, toast surface, undo scope, pressed look, StatusBadge shape, disabled look, timings) are all built on the stated defaults (zero-dependency `Glyph`, no-op haptics seam, native decimal pad, popover-surface toast, one toast at a time, 12% overlay) and still need owner confirmation.
+
+**Nothing in WP3 has been run on a device or emulator yet.** Every check so far is Jest/node (style intent, no Yoga, no native rendering). Device-unverified:
+- V-C1 outline focus ring (`outlineWidth/Offset/Color`) on an Android `Pressable`, with a hardware keyboard.
+- V-C2 `useSafeAreaInsets()` bottom inset inside `Modal` on Android; `navigationBarTranslucent`.
+- V-C3 Bengali single-line `TextInput` clipping (no `lineHeight`) at 1.0x and 2.0x.
+- V-C4 `Animated` native-driver opacity/translate in Expo Go; `AccessibilityInfo.getRecommendedTimeoutMillis` on RN 0.88.
+- TalkBack behaviour (field with unit and error, stepper actions, chip radiogroup, toast announcement and extended undo window, sheet focus and back).
+- Real 48dp / 56dp touch-target bounds (`adb shell uiautomator dump` on `/dev/components`) and 200% system font-scale layouts (stacking rule reads the system scale, not the gallery override).
+- `Glyph` appearance (View-drawn shapes).
+- Dark focus ring margin (spec open question Q7).
+- Bangla copy proofread (spec 3.2 and existing drafts).
