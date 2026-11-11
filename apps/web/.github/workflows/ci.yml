@@ -57,6 +57,9 @@ jobs:
       # Job-level so the Lighthouse action's own spawned `pnpm start` process (not just this job's
       # `run:` steps) inherits them too.
       NEXT_PUBLIC_APP_URL: http://localhost:3001
+      # The proxy hands every non-landing path to `NEXT_PUBLIC_FARM_URL`, which defaults to the live
+      # https://farm.rakhal.app. Without this, auditing `/` followed a redirect to PRODUCTION. Keep hand-offs local.
+      NEXT_PUBLIC_FARM_URL: http://localhost:3001
       API_BASE_URL: http://localhost:3000/api/v1
     steps:
       - uses: actions/checkout@v7
@@ -83,13 +86,11 @@ jobs:
       # by pointing Lighthouse at the gate-redirect page.
       - name: Run Lighthouse CI
         uses: treosh/lighthouse-ci-action@v12
+        # The URLs and the server start command live in `lighthouserc.json` (`ci.collect`), not here: this action
+        # does not accept `startServerCommand` / `startServerReadyPattern` / `startServerReadyTimeout` as inputs
+        # (it only logs "Unexpected input(s)"), so the app server was never started. `pnpm start` would also have
+        # listened on 3005 (the dev port in package.json), not the 3001 audited here.
         with:
-          urls: |
-            http://localhost:3001/
-            http://localhost:3001/login
-          startServerCommand: pnpm start
-          startServerReadyPattern: Ready in
-          startServerReadyTimeout: 30000
           configPath: ./lighthouserc.json
           uploadArtifacts: true
           temporaryPublicStorage: true
