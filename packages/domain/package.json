@@ -1,0 +1,21 @@
+{
+  "name": "@rakhal/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure TypeScript domain helpers shared across Rakhal apps: money/number/date formatting (lakh grouping, no Intl), digits, locale types.",
+  "sideEffects": false,
+  "engines": { "node": ">=24" },
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test \"test/*.test.ts\""
+  },
+  "devDependencies": {
+    "@rakhal/config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9",
+    "typescript": "~5.9.3"
+  }
+}

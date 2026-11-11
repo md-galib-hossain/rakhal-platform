@@ -1,0 +1,10 @@
+{
+  "extends": "@rakhal/config/tsconfig.base.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "lib": ["esnext"],
+    "types": ["node"]
+  },
+  "include": ["src", "test"]
+}

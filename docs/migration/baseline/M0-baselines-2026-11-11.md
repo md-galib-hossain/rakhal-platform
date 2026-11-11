@@ -53,8 +53,7 @@ Fix candidates (not applied; the frontend repo has many active claims): move typ
 | `turbo run test` | pass: admin 9 files / 103 tests, ui 1 file; api-client has no tests yet |
 | `turbo run build` | pass, 23 app routes (list in `admin-routes-3ccf4cf.txt`), about 14 s |
 
-CI fix applied in the working tree, **not committed and not run on GitHub**: `.github/workflows/ci.yml` no longer
-passes `version: 10` to `pnpm/action-setup`, so `packageManager` is the single source.
+CI fix **verified on GitHub 2026-11-11**: `.github/workflows/ci.yml` no longer passes `version: 10` to `pnpm/action-setup`, so `packageManager` is the single source. Run 42960504210 on `65eb31b` passed (install, lint, typecheck, test, build): the first green CI run in this repo's history.
 
 ## Not captured
 
