@@ -22,6 +22,14 @@ import { CreateEquipmentDto } from '../dto/create-equipment.dto';
 import { ListEquipmentQueryDto } from '../dto/list-equipment-query.dto';
 import { UpdateEquipmentDto } from '../dto/update-equipment.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiEnvelopeResponse,
+  ApiPaginatedResponse,
+} from 'src/common/swagger/api-envelope';
+import {
+  BulkDeleteResponseDto,
+  EquipmentResponseDto,
+} from '../dto/inventory-response.dto';
 
 /** Inventory â†’ Others/Equipment tab. `/api/v1/inventory/equipment`. Token tenancy + RBAC. */
 @ApiTags('Inventory')
@@ -39,6 +47,7 @@ export class EquipmentController {
 
   @Post()
   @RequirePermission('inventory.create')
+  @ApiEnvelopeResponse(EquipmentResponseDto, { status: 201 })
   create(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -50,6 +59,7 @@ export class EquipmentController {
   /** Multi-select delete (bulk-action dock, 2026-07-21) — registered before the `:id` routes. */
   @Post('bulk-delete')
   @RequirePermission('inventory.delete')
+  @ApiEnvelopeResponse(BulkDeleteResponseDto, { status: 201 })
   bulkDelete(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -60,6 +70,7 @@ export class EquipmentController {
 
   @Get()
   @RequirePermission('inventory.read')
+  @ApiPaginatedResponse(EquipmentResponseDto)
   findAll(
     @CurrentFarmId() farmId: string,
     @Query() query: ListEquipmentQueryDto,
@@ -69,12 +80,14 @@ export class EquipmentController {
 
   @Get(':id')
   @RequirePermission('inventory.read')
+  @ApiEnvelopeResponse(EquipmentResponseDto)
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.equipmentService.findOne(farmId, id);
   }
 
   @Patch(':id')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(EquipmentResponseDto)
   update(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -86,6 +99,7 @@ export class EquipmentController {
 
   @Patch(':id/archive')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(EquipmentResponseDto)
   archive(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -96,6 +110,7 @@ export class EquipmentController {
 
   @Patch(':id/restore')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(EquipmentResponseDto)
   restore(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -106,6 +121,7 @@ export class EquipmentController {
 
   @Delete(':id')
   @RequirePermission('inventory.delete')
+  @ApiEnvelopeResponse(EquipmentResponseDto)
   remove(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,

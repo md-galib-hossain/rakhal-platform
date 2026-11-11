@@ -24,6 +24,14 @@ import {
   UpdateSemenBatchDto,
 } from '../dto/semen-batch.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiEnvelopeResponse,
+  ApiPaginatedResponse,
+} from 'src/common/swagger/api-envelope';
+import {
+  SemenBatchResponseDto,
+  SemenTankResponseDto,
+} from '../dto/inventory-response.dto';
 
 /**
  * Inventory â†’ Semen tab. Tanks under `/api/v1/inventory/semen/tanks`, straw
@@ -45,12 +53,14 @@ export class SemenController {
   // Tanks
   @Get('tanks')
   @RequirePermission('inventory.read')
+  @ApiEnvelopeResponse(SemenTankResponseDto, { isArray: true })
   listTanks(@CurrentFarmId() farmId: string) {
     return this.semenService.listTanks(farmId);
   }
 
   @Post('tanks')
   @RequirePermission('inventory.create')
+  @ApiEnvelopeResponse(SemenTankResponseDto, { status: 201 })
   createTank(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -61,6 +71,7 @@ export class SemenController {
 
   @Patch('tanks/:id')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(SemenTankResponseDto)
   updateTank(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -72,6 +83,7 @@ export class SemenController {
 
   @Delete('tanks/:id')
   @RequirePermission('inventory.delete')
+  @ApiEnvelopeResponse(SemenTankResponseDto)
   archiveTank(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -83,6 +95,7 @@ export class SemenController {
   // Batches
   @Get('batches')
   @RequirePermission('inventory.read')
+  @ApiPaginatedResponse(SemenBatchResponseDto)
   listBatches(
     @CurrentFarmId() farmId: string,
     @Query() query: ListSemenBatchQueryDto,
@@ -92,6 +105,7 @@ export class SemenController {
 
   @Post('batches')
   @RequirePermission('inventory.create')
+  @ApiEnvelopeResponse(SemenBatchResponseDto, { status: 201 })
   createBatch(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -102,6 +116,7 @@ export class SemenController {
 
   @Patch('batches/:id')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(SemenBatchResponseDto)
   updateBatch(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -113,6 +128,7 @@ export class SemenController {
 
   @Delete('batches/:id')
   @RequirePermission('inventory.delete')
+  @ApiEnvelopeResponse(SemenBatchResponseDto)
   archiveBatch(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,

@@ -19,6 +19,8 @@ import { UnitService } from '../../application/services/unit.service';
 import { CreateUnitDto } from '../dto/create-unit.dto';
 import { ListUnitQueryDto } from '../dto/list-unit-query.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import { UnitResponseDto } from '../dto/inventory-response.dto';
 
 /** Unit catalog (RAKHAL-326) — `/api/v1/inventory/units`. Token tenancy + RBAC, reuses the
  * same `inventory.read`/`inventory.create` permissions Medicine/Equipment/FeedItem already
@@ -38,12 +40,14 @@ export class UnitController {
 
   @Get()
   @RequirePermission('inventory.read')
+  @ApiEnvelopeResponse(UnitResponseDto, { isArray: true })
   findAll(@CurrentFarmId() farmId: string, @Query() query: ListUnitQueryDto) {
     return this.unitService.findAll(farmId, query);
   }
 
   @Post()
   @RequirePermission('inventory.create')
+  @ApiEnvelopeResponse(UnitResponseDto, { status: 201 })
   create(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -54,6 +58,7 @@ export class UnitController {
 
   @Patch(':id/archive')
   @RequirePermission('inventory.delete')
+  @ApiEnvelopeResponse(UnitResponseDto)
   archive(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,

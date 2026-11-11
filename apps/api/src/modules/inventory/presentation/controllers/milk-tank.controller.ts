@@ -25,6 +25,14 @@ import {
   UpdateMilkTankDto,
 } from '../dto/milk-tank.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiEnvelopeResponse,
+  ApiPaginatedResponse,
+} from 'src/common/swagger/api-envelope';
+import {
+  MilkTankAuditEntryDto,
+  MilkTankResponseDto,
+} from '../dto/inventory-response.dto';
 
 /** Inventory â†’ Milk tab. `/api/v1/inventory/milk-tanks`. Token-based tenancy. */
 @ApiTags('Inventory')
@@ -43,6 +51,7 @@ export class MilkTankController {
   // Static route declared before ':id' so it is not captured as a param.
   @Get('audit-log')
   @RequirePermission('inventory.read')
+  @ApiPaginatedResponse(MilkTankAuditEntryDto)
   auditLog(
     @CurrentFarmId() farmId: string,
     @Query() query: ListMilkTankAuditQueryDto,
@@ -52,6 +61,7 @@ export class MilkTankController {
 
   @Get()
   @RequirePermission('inventory.read')
+  @ApiEnvelopeResponse(MilkTankResponseDto, { isArray: true })
   findAll(
     @CurrentFarmId() farmId: string,
     @Query() query: ListMilkTankQueryDto,
@@ -61,12 +71,14 @@ export class MilkTankController {
 
   @Get(':id')
   @RequirePermission('inventory.read')
+  @ApiEnvelopeResponse(MilkTankResponseDto)
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.milkTankService.findOne(farmId, id);
   }
 
   @Post()
   @RequirePermission('inventory.create')
+  @ApiEnvelopeResponse(MilkTankResponseDto, { status: 201 })
   create(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -77,6 +89,7 @@ export class MilkTankController {
 
   @Patch(':id')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(MilkTankResponseDto)
   update(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -88,6 +101,7 @@ export class MilkTankController {
 
   @Post(':id/set-primary')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(MilkTankResponseDto, { status: 201 })
   setPrimary(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -98,6 +112,7 @@ export class MilkTankController {
 
   @Post(':id/adjust-volume')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(MilkTankResponseDto, { status: 201 })
   adjustVolume(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -109,6 +124,7 @@ export class MilkTankController {
 
   @Delete(':id')
   @RequirePermission('inventory.delete')
+  @ApiEnvelopeResponse(MilkTankResponseDto)
   archive(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,

@@ -759,6 +759,18 @@
         ],
         "type": "object"
       },
+      "BulkDeleteResponseDto": {
+        "properties": {
+          "deleted": {
+            "description": "How many rows were archived.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "deleted"
+        ],
+        "type": "object"
+      },
       "BulkDeleteStockDto": {
         "properties": {
           "ids": {
@@ -3350,6 +3362,121 @@
         },
         "type": "object"
       },
+      "EquipmentResponseDto": {
+        "properties": {
+          "assetId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "costPerUnit": {
+            "type": "number"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "currentStock": {
+            "type": "number"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lowStockThreshold": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "purchaseDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "stockStatus": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StockStatus"
+              }
+            ]
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EquipmentType"
+              }
+            ]
+          },
+          "unit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnitResponseDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "unitId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "farmId",
+          "assetId",
+          "type",
+          "unitId",
+          "currentStock",
+          "costPerUnit",
+          "lowStockThreshold",
+          "purchaseDate",
+          "notes",
+          "deletedAt",
+          "createdBy",
+          "createdAt",
+          "updatedAt",
+          "unit",
+          "stockStatus"
+        ],
+        "type": "object"
+      },
+      "EquipmentType": {
+        "enum": [
+          "EQUIPMENT",
+          "MACHINERY",
+          "TOOL",
+          "SUPPLY",
+          "OTHER"
+        ],
+        "type": "string"
+      },
+      "ExpiryStatus": {
+        "enum": [
+          "expired",
+          "expiring_soon",
+          "ok"
+        ],
+        "type": "string"
+      },
       "ExportMilkLogDto": {
         "properties": {
           "cattleIds": {
@@ -4729,6 +4856,369 @@
         },
         "type": "object"
       },
+      "MediaUrlsDto": {
+        "properties": {
+          "asset_id": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string"
+          },
+          "full_url": {
+            "nullable": true,
+            "type": "string"
+          },
+          "height": {
+            "nullable": true,
+            "type": "number"
+          },
+          "thumb_url": {
+            "type": "string"
+          },
+          "width": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "asset_id",
+          "thumb_url",
+          "full_url",
+          "width",
+          "height",
+          "expires_at"
+        ],
+        "type": "object"
+      },
+      "MedicineBatchLookupDto": {
+        "properties": {
+          "batchCode": {
+            "nullable": true,
+            "type": "string"
+          },
+          "batchId": {
+            "type": "string"
+          },
+          "costPerUnit": {
+            "type": "number"
+          },
+          "currentStock": {
+            "type": "number"
+          },
+          "expiryDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "medicineId": {
+            "type": "string"
+          },
+          "medicineName": {
+            "type": "string"
+          },
+          "purchaseDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "unit": {
+            "description": "Unit symbol.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "batchId",
+          "batchCode",
+          "medicineId",
+          "medicineName",
+          "currentStock",
+          "costPerUnit",
+          "purchaseDate",
+          "expiryDate",
+          "unit"
+        ],
+        "type": "object"
+      },
+      "MedicineBatchResponseDto": {
+        "properties": {
+          "batchId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MedicineCategory"
+              }
+            ]
+          },
+          "costPerUnit": {
+            "type": "number"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "currentStock": {
+            "type": "number"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "expiryDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiryStatus": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExpiryStatus"
+              }
+            ]
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "lowStockThreshold": {
+            "type": "number"
+          },
+          "manufacturer": {
+            "nullable": true,
+            "type": "string"
+          },
+          "meatWithdrawalDays": {
+            "type": "number"
+          },
+          "milkWithdrawalDays": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "photoAssetId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "purchaseDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "stockStatus": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StockStatus"
+              }
+            ]
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MedicineType"
+              }
+            ]
+          },
+          "unit": {
+            "$ref": "#/components/schemas/UnitResponseDto"
+          },
+          "unitId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "farmId",
+          "imageUrl",
+          "photoAssetId",
+          "type",
+          "category",
+          "manufacturer",
+          "batchId",
+          "unitId",
+          "currentStock",
+          "costPerUnit",
+          "lowStockThreshold",
+          "purchaseDate",
+          "expiryDate",
+          "milkWithdrawalDays",
+          "meatWithdrawalDays",
+          "notes",
+          "deletedAt",
+          "createdBy",
+          "createdAt",
+          "updatedAt",
+          "unit",
+          "stockStatus",
+          "expiryStatus"
+        ],
+        "type": "object"
+      },
+      "MedicineCategory": {
+        "enum": [
+          "ANTIBIOTIC",
+          "ANTIPARASITIC",
+          "VACCINE",
+          "VITAMIN",
+          "MINERAL",
+          "HORMONE",
+          "ANTI_INFLAMMATORY",
+          "ANALGESIC",
+          "OTHER"
+        ],
+        "type": "string"
+      },
+      "MedicineResponseDto": {
+        "properties": {
+          "batchId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MedicineCategory"
+              }
+            ]
+          },
+          "costPerUnit": {
+            "type": "number"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "currentStock": {
+            "type": "number"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "expiryDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "expiryStatus": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExpiryStatus"
+              }
+            ]
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "lowStockThreshold": {
+            "type": "number"
+          },
+          "manufacturer": {
+            "nullable": true,
+            "type": "string"
+          },
+          "meatWithdrawalDays": {
+            "type": "number"
+          },
+          "milkWithdrawalDays": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "photoAssetId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "purchaseDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "stockStatus": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StockStatus"
+              }
+            ]
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MedicineType"
+              }
+            ]
+          },
+          "unit": {
+            "$ref": "#/components/schemas/UnitResponseDto"
+          },
+          "unitId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "farmId",
+          "imageUrl",
+          "photoAssetId",
+          "type",
+          "category",
+          "manufacturer",
+          "batchId",
+          "unitId",
+          "currentStock",
+          "costPerUnit",
+          "lowStockThreshold",
+          "purchaseDate",
+          "expiryDate",
+          "milkWithdrawalDays",
+          "meatWithdrawalDays",
+          "notes",
+          "deletedAt",
+          "createdBy",
+          "createdAt",
+          "updatedAt",
+          "unit",
+          "stockStatus",
+          "expiryStatus"
+        ],
+        "type": "object"
+      },
       "MedicineRoute": {
         "enum": [
           "IM",
@@ -4736,6 +5226,18 @@
           "SC",
           "ORAL",
           "TOPICAL",
+          "OTHER"
+        ],
+        "type": "string"
+      },
+      "MedicineType": {
+        "enum": [
+          "LIQUID",
+          "POWDER",
+          "TABLET",
+          "INJECTABLE",
+          "BOLUS",
+          "OINTMENT",
           "OTHER"
         ],
         "type": "string"
@@ -4980,6 +5482,75 @@
         ],
         "type": "string"
       },
+      "MilkTankActivity": {
+        "enum": [
+          "COLLECTION",
+          "SALE",
+          "ADJUSTMENT",
+          "TRANSFER",
+          "CALF_ALLOCATION"
+        ],
+        "type": "string"
+      },
+      "MilkTankAuditEntryDto": {
+        "properties": {
+          "activityType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MilkTankActivity"
+              }
+            ]
+          },
+          "balanceAfterL": {
+            "type": "number"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "milkTankId": {
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "quantityL": {
+            "type": "number"
+          },
+          "saleLineId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "source": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "createdBy",
+          "createdAt",
+          "milkTankId",
+          "activityType",
+          "quantityL",
+          "balanceAfterL",
+          "source",
+          "notes",
+          "saleLineId"
+        ],
+        "type": "object"
+      },
       "MilkTankAvailabilityDto": {
         "properties": {
           "availableL": {
@@ -5003,6 +5574,115 @@
           "totalCapacityL"
         ],
         "type": "object"
+      },
+      "MilkTankResponseDto": {
+        "properties": {
+          "agitationIntervalMin": {
+            "nullable": true,
+            "type": "number"
+          },
+          "assignedShedId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "currentVolumeL": {
+            "type": "number"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "fatPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "fillPct": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "proteinPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "smartSensorId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "snfPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "tankType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MilkTankType"
+              }
+            ]
+          },
+          "targetTempC": {
+            "nullable": true,
+            "type": "number"
+          },
+          "totalCapacityL": {
+            "type": "number"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "farmId",
+          "tankType",
+          "totalCapacityL",
+          "currentVolumeL",
+          "fatPct",
+          "proteinPct",
+          "snfPct",
+          "smartSensorId",
+          "targetTempC",
+          "agitationIntervalMin",
+          "assignedShedId",
+          "isPrimary",
+          "deletedAt",
+          "createdBy",
+          "createdAt",
+          "updatedAt",
+          "fillPct",
+          "isActive"
+        ],
+        "type": "object"
+      },
+      "MilkTankType": {
+        "enum": [
+          "SELLABLE",
+          "WITHHOLDING"
+        ],
+        "type": "string"
       },
       "MortalityDto": {
         "properties": {
@@ -6473,6 +7153,17 @@
         },
         "type": "object"
       },
+      "RemovePhotoResponseDto": {
+        "properties": {
+          "removed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "removed"
+        ],
+        "type": "object"
+      },
       "ReportPeriodDto": {
         "properties": {
           "customEndDate": {
@@ -7001,6 +7692,223 @@
         ],
         "type": "object"
       },
+      "SemenBatchResponseDto": {
+        "properties": {
+          "batchCode": {
+            "nullable": true,
+            "type": "string"
+          },
+          "breed": {
+            "nullable": true,
+            "type": "string"
+          },
+          "bullId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "canister": {
+            "nullable": true,
+            "type": "string"
+          },
+          "costPerUnit": {
+            "nullable": true,
+            "type": "number"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "fatherId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "goblet": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "initialVitalityPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "lowStraw": {
+            "type": "boolean"
+          },
+          "lowStrawThreshold": {
+            "type": "number"
+          },
+          "motherId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "semenType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SemenType"
+              }
+            ],
+            "nullable": true
+          },
+          "strawColor": {
+            "nullable": true,
+            "type": "string"
+          },
+          "strawQuantity": {
+            "type": "number"
+          },
+          "tankId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "targetSex": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TargetSex"
+              }
+            ],
+            "nullable": true
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "farmId",
+          "batchCode",
+          "bullId",
+          "breed",
+          "strawColor",
+          "initialVitalityPct",
+          "strawQuantity",
+          "lowStrawThreshold",
+          "semenType",
+          "targetSex",
+          "costPerUnit",
+          "fatherId",
+          "motherId",
+          "tankId",
+          "canister",
+          "goblet",
+          "notes",
+          "deletedAt",
+          "createdBy",
+          "createdAt",
+          "updatedAt",
+          "lowStraw"
+        ],
+        "type": "object"
+      },
+      "SemenTankResponseDto": {
+        "properties": {
+          "availableCapacity": {
+            "type": "number"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "currentTempC": {
+            "nullable": true,
+            "type": "number"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ln2LevelPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "modelManufacturer": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "numCanisters": {
+            "nullable": true,
+            "type": "number"
+          },
+          "numGoblets": {
+            "nullable": true,
+            "type": "number"
+          },
+          "storageLocation": {
+            "nullable": true,
+            "type": "string"
+          },
+          "strawCapacity": {
+            "type": "number"
+          },
+          "strawInStock": {
+            "type": "number"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "farmId",
+          "deletedAt",
+          "createdBy",
+          "createdAt",
+          "updatedAt",
+          "modelManufacturer",
+          "strawCapacity",
+          "numCanisters",
+          "numGoblets",
+          "storageLocation",
+          "currentTempC",
+          "ln2LevelPct",
+          "strawInStock",
+          "availableCapacity"
+        ],
+        "type": "object"
+      },
+      "SemenType": {
+        "enum": [
+          "CONVENTIONAL",
+          "SEX_SORTED"
+        ],
+        "type": "string"
+      },
       "SetFeedOverrideDto": {
         "properties": {
           "customAdfPct": {
@@ -7283,6 +8191,14 @@
         ],
         "type": "object"
       },
+      "StockStatus": {
+        "enum": [
+          "out",
+          "low",
+          "adequate"
+        ],
+        "type": "string"
+      },
       "StopCattleProtocolDto": {
         "properties": {
           "healthCaseId": {
@@ -7336,6 +8252,13 @@
           "reason"
         ],
         "type": "object"
+      },
+      "TargetSex": {
+        "enum": [
+          "FEMALE",
+          "MALE"
+        ],
+        "type": "string"
       },
       "TransferResponseDto": {
         "properties": {
@@ -7395,6 +8318,71 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "UnitDimension": {
+        "enum": [
+          "WEIGHT",
+          "VOLUME",
+          "COUNT"
+        ],
+        "type": "string"
+      },
+      "UnitResponseDto": {
+        "properties": {
+          "conversionToBase": {
+            "nullable": true,
+            "type": "number"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "dimension": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UnitDimension"
+              }
+            ]
+          },
+          "farmId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isSystemDefault": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "symbol",
+          "dimension",
+          "conversionToBase",
+          "isSystemDefault",
+          "deletedAt",
+          "farmId",
+          "createdAt",
+          "updatedAt"
+        ],
         "type": "object"
       },
       "UpdateAdminDto": {

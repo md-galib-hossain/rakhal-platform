@@ -33,6 +33,18 @@ import { ListMedicineQueryDto } from '../dto/list-medicine-query.dto';
 import { MedicineByBatchCodeQueryDto } from '../dto/medicine-by-batch-code-query.dto';
 import { UpdateMedicineDto } from '../dto/update-medicine.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiEnvelopeResponse,
+  ApiPaginatedResponse,
+} from 'src/common/swagger/api-envelope';
+import {
+  BulkDeleteResponseDto,
+  MediaUrlsDto,
+  MedicineBatchLookupDto,
+  MedicineBatchResponseDto,
+  MedicineResponseDto,
+  RemovePhotoResponseDto,
+} from '../dto/inventory-response.dto';
 
 /** Max product-photo upload size — same limit as the cattle profile-photo endpoint. */
 const PHOTO_MAX_BYTES = env.MEDIA_MAX_UPLOAD_BYTES;
@@ -60,6 +72,7 @@ export class MedicineController {
 
   @Post()
   @RequirePermission('inventory.create')
+  @ApiEnvelopeResponse(MedicineResponseDto, { status: 201 })
   create(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -73,6 +86,7 @@ export class MedicineController {
    * the `:id` routes are GET/PATCH/DELETE, but keeping it grouped for clarity/precedent). */
   @Post('bulk-delete')
   @RequirePermission('inventory.delete')
+  @ApiEnvelopeResponse(BulkDeleteResponseDto, { status: 201 })
   bulkDelete(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -83,6 +97,7 @@ export class MedicineController {
 
   @Get()
   @RequirePermission('inventory.read')
+  @ApiPaginatedResponse(MedicineResponseDto)
   findAll(
     @CurrentFarmId() farmId: string,
     @Query() query: ListMedicineQueryDto,
@@ -93,6 +108,7 @@ export class MedicineController {
   /** RAKHAL-434/439 — real batch lookup (recall use case), registered before `:id`. */
   @Get('by-batch-code')
   @RequirePermission('inventory.read')
+  @ApiEnvelopeResponse(MedicineBatchLookupDto, { isArray: true })
   findByBatchCode(
     @CurrentFarmId() farmId: string,
     @Query() query: MedicineByBatchCodeQueryDto,
@@ -102,12 +118,14 @@ export class MedicineController {
 
   @Get(':id')
   @RequirePermission('inventory.read')
+  @ApiEnvelopeResponse(MedicineResponseDto)
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.medicineService.findOne(farmId, id);
   }
 
   @Patch(':id')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(MedicineResponseDto)
   update(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -120,6 +138,7 @@ export class MedicineController {
   /** RAKHAL-434/435 — restock an existing product with a new lot (`docs/EPIC_MEDICINE_BATCH_MODEL.md`). */
   @Post(':id/batches')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(MedicineBatchResponseDto, { status: 201 })
   createBatch(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -131,6 +150,7 @@ export class MedicineController {
 
   @Post(':id/adjust-stock')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(MedicineResponseDto, { status: 201 })
   adjustStock(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -142,6 +162,10 @@ export class MedicineController {
 
   @Get(':id/photo')
   @RequirePermission('inventory.read')
+  @ApiEnvelopeResponse(MediaUrlsDto, {
+    description:
+      'The current photo URLs. When the medicine has no photo the body is empty (HTTP 200, no JSON): the response interceptor does not wrap null.',
+  })
   getPhoto(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.medicineService.getPhoto(farmId, id);
   }
@@ -152,6 +176,7 @@ export class MedicineController {
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: PHOTO_MAX_BYTES } }),
   )
+  @ApiEnvelopeResponse(MediaUrlsDto, { status: 201 })
   setPhoto(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -163,6 +188,7 @@ export class MedicineController {
 
   @Delete(':id/photo')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(RemovePhotoResponseDto)
   removePhoto(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -173,6 +199,7 @@ export class MedicineController {
 
   @Patch(':id/archive')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(MedicineResponseDto)
   archive(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -183,6 +210,7 @@ export class MedicineController {
 
   @Patch(':id/restore')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(MedicineResponseDto)
   restore(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -193,6 +221,7 @@ export class MedicineController {
 
   @Delete(':id')
   @RequirePermission('inventory.delete')
+  @ApiEnvelopeResponse(MedicineResponseDto)
   remove(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
