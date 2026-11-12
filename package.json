@@ -2,10 +2,13 @@
   "name": "rakhal-platform",
   "private": true,
   "packageManager": "pnpm@10.0.0",
-  "engines": { "node": ">=20.9" },
+  "engines": {
+    "node": ">=20.9"
+  },
   "scripts": {
     "dev": "turbo run dev --filter=@rakhal/admin",
     "dev:web": "turbo run dev --filter=@rakhal/web",
+    "routes:compare": "node scripts/compare-web-routes.mjs --monorepo apps/web --baseline docs/migration/baseline/web-routes-92e24e8.txt",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

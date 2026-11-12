@@ -1,0 +1,53 @@
+name: Web
+
+# Path-filtered CI for apps/web (docs/migration/01-consumer-frontend.md "M2", 04-ci-deploy-cutover.md).
+# Runs only when the web app, a shared package, or the install/build config changes. The general CI workflow
+# (ci.yml) covers every other app, so a PR only pays for what it can break.
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - "scripts/compare-web-routes.mjs"
+      - "docs/migration/baseline/web-routes-*.txt"
+      - ".github/workflows/web.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - "scripts/compare-web-routes.mjs"
+      - "docs/migration/baseline/web-routes-*.txt"
+      - ".github/workflows/web.yml"
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # No `version:` here: package.json's "packageManager" is the single source. Giving both makes the action fail
+      # with "Multiple versions of pnpm specified" before any step runs.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # `...` also builds the workspace packages @rakhal/web depends on. Typecheck waits for build (turbo.json),
+      # because next-env.d.ts only exists once `next build` has run.
+      - run: pnpm turbo run lint typecheck test build --filter=@rakhal/web...
+      # Import parity: the monorepo build must expose exactly the routes the original app had at the same commit.
+      - name: Route parity against the recorded baseline
+        run: node scripts/compare-web-routes.mjs --monorepo apps/web --baseline docs/migration/baseline/web-routes-92e24e8.txt
