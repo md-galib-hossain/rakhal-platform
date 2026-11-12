@@ -74,6 +74,16 @@ import {
   FeedStockResponseDto,
   ResetOverrideResponseDto,
 } from 'src/modules/feed/presentation/dto/feed-response.dto';
+import {
+  ConcentrationDetailDto,
+  ConcentrationFinalizeResponseDto,
+  ConcentrationInventoryCheckResponseDto,
+  ConcentrationNormalizeResponseDto,
+  ConcentrationRemoveResponseDto,
+  ConcentrationSummaryDto,
+  ConcentrationVersionDetailDto,
+  ConcentrationVersionDto,
+} from 'src/modules/feed/presentation/dto/feed-concentration-response.dto';
 import { BulkDeleteResponseDto } from 'src/modules/inventory/presentation/dto/inventory-response.dto';
 
 /**
@@ -246,6 +256,7 @@ export class FeedController {
   // ---- Concentration templates -------------------------------------------
   @Get('concentrations')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(ConcentrationSummaryDto, { isArray: true })
   listConcentrations(
     @CurrentFarmId() farmId: string,
     @Query() query: ListConcentrationsQueryDto,
@@ -255,6 +266,7 @@ export class FeedController {
 
   @Post('concentrations')
   @RequirePermission('feed.create')
+  @ApiEnvelopeResponse(ConcentrationDetailDto, { status: 201 })
   createConcentration(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -265,6 +277,7 @@ export class FeedController {
 
   @Post('concentrations/normalize')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(ConcentrationNormalizeResponseDto, { status: 201 })
   normalize(
     @CurrentFarmId() farmId: string,
     @Body() dto: NormalizeConcentrationDto,
@@ -287,12 +300,14 @@ export class FeedController {
 
   @Get('concentrations/:id')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(ConcentrationDetailDto)
   getConcentration(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.concentrations.get(farmId, id);
   }
 
   @Patch('concentrations/:id')
   @RequirePermission('feed.update')
+  @ApiEnvelopeResponse(ConcentrationDetailDto)
   updateConcentration(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
@@ -303,6 +318,7 @@ export class FeedController {
 
   @Delete('concentrations/:id')
   @RequirePermission('feed.delete')
+  @ApiEnvelopeResponse(ConcentrationRemoveResponseDto)
   removeConcentration(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
@@ -313,6 +329,7 @@ export class FeedController {
   /** Explicit-checkpoint versioning, `FEED_MIXTURE` only (2026-08-13, user request). */
   @Post('concentrations/:id/save-version')
   @RequirePermission('feed.update')
+  @ApiEnvelopeResponse(ConcentrationVersionDto, { status: 201 })
   saveVersion(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -324,6 +341,7 @@ export class FeedController {
 
   @Get('concentrations/:id/versions')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(ConcentrationVersionDetailDto, { isArray: true })
   listVersions(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.concentrations.listVersions(farmId, id);
   }
@@ -332,6 +350,7 @@ export class FeedController {
    * 2026-07-17, "concentrates become reusable ingredients") — see `FeedConcentrationService.finalize`. */
   @Post('concentrations/:id/finalize')
   @RequirePermission('feed.update')
+  @ApiEnvelopeResponse(ConcentrationFinalizeResponseDto, { status: 201 })
   finalizeConcentration(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -351,6 +370,7 @@ export class FeedController {
    * bought). Drives the Feed Formulator finalize sheet. */
   @Get('concentrations/:id/inventory-check')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(ConcentrationInventoryCheckResponseDto)
   concentrationInventoryCheck(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,

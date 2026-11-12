@@ -1251,6 +1251,247 @@
         },
         "type": "object"
       },
+      "ConcentrationDetailDto": {
+        "properties": {
+          "balance_score": {
+            "nullable": true,
+            "type": "number"
+          },
+          "cattle_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "duration_days": {
+            "nullable": true,
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ingredients": {
+            "items": {
+              "$ref": "#/components/schemas/ConcentrationLineDto"
+            },
+            "type": "array"
+          },
+          "is_finalized": {
+            "type": "boolean"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedConcentrationKind"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "requirements": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConcentrationRequirementsDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "target_milk_l": {
+            "nullable": true,
+            "type": "number"
+          },
+          "target_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedTargetType"
+              }
+            ]
+          },
+          "target_weight_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/ConcentrationTotalsDto"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "target_type",
+          "cattle_id",
+          "duration_days",
+          "target_weight_kg",
+          "target_milk_l",
+          "totals",
+          "balance_score",
+          "requirements",
+          "is_finalized",
+          "created_at",
+          "ingredients"
+        ],
+        "type": "object"
+      },
+      "ConcentrationFinalizeResponseDto": {
+        "properties": {
+          "concentration_id": {
+            "type": "string"
+          },
+          "finance": {
+            "description": "Always null: finalize does not post to Finance itself.",
+            "nullable": true,
+            "type": "object"
+          },
+          "ingredient": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConcentrationFinalizedIngredientDto"
+              }
+            ],
+            "description": "The ingredient the finalized mix is published as.",
+            "nullable": true,
+            "type": "object"
+          },
+          "stock": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedStockResponseDto"
+              }
+            ],
+            "description": "The produced stock batch.",
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "concentration_id",
+          "stock",
+          "ingredient",
+          "finance"
+        ],
+        "type": "object"
+      },
+      "ConcentrationFinalizedIngredientDto": {
+        "properties": {
+          "effective_price_per_kg": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_custom": {
+            "type": "boolean"
+          },
+          "is_latest_version": {
+            "type": "boolean"
+          },
+          "name_en": {
+            "type": "string"
+          },
+          "nutrition": {
+            "$ref": "#/components/schemas/FeedStockNutritionDto"
+          },
+          "source_concentration_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "source_concentration_version": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name_en",
+          "is_custom",
+          "is_latest_version",
+          "source_concentration_id",
+          "source_concentration_version",
+          "effective_price_per_kg",
+          "nutrition"
+        ],
+        "type": "object"
+      },
+      "ConcentrationInventoryCheckResponseDto": {
+        "properties": {
+          "can_finalize": {
+            "type": "boolean"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/ConcentrationInventoryLineDto"
+            },
+            "type": "array"
+          },
+          "missing": {
+            "items": {
+              "$ref": "#/components/schemas/ConcentrationMissingLineDto"
+            },
+            "type": "array"
+          },
+          "shortfalls": {
+            "items": {
+              "$ref": "#/components/schemas/ConcentrationShortfallDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "can_finalize",
+          "lines",
+          "missing",
+          "shortfalls"
+        ],
+        "type": "object"
+      },
+      "ConcentrationInventoryLineDto": {
+        "properties": {
+          "amount_kg": {
+            "type": "number"
+          },
+          "available_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "feed_item_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "feed_stock_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "ingredient_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "IN_INVENTORY",
+              "MISSING"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "ingredient_id",
+          "name",
+          "amount_kg",
+          "status",
+          "feed_item_id",
+          "feed_stock_id",
+          "available_kg"
+        ],
+        "type": "object"
+      },
       "ConcentrationItemDto": {
         "properties": {
           "amountKg": {
@@ -1272,6 +1513,449 @@
         },
         "required": [
           "amountKg"
+        ],
+        "type": "object"
+      },
+      "ConcentrationLineDto": {
+        "properties": {
+          "adf_kg": {
+            "type": "number"
+          },
+          "amount_kg": {
+            "type": "number"
+          },
+          "calcium_kg": {
+            "type": "number"
+          },
+          "cost_tk": {
+            "type": "number"
+          },
+          "cp_kg": {
+            "type": "number"
+          },
+          "dm_kg": {
+            "type": "number"
+          },
+          "fat_kg": {
+            "type": "number"
+          },
+          "feed_item_batch_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "feed_item_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "feed_stock_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "ingredient_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "me_mj": {
+            "type": "number"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "ndf_kg": {
+            "type": "number"
+          },
+          "phosphorus_kg": {
+            "type": "number"
+          },
+          "rdp_kg": {
+            "type": "number"
+          },
+          "rup_kg": {
+            "type": "number"
+          },
+          "starch_kg": {
+            "type": "number"
+          },
+          "tdn_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "ingredient_id",
+          "name",
+          "amount_kg",
+          "dm_kg",
+          "cp_kg",
+          "me_mj",
+          "ndf_kg",
+          "fat_kg",
+          "rdp_kg",
+          "rup_kg",
+          "starch_kg",
+          "adf_kg",
+          "calcium_kg",
+          "phosphorus_kg",
+          "tdn_kg",
+          "cost_tk",
+          "feed_item_id",
+          "feed_item_batch_id",
+          "feed_stock_id"
+        ],
+        "type": "object"
+      },
+      "ConcentrationMissingLineDto": {
+        "properties": {
+          "amount_kg": {
+            "type": "number"
+          },
+          "feed_class": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedClass"
+              }
+            ],
+            "nullable": true
+          },
+          "feed_sub_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedSubType"
+              }
+            ],
+            "nullable": true
+          },
+          "ingredient_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "is_prepared_feed": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ingredient_id",
+          "name",
+          "amount_kg",
+          "feed_class",
+          "feed_sub_type",
+          "is_prepared_feed"
+        ],
+        "type": "object"
+      },
+      "ConcentrationNormalizeItemDto": {
+        "properties": {
+          "amount_kg": {
+            "type": "number"
+          },
+          "feed_item_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "ingredient_id": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "ingredient_id",
+          "feed_item_id",
+          "amount_kg"
+        ],
+        "type": "object"
+      },
+      "ConcentrationNormalizeResponseDto": {
+        "properties": {
+          "balance_score": {
+            "type": "number"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ConcentrationNormalizeItemDto"
+            },
+            "type": "array"
+          },
+          "requirements": {
+            "$ref": "#/components/schemas/ConcentrationRequirementsDto"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/ConcentrationTotalsDto"
+          }
+        },
+        "required": [
+          "requirements",
+          "items",
+          "totals",
+          "balance_score"
+        ],
+        "type": "object"
+      },
+      "ConcentrationRemoveResponseDto": {
+        "properties": {
+          "archived": {
+            "description": "True when archived instead of deleted.",
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "archived"
+        ],
+        "type": "object"
+      },
+      "ConcentrationRequirementsDto": {
+        "properties": {
+          "cp_kg": {
+            "type": "number"
+          },
+          "dm_kg": {
+            "type": "number"
+          },
+          "fat_kg": {
+            "type": "number"
+          },
+          "me_mj": {
+            "type": "number"
+          },
+          "ndf_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dm_kg",
+          "cp_kg",
+          "me_mj",
+          "ndf_kg",
+          "fat_kg"
+        ],
+        "type": "object"
+      },
+      "ConcentrationShortfallDto": {
+        "properties": {
+          "available_kg": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "needed_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "needed_kg",
+          "available_kg"
+        ],
+        "type": "object"
+      },
+      "ConcentrationSummaryDto": {
+        "properties": {
+          "balance_score": {
+            "nullable": true,
+            "type": "number"
+          },
+          "cattle_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "duration_days": {
+            "nullable": true,
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_finalized": {
+            "type": "boolean"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedConcentrationKind"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "requirements": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConcentrationRequirementsDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "target_milk_l": {
+            "nullable": true,
+            "type": "number"
+          },
+          "target_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedTargetType"
+              }
+            ]
+          },
+          "target_weight_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/ConcentrationTotalsDto"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "target_type",
+          "cattle_id",
+          "duration_days",
+          "target_weight_kg",
+          "target_milk_l",
+          "totals",
+          "balance_score",
+          "requirements",
+          "is_finalized",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "ConcentrationTotalsDto": {
+        "properties": {
+          "adf_kg": {
+            "type": "number"
+          },
+          "calcium_kg": {
+            "type": "number"
+          },
+          "cp_kg": {
+            "type": "number"
+          },
+          "dm_kg": {
+            "type": "number"
+          },
+          "fat_kg": {
+            "type": "number"
+          },
+          "me_mj": {
+            "type": "number"
+          },
+          "ndf_kg": {
+            "type": "number"
+          },
+          "phosphorus_kg": {
+            "type": "number"
+          },
+          "rdp_kg": {
+            "type": "number"
+          },
+          "rup_kg": {
+            "type": "number"
+          },
+          "starch_kg": {
+            "type": "number"
+          },
+          "tdn_kg": {
+            "type": "number"
+          },
+          "total_cost_tk": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dm_kg",
+          "cp_kg",
+          "me_mj",
+          "ndf_kg",
+          "fat_kg",
+          "rdp_kg",
+          "rup_kg",
+          "starch_kg",
+          "adf_kg",
+          "calcium_kg",
+          "phosphorus_kg",
+          "tdn_kg",
+          "total_cost_tk"
+        ],
+        "type": "object"
+      },
+      "ConcentrationVersionDetailDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "items": {
+            "description": "The frozen recipe lines (JSON).",
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "total_cost_per_day": {
+            "type": "number"
+          },
+          "version_number": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "version_number",
+          "name",
+          "total_cost_per_day",
+          "created_at",
+          "items"
+        ],
+        "type": "object"
+      },
+      "ConcentrationVersionDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "total_cost_per_day": {
+            "type": "number"
+          },
+          "version_number": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "version_number",
+          "name",
+          "total_cost_per_day",
+          "created_at"
         ],
         "type": "object"
       },
@@ -5290,6 +5974,13 @@
           "PREMIX",
           "SUPPLEMENT",
           "OTHER"
+        ],
+        "type": "string"
+      },
+      "FeedTargetType": {
+        "enum": [
+          "INDIVIDUAL",
+          "HERD"
         ],
         "type": "string"
       },
@@ -21805,10 +22496,25 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "type": "object"
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/ConcentrationSummaryDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
                   },
-                  "type": "array"
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
                 }
               }
             },
@@ -21842,6 +22548,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ConcentrationDetailDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -21926,6 +22647,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ConcentrationNormalizeResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -21954,6 +22697,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ConcentrationRemoveResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -21983,6 +22748,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ConcentrationDetailDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -22026,6 +22806,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ConcentrationDetailDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -22068,6 +22863,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ConcentrationFinalizeResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -22096,6 +22913,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ConcentrationInventoryCheckResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -22124,6 +22963,28 @@
         ],
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ConcentrationVersionDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -22152,6 +23013,31 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/ConcentrationVersionDetailDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
