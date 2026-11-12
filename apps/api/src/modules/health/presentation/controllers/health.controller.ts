@@ -61,8 +61,17 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
 import {
+  HealthApplyPlanResponseDto,
+  HealthBulkCasesResponseDto,
   HealthCaseResponseDto,
+  HealthCaseRowDto,
+  HealthDashboardResponseDto,
+  HealthLogTreatmentResponseDto,
+  HealthMortalityResponseDto,
+  HealthPlanRowDto,
   HealthTaskResponseDto,
+  HealthTaskTreatmentResponseDto,
+  HealthUpdateResponseDto,
   RecordTreatmentResponseDto,
   RefreshSafetyWithdrawalsResponseDto,
   SafetyWithdrawalResponseDto,
@@ -91,6 +100,7 @@ export class HealthController {
 
   @Get('dashboard')
   @RequirePermission('healthcare.read')
+  @ApiEnvelopeResponse(HealthDashboardResponseDto)
   dashboard(@CurrentFarmId() farmId: string) {
     return this.healthService.getHealthDashboard(farmId);
   }
@@ -136,6 +146,7 @@ export class HealthController {
   /** RAKHAL-469 — one condition for several animals at once (an outbreak). Same permission as the single report. */
   @Post('cases/bulk')
   @RequirePermission('healthcare.report-sickness')
+  @ApiEnvelopeResponse(HealthBulkCasesResponseDto, { status: 201 })
   createCasesBulk(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -195,6 +206,7 @@ export class HealthController {
 
   @Delete('cases/:id')
   @RequirePermission('healthcare.delete')
+  @ApiEnvelopeResponse(HealthCaseRowDto)
   deleteCase(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -205,6 +217,7 @@ export class HealthController {
 
   @Post('cases/:id/apply-plan')
   @RequirePermission('healthcare.update')
+  @ApiEnvelopeResponse(HealthApplyPlanResponseDto, { status: 201 })
   applyPlan(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
@@ -215,6 +228,7 @@ export class HealthController {
 
   @Post('cases/:id/log-treatment')
   @RequirePermission('healthcare.log-treatment')
+  @ApiEnvelopeResponse(HealthLogTreatmentResponseDto, { status: 201 })
   logTreatment(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -226,6 +240,7 @@ export class HealthController {
 
   @Post('cases/:id/health-update')
   @RequirePermission('healthcare.log-treatment')
+  @ApiEnvelopeResponse(HealthUpdateResponseDto, { status: 201 })
   healthUpdate(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -248,6 +263,7 @@ export class HealthController {
 
   @Post('cases/:id/mortality')
   @RequirePermission('healthcare.close-case')
+  @ApiEnvelopeResponse(HealthMortalityResponseDto, { status: 201 })
   mortality(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -382,6 +398,7 @@ export class HealthController {
 
   @Delete('plans/:id')
   @RequirePermission('healthcare.delete')
+  @ApiEnvelopeResponse(HealthPlanRowDto)
   deletePlan(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.healthService.deletePlan(farmId, id);
   }
@@ -433,6 +450,7 @@ export class HealthController {
    */
   @Post('tasks/:id/log-treatment')
   @RequirePermission('healthcare.log-treatment')
+  @ApiEnvelopeResponse(HealthTaskTreatmentResponseDto, { status: 201 })
   logTaskTreatment(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
