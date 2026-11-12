@@ -70,12 +70,16 @@ import {
   HealthCaseRowDto,
   HealthDashboardResponseDto,
   HealthLogTreatmentResponseDto,
+  HealthMorbidityTrendResponseDto,
   HealthMortalityResponseDto,
+  HealthOutcomesResponseDto,
+  HealthPlanApplicationDto,
   HealthPlanRowDto,
   HealthTaskCalendarDayDto,
   HealthTaskListItemDto,
   HealthTaskResponseDto,
   HealthTaskTreatmentResponseDto,
+  HealthTreatmentListItemDto,
   HealthUpdateResponseDto,
   RecordTreatmentResponseDto,
   RefreshSafetyWithdrawalsResponseDto,
@@ -115,6 +119,7 @@ export class HealthController {
    * `days` days (default 90). */
   @Get('outcomes')
   @RequirePermission('healthcare.read')
+  @ApiEnvelopeResponse(HealthOutcomesResponseDto)
   outcomes(
     @CurrentFarmId() farmId: string,
     @Query() query: HealthOutcomesQueryDto,
@@ -125,6 +130,7 @@ export class HealthController {
   /** Sickness trend for the Insights chart: windowed, zero-filled, bucketed, with the previous window's total. */
   @Get('morbidity-trend')
   @RequirePermission('healthcare.read')
+  @ApiEnvelopeResponse(HealthMorbidityTrendResponseDto)
   morbidityTrend(
     @CurrentFarmId() farmId: string,
     @Query() query: MorbidityTrendQueryDto,
@@ -163,6 +169,7 @@ export class HealthController {
 
   @Get('treatments')
   @RequirePermission('healthcare.read')
+  @ApiPaginatedResponse(HealthTreatmentListItemDto)
   getTreatmentLogs(
     @CurrentFarmId() farmId: string,
     @Query() query: TreatmentLogsQueryDto,
@@ -186,6 +193,7 @@ export class HealthController {
    * `HealthService#getPlanApplications`'s own doc comment. */
   @Get('plan-applications')
   @RequirePermission('healthcare.read')
+  @ApiPaginatedResponse(HealthPlanApplicationDto)
   getPlanApplications(
     @CurrentFarmId() farmId: string,
     @Query() query: AppliedPlansQueryDto,

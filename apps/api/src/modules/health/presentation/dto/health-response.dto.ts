@@ -13,10 +13,12 @@ import {
   HealthTaskStatus,
   HerdStatus,
   MedicineRoute,
+  PlanEnrollmentStatus,
   SafetyWithdrawalStatus,
   type Prisma,
 } from '@prisma/client';
 import type { CursorPage } from 'src/common/pagination/cursor-page.type';
+import type { HealthOutcomesService } from '../../application/services/health-outcomes.service';
 import type { HealthService } from '../../application/services/health.service';
 
 /**
@@ -505,6 +507,117 @@ export class HealthTaskCalendarDayDto {
   counts!: Record<string, number>;
 }
 
+// ─── Lists: treatments, plan applications ───────────────────────────────────
+
+export class HealthTreatmentCaseBriefDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() caseCode!: string;
+  @ApiProperty({ type: String, nullable: true }) note!: string | null;
+  @ApiProperty({
+    enum: HealthCondition,
+    enumName: 'HealthCondition',
+    nullable: true,
+  })
+  condition!: HealthCondition | null;
+  @ApiProperty({ enum: HealthCareType, enumName: 'HealthCareType' })
+  careType!: HealthCareType;
+}
+
+/** One row of GET /health/treatments. */
+export class HealthTreatmentListItemDto extends HealthTreatmentLogRowDto {
+  @ApiProperty({ type: () => HealthCattleBriefDto })
+  cattle!: HealthCattleBriefDto;
+  @ApiProperty({ type: () => HealthTreatmentCaseBriefDto })
+  healthCase!: HealthTreatmentCaseBriefDto;
+}
+
+export class HealthPlanApplicationPlanDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({ enum: HealthPlanCategory, enumName: 'HealthPlanCategory' })
+  category!: HealthPlanCategory;
+}
+
+export class HealthPlanEnrollmentDto {
+  @ApiProperty() id!: string;
+  @ApiProperty({ type: () => HealthCattleBriefDto })
+  cattle!: HealthCattleBriefDto;
+  @ApiProperty({
+    enum: PlanEnrollmentStatus,
+    enumName: 'PlanEnrollmentStatus',
+  })
+  status!: PlanEnrollmentStatus;
+  @ApiProperty() currentStep!: number;
+  @ApiProperty() totalSteps!: number;
+  @ApiProperty() progressPercentage!: number;
+}
+
+/** One row of GET /health/plan-applications. */
+export class HealthPlanApplicationDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() farmId!: string;
+  @ApiProperty() healthPlanId!: string;
+  @ApiProperty(DATE_TIME) startDate!: Date;
+  @ApiProperty() appliedBy!: string;
+  @ApiProperty() animalCount!: number;
+  @ApiProperty({ ...DATE_TIME, nullable: true }) deletedAt!: Date | null;
+  @ApiProperty(DATE_TIME) createdAt!: Date;
+  @ApiProperty(DATE_TIME) updatedAt!: Date;
+  @ApiProperty({ type: () => HealthPlanApplicationPlanDto })
+  healthPlan!: HealthPlanApplicationPlanDto;
+  @ApiProperty({ type: () => [HealthPlanEnrollmentDto] })
+  enrollments!: HealthPlanEnrollmentDto[];
+}
+
+// ─── Outcomes + morbidity trend ─────────────────────────────────────────────
+
+export class HealthOutcomeBreakdownDto {
+  @ApiProperty() cases!: number;
+  @ApiProperty() recovered!: number;
+  @ApiProperty() mortality!: number;
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description: 'Percent, one decimal; null until a case has an outcome.',
+  })
+  recoveryRate!: number | null;
+  @ApiProperty({ type: Number, nullable: true })
+  avgDaysToRecover!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) avgCost!: number | null;
+}
+
+export class HealthOutcomeByConditionDto extends HealthOutcomeBreakdownDto {
+  @ApiProperty({ type: String, nullable: true }) condition!: string | null;
+}
+
+export class HealthOutcomesResponseDto extends HealthOutcomeBreakdownDto {
+  @ApiProperty() openCases!: number;
+  @ApiProperty() otherClosed!: number;
+  @ApiProperty() totalCost!: number;
+  @ApiProperty({ type: Number, nullable: true }) recurrenceRate!: number | null;
+  @ApiProperty({ type: () => [HealthOutcomeByConditionDto] })
+  byCondition!: HealthOutcomeByConditionDto[];
+  @ApiProperty() windowDays!: number;
+  @ApiProperty(DATE_TIME) since!: Date;
+}
+
+export class HealthTrendPointDto {
+  @ApiProperty({ description: 'First day of the bucket, YYYY-MM-DD.' })
+  date!: string;
+  @ApiProperty() count!: number;
+}
+
+export class HealthMorbidityTrendResponseDto {
+  @ApiProperty() total!: number;
+  @ApiProperty({ type: Number, nullable: true })
+  previousTotal!: number | null;
+  @ApiProperty({ enum: ['day', 'week', 'month'] })
+  bucket!: 'day' | 'week' | 'month';
+  @ApiProperty({ type: () => [HealthTrendPointDto] })
+  points!: HealthTrendPointDto[];
+  @ApiProperty({ type: Number, nullable: true }) windowDays!: number | null;
+}
+
 // ─── Compile-time guards (RD-140) ───────────────────────────────────────────
 // Each fails `nest build` if the service's real return type and the documented class diverge.
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -515,7 +628,18 @@ type Ret<K extends keyof HealthService> = HealthService[K] extends (
   ? Awaited<R>
   : never;
 
+type OutRet<K extends keyof HealthOutcomesService> =
+  HealthOutcomesService[K] extends (...args: never[]) => infer R
+    ? Awaited<R>
+    : never;
+
 export type HealthShapeGuards = [
+  Assert<Same<OutRet<'getOutcomes'>, HealthOutcomesResponseDto>>,
+  Assert<
+    OutRet<'getMorbidityTrend'> extends HealthMorbidityTrendResponseDto
+      ? true
+      : false
+  >,
   Assert<Same<Ret<'createHealthCase'>, HealthCaseResponseDto>>,
   Assert<Same<Ret<'updateHealthCase'>, HealthCaseResponseDto>>,
   Assert<Same<Ret<'recordTreatment'>, RecordTreatmentResponseDto>>,
@@ -547,4 +671,8 @@ export type HealthShapeGuards = [
   >,
   Assert<Same<Ret<'getTasks'>, CursorPage<HealthTaskListItemDto>>>,
   Assert<Same<Ret<'getTaskCalendar'>, HealthTaskCalendarDayDto[]>>,
+  Assert<Same<Ret<'getTreatmentLogs'>, CursorPage<HealthTreatmentListItemDto>>>,
+  Assert<
+    Same<Ret<'getPlanApplications'>, CursorPage<HealthPlanApplicationDto>>
+  >,
 ];

@@ -6145,6 +6145,43 @@
         ],
         "type": "object"
       },
+      "HealthMorbidityTrendResponseDto": {
+        "properties": {
+          "bucket": {
+            "enum": [
+              "day",
+              "week",
+              "month"
+            ],
+            "type": "string"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/HealthTrendPointDto"
+            },
+            "type": "array"
+          },
+          "previousTotal": {
+            "nullable": true,
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "windowDays": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "total",
+          "previousTotal",
+          "bucket",
+          "points",
+          "windowDays"
+        ],
+        "type": "object"
+      },
       "HealthMortalityResponseDto": {
         "properties": {
           "healthCase": {
@@ -6248,6 +6285,196 @@
         ],
         "type": "object"
       },
+      "HealthOutcomeByConditionDto": {
+        "properties": {
+          "avgCost": {
+            "nullable": true,
+            "type": "number"
+          },
+          "avgDaysToRecover": {
+            "nullable": true,
+            "type": "number"
+          },
+          "cases": {
+            "type": "number"
+          },
+          "condition": {
+            "nullable": true,
+            "type": "string"
+          },
+          "mortality": {
+            "type": "number"
+          },
+          "recovered": {
+            "type": "number"
+          },
+          "recoveryRate": {
+            "description": "Percent, one decimal; null until a case has an outcome.",
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "cases",
+          "recovered",
+          "mortality",
+          "recoveryRate",
+          "avgDaysToRecover",
+          "avgCost",
+          "condition"
+        ],
+        "type": "object"
+      },
+      "HealthOutcomesResponseDto": {
+        "properties": {
+          "avgCost": {
+            "nullable": true,
+            "type": "number"
+          },
+          "avgDaysToRecover": {
+            "nullable": true,
+            "type": "number"
+          },
+          "byCondition": {
+            "items": {
+              "$ref": "#/components/schemas/HealthOutcomeByConditionDto"
+            },
+            "type": "array"
+          },
+          "cases": {
+            "type": "number"
+          },
+          "mortality": {
+            "type": "number"
+          },
+          "openCases": {
+            "type": "number"
+          },
+          "otherClosed": {
+            "type": "number"
+          },
+          "recovered": {
+            "type": "number"
+          },
+          "recoveryRate": {
+            "description": "Percent, one decimal; null until a case has an outcome.",
+            "nullable": true,
+            "type": "number"
+          },
+          "recurrenceRate": {
+            "nullable": true,
+            "type": "number"
+          },
+          "since": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "totalCost": {
+            "type": "number"
+          },
+          "windowDays": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "cases",
+          "recovered",
+          "mortality",
+          "recoveryRate",
+          "avgDaysToRecover",
+          "avgCost",
+          "openCases",
+          "otherClosed",
+          "totalCost",
+          "recurrenceRate",
+          "byCondition",
+          "windowDays",
+          "since"
+        ],
+        "type": "object"
+      },
+      "HealthPlanApplicationDto": {
+        "properties": {
+          "animalCount": {
+            "type": "number"
+          },
+          "appliedBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "enrollments": {
+            "items": {
+              "$ref": "#/components/schemas/HealthPlanEnrollmentDto"
+            },
+            "type": "array"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "healthPlan": {
+            "$ref": "#/components/schemas/HealthPlanApplicationPlanDto"
+          },
+          "healthPlanId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "startDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "healthPlanId",
+          "startDate",
+          "appliedBy",
+          "animalCount",
+          "deletedAt",
+          "createdAt",
+          "updatedAt",
+          "healthPlan",
+          "enrollments"
+        ],
+        "type": "object"
+      },
+      "HealthPlanApplicationPlanDto": {
+        "properties": {
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthPlanCategory"
+              }
+            ]
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "category"
+        ],
+        "type": "object"
+      },
       "HealthPlanCategory": {
         "enum": [
           "TREATMENT",
@@ -6258,6 +6485,41 @@
           "ROUTINE"
         ],
         "type": "string"
+      },
+      "HealthPlanEnrollmentDto": {
+        "properties": {
+          "cattle": {
+            "$ref": "#/components/schemas/HealthCattleBriefDto"
+          },
+          "currentStep": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "progressPercentage": {
+            "type": "number"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlanEnrollmentStatus"
+              }
+            ]
+          },
+          "totalSteps": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "cattle",
+          "status",
+          "currentStep",
+          "totalSteps",
+          "progressPercentage"
+        ],
+        "type": "object"
       },
       "HealthPlanRowDto": {
         "properties": {
@@ -6866,6 +7128,185 @@
         ],
         "type": "object"
       },
+      "HealthTreatmentCaseBriefDto": {
+        "properties": {
+          "careType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCareType"
+              }
+            ]
+          },
+          "caseCode": {
+            "type": "string"
+          },
+          "condition": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCondition"
+              }
+            ],
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "note": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "caseCode",
+          "note",
+          "condition",
+          "careType"
+        ],
+        "type": "object"
+      },
+      "HealthTreatmentListItemDto": {
+        "properties": {
+          "administeredAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "administeredBy": {
+            "type": "string"
+          },
+          "animalEventId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "batchNo": {
+            "nullable": true,
+            "type": "string"
+          },
+          "cattle": {
+            "$ref": "#/components/schemas/HealthCattleBriefDto"
+          },
+          "cattleId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "doseAmount": {
+            "description": "Decimal string.",
+            "nullable": true,
+            "type": "string"
+          },
+          "doseUnit": {
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "financeTransactionId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "healthCase": {
+            "$ref": "#/components/schemas/HealthTreatmentCaseBriefDto"
+          },
+          "healthCaseId": {
+            "type": "string"
+          },
+          "healthTaskId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "medicineId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "medicineName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "route": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MedicineRoute"
+              }
+            ],
+            "nullable": true
+          },
+          "stockDeducted": {
+            "type": "boolean"
+          },
+          "stockDeductionQuantity": {
+            "description": "Decimal string.",
+            "nullable": true,
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "vetCost": {
+            "description": "Decimal string.",
+            "nullable": true,
+            "type": "string"
+          },
+          "vetExpenseId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "voidReason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "voidedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "voidedBy": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "cattleId",
+          "healthCaseId",
+          "healthTaskId",
+          "medicineId",
+          "medicineName",
+          "route",
+          "doseAmount",
+          "doseUnit",
+          "administeredAt",
+          "administeredBy",
+          "stockDeducted",
+          "stockDeductionQuantity",
+          "batchNo",
+          "notes",
+          "financeTransactionId",
+          "vetCost",
+          "vetExpenseId",
+          "voidedAt",
+          "voidedBy",
+          "voidReason",
+          "animalEventId",
+          "createdAt",
+          "updatedAt",
+          "cattle",
+          "healthCase"
+        ],
+        "type": "object"
+      },
       "HealthTreatmentLogRowDto": {
         "properties": {
           "administeredAt": {
@@ -7009,6 +7450,22 @@
         },
         "required": [
           "medicineName"
+        ],
+        "type": "object"
+      },
+      "HealthTrendPointDto": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "date": {
+            "description": "First day of the bucket, YYYY-MM-DD.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "count"
         ],
         "type": "object"
       },
@@ -10130,6 +10587,13 @@
           "SETTINGS",
           "NOTIFICATION",
           "TEAM"
+        ],
+        "type": "string"
+      },
+      "PlanEnrollmentStatus": {
+        "enum": [
+          "ACTIVE",
+          "COMPLETED"
         ],
         "type": "string"
       },
@@ -24583,6 +25047,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/HealthMorbidityTrendResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -24617,6 +25096,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/HealthOutcomesResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -24713,6 +25214,35 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/HealthPlanApplicationDto"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/CursorPageMetaDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -26460,6 +26990,35 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/HealthTreatmentListItemDto"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/CursorPageMetaDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
