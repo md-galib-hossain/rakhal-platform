@@ -1,0 +1,315 @@
+"use client";
+
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { qk } from "@/lib/query/keys";
+import { useCursorPager } from "@/lib/hooks/use-cursor-pager";
+import { useInfiniteCursorList } from "@/lib/hooks/use-infinite-cursor-list";
+import { settingsApi } from "@/features/settings/api";
+import { cattleApi } from "../api";
+import type { BulkAction, BulkDisposeType, CattleFormPayload, CattleListFilters } from "../types";
+import type {
+  CattleDeleteInput,
+  CattleDisposeInput,
+  CreateAnimalHoldInput,
+  ReleaseAnimalHoldInput,
+} from "../schemas";
+
+const STALE_TIME = 60_000;
+
+/** One `GET /cattle` request per category tile in `CattleCategoryHighlights`. `meta.count` is only
+ * the current page's row count (`toCursorPage`, `rakhal-backend/src/common/pagination`), NOT a
+ * true total — there's no dedicated counts endpoint, and `CursorPaginationQueryDto.limit` is
+ * server-capped at 100 (`@Max(100)`). One page covers most per-category subgroups even on a
+ * 500-animal farm; when a category's page comes back full (`meta.hasNextPage`), the tile shows
+ * "100+" instead of silently under-counting — see `CattleCategoryHighlights`. */
+const CATEGORY_COUNT_LIMIT = 100;
+
+export function useCattleCategoryCounts(categories: { key: string; filters: CattleListFilters }[]) {
+  return useQueries({
+    queries: categories.map(({ key, filters }) => ({
+      queryKey: ["cattle", "category-count", key, filters as Record<string, string | undefined>],
+      queryFn: () => cattleApi.list(filters, undefined, CATEGORY_COUNT_LIMIT),
+      staleTime: STALE_TIME,
+    })),
+  });
+}
+
+/** Numbered-page adapter over the cursor-only `GET /cattle` endpoint, for the `Pagination` UI —
+ * thin wrapper around the shared `useCursorPager` (`lib/hooks/use-cursor-pager.ts`). */
+export function useCattlePagedList(filters: CattleListFilters) {
+  return useCursorPager(
+    ["cattle", "list", "paged", filters as Record<string, string | undefined>],
+    (cursor, limit) => cattleApi.list(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
+}
+
+/** Append-forever variant of `useCattlePagedList` (infinite scroll) — same endpoint and filters. */
+export function useCattleInfiniteList(filters: CattleListFilters) {
+  return useInfiniteCursorList(
+    ["cattle", "list", filters as Record<string, string | undefined>],
+    (cursor, limit) => cattleApi.list(filters, cursor, limit),
+    { staleTime: STALE_TIME },
+  );
+}
+
+/** RAKHAL-475 — the full upcoming-events list for the Next event popover. Lazy: only fetches while the
+ * popover is open (`enabled`), so a 100-row list does not fire 100 requests. */
+export function useUpcomingEvents(id: string, enabled: boolean, limit?: number) {
+  return useQuery({
+    queryKey: qk.cattle.upcomingEvents(id, limit),
+    queryFn: () => cattleApi.upcomingEvents(id, limit),
+    enabled,
+    staleTime: STALE_TIME,
+    // Growing `limit` (scroll-to-load-more) keeps the rows already on screen while the bigger page loads.
+    placeholderData: limit === undefined ? undefined : keepPreviousData,
+  });
+}
+
+export function useCattleHighlights() {
+  return useQuery({ queryKey: qk.cattle.highlights(), queryFn: cattleApi.highlights, staleTime: STALE_TIME });
+}
+
+export function useBreeds() {
+  return useQuery({ queryKey: qk.cattle.breeds(), queryFn: cattleApi.breeds, staleTime: STALE_TIME });
+}
+
+export function useCreateBreed() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name: string; description?: string }) => cattleApi.createBreed(input),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: qk.cattle.breeds() }),
+  });
+}
+
+export function useSheds() {
+  return useQuery({ queryKey: qk.cattle.sheds(), queryFn: cattleApi.sheds, staleTime: STALE_TIME });
+}
+
+export function useAnimalGroups(search?: string) {
+  return useQuery({
+    queryKey: [...qk.cattle.animalGroups(), search],
+    queryFn: () => cattleApi.animalGroups(search),
+    staleTime: STALE_TIME,
+  });
+}
+
+export function useAnimalGroup(id: string | null | undefined) {
+  return useQuery({
+    queryKey: [...qk.cattle.animalGroups(), id],
+    queryFn: () => cattleApi.findAnimalGroup(id!),
+    enabled: Boolean(id),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** Inline "+ Create new shed" (`CreatableSelect`, `components/shared/creatable-select.tsx`) — same
+ * `POST /settings/sheds` the Settings feature's own create form uses, but invalidates every query
+ * key a shed picker anywhere in the app reads from (`cattle.sheds` + `settings.sheds`) so a shed
+ * created from the Cattle page or a bulk "change shed" dialog shows up everywhere immediately,
+ * not just where it was created. */
+export function useCreateShedInline() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => settingsApi.createShed({ name }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.sheds() });
+      void queryClient.invalidateQueries({ queryKey: qk.settings.sheds() });
+    },
+  });
+}
+
+/** RAKHAL-452 — "Create group from selection" (bulk dock): one call creates the group with the
+ * selected animals as its initial members. */
+export function useCreateAnimalGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name: string; description?: string; cattleIds?: string[] }) =>
+      cattleApi.createAnimalGroup(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.animalGroups() });
+      void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+    },
+  });
+}
+
+export function useUpdateAnimalGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: { id: string; name?: string; description?: string }) =>
+      cattleApi.updateAnimalGroup(id, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.animalGroups() });
+      void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+    },
+  });
+}
+
+export function useDeleteAnimalGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => cattleApi.deleteAnimalGroup(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.animalGroups() });
+      void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+    },
+  });
+}
+
+/** "Add to group" (bulk dock) — idempotent, safe to re-run with animals already in the group. */
+export function useAddToAnimalGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, cattleIds }: { groupId: string; cattleIds: string[] }) =>
+      cattleApi.addToAnimalGroup(groupId, cattleIds),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.animalGroups() });
+      void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+    },
+  });
+}
+
+export function useRemoveFromAnimalGroup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, cattleIds }: { groupId: string; cattleIds: string[] }) =>
+      cattleApi.removeFromAnimalGroup(groupId, cattleIds),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.animalGroups() });
+      void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+    },
+  });
+}
+
+export function useBulkCattle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      cattleIds,
+      action,
+      payload,
+    }: {
+      cattleIds: string[];
+      action: BulkAction;
+      payload?: { shedId?: string; type?: BulkDisposeType; reason?: string; date?: string };
+    }) => cattleApi.bulk(cattleIds, action, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+      void queryClient.invalidateQueries({ queryKey: ["cattle", "category-count"] });
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.highlights() });
+    },
+  });
+}
+
+export function useCattleDetail(id: string | undefined) {
+  return useQuery({
+    queryKey: qk.cattle.detail(id ?? ""),
+    queryFn: () => cattleApi.findOne(id!),
+    enabled: Boolean(id),
+    staleTime: STALE_TIME,
+  });
+}
+
+/** Shared invalidation for any mutation that changes a cattle row's list/highlights-visible fields. */
+function useInvalidateCattle() {
+  const queryClient = useQueryClient();
+  return (id?: string) => {
+    void queryClient.invalidateQueries({ queryKey: ["cattle", "list"] });
+    void queryClient.invalidateQueries({ queryKey: ["cattle", "category-count"] });
+    void queryClient.invalidateQueries({ queryKey: qk.cattle.highlights() });
+    if (id) void queryClient.invalidateQueries({ queryKey: qk.cattle.detail(id) });
+  };
+}
+
+export function useCreateCattle() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: (dto: CattleFormPayload) => cattleApi.create(dto),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useUpdateCattle() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: CattleFormPayload }) => cattleApi.update(id, dto),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useDeleteCattle() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: CattleDeleteInput }) => cattleApi.deleteCattle(id, dto),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useDisposeCattle() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: CattleDisposeInput }) => cattleApi.dispose(id, dto),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useRestoreCattle() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: (id: string) => cattleApi.restore(id),
+    onSuccess: (_data, id) => invalidate(id),
+  });
+}
+
+export function useSetCattlePhoto() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) => cattleApi.setPhoto(id, file),
+    onSuccess: (_data, { id }) => invalidate(id),
+  });
+}
+
+export function useRemoveCattlePhoto() {
+  const invalidate = useInvalidateCattle();
+  return useMutation({
+    mutationFn: (id: string) => cattleApi.removePhoto(id),
+    onSuccess: (_data, id) => invalidate(id),
+  });
+}
+
+// MILESTONE 10 gap closure — generic per-animal hold (RAKHAL-280).
+export function useAnimalHolds(cattleId: string | undefined) {
+  return useQuery({
+    queryKey: qk.cattle.holds(cattleId ?? ""),
+    queryFn: () => cattleApi.holds(cattleId!),
+    enabled: Boolean(cattleId),
+    staleTime: STALE_TIME,
+  });
+}
+
+export function useCreateAnimalHold() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ cattleId, dto }: { cattleId: string; dto: CreateAnimalHoldInput }) =>
+      cattleApi.createHold(cattleId, dto),
+    onSuccess: (_data, { cattleId }) =>
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.holds(cattleId) }),
+  });
+}
+
+export function useReleaseAnimalHold() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      cattleId,
+      holdId,
+      dto,
+    }: {
+      cattleId: string;
+      holdId: string;
+      dto?: ReleaseAnimalHoldInput;
+    }) => cattleApi.releaseHold(cattleId, holdId, dto),
+    onSuccess: (_data, { cattleId }) =>
+      void queryClient.invalidateQueries({ queryKey: qk.cattle.holds(cattleId) }),
+  });
+}

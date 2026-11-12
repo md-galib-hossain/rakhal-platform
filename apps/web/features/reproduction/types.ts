@@ -1,0 +1,401 @@
+/**
+ * Mirrors `rakhal-backend/src/modules/reproduction` response shapes, read from the services and the Prisma schema, not the
+ * aspirational `Rakhal_API.md` §5. `dashboard` returns a bespoke snake_case shape (RAKHAL-051); `pregnancies` and `lactations`
+ * are cursor pages of raw Prisma rows (camelCase). Writes (heat, AI, pregnancy check, calving, abortion, dry off) are events
+ * (`POST /cattle/:id/events`, `features/events`), so their request/response shapes are not modelled here.
+ */
+
+/** RAKHAL-271 v2 correction — same 5-value `ReproductionState` `features/cattle/types.ts` uses.
+ * Unused within this file/module today (no import site found repo-wide as of this fix) but kept in
+ * sync so it doesn't silently document a shape the backend no longer returns. */
+export type ReproductiveStatus =
+  | "NOT_ELIGIBLE"
+  | "POSTPARTUM_WAITING"
+  | "OPEN"
+  | "BRED_AWAITING_CONFIRMATION"
+  | "PREGNANT";
+
+export type HeatDetectionMethod = "VISUAL" | "COLLAR_SENSOR" | "PEDOMETER" | "MANUAL";
+export type BreedingMethod = "AI" | "NATURAL" | "EMBRYO_TRANSFER";
+export type BreedingStatus =
+  | "PENDING_CHECK"
+  | "PREGNANT"
+  | "FAILED"
+  | "ABORTED"
+  | "CALVED"
+  | "RETURNED_TO_HEAT"
+  /** Recorded by mistake and voided (`POST .../void`); hidden from every list, readable by id. */
+  | "VOIDED";
+/** RAKHAL-317: `SYSTEM` until a farmer edits `expectedCalvingDate`, then `MANUAL` forever. */
+export type ExpectedCalvingDateSource = "SYSTEM" | "MANUAL";
+export type PregnancyDiagnosisResult = "PREGNANT" | "NOT_PREGNANT" | "SUSPECTED";
+export type PregnancyDiagnosisMethod = "ULTRASOUND" | "PALPATION" | "LAB";
+export type PregnancyStatus = "ACTIVE" | "CALVED" | "ABORTED" | "FAILED";
+export type CalvingEase = "NORMAL" | "ASSISTED" | "DIFFICULT" | "CESAREAN";
+export type CalfBirthStatus = "ALIVE" | "STILLBORN" | "DIED_AFTER_BIRTH";
+export type LactationStatus = "ACTIVE" | "ENDED";
+/** RAKHAL-274 — `DryOffReason` enum, `prisma/schemas/reproduction/reproduction.enums.prisma`. */
+export type DryOffReason = "SCHEDULED" | "LOW_PRODUCTION" | "HEALTH" | "PREGNANCY" | "MANAGEMENT_DECISION";
+
+// ---- GET /reproduction/dashboard (RAKHAL-051) ------------------------------
+
+export interface ReproCattleRef {
+  cattle_id: string;
+  name: string | null;
+  tag: string;
+}
+
+export interface ReproDashboardKpis {
+  heat_detection_rate_pct: number | null;
+  conception_rate_pct: number | null;
+  pregnancy_rate_pct: number | null;
+  avg_calving_interval_days: number | null;
+}
+
+export interface ReadyForAiRow extends ReproCattleRef {
+  dim: number | null;
+  days_open: number | null;
+}
+
+export interface InHeatNowRow extends ReproCattleRef {
+  heat_observed_at: string;
+}
+
+export interface PregnancyCheckDueRow extends ReproCattleRef {
+  ai_date: string;
+  check_due_date: string | null;
+  /** RAKHAL-316-F: needed to call `returnToHeat`. */
+  breeding_event_id: string;
+}
+
+export interface CalvingNext7DaysRow extends ReproCattleRef {
+  pregnancy_id: string;
+  expected_date: string | null;
+  days_remaining: number | null;
+}
+
+export interface DryoffDue14DaysRow extends ReproCattleRef {
+  dim: number;
+  dryoff_target_date: string;
+}
+
+export interface ReproActionRequired {
+  ready_for_ai: ReadyForAiRow[];
+  in_heat_now: InHeatNowRow[];
+  pregnancy_check_due: PregnancyCheckDueRow[];
+  calving_next_7_days: CalvingNext7DaysRow[];
+  dryoff_due_14_days: DryoffDue14DaysRow[];
+}
+
+export interface CalvingForecastRow extends ReproCattleRef {
+  expected_date: string;
+}
+
+export interface OpenCowRow extends ReproCattleRef {
+  dim: number | null;
+  days_open: number | null;
+  last_ai_date: string | null;
+  vwp_end_date: string | null;
+  conception_rate_pct: number | null;
+}
+
+export interface ReproDashboardResponse {
+  kpis: ReproDashboardKpis;
+  action_required: ReproActionRequired;
+  calving_forecast_30_days: CalvingForecastRow[];
+  open_cows: OpenCowRow[];
+}
+
+// ---- GET /reproduction/cows (RAKHAL-363) ----------------------------------
+
+/** Every cow currently in an active reproductive cycle (OPEN/BRED_AWAITING_CONFIRMATION/PREGNANT),
+ * cursor-paginated — replaces `ReproDashboardResponse.open_cows` (OPEN-only, uncapped, no pagination)
+ * as the Reproduction page's cow-list data source. */
+export interface ReproductionCowRow extends ReproCattleRef {
+  status: ReproductiveStatus | null;
+  last_ai_date: string | null;
+  pregnancy_checked: boolean;
+  days_open: number | null;
+  days_pregnant: number | null;
+  expected_calving_date: string | null;
+}
+
+// ---- Sub-resource rows (raw Prisma shape, cursor-paginated) ---------------
+
+export type SemenSource = "FARM_INVENTORY" | "TECHNICIAN_SUPPLIED" | "EXTERNAL";
+export type SemenType = "CONVENTIONAL" | "SEX_SORTED";
+export type TargetSex = "FEMALE" | "MALE";
+
+export interface PregnancyRow {
+  id: string;
+  cattleId: string;
+  breedingEventId: string | null;
+  conceptionDate: string;
+  expectedCalvingDate: string | null;
+  actualCalvingDate: string | null;
+  gestationDays: number | null;
+  status: PregnancyStatus;
+  createdAt: string;
+  /** RAKHAL-317: the system's own conception+280-day estimate — written once, never changes even
+   * after `expectedCalvingDate` is farmer-edited. */
+  calculatedCalvingDate: string | null;
+  expectedCalvingDateSource: ExpectedCalvingDateSource;
+  /** Present on `GET /reproduction/pregnancies` responses (backend now `include`s it) — absent
+   * elsewhere (e.g. the unified events feed's own pregnancy_diagnosis mapping). */
+  cattle?: { id: string; name: string | null; tagNumber: string };
+}
+
+export interface LactationRow {
+  id: string;
+  cattleId: string;
+  lactationNumber: number;
+  calvingEventId: string | null;
+  startDate: string;
+  endDate: string | null;
+  peakMilkDate: string | null;
+  status: LactationStatus;
+  createdAt: string;
+  /** RAKHAL-285/290 — always present on the raw Prisma row (no `select` narrowing on the
+   * `GET /reproduction/lactations` list route, verified live), just not previously typed. */
+  endReason: string | null;
+  recommendedDryOffAt: string | null;
+  plannedDryOffAt: string | null;
+  /** RAKHAL-271 v2 correction — the calving lactation-start stamp lives here now (moved off
+   * `Cattle.lactationStartDate`, which was removed entirely). Always present on the raw row
+   * (same "no `select` narrowing" reasoning as `endReason` above), not yet consumed by any UI. */
+  startReason: string | null;
+  sourceCalvingEventId: string | null;
+}
+
+/** Lactation-to-date totals, split by `MilkDisposition` — `LactationStatsService`'s
+ * `totalsByDisposition()` (`reproduction/domain/lactation-yield.ts`), confirmed by reading the
+ * backend source directly. */
+export interface LactationTotalsByDisposition {
+  produced: number;
+  saleable: number;
+  withheld: number;
+  colostrum: number;
+  calfFeed: number;
+  discarded: number;
+  householdUse: number;
+}
+
+export interface LactationPeak {
+  yieldL: number;
+  date: string;
+  dim: number;
+}
+
+/** `reproduction/domain/lactation-persistency.ts#computeLactationPersistency` — always returned
+ * with every input value alongside the derived percentages, per that file's own doc comment, so a
+ * consumer never has to show `persistencyPct` without its inputs. */
+export interface LactationPersistency {
+  currentSevenDayAvgYield: number;
+  peakMilkYield: number;
+  peakDaysInMilk: number;
+  daysSincePeak: number;
+  persistencyPct: number;
+  declinePct: number;
+}
+
+/**
+ * `GET /reproduction/lactations/:id/stats` (RAKHAL-283/284, `LactationController.getStats` →
+ * `LactationStatsService.getStats`) — verified against the backend source directly, not guessed.
+ * The backend also returns dry-off-projection + `standardized305DayYield` fields (RAKHAL-285/289)
+ * that belong to other tickets' UI (dry-off flow, 305-day comparisons) — deliberately left off
+ * this type rather than partially modeled; extend here if a future card needs them.
+ */
+export interface LactationStatsResponse {
+  lactationId: string;
+  cattleId: string;
+  tagNumber: string;
+  startDate: string;
+  endDate: string | null;
+  today: number;
+  sevenDayAvgYield: number;
+  thirtyDayAvgYield: number;
+  lactationToDate: LactationTotalsByDisposition;
+  peak: LactationPeak | null;
+  persistency: LactationPersistency | null;
+}
+
+// ---- Protocols (RAKHAL-214) ------------------------------------------------
+
+export interface ProtocolMetrics {
+  applied: number;
+  in_progress: number;
+  completed: number;
+  ai_completed: number;
+  pregnant: number;
+  open: number;
+  pregnancy_loss: number;
+  conception_rate: number | null;
+}
+
+export interface ProtocolSummary {
+  id: string;
+  name: string;
+  code: string;
+  description: string | null;
+  duration_days: number;
+  step_count: number;
+  is_system_default: boolean;
+  editable: boolean;
+  metrics: ProtocolMetrics;
+}
+
+export interface ProtocolStep {
+  day_number: number;
+  title: string;
+  step_type: string;
+  instruction: string | null;
+  is_required: boolean;
+}
+
+export interface ProtocolDetail {
+  id: string;
+  name: string;
+  code: string;
+  description: string | null;
+  duration_days: number;
+  is_system_default: boolean;
+  steps: ProtocolStep[];
+}
+
+/** One step of `CreateProtocolPayload`/`UpdateProtocolPayload`'s `steps[]` (RAKHAL-407),
+ * mirrors `ProtocolStepDto`. camelCase on the wire, unlike the snake_case read-side `ProtocolStep`. */
+export interface ProtocolStepPayload {
+  dayNumber: number;
+  title: string;
+  stepType: string;
+  instruction?: string;
+  isRequired?: boolean;
+}
+
+/** Mirrors `CreateProtocolDto`. */
+export interface CreateProtocolPayload {
+  name: string;
+  description?: string;
+  steps: ProtocolStepPayload[];
+}
+
+/** Mirrors `UpdateProtocolDto`. */
+export interface UpdateProtocolPayload {
+  name?: string;
+  description?: string;
+  steps?: ProtocolStepPayload[];
+}
+
+export interface ProtocolKpis {
+  total_applied: number;
+  in_progress: number;
+  completed: number;
+  ai_completed: number;
+  pregnant: number;
+  open: number;
+  pregnancy_loss: number;
+  conception_rate: number | null;
+  pregnancy_loss_rate: number | null;
+}
+
+export type ProtocolInstanceStatus = "DRAFT" | "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "FAILED";
+export type ProtocolPregnancyOutcome = "WAITING_PD" | "PREGNANT" | "OPEN" | "PREGNANCY_LOSS" | null;
+
+export interface ProtocolInstance {
+  id: string;
+  protocol_id: string;
+  protocol_name: string;
+  cattle_id: string;
+  start_date: string;
+  status: ProtocolInstanceStatus;
+  current_step_day: number;
+  ai_completed_at: string | null;
+  pregnancy_outcome: ProtocolPregnancyOutcome;
+  outcome_recorded_at: string | null;
+  completed_at: string | null;
+  end_reason: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface ApplyProtocolResult {
+  protocol_id: string;
+  applied: number;
+  tasks_created: number;
+  instance_ids: string[];
+}
+
+export interface ProtocolInstanceListFilters {
+  protocolId?: string;
+  cattleId?: string;
+  status?: ProtocolInstanceStatus;
+}
+
+export interface ProtocolListFilters {
+  cursor?: string;
+  limit?: number;
+}
+
+// ---- Lactation curve + comparisons (RAKHAL-283/287) ------------------------
+
+/** Per-day data-quality marker (`lactation-curve.ts`'s `buildDailyYieldSeries`) — a day is flagged
+ * rather than silently zero-filled: `missing` (no session recorded), `incomplete` (some but not all
+ * of the farm's configured active sessions recorded), `complete` otherwise. */
+export type DimDataQuality = "complete" | "incomplete" | "missing";
+
+export interface DailyYieldPoint {
+  dim: number;
+  date: string;
+  yieldL: number;
+  sessionsRecorded: number;
+  sessionsExpected: number;
+  dataQuality: DimDataQuality;
+}
+
+/** `GET /reproduction/lactations/:id/curve` (RAKHAL-283) response — `compareSeries` present only
+ * when `?compareLactationId=` was passed, each series independently DIM-indexed from its own `dim=0`. */
+export interface LactationCurveResponse {
+  lactationId: string;
+  cattleId: string;
+  series: DailyYieldPoint[];
+  compareLactationId: string | null;
+  compareCattleId: string | null;
+  compareSeries: DailyYieldPoint[] | null;
+}
+
+/** One side of `GET /reproduction/lactations/compare` (RAKHAL-287) — partial mirror of the backend's
+ * `LactationComparisonSummary`, only the fields this frontend reads. */
+export interface LactationComparisonSummary {
+  lactationId: string;
+  lactationNumber: number;
+  startDate: string;
+  endDate: string | null;
+  dim: number;
+  sevenDayAvgYield: number;
+}
+
+/** `GET /reproduction/lactations/compare?cattleId=&byLactationNumber=` — current vs. previous
+ * lactation for one cow, DIM-aligned (not calendar-date aligned). `previous`/`alignedSeries`'
+ * `previousYieldL` are `null` when the cow has no previous lactation yet. */
+export interface LactationCompareResponse {
+  cattleId: string;
+  tagNumber: string;
+  byLactationNumber: boolean;
+  current: LactationComparisonSummary;
+  previous: LactationComparisonSummary | null;
+  alignedSeries: { dim: number; currentYieldL: number | null; previousYieldL: number | null }[];
+}
+
+export type LactationComparisonGroupBy = "parity" | "shed" | "dimRange";
+
+/** One bucket of `GET /reproduction/lactations/compare/groups?groupBy=` — farm-level average
+ * yield/peak/persistency across all active lactations, partitioned by `groupBy`. */
+export interface LactationGroupBucketResult {
+  bucketKey: string;
+  bucketLabel: string;
+  cowCount: number;
+  avgDim: number;
+  avgSevenDayYield: number;
+  avgPeakMilkYield: number | null;
+  avgPersistencyPct: number | null;
+}
