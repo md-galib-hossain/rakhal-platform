@@ -45,3 +45,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# visual-regression gate: baselines are built in CI from the base ref, never committed
+/tests/visual/.baseline
+/test-results-visual
+/playwright-report-visual

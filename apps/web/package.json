@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:visual": "playwright test -c playwright.visual.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",

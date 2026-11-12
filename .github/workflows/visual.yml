@@ -1,0 +1,53 @@
+name: Visual
+
+# Visual-regression gate for apps/web (docs/migration/03-shared-ui-dedupe.md "Gate"). Builds the PR's base commit and
+# the PR head on this one runner, screenshots a fixed set of routes from each (login, dashboard, animals list, a form
+# sheet, a confirm dialog; desktop and 375 px; light and dark) against a mock API, and fails on any difference.
+# No screenshot is committed anywhere. Skips itself when the base has no apps/web (the import PR).
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - "scripts/visual-gate.mjs"
+      - ".github/workflows/visual.yml"
+
+concurrency:
+  group: visual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Full history: the base commit has to exist locally for `git worktree add`.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # No `version:` here: package.json's "packageManager" is the single source (see web.yml).
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The only download in this job beyond dependencies: the browser Playwright drives.
+      - name: Install Chromium
+        run: pnpm --dir apps/web exec playwright install --with-deps chromium
+      - name: Visual gate (base vs head)
+        run: node scripts/visual-gate.mjs --base ${{ github.event.pull_request.base.sha }}
+      - name: Upload report and diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-report
+          path: |
+            apps/web/playwright-report-visual
+            apps/web/test-results-visual
+          if-no-files-found: ignore
+          retention-days: 7
