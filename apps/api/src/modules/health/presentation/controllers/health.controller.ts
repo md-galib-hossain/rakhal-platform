@@ -75,6 +75,9 @@ import {
   HealthOutcomesResponseDto,
   HealthPlanApplicationDto,
   HealthPlanRowDto,
+  HealthPlanWithStepsDto,
+  HealthRoundAddAnimalsResponseDto,
+  HealthRoundCancelResponseDto,
   HealthTaskCalendarDayDto,
   HealthTaskListItemDto,
   HealthTaskResponseDto,
@@ -302,6 +305,7 @@ export class HealthController {
 
   @Post('plans')
   @RequirePermission('healthcare.create')
+  @ApiEnvelopeResponse(HealthPlanWithStepsDto, { status: 201 })
   createPlan(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -353,6 +357,7 @@ export class HealthController {
   /** RAKHAL-473: add animals to a round that already exists (up to 100). Animals already on the protocol are skipped. */
   @Post('rounds/:roundKey/animals')
   @RequirePermission('healthcare.update')
+  @ApiEnvelopeResponse(HealthRoundAddAnimalsResponseDto, { status: 201 })
   addRoundAnimals(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -366,6 +371,7 @@ export class HealthController {
   @Post('rounds/:roundKey/cancel')
   @HttpCode(200)
   @RequirePermission('healthcare.update')
+  @ApiEnvelopeResponse(HealthRoundCancelResponseDto, { status: 201 })
   cancelRound(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,

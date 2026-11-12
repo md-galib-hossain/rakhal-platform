@@ -6611,77 +6611,105 @@
       "HealthPlanStepDto": {
         "properties": {
           "actionType": {
-            "enum": [
-              "OTHER",
-              "VACCINATION",
-              "DEWORMING",
-              "MEDICINE",
-              "OBSERVATION",
-              "CHECKUP",
-              "LAB_TEST"
-            ],
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthActionType"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
             "type": "string"
           },
           "dayNumber": {
-            "minimum": 0,
             "type": "number"
           },
           "doseAmount": {
-            "minimum": 0,
-            "type": "number"
+            "description": "Decimal string.",
+            "nullable": true,
+            "type": "string"
           },
           "doseUnit": {
+            "nullable": true,
             "type": "string"
           },
           "doseUnitId": {
+            "nullable": true,
             "type": "string"
           },
           "estimatedTime": {
+            "nullable": true,
+            "type": "string"
+          },
+          "healthPlanId": {
+            "type": "string"
+          },
+          "id": {
             "type": "string"
           },
           "instruction": {
+            "nullable": true,
             "type": "string"
           },
           "isRequired": {
             "type": "boolean"
           },
           "meatWithdrawalDays": {
-            "minimum": 0,
+            "nullable": true,
             "type": "number"
           },
           "medicineId": {
+            "nullable": true,
             "type": "string"
           },
           "medicineName": {
+            "nullable": true,
             "type": "string"
           },
           "milkWithdrawalDays": {
-            "minimum": 0,
+            "nullable": true,
             "type": "number"
           },
           "route": {
-            "enum": [
-              "OTHER",
-              "IM",
-              "IV",
-              "SC",
-              "ORAL",
-              "TOPICAL"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MedicineRoute"
+              }
             ],
-            "type": "string"
+            "nullable": true
           },
           "timeOfDay": {
-            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "nullable": true,
             "type": "string"
           },
           "title": {
             "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
           }
         },
         "required": [
+          "id",
+          "healthPlanId",
           "dayNumber",
           "title",
-          "actionType"
+          "actionType",
+          "medicineId",
+          "medicineName",
+          "doseAmount",
+          "doseUnit",
+          "doseUnitId",
+          "route",
+          "timeOfDay",
+          "instruction",
+          "estimatedTime",
+          "milkWithdrawalDays",
+          "meatWithdrawalDays",
+          "isRequired",
+          "createdAt",
+          "updatedAt"
         ],
         "type": "object"
       },
@@ -6694,6 +6722,100 @@
         ],
         "type": "string"
       },
+      "HealthPlanWithStepsDto": {
+        "properties": {
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthPlanCategory"
+              }
+            ]
+          },
+          "condition": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCondition"
+              }
+            ],
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "cycleLengthDays": {
+            "nullable": true,
+            "type": "number"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "diagnosis": {
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isTemplate": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "planType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthPlanType"
+              }
+            ]
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/HealthPlanStepDto"
+            },
+            "type": "array"
+          },
+          "totalActionSteps": {
+            "type": "number"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "name",
+          "category",
+          "planType",
+          "description",
+          "diagnosis",
+          "condition",
+          "cycleLengthDays",
+          "totalActionSteps",
+          "isTemplate",
+          "deletedAt",
+          "createdBy",
+          "createdAt",
+          "updatedAt",
+          "steps"
+        ],
+        "type": "object"
+      },
       "HealthPriority": {
         "enum": [
           "LOW",
@@ -6702,6 +6824,90 @@
           "CRITICAL"
         ],
         "type": "string"
+      },
+      "HealthRoundAddAnimalsResponseDto": {
+        "properties": {
+          "addedCount": {
+            "type": "number"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/HealthRoundAnimalResultDto"
+            },
+            "type": "array"
+          },
+          "roundKey": {
+            "type": "string"
+          },
+          "skippedCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "roundKey",
+          "addedCount",
+          "skippedCount",
+          "results"
+        ],
+        "type": "object"
+      },
+      "HealthRoundAnimalResultDto": {
+        "properties": {
+          "cattleId": {
+            "type": "string"
+          },
+          "healthCaseId": {
+            "description": "Applied, treatment rounds only.",
+            "type": "string"
+          },
+          "planEnrollmentId": {
+            "description": "Applied, protocol rounds only.",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Skipped only.",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "applied",
+              "skipped"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "cattleId",
+          "status"
+        ],
+        "type": "object"
+      },
+      "HealthRoundCancelResponseDto": {
+        "properties": {
+          "animals": {
+            "type": "number"
+          },
+          "casesRemoved": {
+            "type": "number"
+          },
+          "dosesReversed": {
+            "type": "number"
+          },
+          "roundKey": {
+            "type": "string"
+          },
+          "stepsRemoved": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "roundKey",
+          "animals",
+          "stepsRemoved",
+          "dosesReversed",
+          "casesRemoved"
+        ],
+        "type": "object"
       },
       "HealthShedCountDto": {
         "properties": {
@@ -25430,6 +25636,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/HealthPlanWithStepsDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -25883,6 +26104,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/HealthRoundAddAnimalsResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -25920,7 +26163,29 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/HealthRoundCancelResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },

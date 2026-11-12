@@ -19,6 +19,7 @@ import {
 } from '@prisma/client';
 import type { CursorPage } from 'src/common/pagination/cursor-page.type';
 import type { HealthOutcomesService } from '../../application/services/health-outcomes.service';
+import type { HealthRoundsService } from '../../application/services/health-rounds.service';
 import type { HealthService } from '../../application/services/health.service';
 
 /**
@@ -618,6 +619,83 @@ export class HealthMorbidityTrendResponseDto {
   @ApiProperty({ type: Number, nullable: true }) windowDays!: number | null;
 }
 
+// ─── Plan create (POST /health/plans) ───────────────────────────────────────
+
+export class HealthPlanStepDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() healthPlanId!: string;
+  @ApiProperty() dayNumber!: number;
+  @ApiProperty() title!: string;
+  @ApiProperty({ enum: HealthActionType, enumName: 'HealthActionType' })
+  actionType!: HealthActionType;
+  @ApiProperty({ type: String, nullable: true }) medicineId!: string | null;
+  @ApiProperty({ type: String, nullable: true }) medicineName!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: 'Decimal string.' })
+  doseAmount!: Prisma.Decimal | null;
+  @ApiProperty({ type: String, nullable: true }) doseUnit!: string | null;
+  @ApiProperty({ type: String, nullable: true }) doseUnitId!: string | null;
+  @ApiProperty({
+    enum: MedicineRoute,
+    enumName: 'MedicineRoute',
+    nullable: true,
+  })
+  route!: MedicineRoute | null;
+  @ApiProperty({ type: String, nullable: true }) timeOfDay!: string | null;
+  @ApiProperty({ type: String, nullable: true }) instruction!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  estimatedTime!: string | null;
+  @ApiProperty({ type: Number, nullable: true })
+  milkWithdrawalDays!: number | null;
+  @ApiProperty({ type: Number, nullable: true })
+  meatWithdrawalDays!: number | null;
+  @ApiProperty() isRequired!: boolean;
+  @ApiProperty(DATE_TIME) createdAt!: Date;
+  @ApiProperty(DATE_TIME) updatedAt!: Date;
+}
+
+export class HealthPlanWithStepsDto extends HealthPlanRowDto {
+  @ApiProperty({ type: () => [HealthPlanStepDto] })
+  steps!: HealthPlanStepDto[];
+}
+
+// ─── Rounds: add animals, cancel ────────────────────────────────────────────
+
+export class HealthRoundAnimalResultDto {
+  @ApiProperty() cattleId!: string;
+  @ApiProperty({ enum: ['applied', 'skipped'] })
+  status!: 'applied' | 'skipped';
+  @ApiProperty({
+    type: String,
+    required: false,
+    description: 'Applied, protocol rounds only.',
+  })
+  planEnrollmentId?: string;
+  @ApiProperty({
+    type: String,
+    required: false,
+    description: 'Applied, treatment rounds only.',
+  })
+  healthCaseId?: string;
+  @ApiProperty({ type: String, required: false, description: 'Skipped only.' })
+  reason?: string;
+}
+
+export class HealthRoundAddAnimalsResponseDto {
+  @ApiProperty() roundKey!: string;
+  @ApiProperty() addedCount!: number;
+  @ApiProperty() skippedCount!: number;
+  @ApiProperty({ type: () => [HealthRoundAnimalResultDto] })
+  results!: HealthRoundAnimalResultDto[];
+}
+
+export class HealthRoundCancelResponseDto {
+  @ApiProperty() roundKey!: string;
+  @ApiProperty() animals!: number;
+  @ApiProperty() stepsRemoved!: number;
+  @ApiProperty() dosesReversed!: number;
+  @ApiProperty() casesRemoved!: number;
+}
+
 // ─── Compile-time guards (RD-140) ───────────────────────────────────────────
 // Each fails `nest build` if the service's real return type and the documented class diverge.
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -633,7 +711,18 @@ type OutRet<K extends keyof HealthOutcomesService> =
     ? Awaited<R>
     : never;
 
+type RoundsRet<K extends keyof HealthRoundsService> =
+  HealthRoundsService[K] extends (...args: never[]) => infer R
+    ? Awaited<R>
+    : never;
+
 export type HealthShapeGuards = [
+  Assert<Same<RoundsRet<'cancelRound'>, HealthRoundCancelResponseDto>>,
+  Assert<
+    RoundsRet<'addAnimals'> extends HealthRoundAddAnimalsResponseDto
+      ? true
+      : false
+  >,
   Assert<Same<OutRet<'getOutcomes'>, HealthOutcomesResponseDto>>,
   Assert<
     OutRet<'getMorbidityTrend'> extends HealthMorbidityTrendResponseDto
@@ -671,6 +760,7 @@ export type HealthShapeGuards = [
   >,
   Assert<Same<Ret<'getTasks'>, CursorPage<HealthTaskListItemDto>>>,
   Assert<Same<Ret<'getTaskCalendar'>, HealthTaskCalendarDayDto[]>>,
+  Assert<Same<Ret<'createPlan'>, HealthPlanWithStepsDto>>,
   Assert<Same<Ret<'getTreatmentLogs'>, CursorPage<HealthTreatmentListItemDto>>>,
   Assert<
     Same<Ret<'getPlanApplications'>, CursorPage<HealthPlanApplicationDto>>
