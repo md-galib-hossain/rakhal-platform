@@ -25,7 +25,15 @@ import { UpdateFeedBatchNutritionDto } from '../dto/update-feed-batch-nutrition.
 import { ListFeedItemQueryDto } from '../dto/list-feed-item-query.dto';
 import { UpdateFeedItemDto } from '../dto/update-feed-item.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  ApiEnvelopeResponse,
+  ApiPaginatedResponse,
+} from 'src/common/swagger/api-envelope';
+import {
+  FeedItemBatchLookupDto,
+  FeedItemDetailResponseDto,
+  FeedItemResponseDto,
+} from '../dto/feed-item-response.dto';
 import { BulkDeleteResponseDto } from 'src/modules/inventory/presentation/dto/inventory-response.dto';
 
 /** Inventory → Feed tab, "Purchased" view. `/api/v1/inventory/feed-items`. Token tenancy + RBAC. */
@@ -44,6 +52,7 @@ export class FeedItemController {
 
   @Post()
   @RequirePermission('inventory.create')
+  @ApiEnvelopeResponse(FeedItemResponseDto, { status: 201 })
   create(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -67,6 +76,7 @@ export class FeedItemController {
   /** Recall lookup by lot code (RAKHAL-444) — registered before the `:id` routes. */
   @Get('by-batch-code')
   @RequirePermission('inventory.read')
+  @ApiEnvelopeResponse(FeedItemBatchLookupDto, { isArray: true })
   byBatchCode(
     @CurrentFarmId() farmId: string,
     @Query() query: FeedBatchCodeQueryDto,
@@ -76,6 +86,7 @@ export class FeedItemController {
 
   @Get()
   @RequirePermission('inventory.read')
+  @ApiPaginatedResponse(FeedItemResponseDto)
   findAll(
     @CurrentFarmId() farmId: string,
     @Query() query: ListFeedItemQueryDto,
@@ -85,12 +96,14 @@ export class FeedItemController {
 
   @Get(':id')
   @RequirePermission('inventory.read')
+  @ApiEnvelopeResponse(FeedItemDetailResponseDto)
   findOne(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.feedItemService.findOne(farmId, id);
   }
 
   @Patch(':id')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(FeedItemResponseDto)
   update(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -103,6 +116,7 @@ export class FeedItemController {
   /** Restock: add a new lot (own cost/date/code/nutrition) to an existing product. */
   @Post(':id/batches')
   @RequirePermission('inventory.create')
+  @ApiEnvelopeResponse(FeedItemResponseDto, { status: 201 })
   createBatch(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -115,6 +129,7 @@ export class FeedItemController {
   /** Edit a lot's nutrition — appends a new immutable profile (manager+). */
   @Patch(':id/batches/:batchId/nutrition')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(FeedItemDetailResponseDto)
   reviseNutrition(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -134,6 +149,7 @@ export class FeedItemController {
   /** One-click revert to the previous nutrition profile of this lot. */
   @Post(':id/batches/:batchId/nutrition/revert')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(FeedItemDetailResponseDto, { status: 201 })
   revertNutrition(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -151,6 +167,7 @@ export class FeedItemController {
   /** Re-copy today's catalogue values into a new profile for this lot ("Re-sync"). */
   @Post(':id/batches/:batchId/nutrition/resync')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(FeedItemDetailResponseDto, { status: 201 })
   resyncNutrition(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -167,6 +184,7 @@ export class FeedItemController {
 
   @Patch(':id/archive')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(FeedItemResponseDto)
   archive(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -177,6 +195,7 @@ export class FeedItemController {
 
   @Patch(':id/restore')
   @RequirePermission('inventory.update')
+  @ApiEnvelopeResponse(FeedItemResponseDto)
   restore(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -187,6 +206,7 @@ export class FeedItemController {
 
   @Delete(':id')
   @RequirePermission('inventory.delete')
+  @ApiEnvelopeResponse(FeedItemResponseDto)
   remove(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
