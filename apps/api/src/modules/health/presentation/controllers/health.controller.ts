@@ -88,6 +88,8 @@ import {
   HealthPlanWithStepsDto,
   HealthRoundAddAnimalsResponseDto,
   HealthRoundCancelResponseDto,
+  HealthRoundGridDto,
+  HealthRoundRowDto,
   HealthTaskCalendarDayDto,
   HealthTaskListItemDto,
   HealthTaskResponseDto,
@@ -373,6 +375,7 @@ export class HealthController {
    * / breeding, derived by plan + day for treatment). Read-only; no `:id` collision (`rounds` is its own segment). */
   @Get('rounds')
   @RequirePermission('healthcare.read')
+  @ApiPaginatedResponse(HealthRoundRowDto)
   getRounds(@CurrentFarmId() farmId: string, @Query() query: RoundsQueryDto) {
     return this.roundsService.list(farmId, query);
   }
@@ -380,6 +383,7 @@ export class HealthController {
   /** RAKHAL-472: the cow × step grid of one round, paged by animal, most urgent first. `roundKey` is opaque. */
   @Get('rounds/:roundKey/grid')
   @RequirePermission('healthcare.read')
+  @ApiEnvelopeResponse(HealthRoundGridDto, { withMeta: true })
   getRoundGrid(
     @CurrentFarmId() farmId: string,
     @Param('roundKey') roundKey: string,

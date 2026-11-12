@@ -67,6 +67,8 @@ interface EnvelopeOptions {
   description?: string;
   /** `data` is a plain (non-paginated) array of the model. For cursor pages use `ApiPaginatedResponse`. */
   isArray?: boolean;
+  /** The service returns `{ data, meta }` (not `{ items, meta }`): add the cursor `meta` to the envelope. */
+  withMeta?: boolean;
 }
 
 type SchemaObject = Extract<ApiResponseOptions, { schema: unknown }>['schema'];
@@ -79,17 +81,21 @@ export function ApiEnvelopeResponse<T>(
   options: EnvelopeOptions = {},
 ): MethodDecorator & ClassDecorator {
   const ref = { $ref: getSchemaPath(model) };
+  const withMeta = options.withMeta === true;
   return applyDecorators(
-    ApiExtraModels(model),
+    ApiExtraModels(model, ...(withMeta ? [CursorPageMetaDto] : [])),
     ApiResponse({
       status: options.status ?? 200,
       description: options.description,
       schema: {
         type: 'object',
-        required: ['success', 'data'],
+        required: withMeta ? ['success', 'data', 'meta'] : ['success', 'data'],
         properties: {
           success: SUCCESS,
           data: options.isArray ? { type: 'array', items: ref } : ref,
+          ...(withMeta
+            ? { meta: { $ref: getSchemaPath(CursorPageMetaDto) } }
+            : {}),
         },
       },
     }),

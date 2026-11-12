@@ -17,6 +17,8 @@ import { RequirePermission } from 'src/modules/permission/presentation/decorator
 import { HealthService } from '../../application/services/health.service';
 import { StopCattleProtocolDto } from '../dto/stop-protocol.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import { CattleHealthSummaryResponseDto } from '../dto/health-response.dto';
 
 /** Per-animal health: summary (PRD §13) + the protocols the animal is on. `/api/v1/cattle/:id/...`. */
 @ApiTags('Health')
@@ -34,6 +36,7 @@ export class CattleHealthController {
 
   @Get(':id/health-summary')
   @RequirePermission('healthcare.read')
+  @ApiEnvelopeResponse(CattleHealthSummaryResponseDto)
   summary(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.healthService.getCattleHealthSummary(farmId, id);
   }

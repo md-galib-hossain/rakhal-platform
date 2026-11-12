@@ -843,6 +843,121 @@ export class HealthPlanRunDto {
   nextStep!: HealthRunNextStepDto;
 }
 
+// ─── Rounds list + grid ─────────────────────────────────────────────────────
+
+export class HealthRoundPlanRefDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() name!: string;
+  @ApiProperty({ enum: HealthPlanCategory, enumName: 'HealthPlanCategory' })
+  category!: HealthPlanCategory;
+  @ApiProperty({ ...DATE_TIME, nullable: true }) deletedAt!: Date | null;
+}
+
+/** One round card: GET /health/rounds item, and `data.round` of the grid. */
+export class HealthRoundRowDto {
+  @ApiProperty({ description: 'Opaque: `app:<id>` or `trt:<planId>:<day>`.' })
+  roundKey!: string;
+  @ApiProperty({ type: () => HealthRoundPlanRefDto })
+  healthPlan!: HealthRoundPlanRefDto;
+  @ApiProperty({ enum: ['TREATMENT', 'PREVENTION', 'BREEDING'] })
+  kind!: 'TREATMENT' | 'PREVENTION' | 'BREEDING';
+  @ApiProperty({ description: 'Farm-local day the protocol was applied.' })
+  startDate!: string;
+  @ApiProperty() animalCount!: number;
+  @ApiProperty({ description: 'Steps that are not skipped.' })
+  stepsTotal!: number;
+  @ApiProperty() stepsDone!: number;
+  @ApiProperty() stepsSkipped!: number;
+  @ApiProperty() stepsOverdue!: number;
+  @ApiProperty() stepsDueToday!: number;
+  @ApiProperty({ type: String, nullable: true }) nextDueDate!: string | null;
+  @ApiProperty({ enum: ['RUNNING', 'FINISHED'] })
+  status!: 'RUNNING' | 'FINISHED';
+}
+
+export class HealthGridColumnDto {
+  @ApiProperty() key!: string;
+  @ApiProperty({ type: Number, nullable: true }) stepNumber!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) dayNumber!: number | null;
+  @ApiProperty() title!: string;
+}
+
+export class HealthGridCellDto {
+  @ApiProperty() taskId!: string;
+  @ApiProperty({
+    enum: ['done', 'skipped', 'inactive', 'overdue', 'today', 'upcoming'],
+  })
+  state!: 'done' | 'skipped' | 'inactive' | 'overdue' | 'today' | 'upcoming';
+  @ApiProperty() days!: number;
+  @ApiProperty() title!: string;
+  @ApiProperty() status!: string;
+  @ApiProperty({ type: Number, nullable: true }) stepNumber!: number | null;
+  @ApiProperty(DATE_TIME) dueDate!: Date;
+  @ApiProperty({ ...DATE_TIME, nullable: true }) doneAt!: Date | null;
+}
+
+export class HealthGridRowDto {
+  @ApiProperty() runKey!: string;
+  @ApiProperty({ enum: ['CASE', 'ENROLLMENT'] })
+  runType!: 'CASE' | 'ENROLLMENT';
+  @ApiProperty({ type: String, nullable: true }) healthCaseId!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  planEnrollmentId!: string | null;
+  @ApiProperty({ type: String, nullable: true }) caseCode!: string | null;
+  @ApiProperty({ type: () => HealthCattleTagDto })
+  cattle!: HealthCattleTagDto;
+  @ApiProperty() dueCount!: number;
+  @ApiProperty() overdueCount!: number;
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: { $ref: '#/components/schemas/HealthGridCellDto' },
+    description: 'Keyed by column key.',
+  })
+  cells!: Record<string, HealthGridCellDto>;
+}
+
+/** `data` of GET /health/rounds/:roundKey/grid (the cursor `meta` sits beside it). */
+export class HealthRoundGridDto {
+  @ApiProperty({ type: () => HealthRoundRowDto }) round!: HealthRoundRowDto;
+  @ApiProperty({ type: () => [HealthGridColumnDto] })
+  columns!: HealthGridColumnDto[];
+  @ApiProperty({ type: () => [HealthGridRowDto] })
+  rows!: HealthGridRowDto[];
+}
+
+// ─── Cattle health summary (GET /cattle/:id/health-summary) ─────────────────
+
+export class HealthCattleActiveCaseDto extends HealthCaseRowDto {
+  @ApiProperty({ type: () => HealthCasePlanBriefDto, nullable: true })
+  healthPlan!: HealthCasePlanBriefDto | null;
+  @ApiProperty({ type: () => [HealthTaskResponseDto] })
+  tasks!: HealthTaskResponseDto[];
+}
+
+export class HealthTreatmentProgressDto {
+  @ApiProperty() healthCaseId!: string;
+  @ApiProperty() progressPercentage!: number;
+}
+
+export class CattleHealthSummaryResponseDto {
+  @ApiProperty({ type: () => [HealthCattleActiveCaseDto] })
+  activeCases!: HealthCattleActiveCaseDto[];
+  @ApiProperty() ongoingTreatment!: boolean;
+  @ApiProperty({ type: () => [HealthTreatmentProgressDto] })
+  treatmentProgress!: HealthTreatmentProgressDto[];
+  @ApiProperty({ type: () => [HealthTreatmentLogRowDto] })
+  treatmentHistory!: HealthTreatmentLogRowDto[];
+  @ApiProperty() safetyWithdrawalWarning!: boolean;
+  @ApiProperty({ type: () => [SafetyWithdrawalResponseDto] })
+  activeWithdrawals!: SafetyWithdrawalResponseDto[];
+  @ApiProperty({ type: () => [HealthTreatmentLogRowDto] })
+  vaccinationHistory!: HealthTreatmentLogRowDto[];
+  @ApiProperty({ type: () => [HealthTreatmentLogRowDto] })
+  dewormingHistory!: HealthTreatmentLogRowDto[];
+  @ApiProperty({ type: () => HealthMortalityRowDto, nullable: true })
+  mortalityStatus!: HealthMortalityRowDto | null;
+}
+
 // ─── Compile-time guards (RD-140) ───────────────────────────────────────────
 // Each fails `nest build` if the service's real return type and the documented class diverge.
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -864,6 +979,9 @@ type RoundsRet<K extends keyof HealthRoundsService> =
     : never;
 
 export type HealthShapeGuards = [
+  Assert<Same<RoundsRet<'list'>, CursorPage<HealthRoundRowDto>>>,
+  Assert<Same<RoundsRet<'grid'>['data'], HealthRoundGridDto>>,
+  Assert<Same<Ret<'getCattleHealthSummary'>, CattleHealthSummaryResponseDto>>,
   Assert<
     Same<
       Omit<Ret<'getHealthCase'>, 'summary'>,
