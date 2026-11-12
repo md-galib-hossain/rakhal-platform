@@ -5530,6 +5530,17 @@
         ],
         "type": "object"
       },
+      "HealthCaseCodeDto": {
+        "properties": {
+          "caseCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "caseCode"
+        ],
+        "type": "object"
+      },
       "HealthCasePlanBriefDto": {
         "properties": {
           "id": {
@@ -5542,6 +5553,21 @@
         "required": [
           "id",
           "name"
+        ],
+        "type": "object"
+      },
+      "HealthCaseRefDto": {
+        "properties": {
+          "caseCode": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "caseCode",
+          "id"
         ],
         "type": "object"
       },
@@ -5918,6 +5944,51 @@
           "CLOSED"
         ],
         "type": "string"
+      },
+      "HealthCattleBriefDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "image": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "tagNumber": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tagNumber",
+          "image"
+        ],
+        "type": "object"
+      },
+      "HealthCattleTagDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "tagNumber": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "tagNumber"
+        ],
+        "type": "object"
       },
       "HealthCondition": {
         "enum": [
@@ -6385,6 +6456,217 @@
         ],
         "type": "object"
       },
+      "HealthTaskCalendarDayDto": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Task count per HealthTaskStatus that has tasks that day.",
+            "type": "object"
+          },
+          "date": {
+            "description": "Day, YYYY-MM-DD.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "date",
+          "counts"
+        ],
+        "type": "object"
+      },
+      "HealthTaskListItemDto": {
+        "properties": {
+          "cattle": {
+            "$ref": "#/components/schemas/HealthCattleTagDto"
+          },
+          "cattleId": {
+            "type": "string"
+          },
+          "completedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "completedBy": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "doseAmount": {
+            "description": "Decimal, serialised as a string.",
+            "nullable": true,
+            "type": "string"
+          },
+          "doseUnit": {
+            "nullable": true,
+            "type": "string"
+          },
+          "doseUnitId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "dueDateTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "healthCase": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCaseRefDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "healthCaseId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "healthPlan": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCasePlanBriefDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "healthPlanId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "instruction": {
+            "nullable": true,
+            "type": "string"
+          },
+          "medicineId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "medicineName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "planEnrollmentId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "rescheduledFrom": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "rescheduledTo": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "route": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MedicineRoute"
+              }
+            ],
+            "nullable": true
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthTaskStatus"
+              }
+            ]
+          },
+          "stepNumber": {
+            "nullable": true,
+            "type": "number"
+          },
+          "taskCode": {
+            "type": "string"
+          },
+          "taskDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "taskType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthActionType"
+              }
+            ]
+          },
+          "timeOfDay": {
+            "nullable": true,
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "totalSteps": {
+            "nullable": true,
+            "type": "number"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "cattleId",
+          "healthCaseId",
+          "status",
+          "healthPlanId",
+          "totalSteps",
+          "notes",
+          "deletedAt",
+          "medicineId",
+          "medicineName",
+          "route",
+          "doseAmount",
+          "doseUnit",
+          "planEnrollmentId",
+          "taskCode",
+          "taskDate",
+          "dueDateTime",
+          "taskType",
+          "title",
+          "instruction",
+          "stepNumber",
+          "doseUnitId",
+          "timeOfDay",
+          "completedAt",
+          "completedBy",
+          "rescheduledFrom",
+          "rescheduledTo",
+          "createdAt",
+          "updatedAt",
+          "cattle",
+          "healthCase",
+          "healthPlan"
+        ],
+        "type": "object"
+      },
       "HealthTaskResponseDto": {
         "properties": {
           "cattleId": {
@@ -6715,6 +6997,18 @@
           "animalEventId",
           "createdAt",
           "updatedAt"
+        ],
+        "type": "object"
+      },
+      "HealthTreatmentMedicineDto": {
+        "properties": {
+          "medicineName": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "medicineName"
         ],
         "type": "object"
       },
@@ -11221,6 +11515,118 @@
           "can_disable",
           "channels",
           "farm_override"
+        ],
+        "type": "object"
+      },
+      "SafetyWithdrawalListItemDto": {
+        "properties": {
+          "caseCode": {
+            "type": "string"
+          },
+          "cattle": {
+            "$ref": "#/components/schemas/HealthCattleBriefDto"
+          },
+          "cattleId": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "healthCase": {
+            "$ref": "#/components/schemas/HealthCaseCodeDto"
+          },
+          "healthCaseId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "meatDaysRemaining": {
+            "nullable": true,
+            "type": "number"
+          },
+          "meatWithdrawalUntil": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "medicineId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "medicineName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "milkDaysRemaining": {
+            "nullable": true,
+            "type": "number"
+          },
+          "milkWithdrawalUntil": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "safeMeatDate": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "safeMilkDate": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SafetyWithdrawalStatus"
+              }
+            ]
+          },
+          "treatmentLog": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthTreatmentMedicineDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "treatmentLogId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "cattleId",
+          "healthCaseId",
+          "status",
+          "milkWithdrawalUntil",
+          "meatWithdrawalUntil",
+          "medicineId",
+          "treatmentLogId",
+          "safeMilkDate",
+          "safeMeatDate",
+          "createdAt",
+          "updatedAt",
+          "medicineName",
+          "caseCode",
+          "milkDaysRemaining",
+          "meatDaysRemaining",
+          "cattle",
+          "healthCase",
+          "treatmentLog"
         ],
         "type": "object"
       },
@@ -25167,6 +25573,35 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/SafetyWithdrawalListItemDto"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/CursorPageMetaDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -25586,6 +26021,35 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/HealthTaskListItemDto"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/CursorPageMetaDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -25625,6 +26089,31 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/HealthTaskCalendarDayDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },

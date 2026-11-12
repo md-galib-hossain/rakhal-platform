@@ -59,7 +59,10 @@ import {
   UndoReasonDto,
 } from '../dto/health-rounds.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  ApiEnvelopeResponse,
+  ApiPaginatedResponse,
+} from 'src/common/swagger/api-envelope';
 import {
   HealthApplyPlanResponseDto,
   HealthBulkCasesResponseDto,
@@ -69,11 +72,14 @@ import {
   HealthLogTreatmentResponseDto,
   HealthMortalityResponseDto,
   HealthPlanRowDto,
+  HealthTaskCalendarDayDto,
+  HealthTaskListItemDto,
   HealthTaskResponseDto,
   HealthTaskTreatmentResponseDto,
   HealthUpdateResponseDto,
   RecordTreatmentResponseDto,
   RefreshSafetyWithdrawalsResponseDto,
+  SafetyWithdrawalListItemDto,
   SafetyWithdrawalResponseDto,
   StockCheckResponseDto,
   VoidTreatmentResponseDto,
@@ -416,6 +422,7 @@ export class HealthController {
 
   @Get('tasks')
   @RequirePermission('healthcare.read')
+  @ApiPaginatedResponse(HealthTaskListItemDto)
   getTasks(
     @CurrentFarmId() farmId: string,
     @Query() query: HealthTaskQueryDto,
@@ -425,6 +432,7 @@ export class HealthController {
 
   @Get('tasks/calendar')
   @RequirePermission('healthcare.read')
+  @ApiEnvelopeResponse(HealthTaskCalendarDayDto, { isArray: true })
   taskCalendar(
     @CurrentFarmId() farmId: string,
     @Query() query: HealthTaskCalendarQueryDto,
@@ -484,6 +492,7 @@ export class HealthController {
 
   @Get('safety-withdrawals')
   @RequirePermission('healthcare.read')
+  @ApiPaginatedResponse(SafetyWithdrawalListItemDto)
   getSafetyWithdrawals(
     @CurrentFarmId() farmId: string,
     @Query() query: SafetyWithdrawalQueryDto,

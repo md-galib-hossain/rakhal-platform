@@ -16,6 +16,7 @@ import {
   SafetyWithdrawalStatus,
   type Prisma,
 } from '@prisma/client';
+import type { CursorPage } from 'src/common/pagination/cursor-page.type';
 import type { HealthService } from '../../application/services/health.service';
 
 /**
@@ -443,6 +444,67 @@ export class HealthPlanRowDto {
   @ApiProperty(DATE_TIME) updatedAt!: Date;
 }
 
+// ─── Lists: safety withdrawals, tasks, task calendar ────────────────────────
+
+export class HealthCattleTagDto {
+  @ApiProperty() id!: string;
+  @ApiProperty({ type: String, nullable: true }) name!: string | null;
+  @ApiProperty() tagNumber!: string;
+}
+
+export class HealthCattleBriefDto extends HealthCattleTagDto {
+  @ApiProperty({ type: String, nullable: true }) image!: string | null;
+}
+
+export class HealthCaseCodeDto {
+  @ApiProperty() caseCode!: string;
+}
+
+export class HealthCaseRefDto extends HealthCaseCodeDto {
+  @ApiProperty() id!: string;
+}
+
+export class HealthTreatmentMedicineDto {
+  @ApiProperty({ type: String, nullable: true }) medicineName!: string | null;
+}
+
+/** One row of GET /health/safety-withdrawals. */
+export class SafetyWithdrawalListItemDto extends SafetyWithdrawalResponseDto {
+  @ApiProperty({ type: String, nullable: true }) medicineName!: string | null;
+  @ApiProperty() caseCode!: string;
+  @ApiProperty({ type: Number, nullable: true })
+  milkDaysRemaining!: number | null;
+  @ApiProperty({ type: Number, nullable: true })
+  meatDaysRemaining!: number | null;
+  @ApiProperty({ type: () => HealthCattleBriefDto })
+  cattle!: HealthCattleBriefDto;
+  @ApiProperty({ type: () => HealthCaseCodeDto })
+  healthCase!: HealthCaseCodeDto;
+  @ApiProperty({ type: () => HealthTreatmentMedicineDto, nullable: true })
+  treatmentLog!: HealthTreatmentMedicineDto | null;
+}
+
+/** One row of GET /health/tasks. */
+export class HealthTaskListItemDto extends HealthTaskResponseDto {
+  @ApiProperty({ type: () => HealthCattleTagDto })
+  cattle!: HealthCattleTagDto;
+  @ApiProperty({ type: () => HealthCaseRefDto, nullable: true })
+  healthCase!: HealthCaseRefDto | null;
+  @ApiProperty({ type: () => HealthCasePlanBriefDto, nullable: true })
+  healthPlan!: HealthCasePlanBriefDto | null;
+}
+
+/** One day of GET /health/tasks/calendar. */
+export class HealthTaskCalendarDayDto {
+  @ApiProperty({ description: 'Day, YYYY-MM-DD.' }) date!: string;
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'number' },
+    description: 'Task count per HealthTaskStatus that has tasks that day.',
+  })
+  counts!: Record<string, number>;
+}
+
 // ─── Compile-time guards (RD-140) ───────────────────────────────────────────
 // Each fails `nest build` if the service's real return type and the documented class diverge.
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -480,4 +542,9 @@ export type HealthShapeGuards = [
   Assert<Same<Ret<'logTaskTreatment'>, HealthTaskTreatmentResponseDto>>,
   Assert<Same<Ret<'logMortality'>, HealthMortalityResponseDto>>,
   Assert<Same<Ret<'deletePlan'>, HealthPlanRowDto>>,
+  Assert<
+    Same<Ret<'getSafetyWithdrawals'>, CursorPage<SafetyWithdrawalListItemDto>>
+  >,
+  Assert<Same<Ret<'getTasks'>, CursorPage<HealthTaskListItemDto>>>,
+  Assert<Same<Ret<'getTaskCalendar'>, HealthTaskCalendarDayDto[]>>,
 ];
