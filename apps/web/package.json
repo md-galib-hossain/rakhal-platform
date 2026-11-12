@@ -1,5 +1,5 @@
 {
-  "name": "rakhal-consumer-frontend",
+  "name": "@rakhal/web",
   "version": "0.1.0",
   "private": true,
   "scripts": {

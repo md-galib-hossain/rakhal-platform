@@ -5,6 +5,7 @@
     "dev": { "cache": false, "persistent": true },
     "lint": {},
     "typecheck": {},
+    "@rakhal/web#typecheck": { "dependsOn": ["@rakhal/web#build"] },
     "test": {}
   }
 }
