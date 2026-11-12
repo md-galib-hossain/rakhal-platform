@@ -75,6 +75,10 @@ import {
   ResetOverrideResponseDto,
 } from 'src/modules/feed/presentation/dto/feed-response.dto';
 import {
+  RequirementSettingsResponseDto,
+  TodayRequirementResponseDto,
+} from 'src/modules/feed/presentation/dto/feed-requirement-response.dto';
+import {
   ConcentrationDetailDto,
   ConcentrationFinalizeResponseDto,
   ConcentrationInventoryCheckResponseDto,
@@ -208,6 +212,7 @@ export class FeedController {
   /** Farm-wide "Today's Feed Requirement" rollup (2026-08-13, user request). */
   @Get('today-requirement')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(TodayRequirementResponseDto)
   todaysRequirement(@CurrentFarmId() farmId: string) {
     return this.requirements.getTodaysRequirement(farmId);
   }
@@ -220,6 +225,7 @@ export class FeedController {
    */
   @Get('requirement-settings')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(RequirementSettingsResponseDto)
   getRequirementSettings(@CurrentFarmId() farmId: string) {
     return this.requirementSettings.describe(farmId);
   }
@@ -230,6 +236,7 @@ export class FeedController {
    */
   @Put('requirement-settings')
   @RequirePermission('feed.update')
+  @ApiEnvelopeResponse(RequirementSettingsResponseDto)
   updateRequirementSettings(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -246,6 +253,7 @@ export class FeedController {
   /** Drop this farm's changes and go back to the standard model. */
   @Delete('requirement-settings')
   @RequirePermission('feed.update')
+  @ApiEnvelopeResponse(RequirementSettingsResponseDto)
   resetRequirementSettings(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,

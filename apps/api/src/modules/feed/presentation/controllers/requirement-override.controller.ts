@@ -9,6 +9,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiPaginatedResponse } from 'src/common/swagger/api-envelope';
+import { RequirementOverrideRowDto } from '../dto/feed-requirement-response.dto';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
@@ -51,6 +53,7 @@ export class RequirementOverrideController {
   /** History, newest first, cursor-paginated. Each row carries the calculated figures at the time. */
   @Get('requirement-overrides')
   @RequirePermission('feed.read')
+  @ApiPaginatedResponse(RequirementOverrideRowDto)
   history(
     @CurrentFarmId() farmId: string,
     @Param('cattleId') cattleId: string,

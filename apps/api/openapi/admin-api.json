@@ -13376,6 +13376,23 @@
         ],
         "type": "object"
       },
+      "PregnancyIntakeStageDto": {
+        "properties": {
+          "percentOfBodyWeight": {
+            "description": "Target intake for the band as a fraction of body weight.",
+            "type": "number"
+          },
+          "untilDay": {
+            "description": "Upper bound of the band, in days of gestation (inclusive).",
+            "type": "number"
+          }
+        },
+        "required": [
+          "untilDay",
+          "percentOfBodyWeight"
+        ],
+        "type": "object"
+      },
       "PreviewCheckoutDto": {
         "properties": {
           "billingPeriod": {
@@ -14496,6 +14513,670 @@
             "type": "number"
           }
         },
+        "type": "object"
+      },
+      "RequirementBreakdownDto": {
+        "properties": {
+          "cp": {
+            "$ref": "#/components/schemas/RequirementEnergyPartsDto"
+          },
+          "dm": {
+            "$ref": "#/components/schemas/RequirementDmPartsDto"
+          },
+          "me": {
+            "$ref": "#/components/schemas/RequirementEnergyPartsDto"
+          }
+        },
+        "required": [
+          "dm",
+          "me",
+          "cp"
+        ],
+        "type": "object"
+      },
+      "RequirementDmPartsDto": {
+        "properties": {
+          "bcsAdjustment": {
+            "type": "number"
+          },
+          "heiferGrowth": {
+            "type": "number"
+          },
+          "lactation": {
+            "type": "number"
+          },
+          "pregnancy": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "lactation",
+          "pregnancy",
+          "heiferGrowth",
+          "bcsAdjustment"
+        ],
+        "type": "object"
+      },
+      "RequirementEnergyPartsDto": {
+        "properties": {
+          "heiferGrowth": {
+            "type": "number"
+          },
+          "maintenance": {
+            "type": "number"
+          },
+          "milk": {
+            "type": "number"
+          },
+          "pregnancy": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "maintenance",
+          "milk",
+          "pregnancy",
+          "heiferGrowth"
+        ],
+        "type": "object"
+      },
+      "RequirementOverrideEndReason": {
+        "enum": [
+          "REPLACED",
+          "TURNED_OFF"
+        ],
+        "type": "string"
+      },
+      "RequirementOverrideRowDto": {
+        "properties": {
+          "adf_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "calcium_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "cattle_id": {
+            "type": "string"
+          },
+          "cp_kg": {
+            "type": "number"
+          },
+          "dm_kg": {
+            "type": "number"
+          },
+          "dynamic_snapshot": {
+            "additionalProperties": true,
+            "description": "The calculated requirement at the moment the override was set (JSON).",
+            "nullable": true,
+            "type": "object"
+          },
+          "effective_from": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "effective_to": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "end_reason": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementOverrideEndReason"
+              }
+            ],
+            "nullable": true
+          },
+          "ended_by": {
+            "nullable": true,
+            "type": "string"
+          },
+          "ended_by_name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "fat_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "me_mj": {
+            "type": "number"
+          },
+          "ndf_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "ndf_max_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "note": {
+            "nullable": true,
+            "type": "string"
+          },
+          "phosphorus_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "rdp_pct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "rup_pct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "set_by": {
+            "type": "string"
+          },
+          "set_by_name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "tdn_kg": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "cattle_id",
+          "dm_kg",
+          "cp_kg",
+          "me_mj",
+          "ndf_kg",
+          "ndf_max_kg",
+          "adf_kg",
+          "fat_kg",
+          "tdn_kg",
+          "calcium_kg",
+          "phosphorus_kg",
+          "rdp_pct",
+          "rup_pct",
+          "note",
+          "dynamic_snapshot",
+          "effective_from",
+          "effective_to",
+          "end_reason",
+          "set_by",
+          "set_by_name",
+          "ended_by",
+          "ended_by_name"
+        ],
+        "type": "object"
+      },
+      "RequirementPresetRefDto": {
+        "properties": {
+          "effective_from": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "version",
+          "effective_from"
+        ],
+        "type": "object"
+      },
+      "RequirementProfileDto": {
+        "properties": {
+          "adf_kg": {
+            "type": "number"
+          },
+          "breakdown": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementBreakdownDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "ca_p_ratio_target": {
+            "type": "number"
+          },
+          "calcium_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "cp_kg": {
+            "type": "number"
+          },
+          "cp_pct_of_dm": {
+            "type": "number"
+          },
+          "dm_kg": {
+            "type": "number"
+          },
+          "energy_density_mj_per_kg_dm": {
+            "type": "number"
+          },
+          "fat_kg": {
+            "type": "number"
+          },
+          "me_mj": {
+            "type": "number"
+          },
+          "ndf_kg": {
+            "type": "number"
+          },
+          "ndf_max_kg": {
+            "type": "number"
+          },
+          "ne_mcal": {
+            "type": "number"
+          },
+          "phosphorus_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "rdp_pct": {
+            "type": "number"
+          },
+          "rup_pct": {
+            "type": "number"
+          },
+          "tdn_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dm_kg",
+          "cp_kg",
+          "me_mj",
+          "ndf_kg",
+          "fat_kg",
+          "ne_mcal",
+          "energy_density_mj_per_kg_dm",
+          "cp_pct_of_dm",
+          "tdn_kg",
+          "calcium_kg",
+          "phosphorus_kg",
+          "adf_kg",
+          "rdp_pct",
+          "rup_pct",
+          "ndf_max_kg",
+          "ca_p_ratio_target",
+          "breakdown"
+        ],
+        "type": "object"
+      },
+      "RequirementSettingsChangesDto": {
+        "properties": {
+          "adfShareOfIntake": {
+            "type": "number"
+          },
+          "alertDryMatterAbovePct": {
+            "type": "number"
+          },
+          "alertDryMatterBelowPct": {
+            "type": "number"
+          },
+          "alertEnergyAbovePct": {
+            "type": "number"
+          },
+          "alertEnergyBelowPct": {
+            "type": "number"
+          },
+          "alertProteinAbovePct": {
+            "type": "number"
+          },
+          "alertProteinBelowPct": {
+            "type": "number"
+          },
+          "calciumPerBodyWeightKg": {
+            "type": "number"
+          },
+          "calciumPerLitreMilk": {
+            "type": "number"
+          },
+          "calciumToPhosphorusTarget": {
+            "type": "number"
+          },
+          "defaultDaysInMilk": {
+            "type": "number"
+          },
+          "defaultWeightKg": {
+            "type": "number"
+          },
+          "degradableProteinShare": {
+            "type": "number"
+          },
+          "energyAdjustPerBodyConditionStep": {
+            "type": "number"
+          },
+          "energyPerLitreMilk": {
+            "type": "number"
+          },
+          "energyPerMilkFatPercent": {
+            "type": "number"
+          },
+          "fatShareOfIntake": {
+            "type": "number"
+          },
+          "heiferGrowthEnergy": {
+            "type": "number"
+          },
+          "heiferGrowthProtein": {
+            "type": "number"
+          },
+          "heiferIntakePercentOfBodyWeight": {
+            "type": "number"
+          },
+          "intakeAdjustPerBodyConditionPoint": {
+            "type": "number"
+          },
+          "intakeCurveOffset": {
+            "type": "number"
+          },
+          "intakeCurveSteepness": {
+            "type": "number"
+          },
+          "intakeFromBodyWeightFactor": {
+            "type": "number"
+          },
+          "intakeFromMilkFactor": {
+            "type": "number"
+          },
+          "lookaheadDays": {
+            "type": "number"
+          },
+          "maintenanceEnergyPerMetabolicKg": {
+            "type": "number"
+          },
+          "maintenanceProteinPerMetabolicKg": {
+            "type": "number"
+          },
+          "manualOverrideDriftPct": {
+            "type": "number"
+          },
+          "ndfMaxShareOfIntake": {
+            "type": "number"
+          },
+          "ndfMinShareOfIntake": {
+            "type": "number"
+          },
+          "netEnergyEfficiency": {
+            "type": "number"
+          },
+          "phosphorusPerBodyWeightKg": {
+            "type": "number"
+          },
+          "phosphorusPerLitreMilk": {
+            "type": "number"
+          },
+          "pregnancyIntakeStages": {
+            "items": {
+              "$ref": "#/components/schemas/PregnancyIntakeStageDto"
+            },
+            "type": "array"
+          },
+          "pregnancyLengthDays": {
+            "type": "number"
+          },
+          "pregnancyPeakEnergy": {
+            "type": "number"
+          },
+          "pregnancyPeakProtein": {
+            "type": "number"
+          },
+          "proteinPerLitreMilk": {
+            "type": "number"
+          },
+          "targetBodyCondition": {
+            "type": "number"
+          },
+          "tdnShareOfIntake": {
+            "type": "number"
+          },
+          "undegradableProteinShare": {
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "RequirementSettingsDto": {
+        "properties": {
+          "adfShareOfIntake": {
+            "type": "number"
+          },
+          "alertDryMatterAbovePct": {
+            "type": "number"
+          },
+          "alertDryMatterBelowPct": {
+            "type": "number"
+          },
+          "alertEnergyAbovePct": {
+            "type": "number"
+          },
+          "alertEnergyBelowPct": {
+            "type": "number"
+          },
+          "alertProteinAbovePct": {
+            "type": "number"
+          },
+          "alertProteinBelowPct": {
+            "type": "number"
+          },
+          "calciumPerBodyWeightKg": {
+            "type": "number"
+          },
+          "calciumPerLitreMilk": {
+            "type": "number"
+          },
+          "calciumToPhosphorusTarget": {
+            "type": "number"
+          },
+          "defaultDaysInMilk": {
+            "type": "number"
+          },
+          "defaultWeightKg": {
+            "type": "number"
+          },
+          "degradableProteinShare": {
+            "type": "number"
+          },
+          "energyAdjustPerBodyConditionStep": {
+            "type": "number"
+          },
+          "energyPerLitreMilk": {
+            "type": "number"
+          },
+          "energyPerMilkFatPercent": {
+            "type": "number"
+          },
+          "fatShareOfIntake": {
+            "type": "number"
+          },
+          "heiferGrowthEnergy": {
+            "type": "number"
+          },
+          "heiferGrowthProtein": {
+            "type": "number"
+          },
+          "heiferIntakePercentOfBodyWeight": {
+            "type": "number"
+          },
+          "intakeAdjustPerBodyConditionPoint": {
+            "type": "number"
+          },
+          "intakeCurveOffset": {
+            "type": "number"
+          },
+          "intakeCurveSteepness": {
+            "type": "number"
+          },
+          "intakeFromBodyWeightFactor": {
+            "type": "number"
+          },
+          "intakeFromMilkFactor": {
+            "type": "number"
+          },
+          "lookaheadDays": {
+            "type": "number"
+          },
+          "maintenanceEnergyPerMetabolicKg": {
+            "type": "number"
+          },
+          "maintenanceProteinPerMetabolicKg": {
+            "type": "number"
+          },
+          "manualOverrideDriftPct": {
+            "type": "number"
+          },
+          "ndfMaxShareOfIntake": {
+            "type": "number"
+          },
+          "ndfMinShareOfIntake": {
+            "type": "number"
+          },
+          "netEnergyEfficiency": {
+            "type": "number"
+          },
+          "phosphorusPerBodyWeightKg": {
+            "type": "number"
+          },
+          "phosphorusPerLitreMilk": {
+            "type": "number"
+          },
+          "pregnancyIntakeStages": {
+            "items": {
+              "$ref": "#/components/schemas/PregnancyIntakeStageDto"
+            },
+            "type": "array"
+          },
+          "pregnancyLengthDays": {
+            "type": "number"
+          },
+          "pregnancyPeakEnergy": {
+            "type": "number"
+          },
+          "pregnancyPeakProtein": {
+            "type": "number"
+          },
+          "proteinPerLitreMilk": {
+            "type": "number"
+          },
+          "targetBodyCondition": {
+            "type": "number"
+          },
+          "tdnShareOfIntake": {
+            "type": "number"
+          },
+          "undegradableProteinShare": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "maintenanceEnergyPerMetabolicKg",
+          "energyPerLitreMilk",
+          "energyPerMilkFatPercent",
+          "netEnergyEfficiency",
+          "maintenanceProteinPerMetabolicKg",
+          "proteinPerLitreMilk",
+          "degradableProteinShare",
+          "undegradableProteinShare",
+          "intakeFromMilkFactor",
+          "intakeFromBodyWeightFactor",
+          "intakeCurveSteepness",
+          "intakeCurveOffset",
+          "defaultDaysInMilk",
+          "defaultWeightKg",
+          "alertDryMatterBelowPct",
+          "alertDryMatterAbovePct",
+          "alertProteinBelowPct",
+          "alertProteinAbovePct",
+          "alertEnergyBelowPct",
+          "alertEnergyAbovePct",
+          "manualOverrideDriftPct",
+          "lookaheadDays",
+          "pregnancyIntakeStages",
+          "pregnancyLengthDays",
+          "pregnancyPeakEnergy",
+          "pregnancyPeakProtein",
+          "heiferIntakePercentOfBodyWeight",
+          "heiferGrowthEnergy",
+          "heiferGrowthProtein",
+          "targetBodyCondition",
+          "energyAdjustPerBodyConditionStep",
+          "intakeAdjustPerBodyConditionPoint",
+          "tdnShareOfIntake",
+          "adfShareOfIntake",
+          "ndfMinShareOfIntake",
+          "ndfMaxShareOfIntake",
+          "fatShareOfIntake",
+          "calciumPerBodyWeightKg",
+          "calciumPerLitreMilk",
+          "phosphorusPerBodyWeightKg",
+          "phosphorusPerLitreMilk",
+          "calciumToPhosphorusTarget"
+        ],
+        "type": "object"
+      },
+      "RequirementSettingsResponseDto": {
+        "properties": {
+          "defaults": {
+            "$ref": "#/components/schemas/RequirementSettingsDto"
+          },
+          "effective": {
+            "$ref": "#/components/schemas/RequirementSettingsDto"
+          },
+          "farm_changes": {
+            "$ref": "#/components/schemas/RequirementSettingsChangesDto"
+          },
+          "fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RequirementSettingFieldDto"
+            },
+            "description": "Editor metadata (group, label, unit, bounds) keyed by setting name.",
+            "type": "object"
+          },
+          "preset": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementPresetRefDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "sources": {
+            "additionalProperties": {
+              "enum": [
+                "farm",
+                "preset",
+                "default"
+              ],
+              "type": "string"
+            },
+            "description": "Which layer supplied each setting, keyed by setting name.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "effective",
+          "defaults",
+          "preset",
+          "farm_changes",
+          "sources",
+          "fields"
+        ],
         "type": "object"
       },
       "RescheduleHealthTaskDto": {
@@ -16397,6 +17078,170 @@
           "linked",
           "count",
           "chats"
+        ],
+        "type": "object"
+      },
+      "TodayRequirementDataSourceDto": {
+        "properties": {
+          "milk_yield": {
+            "type": "string"
+          },
+          "weight": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "weight",
+          "milk_yield"
+        ],
+        "type": "object"
+      },
+      "TodayRequirementDetailDto": {
+        "properties": {
+          "ca_p_headcount": {
+            "type": "number"
+          },
+          "data_source": {
+            "$ref": "#/components/schemas/TodayRequirementDataSourceDto"
+          },
+          "headcount": {
+            "type": "number"
+          },
+          "herd_total": {
+            "$ref": "#/components/schemas/RequirementProfileDto"
+          },
+          "inputs": {
+            "$ref": "#/components/schemas/TodayRequirementInputsDto"
+          },
+          "manual_headcount": {
+            "type": "number"
+          },
+          "per_cow": {
+            "$ref": "#/components/schemas/RequirementProfileDto"
+          }
+        },
+        "required": [
+          "headcount",
+          "manual_headcount",
+          "ca_p_headcount",
+          "inputs",
+          "data_source",
+          "per_cow",
+          "herd_total"
+        ],
+        "type": "object"
+      },
+      "TodayRequirementIngredientDto": {
+        "properties": {
+          "ingredient_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "total_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "ingredient_id",
+          "name",
+          "total_kg"
+        ],
+        "type": "object"
+      },
+      "TodayRequirementInputsDto": {
+        "properties": {
+          "bcs": {
+            "nullable": true,
+            "type": "number"
+          },
+          "cattle_with_milk_data": {
+            "type": "number"
+          },
+          "cattle_with_weight": {
+            "type": "number"
+          },
+          "milk_target_l": {
+            "type": "number"
+          },
+          "weight_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "weight_kg",
+          "milk_target_l",
+          "bcs",
+          "cattle_with_weight",
+          "cattle_with_milk_data"
+        ],
+        "type": "object"
+      },
+      "TodayRequirementRationDto": {
+        "properties": {
+          "concentration_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "headcount": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "total_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "plan_id",
+          "concentration_id",
+          "name",
+          "headcount",
+          "total_kg"
+        ],
+        "type": "object"
+      },
+      "TodayRequirementResponseDto": {
+        "properties": {
+          "by_ingredient": {
+            "items": {
+              "$ref": "#/components/schemas/TodayRequirementIngredientDto"
+            },
+            "type": "array"
+          },
+          "by_ration": {
+            "items": {
+              "$ref": "#/components/schemas/TodayRequirementRationDto"
+            },
+            "type": "array"
+          },
+          "grand_total_kg": {
+            "type": "number"
+          },
+          "has_active_ration": {
+            "type": "boolean"
+          },
+          "requirement": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TodayRequirementDetailDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "by_ingredient",
+          "by_ration",
+          "grand_total_kg",
+          "requirement",
+          "has_active_ration"
         ],
         "type": "object"
       },
