@@ -58,7 +58,13 @@ import {
   RoundsQueryDto,
   UndoReasonDto,
 } from '../dto/health-rounds.dto';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiExtraModels,
+  ApiResponse,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import {
   ApiEnvelopeResponse,
   ApiPaginatedResponse,
@@ -66,6 +72,7 @@ import {
 import {
   HealthApplyPlanResponseDto,
   HealthBulkCasesResponseDto,
+  HealthCaseDetailResponseDto,
   HealthCaseResponseDto,
   HealthCaseRowDto,
   HealthDashboardResponseDto,
@@ -74,7 +81,10 @@ import {
   HealthMortalityResponseDto,
   HealthOutcomesResponseDto,
   HealthPlanApplicationDto,
+  HealthPlanListItemDto,
   HealthPlanRowDto,
+  HealthPlanRunDto,
+  HealthSickBayItemDto,
   HealthPlanWithStepsDto,
   HealthRoundAddAnimalsResponseDto,
   HealthRoundCancelResponseDto,
@@ -143,6 +153,7 @@ export class HealthController {
 
   @Get('sick-bay')
   @RequirePermission('healthcare.read')
+  @ApiPaginatedResponse(HealthSickBayItemDto)
   sickBay(@CurrentFarmId() farmId: string, @Query() query: SickBayQueryDto) {
     return this.healthService.getSickBay(farmId, query);
   }
@@ -206,6 +217,7 @@ export class HealthController {
 
   @Get('cases/:id')
   @RequirePermission('healthcare.read')
+  @ApiEnvelopeResponse(HealthCaseDetailResponseDto)
   getCase(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     return this.healthService.getHealthCase(farmId, id);
   }
@@ -269,6 +281,25 @@ export class HealthController {
 
   @Post('cases/:id/close')
   @RequirePermission('healthcare.close-case')
+  @ApiExtraModels(HealthCaseRowDto, HealthMortalityResponseDto)
+  @ApiResponse({
+    status: 201,
+    description:
+      'A recovery close returns the closed case; a MORTALITY close returns the mortality record and the case.',
+    schema: {
+      type: 'object',
+      required: ['success', 'data'],
+      properties: {
+        success: { type: 'boolean', enum: [true] },
+        data: {
+          oneOf: [
+            { $ref: getSchemaPath(HealthCaseRowDto) },
+            { $ref: getSchemaPath(HealthMortalityResponseDto) },
+          ],
+        },
+      },
+    },
+  })
   closeCase(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -292,6 +323,7 @@ export class HealthController {
 
   @Get('plans')
   @RequirePermission('healthcare.read')
+  @ApiPaginatedResponse(HealthPlanListItemDto)
   async getPlans(
     @CurrentFarmId() farmId: string,
     @Query() query: HealthPlanQueryDto,
@@ -316,6 +348,7 @@ export class HealthController {
 
   @Get('plans/:id')
   @RequirePermission('healthcare.read')
+  @ApiEnvelopeResponse(HealthPlanListItemDto)
   async getPlan(@CurrentFarmId() farmId: string, @Param('id') id: string) {
     // MILESTONE 29d: the round sheet reads one protocol (steps + live results), archived ones included
     const plan = await this.healthService.getPlanForView(farmId, id);
@@ -327,6 +360,7 @@ export class HealthController {
    * next open step. Declared next to `plans/:id`; the extra `/runs` segment keeps the two from colliding. */
   @Get('plans/:id/runs')
   @RequirePermission('healthcare.read')
+  @ApiPaginatedResponse(HealthPlanRunDto)
   getPlanRuns(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,

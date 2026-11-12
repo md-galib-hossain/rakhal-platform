@@ -5541,6 +5541,268 @@
         ],
         "type": "object"
       },
+      "HealthCaseDetailResponseDto": {
+        "properties": {
+          "activeSafetyWithdrawal": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SafetyWithdrawalResponseDto"
+              }
+            ],
+            "description": "Most recent withdrawal; null when the case has none.",
+            "nullable": true,
+            "type": "object"
+          },
+          "assignedVet": {
+            "nullable": true,
+            "type": "string"
+          },
+          "careType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCareType"
+              }
+            ]
+          },
+          "caseCode": {
+            "type": "string"
+          },
+          "cattle": {
+            "$ref": "#/components/schemas/HealthCaseCattleBriefDto"
+          },
+          "cattleId": {
+            "type": "string"
+          },
+          "closeReason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "closedDate": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "condition": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCondition"
+              }
+            ],
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currentStep": {
+            "type": "number"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "expectedRecoveryDate": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "healthPlan": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCasePlanBriefDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "healthPlanId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "healthUpdates": {
+            "items": {
+              "$ref": "#/components/schemas/HealthUpdateResponseDto"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isSafetyWithholdingActive": {
+            "type": "boolean"
+          },
+          "lastDose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthTreatmentLogRowDto"
+              }
+            ],
+            "description": "Most recent treatment; null when none was given yet.",
+            "nullable": true,
+            "type": "object"
+          },
+          "meatWithdrawalUntil": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "milkWithdrawalUntil": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "mortalityId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "mortalityRecord": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthMortalityRowDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "nextDose": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthTaskResponseDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "note": {
+            "nullable": true,
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "photoUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "priority": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthPriority"
+              }
+            ]
+          },
+          "progressPercentage": {
+            "type": "number"
+          },
+          "reportedBy": {
+            "nullable": true,
+            "type": "string"
+          },
+          "safetyWithdrawals": {
+            "items": {
+              "$ref": "#/components/schemas/SafetyWithdrawalResponseDto"
+            },
+            "type": "array"
+          },
+          "shedId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "shedName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "startDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCaseStatus"
+              }
+            ]
+          },
+          "summary": {
+            "$ref": "#/components/schemas/HealthCaseSummaryDto"
+          },
+          "symptoms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/HealthTaskResponseDto"
+            },
+            "type": "array"
+          },
+          "totalSteps": {
+            "type": "number"
+          },
+          "treatmentLogs": {
+            "items": {
+              "$ref": "#/components/schemas/HealthTreatmentLogRowDto"
+            },
+            "type": "array"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "cattleId",
+          "caseCode",
+          "note",
+          "condition",
+          "careType",
+          "priority",
+          "status",
+          "shedId",
+          "shedName",
+          "reportedBy",
+          "assignedVet",
+          "startDate",
+          "expectedRecoveryDate",
+          "closedDate",
+          "closeReason",
+          "mortalityId",
+          "healthPlanId",
+          "currentStep",
+          "totalSteps",
+          "progressPercentage",
+          "symptoms",
+          "notes",
+          "photoUrl",
+          "isSafetyWithholdingActive",
+          "milkWithdrawalUntil",
+          "meatWithdrawalUntil",
+          "deletedAt",
+          "createdAt",
+          "updatedAt",
+          "summary",
+          "nextDose",
+          "lastDose",
+          "activeSafetyWithdrawal",
+          "cattle",
+          "healthPlan",
+          "tasks",
+          "treatmentLogs",
+          "healthUpdates",
+          "mortalityRecord",
+          "safetyWithdrawals"
+        ],
+        "type": "object"
+      },
       "HealthCasePlanBriefDto": {
         "properties": {
           "id": {
@@ -5553,6 +5815,33 @@
         "required": [
           "id",
           "name"
+        ],
+        "type": "object"
+      },
+      "HealthCaseRecurrenceDto": {
+        "properties": {
+          "daysSincePrevious": {
+            "nullable": true,
+            "type": "number"
+          },
+          "isRecurrence": {
+            "type": "boolean"
+          },
+          "previousCaseId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "previousClosedDate": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "isRecurrence",
+          "previousCaseId",
+          "previousClosedDate",
+          "daysSincePrevious"
         ],
         "type": "object"
       },
@@ -5944,6 +6233,61 @@
           "CLOSED"
         ],
         "type": "string"
+      },
+      "HealthCaseSummaryDto": {
+        "properties": {
+          "daysSick": {
+            "type": "number"
+          },
+          "daysToRecover": {
+            "nullable": true,
+            "type": "number"
+          },
+          "outcome": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCaseStatus"
+              }
+            ],
+            "nullable": true
+          },
+          "protocol": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCasePlanBriefDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/HealthCaseRecurrenceDto"
+          },
+          "stepsDone": {
+            "type": "number"
+          },
+          "stepsTotal": {
+            "type": "number"
+          },
+          "totalCost": {
+            "type": "number"
+          },
+          "treatmentCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "daysSick",
+          "daysToRecover",
+          "outcome",
+          "treatmentCount",
+          "stepsDone",
+          "stepsTotal",
+          "protocol",
+          "totalCost",
+          "recurrence"
+        ],
+        "type": "object"
       },
       "HealthCattleBriefDto": {
         "properties": {
@@ -6521,6 +6865,104 @@
         ],
         "type": "object"
       },
+      "HealthPlanListItemDto": {
+        "properties": {
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthPlanCategory"
+              }
+            ]
+          },
+          "condition": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCondition"
+              }
+            ],
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "cycleLengthDays": {
+            "nullable": true,
+            "type": "number"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "diagnosis": {
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isTemplate": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "planType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthPlanType"
+              }
+            ]
+          },
+          "stats": {
+            "$ref": "#/components/schemas/HealthPlanStatsDto"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/HealthPlanStepDto"
+            },
+            "type": "array"
+          },
+          "totalActionSteps": {
+            "type": "number"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "name",
+          "category",
+          "planType",
+          "description",
+          "diagnosis",
+          "condition",
+          "cycleLengthDays",
+          "totalActionSteps",
+          "isTemplate",
+          "deletedAt",
+          "createdBy",
+          "createdAt",
+          "updatedAt",
+          "steps",
+          "stats"
+        ],
+        "type": "object"
+      },
       "HealthPlanRowDto": {
         "properties": {
           "category": {
@@ -6605,6 +7047,143 @@
           "createdBy",
           "createdAt",
           "updatedAt"
+        ],
+        "type": "object"
+      },
+      "HealthPlanRunDto": {
+        "properties": {
+          "caseCode": {
+            "description": "Cases only.",
+            "nullable": true,
+            "type": "string"
+          },
+          "cattle": {
+            "$ref": "#/components/schemas/HealthCattleBriefDto"
+          },
+          "currentStep": {
+            "type": "number"
+          },
+          "healthCaseId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "CASE",
+              "ENROLLMENT"
+            ],
+            "type": "string"
+          },
+          "nextStep": {
+            "$ref": "#/components/schemas/HealthRunNextStepDto"
+          },
+          "planEnrollmentId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "progressPercentage": {
+            "type": "number"
+          },
+          "startDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "description": "HealthCaseStatus for a case, PlanEnrollmentStatus for an enrollment.",
+            "type": "string"
+          },
+          "totalSteps": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind",
+          "id",
+          "healthCaseId",
+          "planEnrollmentId",
+          "caseCode",
+          "status",
+          "startDate",
+          "currentStep",
+          "totalSteps",
+          "progressPercentage",
+          "cattle",
+          "nextStep"
+        ],
+        "type": "object"
+      },
+      "HealthPlanStatsDto": {
+        "properties": {
+          "appliedTo": {
+            "description": "Distinct animals the protocol was applied to.",
+            "type": "number"
+          },
+          "completed": {
+            "nullable": true,
+            "type": "number"
+          },
+          "coverageRate": {
+            "nullable": true,
+            "type": "number"
+          },
+          "due": {
+            "nullable": true,
+            "type": "number"
+          },
+          "inProgress": {
+            "description": "Open cases (treatment) or active enrollments.",
+            "type": "number"
+          },
+          "kind": {
+            "enum": [
+              "TREATMENT",
+              "PREVENTION",
+              "BREEDING"
+            ],
+            "type": "string"
+          },
+          "mortality": {
+            "nullable": true,
+            "type": "number"
+          },
+          "nextDueDate": {
+            "description": "Farm-local YYYY-MM-DD of the earliest open step.",
+            "nullable": true,
+            "type": "string"
+          },
+          "recovered": {
+            "nullable": true,
+            "type": "number"
+          },
+          "recoveryRate": {
+            "nullable": true,
+            "type": "number"
+          },
+          "stepsDue": {
+            "description": "Open steps due today.",
+            "type": "number"
+          },
+          "stepsOverdue": {
+            "description": "Open steps whose due day has passed.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind",
+          "stepsDue",
+          "stepsOverdue",
+          "nextDueDate",
+          "appliedTo",
+          "inProgress",
+          "recovered",
+          "mortality",
+          "recoveryRate",
+          "completed",
+          "due",
+          "coverageRate"
         ],
         "type": "object"
       },
@@ -6909,6 +7488,34 @@
         ],
         "type": "object"
       },
+      "HealthRunNextStepDto": {
+        "properties": {
+          "dueDateTime": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthTaskStatus"
+              }
+            ]
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "dueDateTime",
+          "title"
+        ],
+        "type": "object"
+      },
       "HealthShedCountDto": {
         "properties": {
           "count": {
@@ -6921,6 +7528,206 @@
         "required": [
           "shedName",
           "count"
+        ],
+        "type": "object"
+      },
+      "HealthSickBayItemDto": {
+        "properties": {
+          "assignedVet": {
+            "nullable": true,
+            "type": "string"
+          },
+          "careType": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCareType"
+              }
+            ]
+          },
+          "caseCode": {
+            "type": "string"
+          },
+          "cattle": {
+            "$ref": "#/components/schemas/HealthCattleBriefDto"
+          },
+          "cattleId": {
+            "type": "string"
+          },
+          "closeReason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "closedDate": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "condition": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCondition"
+              }
+            ],
+            "nullable": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "currentStep": {
+            "type": "number"
+          },
+          "deletedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "expectedRecoveryDate": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "healthPlan": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCasePlanBriefDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "healthPlanId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isSafetyWithholdingActive": {
+            "type": "boolean"
+          },
+          "meatWithdrawalUntil": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "milkWithdrawalUntil": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "mortalityId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "note": {
+            "nullable": true,
+            "type": "string"
+          },
+          "notes": {
+            "nullable": true,
+            "type": "string"
+          },
+          "photoUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "priority": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthPriority"
+              }
+            ]
+          },
+          "progressPercentage": {
+            "type": "number"
+          },
+          "reportedBy": {
+            "nullable": true,
+            "type": "string"
+          },
+          "shedId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "shedName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "startDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HealthCaseStatus"
+              }
+            ]
+          },
+          "symptoms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/HealthTaskResponseDto"
+            },
+            "type": "array"
+          },
+          "totalSteps": {
+            "type": "number"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "withdrawalDaysLeft": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "farmId",
+          "cattleId",
+          "caseCode",
+          "note",
+          "condition",
+          "careType",
+          "priority",
+          "status",
+          "shedId",
+          "shedName",
+          "reportedBy",
+          "assignedVet",
+          "startDate",
+          "expectedRecoveryDate",
+          "closedDate",
+          "closeReason",
+          "mortalityId",
+          "healthPlanId",
+          "currentStep",
+          "totalSteps",
+          "progressPercentage",
+          "symptoms",
+          "notes",
+          "photoUrl",
+          "isSafetyWithholdingActive",
+          "milkWithdrawalUntil",
+          "meatWithdrawalUntil",
+          "deletedAt",
+          "createdAt",
+          "updatedAt",
+          "withdrawalDaysLeft",
+          "cattle",
+          "healthPlan",
+          "tasks"
         ],
         "type": "object"
       },

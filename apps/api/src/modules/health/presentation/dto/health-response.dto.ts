@@ -20,6 +20,7 @@ import {
 import type { CursorPage } from 'src/common/pagination/cursor-page.type';
 import type { HealthOutcomesService } from '../../application/services/health-outcomes.service';
 import type { HealthRoundsService } from '../../application/services/health-rounds.service';
+import type { PlanStats } from '../../domain/health-plan-stats';
 import type { HealthService } from '../../application/services/health.service';
 
 /**
@@ -696,6 +697,152 @@ export class HealthRoundCancelResponseDto {
   @ApiProperty() casesRemoved!: number;
 }
 
+// ─── Case detail (GET /health/cases/:id) ────────────────────────────────────
+
+export class HealthCaseRecurrenceDto {
+  @ApiProperty() isRecurrence!: boolean;
+  @ApiProperty({ type: String, nullable: true })
+  previousCaseId!: string | null;
+  @ApiProperty({ ...DATE_TIME, nullable: true })
+  previousClosedDate!: Date | null;
+  @ApiProperty({ type: Number, nullable: true })
+  daysSincePrevious!: number | null;
+}
+
+export class HealthCaseSummaryDto {
+  @ApiProperty() daysSick!: number;
+  @ApiProperty({ type: Number, nullable: true }) daysToRecover!: number | null;
+  @ApiProperty({
+    enum: HealthCaseStatus,
+    enumName: 'HealthCaseStatus',
+    nullable: true,
+  })
+  outcome!: HealthCaseStatus | null;
+  @ApiProperty() treatmentCount!: number;
+  @ApiProperty() stepsDone!: number;
+  @ApiProperty() stepsTotal!: number;
+  @ApiProperty({ type: () => HealthCasePlanBriefDto, nullable: true })
+  protocol!: HealthCasePlanBriefDto | null;
+  @ApiProperty() totalCost!: number;
+  @ApiProperty({ type: () => HealthCaseRecurrenceDto })
+  recurrence!: HealthCaseRecurrenceDto;
+}
+
+export class HealthCaseDetailResponseDto extends HealthCaseRowDto {
+  @ApiProperty({ type: () => HealthCaseSummaryDto })
+  summary!: HealthCaseSummaryDto;
+  @ApiProperty({ type: () => HealthTaskResponseDto, nullable: true })
+  nextDose!: HealthTaskResponseDto | null;
+  @ApiProperty({
+    type: () => HealthTreatmentLogRowDto,
+    nullable: true,
+    description: 'Most recent treatment; null when none was given yet.',
+  })
+  lastDose!: HealthTreatmentLogRowDto;
+  @ApiProperty({
+    type: () => SafetyWithdrawalResponseDto,
+    nullable: true,
+    description: 'Most recent withdrawal; null when the case has none.',
+  })
+  activeSafetyWithdrawal!: SafetyWithdrawalResponseDto;
+  @ApiProperty({ type: () => HealthCaseCattleBriefDto })
+  cattle!: HealthCaseCattleBriefDto;
+  @ApiProperty({ type: () => HealthCasePlanBriefDto, nullable: true })
+  healthPlan!: HealthCasePlanBriefDto | null;
+  @ApiProperty({ type: () => [HealthTaskResponseDto] })
+  tasks!: HealthTaskResponseDto[];
+  @ApiProperty({ type: () => [HealthTreatmentLogRowDto] })
+  treatmentLogs!: HealthTreatmentLogRowDto[];
+  @ApiProperty({ type: () => [HealthUpdateResponseDto] })
+  healthUpdates!: HealthUpdateResponseDto[];
+  @ApiProperty({ type: () => HealthMortalityRowDto, nullable: true })
+  mortalityRecord!: HealthMortalityRowDto | null;
+  @ApiProperty({ type: () => [SafetyWithdrawalResponseDto] })
+  safetyWithdrawals!: SafetyWithdrawalResponseDto[];
+}
+
+// ─── Sick bay (GET /health/sick-bay) ────────────────────────────────────────
+
+/** One row of GET /health/sick-bay: the case plus its open tasks and cattle. */
+export class HealthSickBayItemDto extends HealthCaseRowDto {
+  @ApiProperty({ type: Number, nullable: true })
+  withdrawalDaysLeft!: number | null;
+  @ApiProperty({ type: () => HealthCattleBriefDto })
+  cattle!: HealthCattleBriefDto;
+  @ApiProperty({ type: () => HealthCasePlanBriefDto, nullable: true })
+  healthPlan!: HealthCasePlanBriefDto | null;
+  @ApiProperty({ type: () => [HealthTaskResponseDto] })
+  tasks!: HealthTaskResponseDto[];
+}
+
+// ─── Plans list / detail (live stats attached by the controller) ────────────
+
+export class HealthPlanStatsDto {
+  @ApiProperty({ enum: ['TREATMENT', 'PREVENTION', 'BREEDING'] })
+  kind!: 'TREATMENT' | 'PREVENTION' | 'BREEDING';
+  @ApiProperty({ description: 'Open steps due today.' }) stepsDue!: number;
+  @ApiProperty({ description: 'Open steps whose due day has passed.' })
+  stepsOverdue!: number;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Farm-local YYYY-MM-DD of the earliest open step.',
+  })
+  nextDueDate!: string | null;
+  @ApiProperty({ description: 'Distinct animals the protocol was applied to.' })
+  appliedTo!: number;
+  @ApiProperty({ description: 'Open cases (treatment) or active enrollments.' })
+  inProgress!: number;
+  @ApiProperty({ type: Number, nullable: true }) recovered!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) mortality!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) recoveryRate!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) completed!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) due!: number | null;
+  @ApiProperty({ type: Number, nullable: true }) coverageRate!: number | null;
+}
+
+/** One row of GET /health/plans and the body of GET /health/plans/:id. */
+export class HealthPlanListItemDto extends HealthPlanWithStepsDto {
+  @ApiProperty({ type: () => HealthPlanStatsDto })
+  stats!: HealthPlanStatsDto;
+}
+
+// ─── Plan runs (GET /health/plans/:id/runs) ─────────────────────────────────
+
+export class HealthRunNextStepDto {
+  @ApiProperty() id!: string;
+  @ApiProperty({ enum: HealthTaskStatus, enumName: 'HealthTaskStatus' })
+  status!: HealthTaskStatus;
+  @ApiProperty(DATE_TIME) dueDateTime!: Date;
+  @ApiProperty() title!: string;
+}
+
+/** One animal running a protocol: an open case (treatment) or an enrollment (prevention / breeding). */
+export class HealthPlanRunDto {
+  @ApiProperty({ enum: ['CASE', 'ENROLLMENT'] })
+  kind!: 'CASE' | 'ENROLLMENT';
+  @ApiProperty() id!: string;
+  @ApiProperty({ type: String, nullable: true }) healthCaseId!: string | null;
+  @ApiProperty({ type: String, nullable: true })
+  planEnrollmentId!: string | null;
+  @ApiProperty({ type: String, nullable: true, description: 'Cases only.' })
+  caseCode!: string | null;
+  @ApiProperty({
+    type: String,
+    description:
+      'HealthCaseStatus for a case, PlanEnrollmentStatus for an enrollment.',
+  })
+  status!: string;
+  @ApiProperty(DATE_TIME) startDate!: Date;
+  @ApiProperty() currentStep!: number;
+  @ApiProperty() totalSteps!: number;
+  @ApiProperty() progressPercentage!: number;
+  @ApiProperty({ type: () => HealthCattleBriefDto })
+  cattle!: HealthCattleBriefDto;
+  @ApiProperty({ type: () => HealthRunNextStepDto })
+  nextStep!: HealthRunNextStepDto;
+}
+
 // ─── Compile-time guards (RD-140) ───────────────────────────────────────────
 // Each fails `nest build` if the service's real return type and the documented class diverge.
 type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
@@ -717,6 +864,23 @@ type RoundsRet<K extends keyof HealthRoundsService> =
     : never;
 
 export type HealthShapeGuards = [
+  Assert<
+    Same<
+      Omit<Ret<'getHealthCase'>, 'summary'>,
+      Omit<HealthCaseDetailResponseDto, 'summary'>
+    >
+  >,
+  Assert<
+    Ret<'getHealthCase'>['summary'] extends HealthCaseSummaryDto ? true : false
+  >,
+  Assert<Same<Ret<'closeCase'>, HealthCaseRowDto | HealthMortalityResponseDto>>,
+  Assert<Same<Ret<'getSickBay'>, CursorPage<HealthSickBayItemDto>>>,
+  Assert<Same<Ret<'getPlans'>, CursorPage<HealthPlanWithStepsDto>>>,
+  Assert<Same<Ret<'getPlanForView'>, HealthPlanWithStepsDto>>,
+  Assert<Same<PlanStats, HealthPlanStatsDto>>,
+  Assert<
+    Ret<'getPlanRuns'> extends CursorPage<HealthPlanRunDto> ? true : false
+  >,
   Assert<Same<RoundsRet<'cancelRound'>, HealthRoundCancelResponseDto>>,
   Assert<
     RoundsRet<'addAnimals'> extends HealthRoundAddAnimalsResponseDto
