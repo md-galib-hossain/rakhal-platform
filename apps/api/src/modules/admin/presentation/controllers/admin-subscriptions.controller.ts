@@ -26,6 +26,13 @@ import {
 import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  AdminPlanDto,
+  AdminPlanFeatureResponseDto,
+  AdminPlanMatrixResponseDto,
+  AdminSubscriptionActionResponseDto,
+} from '../dto/admin-commercial-response.dto';
 
 /**
  * Phase 6 commercial administration. Plan/feature edits need `plan.manage`; manual subscription operations
@@ -41,12 +48,14 @@ export class AdminSubscriptionsController {
   constructor(private readonly subs: AdminSubscriptionsService) {}
 
   @Get('plans/matrix')
+  @ApiEnvelopeResponse(AdminPlanMatrixResponseDto)
   @RequireAdminPermission('plan.read')
   matrix() {
     return this.subs.matrix();
   }
 
   @Patch('plans/:id')
+  @ApiEnvelopeResponse(AdminPlanDto)
   @RequireAdminPermission('plan.manage')
   updatePlan(
     @CurrentAdmin() admin: CurrentAdminContext,
@@ -57,6 +66,7 @@ export class AdminSubscriptionsController {
   }
 
   @Put('plans/:id/features/:key')
+  @ApiEnvelopeResponse(AdminPlanFeatureResponseDto)
   @HttpCode(200)
   @RequireAdminPermission('plan.manage')
   setFeature(
@@ -69,6 +79,7 @@ export class AdminSubscriptionsController {
   }
 
   @Post('farms/:id/subscription/activate')
+  @ApiEnvelopeResponse(AdminSubscriptionActionResponseDto)
   @HttpCode(200)
   @RequireAdminPermission('subscription.manage')
   activate(
@@ -80,6 +91,7 @@ export class AdminSubscriptionsController {
   }
 
   @Post('farms/:id/subscription/comp')
+  @ApiEnvelopeResponse(AdminSubscriptionActionResponseDto)
   @HttpCode(200)
   @RequireAdminPermission('subscription.manage')
   comp(
@@ -91,6 +103,7 @@ export class AdminSubscriptionsController {
   }
 
   @Post('farms/:id/subscription/extend')
+  @ApiEnvelopeResponse(AdminSubscriptionActionResponseDto)
   @HttpCode(200)
   @RequireAdminPermission('subscription.manage')
   extend(
@@ -102,6 +115,7 @@ export class AdminSubscriptionsController {
   }
 
   @Post('farms/:id/subscription/cancel')
+  @ApiEnvelopeResponse(AdminSubscriptionActionResponseDto)
   @HttpCode(200)
   @RequireAdminPermission('subscription.manage')
   cancel(

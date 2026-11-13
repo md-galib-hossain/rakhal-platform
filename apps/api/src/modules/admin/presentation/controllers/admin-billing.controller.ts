@@ -22,6 +22,12 @@ import { CurrentAdmin } from '../decorators/current-admin.decorator';
 import type { CurrentAdminContext } from '../../domain/authenticated-admin-request.type';
 import { AdminAuditService } from '../../application/services/admin-audit.service';
 import { AdminIssueCouponDto } from '../dto/admin-issue-coupon.dto';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  AdminCouponDto,
+  AdminPlanCatalogueItemDto,
+  AdminReferralCommissionDto,
+} from '../dto/admin-commercial-response.dto';
 
 /**
  * Platform-admin monetization console (RAKHAL-224, PRD §32.5). Every route is
@@ -43,18 +49,21 @@ export class AdminBillingController {
   ) {}
 
   @Get('plans')
+  @ApiEnvelopeResponse(AdminPlanCatalogueItemDto, { isArray: true })
   @RequireAdminPermission('plan.read')
   listPlans() {
     return this.plans.listPlans();
   }
 
   @Get('coupons')
+  @ApiEnvelopeResponse(AdminCouponDto, { isArray: true })
   @RequireAdminPermission('coupon.read')
   listCoupons(@Query('status') status?: CouponStatus) {
     return this.coupons.list(status);
   }
 
   @Post('coupons')
+  @ApiEnvelopeResponse(AdminCouponDto, { status: 201 })
   @RequireAdminPermission('coupon.manage')
   async issueCoupon(
     @CurrentAdmin() admin: CurrentAdminContext,
@@ -84,6 +93,7 @@ export class AdminBillingController {
   }
 
   @Post('coupons/:id/disable')
+  @ApiEnvelopeResponse(AdminCouponDto, { status: 201 })
   @RequireAdminPermission('coupon.manage')
   async disableCoupon(
     @CurrentAdmin() admin: CurrentAdminContext,
@@ -103,6 +113,7 @@ export class AdminBillingController {
   }
 
   @Get('referrals/commissions')
+  @ApiEnvelopeResponse(AdminReferralCommissionDto, { isArray: true })
   @RequireAdminPermission('referral.read')
   listCommissions(@Query('status') status?: CommissionStatus) {
     return this.referrals.listAllCommissions(status);

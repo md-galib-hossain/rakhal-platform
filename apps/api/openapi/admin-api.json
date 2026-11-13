@@ -258,6 +258,87 @@
         ],
         "type": "object"
       },
+      "AdminCouponDto": {
+        "properties": {
+          "applicablePlanIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "code": {
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "maxRedemptions": {
+            "type": "number"
+          },
+          "minSpend": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "nullable": true,
+            "type": "string"
+          },
+          "perFarmLimit": {
+            "type": "number"
+          },
+          "redeemedCount": {
+            "type": "number"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CouponStatus"
+              }
+            ]
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CouponType"
+              }
+            ]
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "validFrom": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "validUntil": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "value": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "type",
+          "value",
+          "maxRedemptions",
+          "redeemedCount",
+          "perFarmLimit",
+          "validFrom",
+          "validUntil",
+          "applicablePlanIds",
+          "minSpend",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
       "AdminDayCountDto": {
         "properties": {
           "count": {
@@ -599,6 +680,31 @@
           "cancelledAt",
           "subscriptionPlan",
           "pendingPlan"
+        ],
+        "type": "object"
+      },
+      "AdminFeatureDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "description",
+          "createdAt",
+          "key"
         ],
         "type": "object"
       },
@@ -971,6 +1077,212 @@
         ],
         "type": "object"
       },
+      "AdminPlanCatalogueItemDto": {
+        "properties": {
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/AdminPlanLimitsDto"
+          },
+          "monthly_price": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "yearly_price": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "monthly_price",
+          "yearly_price",
+          "limits",
+          "features"
+        ],
+        "type": "object"
+      },
+      "AdminPlanDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "maxCattle": {
+            "nullable": true,
+            "type": "number"
+          },
+          "maxFarmMembers": {
+            "nullable": true,
+            "type": "number"
+          },
+          "monthlyPrice": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "reportRetentionDays": {
+            "type": "number"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "yearlyPrice": {
+            "description": "Decimal amount as a string (never a JSON number).",
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "monthlyPrice",
+          "yearlyPrice",
+          "maxFarmMembers",
+          "maxCattle",
+          "reportRetentionDays",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "AdminPlanFeatureResponseDto": {
+        "properties": {
+          "changed": {
+            "type": "boolean"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "feature": {
+            "type": "string"
+          },
+          "planId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "planId",
+          "feature",
+          "enabled",
+          "changed"
+        ],
+        "type": "object"
+      },
+      "AdminPlanLimitsDto": {
+        "properties": {
+          "max_cattle": {
+            "nullable": true,
+            "type": "number"
+          },
+          "max_farm_members": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "max_cattle",
+          "max_farm_members"
+        ],
+        "type": "object"
+      },
+      "AdminPlanMatrixPlanDto": {
+        "properties": {
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "enabledFeatures": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "farmCount": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "maxCattle": {
+            "nullable": true,
+            "type": "number"
+          },
+          "maxFarmMembers": {
+            "nullable": true,
+            "type": "number"
+          },
+          "monthlyPrice": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "yearlyPrice": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "monthlyPrice",
+          "yearlyPrice",
+          "maxCattle",
+          "maxFarmMembers",
+          "farmCount",
+          "enabledFeatures"
+        ],
+        "type": "object"
+      },
+      "AdminPlanMatrixResponseDto": {
+        "properties": {
+          "features": {
+            "items": {
+              "$ref": "#/components/schemas/AdminFeatureDto"
+            },
+            "type": "array"
+          },
+          "plans": {
+            "items": {
+              "$ref": "#/components/schemas/AdminPlanMatrixPlanDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "features",
+          "plans"
+        ],
+        "type": "object"
+      },
       "AdminPlanRefDto": {
         "properties": {
           "id": {
@@ -983,6 +1295,60 @@
         "required": [
           "id",
           "name"
+        ],
+        "type": "object"
+      },
+      "AdminReferralCommissionDto": {
+        "properties": {
+          "amount": {
+            "type": "number"
+          },
+          "clawed_back_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "referred_farm_id": {
+            "type": "string"
+          },
+          "referrer_farm_id": {
+            "type": "string"
+          },
+          "reward_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CommissionRewardType"
+              }
+            ]
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CommissionStatus"
+              }
+            ]
+          },
+          "trigger_invoice_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "referrer_farm_id",
+          "referred_farm_id",
+          "trigger_invoice_id",
+          "reward_type",
+          "amount",
+          "status",
+          "created_at",
+          "clawed_back_at"
         ],
         "type": "object"
       },
@@ -1139,6 +1505,51 @@
         },
         "required": [
           "revoked"
+        ],
+        "type": "object"
+      },
+      "AdminSubscriptionActionResponseDto": {
+        "properties": {
+          "cancelledAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "changed": {
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "plan": {
+            "description": "Plan name.",
+            "type": "string"
+          },
+          "startsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SubscriptionStatus"
+              }
+            ]
+          }
+        },
+        "required": [
+          "farmId",
+          "plan",
+          "status",
+          "startsAt",
+          "expiresAt",
+          "cancelledAt",
+          "changed"
         ],
         "type": "object"
       },
@@ -2370,6 +2781,22 @@
         ],
         "type": "object"
       },
+      "CommissionRewardType": {
+        "enum": [
+          "CREDIT",
+          "CASH"
+        ],
+        "type": "string"
+      },
+      "CommissionStatus": {
+        "enum": [
+          "PENDING",
+          "APPROVED",
+          "PAID",
+          "CLAWED_BACK"
+        ],
+        "type": "string"
+      },
       "CompSubscriptionDto": {
         "properties": {
           "confirm": {
@@ -3192,6 +3619,21 @@
           "date"
         ],
         "type": "object"
+      },
+      "CouponStatus": {
+        "enum": [
+          "ACTIVE",
+          "DISABLED"
+        ],
+        "type": "string"
+      },
+      "CouponType": {
+        "enum": [
+          "PERCENT",
+          "FIXED",
+          "FREE_DAYS"
+        ],
+        "type": "string"
       },
       "CreateAdminDto": {
         "properties": {
@@ -21627,6 +22069,31 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/AdminCouponDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -21654,6 +22121,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminCouponDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -21682,6 +22171,28 @@
         ],
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminCouponDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -21984,6 +22495,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminSubscriptionActionResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -22022,6 +22555,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminSubscriptionActionResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -22060,6 +22615,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminSubscriptionActionResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -22098,6 +22675,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminSubscriptionActionResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -22584,10 +23183,25 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "type": "object"
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/AdminPlanCatalogueItemDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
                   },
-                  "type": "array"
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
                 }
               }
             },
@@ -22610,6 +23224,28 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminPlanMatrixResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -22648,6 +23284,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminPlanDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -22694,6 +23352,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminPlanFeatureResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -22827,6 +23507,31 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/AdminReferralCommissionDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
