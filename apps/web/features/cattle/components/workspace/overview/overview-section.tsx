@@ -1,7 +1,7 @@
 "use client"; // live queries for each card
 
 import { useState, type ReactNode } from "react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";

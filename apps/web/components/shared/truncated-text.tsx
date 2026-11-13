@@ -1,7 +1,7 @@
 "use client"; // measures the rendered element on hover/focus to decide whether a tooltip is needed
 
 import { useRef, useState } from "react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export interface TruncatedTextProps extends React.HTMLAttributes<HTMLSpanElement> {

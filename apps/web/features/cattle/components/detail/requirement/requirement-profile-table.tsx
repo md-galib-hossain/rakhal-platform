@@ -3,7 +3,7 @@ import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { FeedRequirements } from "@/features/feed/types";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
 import { PROFILE_SECTIONS, diffPct, fmt } from "./profile";
 
 /** Info icon + "how this is worked out" tooltip, shared by the read-only table and the edit form. */
