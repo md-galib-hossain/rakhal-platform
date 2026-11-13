@@ -2,7 +2,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { CalendarClock, ChevronRight, PawPrint } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { TaskChip } from "./task-chip";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { avatarTint, initials } from "../avatar-tint";

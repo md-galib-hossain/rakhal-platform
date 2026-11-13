@@ -22,7 +22,7 @@ component — it's very likely already built, just under a different name.
 | Navbar Options (sidebar nav item) | `components/layout/sidebar-nav.tsx` |
 | Subscription Bar / "Become a PRO!" card | `components/layout/upgrade-ad.tsx` (`UpgradeAd`) |
 | KPI (icon-tile stat card) | `components/shared/stat-card.tsx` (`StatCard`) for the dashboard's 2×2 grid; `HighlightTile` (local to `cattle-highlights-bar.tsx`) for the Cattle page's row-of-4 — same visual language, not yet unified into one shared component |
-| Avatar / thumbnail | `components/ui/avatar.tsx` |
+| Avatar / thumbnail | `packages/ui/src/components/ui/avatar.tsx`, imported from `@rakhal/ui/ui/avatar` |
 | Sheet (right-side drawer) | `components/ui/sheet.tsx` — the standard modal pattern app-wide (2026-09-03: `Dialog`/`DialogContent` retired for every form/confirm/detail modal in favor of this; `components/ui/dialog.tsx` remains only as the primitive backing `command.tsx`'s ⌘K palette, not for app modals) |
 | Tabs (pill tab bar) | `components/ui/tabs.tsx` |
 | Search (pill input + icon) | `components/shared/filter-bar.tsx`'s `SearchInput` (list pages), `components/shared/global-search.tsx` (topbar ⌘K) |
