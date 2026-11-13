@@ -1,7 +1,7 @@
 "use client"; // dynamic (ssr:false) chart import
 
 import dynamic from "next/dynamic";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import type { Locale } from "@/lib/constants/i18n";
 import { formatDate, formatNumber } from "@/lib/format";

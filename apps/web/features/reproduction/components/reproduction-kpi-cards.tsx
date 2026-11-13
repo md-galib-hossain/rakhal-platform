@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Activity, Baby, CalendarClock, HeartPulse } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { cn } from "@/lib/utils";

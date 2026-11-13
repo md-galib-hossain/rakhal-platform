@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import type { PeriodRange } from "@/lib/period/presets";
 import { useProfitLossReport } from "./hooks";
 import type { ProfitLossLine } from "./types";

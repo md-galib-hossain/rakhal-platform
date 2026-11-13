@@ -7,7 +7,7 @@ import { Landmark, MoreVertical, Pencil, Smartphone, Star, Wallet } from "lucide
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { MoneyText } from "@/components/shared/money-text";

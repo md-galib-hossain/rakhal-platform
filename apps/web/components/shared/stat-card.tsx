@@ -1,6 +1,6 @@
 import { Box, TrendingDown, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 
 export interface StatCardProps {
   label: string;

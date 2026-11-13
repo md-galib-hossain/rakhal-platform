@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringEnum, useQueryStates } from "nuqs";
 import { Activity, CalendarClock, ShieldAlert, ShieldCheck, Syringe } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";

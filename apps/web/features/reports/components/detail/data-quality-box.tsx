@@ -1,5 +1,5 @@
 import { Info } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import { Progress } from "@/components/ui/progress";
 import type { Locale } from "@/lib/constants/i18n";
 import { formatNumber } from "@/lib/format";

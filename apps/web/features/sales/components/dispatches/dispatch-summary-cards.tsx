@@ -5,7 +5,7 @@ import { CheckCircle2, Truck, Ban, PackageCheck } from "lucide-react";
 import { StatCard } from "@/components/shared/stat-card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import { useDispatchesSummary } from "../../hooks/use-sales";
 
 /** RAKHAL-388 — "Dispatch Summary": Total / Delivered / In Transit / Cancelled, each with count

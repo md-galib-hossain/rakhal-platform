@@ -7,7 +7,7 @@ import { ClipboardList } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
