@@ -1,7 +1,7 @@
 "use client"; // composes client-only providers (theme, query cache, toaster)
 
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@rakhal/ui/ui/sonner";
 import { TooltipProvider } from "@rakhal/ui/ui/tooltip";
 import { CattleDetailModalProvider } from "@/features/cattle/context/cattle-detail-modal-provider";
 import { QueryProvider } from "./query-provider";
