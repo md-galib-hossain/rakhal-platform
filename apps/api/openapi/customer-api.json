@@ -146,6 +146,72 @@
         ],
         "type": "object"
       },
+      "AdminAccountDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "lastLoginAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "lastLoginIp": {
+            "nullable": true,
+            "type": "string"
+          },
+          "mustChangePassword": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "passwordChangedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlatformAdminRole"
+              }
+            ]
+          },
+          "totpEnabled": {
+            "type": "boolean"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "role",
+          "isActive",
+          "totpEnabled",
+          "mustChangePassword",
+          "passwordChangedAt",
+          "lastLoginAt",
+          "lastLoginIp",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
       "AdminBroadcastMessageDto": {
         "properties": {
           "channel": {
@@ -356,6 +422,22 @@
         "required": [
           "reason",
           "confirm"
+        ],
+        "type": "object"
+      },
+      "AdminTemporaryPasswordResponseDto": {
+        "properties": {
+          "admin": {
+            "$ref": "#/components/schemas/AdminAccountDto"
+          },
+          "temporaryPassword": {
+            "description": "Shown once. The admin must change it at first sign-in (`mustChangePassword`).",
+            "type": "string"
+          }
+        },
+        "required": [
+          "admin",
+          "temporaryPassword"
         ],
         "type": "object"
       },
@@ -13337,6 +13419,15 @@
         "enum": [
           "ACTIVE",
           "COMPLETED"
+        ],
+        "type": "string"
+      },
+      "PlatformAdminRole": {
+        "enum": [
+          "SUPER_ADMIN",
+          "SUPPORT_ADMIN",
+          "BILLING_ADMIN",
+          "CONTENT_ADMIN"
         ],
         "type": "string"
       },

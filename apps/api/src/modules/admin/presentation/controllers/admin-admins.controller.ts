@@ -17,6 +17,14 @@ import { CurrentAdmin } from '../decorators/current-admin.decorator';
 import { RequireAdminPermission } from '../decorators/require-admin-permission.decorator';
 import { CreateAdminDto, UpdateAdminDto } from '../dto/admin-lifecycle.dto';
 import { ListAdminsQueryDto } from '../dto/list-admins.dto';
+import {
+  ApiEnvelopeResponse,
+  ApiPaginatedResponse,
+} from 'src/common/swagger/api-envelope';
+import {
+  AdminAccountDto,
+  AdminTemporaryPasswordResponseDto,
+} from '../dto/admin-admins-response.dto';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
 import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
@@ -36,18 +44,21 @@ export class AdminAdminsController {
 
   @Get()
   @RequireAdminPermission('admin.read')
+  @ApiPaginatedResponse(AdminAccountDto)
   list(@Query() query: ListAdminsQueryDto) {
     return this.admins.list(query);
   }
 
   @Get(':id')
   @RequireAdminPermission('admin.read')
+  @ApiEnvelopeResponse(AdminAccountDto)
   get(@Param('id') id: string) {
     return this.admins.get(id);
   }
 
   @Post()
   @RequireAdminPermission('admin.manage')
+  @ApiEnvelopeResponse(AdminTemporaryPasswordResponseDto, { status: 201 })
   create(
     @CurrentAdmin() actor: CurrentAdminContext,
     @Body() dto: CreateAdminDto,
@@ -57,6 +68,7 @@ export class AdminAdminsController {
 
   @Patch(':id')
   @RequireAdminPermission('admin.manage')
+  @ApiEnvelopeResponse(AdminAccountDto)
   update(
     @CurrentAdmin() actor: CurrentAdminContext,
     @Param('id') id: string,
@@ -68,6 +80,7 @@ export class AdminAdminsController {
   @Post(':id/deactivate')
   @HttpCode(200)
   @RequireAdminPermission('admin.manage')
+  @ApiEnvelopeResponse(AdminAccountDto)
   deactivate(
     @CurrentAdmin() actor: CurrentAdminContext,
     @Param('id') id: string,
@@ -78,6 +91,7 @@ export class AdminAdminsController {
   @Post(':id/activate')
   @HttpCode(200)
   @RequireAdminPermission('admin.manage')
+  @ApiEnvelopeResponse(AdminAccountDto)
   activate(
     @CurrentAdmin() actor: CurrentAdminContext,
     @Param('id') id: string,
@@ -88,6 +102,7 @@ export class AdminAdminsController {
   @Post(':id/reset-2fa')
   @HttpCode(200)
   @RequireAdminPermission('admin.manage')
+  @ApiEnvelopeResponse(AdminAccountDto)
   resetTwoFactor(
     @CurrentAdmin() actor: CurrentAdminContext,
     @Param('id') id: string,
@@ -98,6 +113,7 @@ export class AdminAdminsController {
   @Post(':id/reset-password')
   @HttpCode(200)
   @RequireAdminPermission('admin.manage')
+  @ApiEnvelopeResponse(AdminTemporaryPasswordResponseDto)
   resetPassword(
     @CurrentAdmin() actor: CurrentAdminContext,
     @Param('id') id: string,
