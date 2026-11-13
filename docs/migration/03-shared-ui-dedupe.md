@@ -47,7 +47,45 @@ possible and mechanical. The consumer app must not regress while it happens.
   imports (`./button`) are not caught by an `@/components/ui/x` rewrite, so grep for them;
   `@radix-ui/react-separator` is still declared in `apps/web/package.json` and is now unused (remove in a
   dependency-cleanup PR).
-- **Wave 2: analysis done**, proposal awaiting owner approval: `M3-wave2-diff-2026-11-13.md`.
+- **Wave 2: done (2026-11-14).** All 17 eligible components now come from `@rakhal/ui`; `combobox` (0 call
+  sites in web and admin) deleted from both copies. `date-picker`/`date-time-picker` stay in web (not
+  eligible — import `@/lib/format`, `@/lib/constants/i18n`).
+  Gate-screen prerequisite (dialog, popover, tooltip, tabs, command, calendar, progress) in
+  [#15](https://github.com/md-galib-hossain/rakhal-platform/pull/15) (36 to 56 screenshots).
+  Mechanical swaps: avatar [#16](https://github.com/md-galib-hossain/rakhal-platform/pull/16),
+  table [#17](https://github.com/md-galib-hossain/rakhal-platform/pull/17),
+  chip [#18](https://github.com/md-galib-hossain/rakhal-platform/pull/18),
+  floating-input [#19](https://github.com/md-galib-hossain/rakhal-platform/pull/19),
+  input [#20](https://github.com/md-galib-hossain/rakhal-platform/pull/20),
+  select [#21](https://github.com/md-galib-hossain/rakhal-platform/pull/21),
+  sheet [#22](https://github.com/md-galib-hossain/rakhal-platform/pull/22),
+  dropdown-menu [#23](https://github.com/md-galib-hossain/rakhal-platform/pull/23),
+  progress [#24](https://github.com/md-galib-hossain/rakhal-platform/pull/24),
+  timeline (no gate screen — unit tests + byte-identical file only)
+  [#25](https://github.com/md-galib-hossain/rakhal-platform/pull/25),
+  tooltip [#26](https://github.com/md-galib-hossain/rakhal-platform/pull/26),
+  popover [#27](https://github.com/md-galib-hossain/rakhal-platform/pull/27),
+  dialog [#28](https://github.com/md-galib-hossain/rakhal-platform/pull/28),
+  command [#29](https://github.com/md-galib-hossain/rakhal-platform/pull/29),
+  calendar [#30](https://github.com/md-galib-hossain/rakhal-platform/pull/30),
+  sonner (no gate screen) [#31](https://github.com/md-galib-hossain/rakhal-platform/pull/31).
+  Reconciled (web's behaviour ported into `packages/ui` first, then swapped — two PRs each):
+  tabs [#32](https://github.com/md-galib-hossain/rakhal-platform/pull/32) (reconcile) +
+  [#33](https://github.com/md-galib-hossain/rakhal-platform/pull/33) (swap) — adds the
+  keyboard/programmatic activation `mousedown` dispatch that web already had;
+  labeled-field [#34](https://github.com/md-galib-hossain/rakhal-platform/pull/34) (reconcile) +
+  [#35](https://github.com/md-galib-hossain/rakhal-platform/pull/35) (swap) — adopts web's
+  `inputClassName`/`containerClassName`/`error` props and styling.
+  Delete-only: combobox [#36](https://github.com/md-galib-hossain/rakhal-platform/pull/36).
+  Docs/proposal: [#14](https://github.com/md-galib-hossain/rakhal-platform/pull/14). Details:
+  `M3-wave2-diff-2026-11-13.md`.
+- Wave 2 lessons: the relative-import trap recurs per shared sibling (`./input` in `select.tsx`, `./popover`
+  and `./calendar` in the web-only date pickers, `./select` in `labeled-field.tsx`) — grep every component
+  for `from "\./<name>"` before any swap, not just the first one; a `vi.mock("@/components/ui/x", ...)` path
+  must move with its import (select's wizard test); reconciling a component with no current consumer (tabs,
+  labeled-field before their swap PRs) is a safe no-op PR, useful for isolating the behaviour change from the
+  256-file import rewrite.
+- **Wave 3** (`shared/*`) not started.
 
 The admin app has already diverged from the original copy in some places (shell, `detail-list`, list
 components). Those admin-specific components stay in `apps/admin` unless a second consumer appears.
