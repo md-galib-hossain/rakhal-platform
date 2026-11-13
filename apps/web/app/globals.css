@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Tailwind v4 does not scan node_modules/workspace packages: without this, classes used only inside
+   @rakhal/ui components are silently dropped. */
+@source "../../../packages/ui/src";
+
 /*
  * Design tokens — extracted from 75 UI reference screenshots, see:
  *   D:\Projects\Rakhal\docs\rakhal-ui-analysis.md §6 (Design tokens)
