@@ -1,7 +1,7 @@
 "use client"; // column defs consumed by the client-only DataTable
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { Wheat } from "lucide-react";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";

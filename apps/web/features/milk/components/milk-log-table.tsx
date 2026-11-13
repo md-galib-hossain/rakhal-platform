@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { ChevronDown, History, Lock, Minus, Plus, TrendingDown, TrendingUp, Unlock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { Button } from "@rakhal/ui/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";

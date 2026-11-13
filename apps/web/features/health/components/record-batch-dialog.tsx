@@ -9,7 +9,7 @@ import { Can } from "@/lib/auth/permissions";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@rakhal/ui/ui/button";
 import { useCompleteTask, useLogTaskTreatment, useLogTreatment } from "../hooks/use-health";

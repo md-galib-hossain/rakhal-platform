@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { Chip } from "@/components/ui/chip";
 import { DateText } from "@/components/shared/date-text";
 import { DataTable } from "@/components/shared/data-table";

@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { RowActionsMenu } from "@/components/shared/row-actions-menu";
 import { useCan } from "@/lib/auth/permissions";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@rakhal/ui/ui/avatar";
 import { Button } from "@rakhal/ui/ui/button";
 import { AnimalLink } from "@/components/shared/animal-link";
 import type { HealthCaseListItem } from "../types";

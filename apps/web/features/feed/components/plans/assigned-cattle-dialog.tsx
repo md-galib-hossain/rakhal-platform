@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@rakhal/ui/ui/avatar";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { CardSkeleton } from "@/components/shared/card-skeleton";

@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@rakhal/ui/ui/card";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { DateText } from "@/components/shared/date-text";
 import type { ProfileUser } from "../types";
 
