@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { Utensils, Wheat } from "lucide-react";
 import { Card } from "@rakhal/ui/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";

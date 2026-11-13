@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useChainIntegrity } from "../hooks/use-activity";
 

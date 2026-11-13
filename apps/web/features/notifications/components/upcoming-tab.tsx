@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { CalendarClock, Loader2, Pause, Pencil, Play, Repeat, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { ArrowRightToLine, Banknote, Ban } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { DateText } from "@/components/shared/date-text";

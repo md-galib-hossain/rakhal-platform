@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ClipboardList } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";

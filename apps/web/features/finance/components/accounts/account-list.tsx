@@ -6,7 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Landmark, MoreVertical, Pencil, Smartphone, Star, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { Card } from "@rakhal/ui/ui/card";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/shared/data-table";

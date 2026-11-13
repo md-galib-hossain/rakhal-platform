@@ -14,7 +14,7 @@ component — it's very likely already built, just under a different name.
 | Select/Dropdown | `components/ui/select.tsx` |
 | Filter (icon + "Filter" pill button) | Not a 1:1 port — the app uses `components/shared/filter-bar.tsx`'s inline selects instead of a single "Filter" panel trigger (RFE-021 decision, more filters than the mock pictures) |
 | Chip (outline status pill: white fill, colored border+text) | `components/ui/chip.tsx` (`Chip`, added 2026-07-12 for the Cattle table) — **distinct from `Badge`** |
-| Badge (solid tint fill) | `components/ui/badge.tsx` (`Badge`) — the app's default status style everywhere except the Cattle list/health columns |
+| Badge (solid tint fill) | `packages/ui/src/components/ui/badge.tsx` (`Badge`, imported from `@rakhal/ui/ui/badge`) — the app's default status style everywhere except the Cattle list/health columns |
 | Trend Chip (green pill, up-arrow + %) | inlined per-usage (`TrendChip` in `cattle-highlights-bar.tsx`, dashboard widgets) — not yet a shared primitive; consider promoting if a 3rd usage appears |
 | Table Component (generic cell wrapper) | `components/ui/table.tsx` (`Table`/`TableHeader`/`TableRow`/`TableCell`) |
 | Pagination | `components/shared/pagination.tsx` (`Pagination`, added 2026-07-12) — presentational only, see its own doc comment for the cursor-adapter pattern used to drive it |

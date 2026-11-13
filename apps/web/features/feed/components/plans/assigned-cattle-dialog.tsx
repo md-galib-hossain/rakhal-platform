@@ -8,7 +8,7 @@ import { Globe, Plus, Search, SearchX, UserMinus, Users, X } from "lucide-react"
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { qk } from "@/lib/query/keys";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {

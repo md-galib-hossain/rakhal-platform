@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Download } from "lucide-react";
-import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Badge, type BadgeProps } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";

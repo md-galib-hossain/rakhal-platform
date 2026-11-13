@@ -9,7 +9,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
 import { FloatingInput } from "@/components/ui/floating-input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useInviteTeamMember } from "../hooks/use-invite-team-member";
 import { inviteTeamMemberSchema, type InviteTeamMemberInput } from "../schemas";

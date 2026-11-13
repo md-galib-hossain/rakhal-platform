@@ -11,7 +11,7 @@ import {
   QrCode,
   Loader2,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";

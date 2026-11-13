@@ -18,7 +18,7 @@ import {
 import { ApiError } from "@/lib/api/errors";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import { Switch } from "@/components/ui/switch";

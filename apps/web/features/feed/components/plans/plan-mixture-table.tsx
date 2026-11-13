@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { MoneyText } from "@/components/shared/money-text";
 import { Chip } from "@/components/ui/chip";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import type { FeedItem } from "@/features/inventory/types";
 import type { FeedConcentrationSummary } from "../../types";
 import type { Requirements, EffectiveIngredientNutrition } from "../../lib/formula-math";

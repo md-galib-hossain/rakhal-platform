@@ -8,7 +8,7 @@ import { Check, Info, RotateCcw, X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSetRequirementOverride } from "@/features/feed/hooks/use-requirement-override";
