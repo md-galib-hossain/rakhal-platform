@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Check, ChevronsUpDown, PackageSearch, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@rakhal/ui/ui/command";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { inventoryApi } from "@/features/inventory/api";
 import type { PurchasableItemKind, PurchasableItemOption } from "../types";

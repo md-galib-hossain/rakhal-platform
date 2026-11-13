@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@rakhal/ui/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@rakhal/ui/ui/command";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useCreateSemenBatch, useSemenBatches } from "../hooks/use-inventory";

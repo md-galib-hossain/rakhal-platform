@@ -6,7 +6,7 @@ import { Check, ChevronDown, ChevronsUpDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@rakhal/ui/ui/command";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { useCreateCustomIngredient, useFeedIngredients } from "../hooks/use-feed";
 import type { CreateCustomIngredientPayload, FeedClass } from "../types";

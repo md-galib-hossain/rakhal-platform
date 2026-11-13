@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Button } from "@rakhal/ui/ui/button";
-import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@rakhal/ui/ui/command";
 import { useGlobalSearch } from "@/features/search/hooks/use-search";
 import type { SearchHit, SearchResults } from "@/features/search/types";
 

@@ -10,7 +10,7 @@ import { useInfiniteCursorList } from "@/lib/hooks/use-infinite-cursor-list";
 import { cattleApi } from "@/features/cattle/api";
 import { Button } from "@rakhal/ui/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@rakhal/ui/ui/command";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 
 import type { CattleGender, ReproductiveStatus } from "@/features/cattle/types";

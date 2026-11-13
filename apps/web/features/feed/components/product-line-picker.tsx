@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Package, Plus } from "lucide-react";
 import { Button } from "@rakhal/ui/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@rakhal/ui/ui/command";
 import { useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";
 import { nextFeedLot } from "@/features/inventory/feed-lots";
 import type { FeedItem } from "@/features/inventory/types";
