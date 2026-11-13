@@ -16,7 +16,7 @@ component — it's very likely already built, just under a different name.
 | Chip (outline status pill: white fill, colored border+text) | `components/ui/chip.tsx` (`Chip`, added 2026-07-12 for the Cattle table) — **distinct from `Badge`** |
 | Badge (solid tint fill) | `packages/ui/src/components/ui/badge.tsx` (`Badge`, imported from `@rakhal/ui/ui/badge`) — the app's default status style everywhere except the Cattle list/health columns |
 | Trend Chip (green pill, up-arrow + %) | inlined per-usage (`TrendChip` in `cattle-highlights-bar.tsx`, dashboard widgets) — not yet a shared primitive; consider promoting if a 3rd usage appears |
-| Table Component (generic cell wrapper) | `components/ui/table.tsx` (`Table`/`TableHeader`/`TableRow`/`TableCell`) |
+| Table Component (generic cell wrapper) | `packages/ui/src/components/ui/table.tsx`, imported from `@rakhal/ui/ui/table` (`Table`/`TableHeader`/`TableRow`/`TableCell`) |
 | Pagination | `components/shared/pagination.tsx` (`Pagination`, added 2026-07-12) — presentational only, see its own doc comment for the cursor-adapter pattern used to drive it |
 | Organization (farm switcher pill) | `features/farm/**` + `components/layout/sidebar.tsx`'s org switcher |
 | Navbar Options (sidebar nav item) | `components/layout/sidebar-nav.tsx` |

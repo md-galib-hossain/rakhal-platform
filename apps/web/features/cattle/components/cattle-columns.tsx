@@ -134,7 +134,7 @@ function ReproductionAlertsIndicator({
  * `reproductiveStatus`, and `healthStatus` are each independently visible and scannable, rather
  * than two of the three being buried behind a filter/detail-view-only presence. The table now runs
  * wider than the original 8-column Figma frame; `CattleTable`'s wrapper relies on the shared
- * `Table` UI primitive's built-in `overflow-x-auto` (see `components/ui/table.tsx`) for horizontal
+ * `Table` UI primitive's built-in `overflow-x-auto` (see `@rakhal/ui/ui/table`) for horizontal
  * scroll on narrow viewports rather than any new column-hiding/truncation logic. Figma's own mock
  * "Status" values (e.g. "Active Breeder") never mapped to any real field this backend has —
  * `productionStatus` (RAKHAL-269 v2: trimmed to Milking/Dry, nullable) remains the real closest

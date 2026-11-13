@@ -7,7 +7,7 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EntryStatusDatePicker } from "@/components/shared/entry-status-date-picker";
-import { Table, TableBody } from "@/components/ui/table";
+import { Table, TableBody } from "@rakhal/ui/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { TableSkeleton } from "@/components/shared/table-skeleton";

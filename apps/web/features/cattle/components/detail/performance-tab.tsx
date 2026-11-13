@@ -9,7 +9,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
 import { Button } from "@rakhal/ui/ui/button";
 import { Can } from "@/lib/auth/permissions";
 import { formatDate } from "@/lib/format";

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Package, Wheat, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
 import { MoneyText } from "@/components/shared/money-text";
 import { Chip } from "@/components/ui/chip";
 import { Badge } from "@rakhal/ui/ui/badge";
