@@ -11,7 +11,7 @@ import { Can } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DateText } from "@/components/shared/date-text";
 import { ErrorState } from "@/components/shared/error-state";

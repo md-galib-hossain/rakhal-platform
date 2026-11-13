@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 
 /** Generic per-segment `loading.tsx` body — swapped for a bespoke skeleton as each page is built. */

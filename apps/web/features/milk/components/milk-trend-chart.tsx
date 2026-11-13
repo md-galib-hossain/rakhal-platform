@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { ChartCard } from "@/components/shared/chart-card";
 import { ErrorState } from "@/components/shared/error-state";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { useMilkOverview } from "../hooks/use-milk";
 import type { MilkTrendRange } from "../types";
 import { MilkTrendRangeSelect } from "./milk-trend-range-select";

@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useCattleCategoryCounts } from "../hooks/use-cattle";
 import { CATTLE_CATEGORY_CHIPS, type CattleCategoryChip, type CattleListFilters } from "../types";

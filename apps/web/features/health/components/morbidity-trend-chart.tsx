@@ -6,7 +6,7 @@ import { TrendingDown, TrendingUp } from "lucide-react";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Chip } from "@/components/ui/chip";
 import { cn } from "@/lib/utils";
 import { useMorbidityTrend } from "../hooks/use-health";

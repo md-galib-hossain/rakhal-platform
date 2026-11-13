@@ -7,7 +7,7 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { useAssets } from "../hooks/use-finance";
 import { CreateAssetDialog } from "./create-asset-dialog";
 

@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { MoneyText } from "@/components/shared/money-text";
 import { DateText } from "@/components/shared/date-text";
 import { ErrorState } from "@/components/shared/error-state";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { useBuyerStatement } from "../hooks/use-buyers";
 import type { Buyer } from "../types";
 

@@ -6,7 +6,7 @@ import { useWatch } from "react-hook-form";
 import { cn } from "@/lib/utils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { useAnimalGroups } from "@/features/cattle/hooks/use-cattle";

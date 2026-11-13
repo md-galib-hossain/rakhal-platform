@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { useTranslations } from "next-intl";
 import { Award, Droplets, HeartPulse, TrendingDown, TrendingUp, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { cn } from "@/lib/utils";
 import { formatSignedPct } from "@/lib/format";

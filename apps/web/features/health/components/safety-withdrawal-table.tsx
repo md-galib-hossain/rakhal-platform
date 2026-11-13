@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Chip, type ChipProps } from "@/components/ui/chip";
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { useReleaseWithdrawal } from "../hooks/use-health";

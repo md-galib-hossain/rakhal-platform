@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Lock } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ReportsHistory } from "../history/reports-history";
 import { ScheduledReportCard } from "./scheduled-report-card";

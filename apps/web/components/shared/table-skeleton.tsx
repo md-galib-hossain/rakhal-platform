@@ -1,4 +1,4 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { TableCell, TableRow } from "@/components/ui/table";
 
 export interface TableSkeletonProps {

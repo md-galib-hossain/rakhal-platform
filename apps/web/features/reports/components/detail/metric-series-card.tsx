@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import type { Locale } from "@/lib/constants/i18n";
 import { formatDate, formatNumber } from "@/lib/format";
 import { formatMetricValue } from "../../lib/format";

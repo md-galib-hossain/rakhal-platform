@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { useApplyPlanToCase, useHealthPlans } from "../hooks/use-health";
 import { suggestProtocols } from "../protocol-preview";
 import type { HealthCondition } from "../types";
