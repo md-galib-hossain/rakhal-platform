@@ -14,7 +14,7 @@ import { todayLocalIso } from "@/lib/local-date";
 import type { Locale } from "@/lib/constants/i18n";
 import { Button } from "@rakhal/ui/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
-import { LabeledInput } from "@/components/ui/labeled-field";
+import { LabeledInput } from "@rakhal/ui/ui/labeled-field";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { FormSheet } from "@/components/shared/form-sheet";
 import { MoneyInput } from "@/components/shared/money-input";

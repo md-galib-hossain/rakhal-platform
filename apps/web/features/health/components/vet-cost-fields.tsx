@@ -1,7 +1,7 @@
 "use client"; // controlled inputs owned by the parent treatment form
 
 import { useTranslations } from "next-intl";
-import { LabeledInput } from "@/components/ui/labeled-field";
+import { LabeledInput } from "@rakhal/ui/ui/labeled-field";
 import { AccountPicker } from "@/features/finance/components/account-picker";
 
 interface VetCostFieldsProps {

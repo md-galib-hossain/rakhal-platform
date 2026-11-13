@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { ArrowRightToLine } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
-import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
+import { LabeledInput, LabeledSelectTrigger } from "@rakhal/ui/ui/labeled-field";
 import { Select, SelectContent, SelectItem } from "@rakhal/ui/ui/select";
 import { Button } from "@rakhal/ui/ui/button";
 import { useUpdateFinancialAccount } from "../../hooks/use-finance-v2";

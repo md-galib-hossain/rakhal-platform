@@ -9,7 +9,7 @@ import type { z } from "zod";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@rakhal/ui/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
-import { LabeledInput } from "@/components/ui/labeled-field";
+import { LabeledInput } from "@rakhal/ui/ui/labeled-field";
 import { useCreateSupplier } from "@/features/settings/hooks/use-workspace-mutations";
 import { supplierFormSchema } from "@/features/settings/schemas";
 import type { Supplier } from "@/features/settings/types";

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { ArrowRightToLine, Plus, X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
-import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
+import { LabeledInput, LabeledSelectTrigger } from "@rakhal/ui/ui/labeled-field";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Label } from "@rakhal/ui/ui/label";

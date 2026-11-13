@@ -8,7 +8,7 @@ import { ArrowRightToLine } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { Button } from "@rakhal/ui/ui/button";
-import { LabeledInput } from "@/components/ui/labeled-field";
+import { LabeledInput } from "@rakhal/ui/ui/labeled-field";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { AnimalLink } from "@/components/shared/animal-link";
