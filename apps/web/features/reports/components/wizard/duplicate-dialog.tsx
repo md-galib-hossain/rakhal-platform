@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@/lib/constants/i18n";
 import { formatDateTime } from "@/lib/format";
 import { Button } from "@rakhal/ui/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@rakhal/ui/ui/dialog";
 import { periodLabel } from "../../lib/format";
 import { reportStatusKey } from "../../lib/labels";
 import type { ReportSummary } from "../../types";

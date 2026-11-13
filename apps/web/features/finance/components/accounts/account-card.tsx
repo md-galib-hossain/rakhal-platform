@@ -11,7 +11,7 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { MoneyInput } from "@/components/shared/money-input";
 import { MoneyText } from "@/components/shared/money-text";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@rakhal/ui/ui/dialog";
 import { Can } from "@/lib/auth/permissions";
 import { useFarmAccount, useRakhalBalance, useSetOpeningBalance } from "../../hooks/use-finance-v2";
 import { AccountFormSheet } from "./account-form-sheet";
