@@ -24,6 +24,8 @@ import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
 import { ForbiddenException } from '@nestjs/common';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import { AdminUsageResponseDto } from '../dto/admin-insights-response.dto';
 
 enum ExportKindParam {
   farms = 'farms',
@@ -44,6 +46,7 @@ export class AdminAnalyticsController {
   constructor(private readonly analytics: AdminAnalyticsService) {}
 
   @Get('analytics/usage')
+  @ApiEnvelopeResponse(AdminUsageResponseDto)
   @ThrottleExpensive()
   @RequireAdminPermission('analytics.read')
   usage() {

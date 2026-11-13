@@ -495,6 +495,243 @@
         ],
         "type": "object"
       },
+      "AdminEngagementActivationDto": {
+        "properties": {
+          "activated": {
+            "type": "number"
+          },
+          "medianHoursToFirstRecord": {
+            "nullable": true,
+            "type": "number"
+          },
+          "neverActivated": {
+            "type": "number"
+          },
+          "rate": {
+            "description": "Ratio 0..1, or null when the base is empty.",
+            "nullable": true,
+            "type": "number"
+          },
+          "signedUp": {
+            "type": "number"
+          },
+          "windowDays": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "windowDays",
+          "signedUp",
+          "activated",
+          "rate",
+          "neverActivated",
+          "medianHoursToFirstRecord"
+        ],
+        "type": "object"
+      },
+      "AdminEngagementActiveDto": {
+        "properties": {
+          "daily": {
+            "type": "number"
+          },
+          "monthly": {
+            "type": "number"
+          },
+          "weekly": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "daily",
+          "weekly",
+          "monthly"
+        ],
+        "type": "object"
+      },
+      "AdminEngagementFarmsDto": {
+        "properties": {
+          "everRecorded": {
+            "type": "number"
+          },
+          "shareWithRecordsLast30Days": {
+            "description": "Ratio 0..1, or null when the base is empty.",
+            "nullable": true,
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "withRecordsLast30Days": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "total",
+          "withRecordsLast30Days",
+          "everRecorded",
+          "shareWithRecordsLast30Days"
+        ],
+        "type": "object"
+      },
+      "AdminEngagementGeographyDto": {
+        "properties": {
+          "districts": {
+            "items": {
+              "$ref": "#/components/schemas/AdminGeoDistrictDto"
+            },
+            "type": "array"
+          },
+          "divisions": {
+            "items": {
+              "$ref": "#/components/schemas/AdminGeoDivisionDto"
+            },
+            "type": "array"
+          },
+          "unspecifiedFarms": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "unspecifiedFarms",
+          "divisions",
+          "districts"
+        ],
+        "type": "object"
+      },
+      "AdminEngagementModuleDto": {
+        "properties": {
+          "farms": {
+            "type": "number"
+          },
+          "module": {
+            "type": "string"
+          },
+          "records": {
+            "type": "number"
+          },
+          "shareOfActiveFarms": {
+            "description": "Ratio 0..1, or null when the base is empty.",
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "module",
+          "farms",
+          "records",
+          "shareOfActiveFarms"
+        ],
+        "type": "object"
+      },
+      "AdminEngagementRecordsDto": {
+        "properties": {
+          "cattleTracked": {
+            "type": "number"
+          },
+          "last30Days": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "cattleTracked",
+          "last30Days"
+        ],
+        "type": "object"
+      },
+      "AdminEngagementResponseDto": {
+        "properties": {
+          "activation": {
+            "$ref": "#/components/schemas/AdminEngagementActivationDto"
+          },
+          "dailyActiveUsers": {
+            "items": {
+              "$ref": "#/components/schemas/AdminDayCountDto"
+            },
+            "type": "array"
+          },
+          "farms": {
+            "$ref": "#/components/schemas/AdminEngagementFarmsDto"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "geography": {
+            "$ref": "#/components/schemas/AdminEngagementGeographyDto"
+          },
+          "modules": {
+            "items": {
+              "$ref": "#/components/schemas/AdminEngagementModuleDto"
+            },
+            "type": "array"
+          },
+          "records": {
+            "$ref": "#/components/schemas/AdminEngagementRecordsDto"
+          },
+          "retention": {
+            "$ref": "#/components/schemas/AdminEngagementRetentionDto"
+          },
+          "users": {
+            "$ref": "#/components/schemas/AdminEngagementUsersDto"
+          }
+        },
+        "required": [
+          "generatedAt",
+          "users",
+          "activation",
+          "retention",
+          "farms",
+          "records",
+          "modules",
+          "dailyActiveUsers",
+          "geography"
+        ],
+        "type": "object"
+      },
+      "AdminEngagementRetentionDto": {
+        "properties": {
+          "d30": {
+            "$ref": "#/components/schemas/AdminRetentionCohortDto"
+          },
+          "d7": {
+            "$ref": "#/components/schemas/AdminRetentionCohortDto"
+          }
+        },
+        "required": [
+          "d7",
+          "d30"
+        ],
+        "type": "object"
+      },
+      "AdminEngagementUsersDto": {
+        "properties": {
+          "active": {
+            "$ref": "#/components/schemas/AdminEngagementActiveDto"
+          },
+          "dormant": {
+            "type": "number"
+          },
+          "returning": {
+            "type": "number"
+          },
+          "stickiness": {
+            "description": "Ratio 0..1, or null when the base is empty.",
+            "nullable": true,
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "total",
+          "active",
+          "stickiness",
+          "returning",
+          "dormant"
+        ],
+        "type": "object"
+      },
       "AdminFailedJobDto": {
         "properties": {
           "attemptsMade": {
@@ -948,6 +1185,45 @@
         "required": [
           "key",
           "deleted"
+        ],
+        "type": "object"
+      },
+      "AdminGeoDistrictDto": {
+        "properties": {
+          "district": {
+            "type": "string"
+          },
+          "division": {
+            "nullable": true,
+            "type": "string"
+          },
+          "farms": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "division",
+          "district",
+          "farms"
+        ],
+        "type": "object"
+      },
+      "AdminGeoDivisionDto": {
+        "properties": {
+          "cattle": {
+            "type": "number"
+          },
+          "farms": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "farms",
+          "cattle",
+          "name"
         ],
         "type": "object"
       },
@@ -1776,6 +2052,27 @@
         ],
         "type": "object"
       },
+      "AdminRetentionCohortDto": {
+        "properties": {
+          "base": {
+            "type": "number"
+          },
+          "kept": {
+            "type": "number"
+          },
+          "rate": {
+            "description": "Ratio 0..1, or null when the base is empty.",
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "base",
+          "kept",
+          "rate"
+        ],
+        "type": "object"
+      },
       "AdminRetryJobResponseDto": {
         "properties": {
           "jobId": {
@@ -1811,6 +2108,241 @@
           "revokedSessions",
           "revokedRefreshTokens",
           "success"
+        ],
+        "type": "object"
+      },
+      "AdminSecurityAdminFailedLoginDto": {
+        "properties": {
+          "actorEmail": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ipAddress": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "ipAddress",
+          "createdAt",
+          "actorEmail"
+        ],
+        "type": "object"
+      },
+      "AdminSecurityAttentionUserDto": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "failedLoginAttempts": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isBlocked": {
+            "type": "boolean"
+          },
+          "lastFailedLoginAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "lockedUntil": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "isBlocked",
+          "id",
+          "email",
+          "failedLoginAttempts",
+          "lastFailedLoginAt",
+          "lockedUntil"
+        ],
+        "type": "object"
+      },
+      "AdminSecurityCountsDto": {
+        "properties": {
+          "activeSessions": {
+            "type": "number"
+          },
+          "adminFailedLogins24h": {
+            "type": "number"
+          },
+          "blocked": {
+            "type": "number"
+          },
+          "lockedNow": {
+            "type": "number"
+          },
+          "signIns24h": {
+            "type": "number"
+          },
+          "signIns7d": {
+            "type": "number"
+          },
+          "usersWithFailedAttempts24h": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "activeSessions",
+          "signIns24h",
+          "signIns7d",
+          "usersWithFailedAttempts24h",
+          "lockedNow",
+          "blocked",
+          "adminFailedLogins24h"
+        ],
+        "type": "object"
+      },
+      "AdminSecurityMultiLocationDto": {
+        "properties": {
+          "distinctIps": {
+            "type": "number"
+          },
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "distinctIps"
+        ],
+        "type": "object"
+      },
+      "AdminSecurityOverviewResponseDto": {
+        "properties": {
+          "adminFailedLogins": {
+            "items": {
+              "$ref": "#/components/schemas/AdminSecurityAdminFailedLoginDto"
+            },
+            "type": "array"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/AdminSecurityCountsDto"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "multiLocation": {
+            "items": {
+              "$ref": "#/components/schemas/AdminSecurityMultiLocationDto"
+            },
+            "type": "array"
+          },
+          "needsAttention": {
+            "items": {
+              "$ref": "#/components/schemas/AdminSecurityAttentionUserDto"
+            },
+            "type": "array"
+          },
+          "recentSignIns": {
+            "items": {
+              "$ref": "#/components/schemas/AdminSecurityRecentSignInDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "generatedAt",
+          "counts",
+          "recentSignIns",
+          "needsAttention",
+          "multiLocation",
+          "adminFailedLogins"
+        ],
+        "type": "object"
+      },
+      "AdminSecurityRecentSignInDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deviceName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ipAddress": {
+            "nullable": true,
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionStatus"
+              }
+            ]
+          },
+          "user": {
+            "$ref": "#/components/schemas/AdminSecurityUserRefDto"
+          },
+          "userAgent": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "id",
+          "ipAddress",
+          "userAgent",
+          "deviceName",
+          "lastUsedAt",
+          "createdAt",
+          "user"
+        ],
+        "type": "object"
+      },
+      "AdminSecurityUserRefDto": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "id",
+          "email"
         ],
         "type": "object"
       },
@@ -2023,6 +2555,147 @@
         "required": [
           "secret",
           "otpauthUrl"
+        ],
+        "type": "object"
+      },
+      "AdminUsageActiveFarmsDto": {
+        "properties": {
+          "last30Days": {
+            "type": "number"
+          },
+          "last7Days": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "last7Days",
+          "last30Days"
+        ],
+        "type": "object"
+      },
+      "AdminUsageExpiringDto": {
+        "properties": {
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "farm": {
+            "type": "string"
+          },
+          "farmId": {
+            "type": "string"
+          },
+          "plan": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "farmId",
+          "farm",
+          "plan",
+          "status",
+          "expiresAt"
+        ],
+        "type": "object"
+      },
+      "AdminUsageMrrDto": {
+        "properties": {
+          "listPriceBdt": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "listPriceBdt"
+        ],
+        "type": "object"
+      },
+      "AdminUsagePlanCountsDto": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Subscription counts by status.",
+            "type": "object"
+          },
+          "plan": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "plan",
+          "counts"
+        ],
+        "type": "object"
+      },
+      "AdminUsageResponseDto": {
+        "properties": {
+          "activeFarms": {
+            "$ref": "#/components/schemas/AdminUsageActiveFarmsDto"
+          },
+          "expiring": {
+            "items": {
+              "$ref": "#/components/schemas/AdminUsageExpiringDto"
+            },
+            "type": "array"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "mrr": {
+            "$ref": "#/components/schemas/AdminUsageMrrDto"
+          },
+          "revenue": {
+            "$ref": "#/components/schemas/AdminUsageRevenueDto"
+          },
+          "subscriptions": {
+            "$ref": "#/components/schemas/AdminUsageSubscriptionsDto"
+          }
+        },
+        "required": [
+          "generatedAt",
+          "subscriptions",
+          "mrr",
+          "revenue",
+          "activeFarms",
+          "expiring"
+        ],
+        "type": "object"
+      },
+      "AdminUsageRevenueDto": {
+        "properties": {
+          "paidInvoices": {
+            "type": "number"
+          },
+          "totalBdt": {
+            "type": "number"
+          },
+          "windowDays": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "windowDays",
+          "paidInvoices",
+          "totalBdt"
+        ],
+        "type": "object"
+      },
+      "AdminUsageSubscriptionsDto": {
+        "properties": {
+          "byPlan": {
+            "items": {
+              "$ref": "#/components/schemas/AdminUsagePlanCountsDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "byPlan"
         ],
         "type": "object"
       },

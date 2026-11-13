@@ -6,6 +6,11 @@ import { RequireAdminPermission } from '../decorators/require-admin-permission.d
 import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  AdminEngagementResponseDto,
+  AdminSecurityOverviewResponseDto,
+} from '../dto/admin-insights-response.dto';
 
 /**
  * Product-usage insight (`analytics.read`) and the account-security picture (`security.read`). Both are
@@ -19,6 +24,7 @@ export class AdminInsightsController {
   constructor(private readonly insights: AdminInsightsService) {}
 
   @Get('analytics/engagement')
+  @ApiEnvelopeResponse(AdminEngagementResponseDto)
   @ThrottleExpensive()
   @RequireAdminPermission('analytics.read')
   engagement() {
@@ -26,6 +32,7 @@ export class AdminInsightsController {
   }
 
   @Get('security/overview')
+  @ApiEnvelopeResponse(AdminSecurityOverviewResponseDto)
   @ThrottleExpensive()
   @RequireAdminPermission('security.read')
   security() {
