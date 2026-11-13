@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { useAnimalGroups, useSheds } from "@/features/cattle/hooks/use-cattle";
 import { useMedicineDetail } from "@/features/inventory/hooks/use-inventory";

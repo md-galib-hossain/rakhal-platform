@@ -12,7 +12,7 @@ import { useCan } from "@/lib/auth/permissions";
 import { todayLocalIso } from "@/lib/local-date";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { CattleMultiPicker } from "@/components/shared/cattle-picker";

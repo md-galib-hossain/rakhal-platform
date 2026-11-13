@@ -12,7 +12,7 @@ import { ErrorState } from "@/components/shared/error-state";
 import { Label } from "@rakhal/ui/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@rakhal/ui/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateProtocol, useProtocol, useUpdateProtocol } from "../../hooks/use-reproduction";

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Can } from "@/lib/auth/permissions";
 import { Switch } from "@rakhal/ui/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@rakhal/ui/ui/label";

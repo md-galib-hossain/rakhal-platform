@@ -1,7 +1,7 @@
 "use client"; // toggles
 
 import { useTranslations } from "next-intl";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { DateText } from "@/components/shared/date-text";
 import type { FollowUpPreview } from "../../forms/types";
 

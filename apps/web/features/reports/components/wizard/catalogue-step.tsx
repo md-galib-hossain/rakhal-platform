@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { ChevronDown } from "lucide-react";
 import { useWatch } from "react-hook-form";
 import { cn } from "@/lib/utils";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Label } from "@rakhal/ui/ui/label";
 import { reportDomainKey, resolveMetricDefinition, resolveMetricLabel, type ReportTranslator } from "../../lib/labels";
 import type { TemplateSection } from "../../types";

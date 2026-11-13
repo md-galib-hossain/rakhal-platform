@@ -8,7 +8,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
