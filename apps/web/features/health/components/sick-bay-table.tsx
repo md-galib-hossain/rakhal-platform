@@ -14,7 +14,7 @@ import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { AnimalLink } from "@/components/shared/animal-link";
-import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { useDeleteHealthCase, useSafetyWithdrawals } from "../hooks/use-health";
 import { withdrawalDaysByCase } from "../sick-bay-model";
 import { ProtocolPicker } from "./protocol-picker";

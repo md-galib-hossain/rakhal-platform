@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Button } from "@rakhal/ui/ui/button";
 import { useRecordReceipt } from "../../hooks/use-sales";

@@ -17,7 +17,7 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@rakhal/ui/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,

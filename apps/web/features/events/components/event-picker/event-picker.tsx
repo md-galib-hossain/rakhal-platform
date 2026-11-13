@@ -31,7 +31,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { useUpcomingEvents } from "@/features/cattle/hooks/use-cattle";
 import type { CattleDetail } from "@/features/cattle/types";
 import { deriveChips } from "../../catalogue/chips";

@@ -30,7 +30,7 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@rakhal/ui/ui/sheet";
 import {
   Dialog,
   DialogContent,

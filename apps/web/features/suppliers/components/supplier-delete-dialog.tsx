@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@rakhal/ui/ui/button";
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { useDeleteSupplier } from "@/features/settings/hooks/use-workspace-mutations";
 import { useInvalidateSuppliersV2 } from "../hooks";
 import type { SupplierRow } from "../types";

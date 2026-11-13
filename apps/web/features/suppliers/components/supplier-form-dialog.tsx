@@ -7,7 +7,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@rakhal/ui/ui/button";
-import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { FloatingInput } from "@rakhal/ui/ui/floating-input";
 import { useCreateSupplier, useUpdateSupplier } from "@/features/settings/hooks/use-workspace-mutations";
 import { supplierFormSchema, type SupplierFormInput } from "@/features/settings/schemas";
