@@ -4,6 +4,8 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  // Workspace package ships TypeScript source (no dist step).
+  transpilePackages: ["@rakhal/ui"],
   allowedDevOrigins: [
     "local-rakhal-frontend.rakhal.app",
     "local-rakhal-backend.rakhal.app",

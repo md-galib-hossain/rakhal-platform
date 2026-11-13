@@ -195,7 +195,7 @@
 
   --shadow-card: var(--shadow-card);
 
-  --font-sans: var(--font-latin), system-ui, sans-serif;
+  --font-sans: var(--font-latin), var(--font-bengali, system-ui), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 @layer base {
