@@ -8,7 +8,7 @@ import { ApiError } from "@/lib/api/errors";
 import { todayLocalIso } from "@/lib/local-date";
 import { Button } from "@rakhal/ui/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
 import type { UpcomingEvent } from "@/features/cattle/types";
 import { useNextUpActions } from "../../hooks/use-next-up";
 import { SNOOZE_DAYS, snoozeDay, snoozeDueAt } from "../../next-up-model";

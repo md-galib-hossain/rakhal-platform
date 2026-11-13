@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Check, ChevronsUpDown, Plus, Truck } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useSuppliers } from "@/features/settings/hooks/use-workspace";
 import { QuickAddSupplierSheet } from "@/features/suppliers/components/quick-add-supplier-sheet";
