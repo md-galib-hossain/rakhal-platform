@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { Label } from "@rakhal/ui/ui/label";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { Textarea } from "@rakhal/ui/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useCreateSemenBatch, useSemenTanks, useUpdateSemenBatch } from "../hooks/use-inventory";
 import { semenBatchFormSchema, type SemenBatchFormInput } from "../schemas";
 import type { CreateSemenBatchPayload, SemenBatch } from "../types";

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { DateText } from "@/components/shared/date-text";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Can } from "@/lib/auth/permissions";
 import { RecordStarterFeedDialog } from "../dialogs/record-starter-feed-dialog";
 import type { CalfDetail } from "../../types";

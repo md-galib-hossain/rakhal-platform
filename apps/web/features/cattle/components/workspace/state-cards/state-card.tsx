@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import { WS_CARD } from "../workspace-grid";
 import { CardSkeleton } from "@/components/shared/card-skeleton";

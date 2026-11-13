@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";

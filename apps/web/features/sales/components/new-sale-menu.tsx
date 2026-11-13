@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Milk, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useCan } from "@/lib/auth/permissions";
 import { RecordSaleDialog } from "./record-sale-wizard";
 import { SellMilkSheet } from "./sell-milk-sheet";

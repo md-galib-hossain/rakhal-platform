@@ -13,7 +13,7 @@ import { CattleMultiPicker, type CattleOption } from "@/components/shared/cattle
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { Label } from "@rakhal/ui/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { useApplyProtocol, useProtocol, useProtocolInstance, useProtocols } from "../../hooks/use-reproduction";
 import { applyProtocolSchema, type ApplyProtocolInput } from "../../schemas";

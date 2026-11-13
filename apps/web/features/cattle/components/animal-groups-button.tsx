@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Layers } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Can } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { AnimalGroupsDialog } from "./animal-groups-dialog";
 
 /** Page-header "Animal Groups" trigger — opens the Animal Groups & Members management sheet. */

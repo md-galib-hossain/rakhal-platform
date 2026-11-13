@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput } from "@/components/ui/labeled-field";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

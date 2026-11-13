@@ -20,7 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { FamilyCards } from "./family-cards";

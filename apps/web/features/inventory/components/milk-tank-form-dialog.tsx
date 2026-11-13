@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { useCreateMilkTank, useShedsForMilkTank, useUpdateMilkTank } from "../hooks/use-inventory";
 import { milkTankFormSchema, type MilkTankFormInput } from "../schemas";

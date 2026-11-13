@@ -8,7 +8,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
 import { cn } from "@/lib/utils";
 import { Pagination } from "@/components/shared/pagination";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useRefreshSafetyWithdrawals, useSafetyWithdrawalsPagedList } from "../hooks/use-health";
 import { SafetyWithdrawalTable } from "./safety-withdrawal-table";
 

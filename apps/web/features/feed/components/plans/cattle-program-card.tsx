@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ClipboardList } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowRightToLine, Banknote, Pencil, Plus } from "lucide-react";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { DateText } from "@/components/shared/date-text";
 import { ErrorState } from "@/components/shared/error-state";

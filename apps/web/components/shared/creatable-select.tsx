@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 

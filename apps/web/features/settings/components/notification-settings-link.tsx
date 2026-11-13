@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Bell } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { openNotificationSheet } from "@/features/notifications/sheet-store";
 
 /** Settings > Notifications. Preferences, delivery channels and Telegram live in the notification sheet's settings

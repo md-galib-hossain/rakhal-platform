@@ -13,7 +13,7 @@ import { AnimalLink } from "@/components/shared/animal-link";
 import { ProtocolRemoveDialog, type RemoveMode } from "./protocol-remove-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { useCancelAnimalProtocol, useProtocolTaskLoader, useRemoveFromRound, useRoundGrid } from "../hooks/use-health";
 import { groupOfTasks, isDueState, type GridCell } from "../protocol-grid-model";

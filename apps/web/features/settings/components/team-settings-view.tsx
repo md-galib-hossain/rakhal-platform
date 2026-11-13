@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import {
   Sheet,
   SheetContent,

@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { qk } from "@/lib/query/keys";
 import {

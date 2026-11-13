@@ -8,7 +8,7 @@ import { ArrowLeft, X } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Label } from "@rakhal/ui/ui/label";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";

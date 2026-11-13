@@ -2,7 +2,7 @@
 
 import { AlertTriangle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useOpenCasesForCattle } from "../../hooks/use-health";
 import type { HealthCaseListItem, HealthCondition } from "../../types";
 

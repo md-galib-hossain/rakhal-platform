@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Lock } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";

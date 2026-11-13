@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { ArrowUpRight, HeartPulse } from "lucide-react";
 import { Card } from "@rakhal/ui/ui/card";
 import { WS_CARD } from "../workspace-grid";

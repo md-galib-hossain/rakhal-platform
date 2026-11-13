@@ -1,7 +1,7 @@
 "use client"; // page-jump select, page-size select, fetch-transition spinner
 
 import { ChevronLeft, ChevronRight, Loader2, MoreHorizontal } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { PAGE_SIZE_OPTIONS } from "@/lib/hooks/use-cursor-pager";

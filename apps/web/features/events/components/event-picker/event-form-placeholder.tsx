@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import type { EventKey } from "../../types";
 
 /**

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { useCan } from "@/lib/auth/permissions";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import type { RowAction } from "@/components/shared/row-actions-menu";
 import { EventFormPlaceholder } from "@/features/events/components/event-picker/event-form-placeholder";

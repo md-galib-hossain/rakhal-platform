@@ -11,7 +11,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Textarea } from "@rakhal/ui/ui/textarea";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useCreatePlan, useUpdatePlan } from "../hooks/use-health";
 import { HEALTH_CONDITIONS } from "./report-sickness/condition-chips";
 import { ProtocolStepRow } from "./protocol-step-row";

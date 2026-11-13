@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { Wheat } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";

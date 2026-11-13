@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Can } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { CattleFormDialog } from "./cattle-form-dialog";
 
 /** Page-header "Add cattle" trigger — a standalone `CattleFormDialog` instance in create mode

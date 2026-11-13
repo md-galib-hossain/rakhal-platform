@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";

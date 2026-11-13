@@ -3,7 +3,7 @@
 import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Can } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 
 /** Page-header "Add Medicine" trigger — parent (`MedicineView`) owns the shared create/edit
  * `MedicineFormDialog` instance, this is just the gated button that opens it in create mode. */

@@ -1,7 +1,7 @@
 "use client"; // dropdown open state
 
 import { MoreHorizontal } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,

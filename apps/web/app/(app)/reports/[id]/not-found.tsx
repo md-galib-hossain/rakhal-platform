@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { FileQuestion } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 
 export default async function ReportNotFound() {
   const t = await getTranslations("reportsDetail");

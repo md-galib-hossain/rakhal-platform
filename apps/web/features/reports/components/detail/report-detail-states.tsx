@@ -2,7 +2,7 @@
 
 import { AlertTriangle, Check, FileQuestion, Loader2, Lock, RefreshCw } from "lucide-react";
 import { ErrorState } from "@/components/shared/error-state";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { cn } from "@/lib/utils";

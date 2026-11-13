@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { cn } from "@/lib/utils";
 
 export interface InfiniteScrollFooterProps {

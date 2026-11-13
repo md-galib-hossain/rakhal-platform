@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Laptop, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@rakhal/ui/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { DateText } from "@/components/shared/date-text";

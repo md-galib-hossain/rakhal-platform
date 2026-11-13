@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { Pagination } from "@/components/shared/pagination";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";

@@ -12,7 +12,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Switch } from "@rakhal/ui/ui/switch";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Can } from "@/lib/auth/permissions";

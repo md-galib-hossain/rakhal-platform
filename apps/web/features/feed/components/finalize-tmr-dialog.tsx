@@ -15,7 +15,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { FeedItemFormDialog, type FeedItemPrefill } from "@/features/inventory/components/feed-item-form-dialog";
 import { useConcentrationInventoryCheck, useFinalizeConcentration } from "../hooks/use-feed";

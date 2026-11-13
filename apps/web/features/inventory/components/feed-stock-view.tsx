@@ -8,7 +8,7 @@ import { Package } from "lucide-react";
 import type { RowSelectionState } from "@tanstack/react-table";
 import { ApiError } from "@/lib/api/errors";
 import { useCan } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";

@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Chip } from "@/components/ui/chip";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useCompleteTask, useLogTaskTreatment, useLogTreatment } from "../hooks/use-health";
 import { groupIncompleteTasks, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";
 import { SkipTaskDialog } from "./skip-task-dialog";

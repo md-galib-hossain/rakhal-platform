@@ -8,7 +8,7 @@ import { ApiError } from "@/lib/api/errors";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";

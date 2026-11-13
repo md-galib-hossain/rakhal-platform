@@ -12,7 +12,7 @@ import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-fiel
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { Switch } from "@rakhal/ui/ui/switch";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useUpdateTask } from "../hooks/use-tasks";
 import { editTaskSchema, type EditTaskFormInput } from "../schemas";
 import { CATEGORY_ORDER } from "../task-style";

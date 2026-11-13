@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { ArrowRightToLine } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";

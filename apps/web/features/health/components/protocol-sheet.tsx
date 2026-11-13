@@ -6,7 +6,7 @@ import { format } from "date-fns";
 import { Can } from "@/lib/auth/permissions";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";

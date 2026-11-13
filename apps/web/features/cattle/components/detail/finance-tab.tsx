@@ -14,7 +14,7 @@ import { ChartCard } from "@/components/shared/chart-card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import {
   Tooltip,

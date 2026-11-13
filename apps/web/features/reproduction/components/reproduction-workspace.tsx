@@ -11,7 +11,7 @@ import {
   Plus,
   Syringe,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,

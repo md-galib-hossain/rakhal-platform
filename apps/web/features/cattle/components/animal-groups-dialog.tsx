@@ -39,7 +39,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Label } from "@rakhal/ui/ui/label";

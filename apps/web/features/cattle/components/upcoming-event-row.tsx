@@ -15,7 +15,7 @@ import {
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { recordKeyFor } from "@/features/events/next-up-model";
 import type { EventKey } from "@/features/events/types";
 import type { UpcomingEvent, UpcomingEventKind } from "../types";

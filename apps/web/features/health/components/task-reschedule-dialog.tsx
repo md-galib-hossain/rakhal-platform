@@ -7,7 +7,7 @@ import { ArrowLeftRight } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Chip } from "@/components/ui/chip";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useRescheduleTask } from "../hooks/use-health";
 import { groupIncompleteTasks, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";
 import { DatePicker } from "@/components/ui/date-picker";

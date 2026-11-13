@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Sparkles, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useIsEligibleForUpgradeAd } from "@/features/subscription/hooks/use-subscription-gates";
 import { UPGRADE_AD_CONFIG } from "./upgrade-ad-config";
 

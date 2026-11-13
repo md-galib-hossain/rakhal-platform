@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
 import { Plus, Receipt, ShoppingCart, Truck } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Can } from "@/lib/auth/permissions";
 import { usePeriod } from "@/lib/hooks/use-period";
 import { SuppliersView } from "@/features/suppliers/components/suppliers-view";

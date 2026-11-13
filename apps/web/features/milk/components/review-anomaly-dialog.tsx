@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { ApiError } from "@/lib/api/errors";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import {
   Sheet,
   SheetContent,

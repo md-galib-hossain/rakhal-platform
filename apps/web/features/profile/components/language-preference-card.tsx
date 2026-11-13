@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@rakhal/ui/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useProfile } from "../hooks/use-profile";
 import { useUpdateLanguage } from "../hooks/use-update-language";
 import type { ProfileUser } from "../types";

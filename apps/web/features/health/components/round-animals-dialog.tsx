@@ -6,7 +6,7 @@ import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { FormSheet } from "@/components/shared/form-sheet";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { useAddRoundAnimals } from "../hooks/use-health";
 import type { AddRoundAnimalsResult, ProtocolRound } from "../types";
