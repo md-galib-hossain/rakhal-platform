@@ -18,7 +18,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@rakhal/ui/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@rakhal/ui/ui/avatar";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";

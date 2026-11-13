@@ -3,7 +3,7 @@
 import { Command as CommandPrimitive } from "cmdk";
 import { Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@rakhal/ui/ui/dialog";
 
 export function Command({ className, ...props }: React.ComponentProps<typeof CommandPrimitive>) {
   return (

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@rakhal/ui/ui/dialog";
 import { useCattleInfiniteList } from "@/features/cattle/hooks/use-cattle";
 import { parseAsString, useQueryState } from "nuqs";
 import type { EventKey } from "../../../types";

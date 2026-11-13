@@ -30,7 +30,7 @@ import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { Button } from "@rakhal/ui/ui/button";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@rakhal/ui/ui/dialog";
 import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { useUpcomingEvents } from "@/features/cattle/hooks/use-cattle";
 import type { CattleDetail } from "@/features/cattle/types";
