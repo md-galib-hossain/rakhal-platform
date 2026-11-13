@@ -30,6 +30,7 @@ import type { FeedCostSummary } from "../../../features/feed/types";
 import type { MilkOverviewResponse } from "../../../features/milk/types";
 import type { NotificationListResult } from "../../../features/notifications/types";
 import type { ProfileUser } from "../../../features/profile/types";
+import type { ReportTemplatesResponse } from "../../../features/reports/types";
 import type { SubscriptionSummary } from "../../../features/subscription/types";
 import type { CursorMeta } from "../../../types/api";
 
@@ -78,7 +79,7 @@ const subscription: SubscriptionSummary = {
   plan_id: id(900),
   plan_name: "Pro",
   expires_at: "2027-01-01T00:00:00.000Z",
-  features: [],
+  features: ["reports.generate"], // the report wizard is plan-gated on it
   limits: { max_cattle: null, max_farm_members: null },
   usage: { cattle: 8, farm_members: 3 },
   pending_plan_id: null,
@@ -490,6 +491,40 @@ const milkOverview = (url: URL): Fixture => {
   return { data: body };
 };
 
+// --- reports (wizard) -------------------------------------------------------------------------------------
+
+const reportTemplates: ReportTemplatesResponse = {
+  onDemand: {
+    id: id(950),
+    alias: "on-demand",
+    version: 1,
+    domains: ["milk", "health"],
+    sections: [
+      {
+        id: "milk",
+        domain: "milk",
+        titleKey: "reports.domain.milk",
+        metrics: [
+          { id: "milk.total_yield", unit: "L", labelKey: "reports.metrics.milk.total_yield.label", definitionKey: "reports.metrics.milk.total_yield.definition", requiresFinance: false },
+          { id: "milk.avg_daily_yield", unit: "L", labelKey: "reports.metrics.milk.avg_daily_yield.label", definitionKey: "reports.metrics.milk.avg_daily_yield.definition", requiresFinance: false },
+        ],
+      },
+      {
+        id: "health",
+        domain: "health",
+        titleKey: "reports.domain.health",
+        metrics: [
+          { id: "health.cases_opened", unit: "count", labelKey: "reports.metrics.health.cases_opened.label", definitionKey: "reports.metrics.health.cases_opened.definition", requiresFinance: false },
+        ],
+      },
+    ],
+  },
+  scheduled: { weekly: { version: 1 }, monthly: { version: 1 } },
+  datePresets: ["today", "this_week", "this_month", "this_year", "custom"],
+  scopeKinds: ["SINGLE_COW", "GROUP", "ALL_ELIGIBLE"],
+  limits: { maxMetrics: 20, maxCustomRangeDays: 366 },
+};
+
 // --- route table ------------------------------------------------------------------------------------------
 
 export const routes: Record<string, Handler> = {
@@ -526,4 +561,5 @@ export const routes: Record<string, Handler> = {
   "GET /activity-log": page(activityLog, 15),
   "GET /feed/cost-summary": { data: feedCostSummary },
   "GET /milk/overview": milkOverview,
+  "GET /reports/templates": { data: reportTemplates },
 };
