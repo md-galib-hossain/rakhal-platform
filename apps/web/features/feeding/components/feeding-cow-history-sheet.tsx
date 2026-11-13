@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@rakhal/ui/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,

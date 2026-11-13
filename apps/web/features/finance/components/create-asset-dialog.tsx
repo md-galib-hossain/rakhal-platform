@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateAsset } from "../hooks/use-finance";
 import { createAssetSchema, type CreateAssetInput } from "../schemas";

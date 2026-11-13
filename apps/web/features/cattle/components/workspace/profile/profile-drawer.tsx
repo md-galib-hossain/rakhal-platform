@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Label } from "@rakhal/ui/ui/label";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@rakhal/ui/ui/textarea";
 import { useUpdateCattle } from "../../../hooks/use-cattle";
 import { cattleEditFormSchema, type CattleEditFormInput } from "../../../schemas";
 import type { CattleDetail } from "../../../types";

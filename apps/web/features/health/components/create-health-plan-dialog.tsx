@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput } from "@/components/ui/labeled-field";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useCreatePlan, useUpdatePlan } from "../hooks/use-health";
 import { HEALTH_CONDITIONS } from "./report-sickness/condition-chips";

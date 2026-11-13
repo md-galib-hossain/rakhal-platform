@@ -10,7 +10,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Label } from "@rakhal/ui/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";

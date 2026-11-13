@@ -12,7 +12,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@rakhal/ui/ui/textarea";
 import { DatePicker } from "@/components/ui/date-picker";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { MoneyText } from "@/components/shared/money-text";

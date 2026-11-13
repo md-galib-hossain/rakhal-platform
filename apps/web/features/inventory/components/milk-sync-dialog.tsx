@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput } from "@/components/ui/labeled-field";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
 import { useAdjustMilkTankVolume, useUpdateMilkTank } from "../hooks/use-inventory";

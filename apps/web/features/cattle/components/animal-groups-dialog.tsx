@@ -41,7 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Label } from "@rakhal/ui/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Chip } from "@/components/ui/chip";

@@ -15,7 +15,7 @@ import type { Locale } from "@/lib/constants/i18n";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { LabeledInput } from "@/components/ui/labeled-field";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@rakhal/ui/ui/textarea";
 import { FormSheet } from "@/components/shared/form-sheet";
 import { MoneyInput } from "@/components/shared/money-input";
 import { MoneyText } from "@/components/shared/money-text";
