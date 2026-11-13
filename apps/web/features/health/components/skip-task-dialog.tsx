@@ -13,7 +13,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Label } from "@rakhal/ui/ui/label";
 import { Input } from "@/components/ui/input";
 import { useSkipTask } from "../hooks/use-health";
 import type { HealthTask } from "../types";

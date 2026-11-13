@@ -11,7 +11,7 @@ import { ApiError } from "@/lib/api/errors";
 import { FormSheet } from "@/components/shared/form-sheet";
 import { CattleMultiPicker, type CattleOption } from "@/components/shared/cattle-picker";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { Label } from "@/components/ui/label";
+import { Label } from "@rakhal/ui/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { DateTimePicker } from "@/components/ui/date-time-picker";

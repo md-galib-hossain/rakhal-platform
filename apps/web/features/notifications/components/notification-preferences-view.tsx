@@ -18,7 +18,7 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Label } from "@rakhal/ui/ui/label";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/shared/error-state";

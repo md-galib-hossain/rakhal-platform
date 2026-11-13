@@ -5,7 +5,7 @@ import { useWatch } from "react-hook-form";
 import { cn } from "@/lib/utils";
 import type { Locale } from "@/lib/constants/i18n";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
+import { Label } from "@rakhal/ui/ui/label";
 import { DateRangePicker } from "@/components/shared/date-range-picker";
 import { todayLocalIso } from "@/lib/local-date";
 import { DATE_PRESETS, MAX_CUSTOM_RANGE_DAYS, type DatePreset } from "../../types";
