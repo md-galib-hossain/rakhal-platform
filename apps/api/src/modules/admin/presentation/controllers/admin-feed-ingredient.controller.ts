@@ -14,6 +14,8 @@ import type { Request } from 'express';
 import { FeedIngredientService } from 'src/modules/feed/application/services/feed-ingredient.service';
 import { CreateCatalogueIngredientDto } from 'src/modules/feed/presentation/dto/create-catalogue-ingredient.dto';
 import { UpdateCatalogueIngredientDto } from 'src/modules/feed/presentation/dto/update-catalogue-ingredient.dto';
+import { FeedIngredientResponseDto } from 'src/modules/feed/presentation/dto/feed-response.dto';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
 import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
@@ -45,12 +47,14 @@ export class AdminFeedIngredientController {
   ) {}
 
   @Get()
+  @ApiEnvelopeResponse(FeedIngredientResponseDto, { isArray: true })
   @RequireAdminPermission('feed-ingredient.read')
   list() {
     return this.ingredients.listCatalogueForAdmin();
   }
 
   @Post()
+  @ApiEnvelopeResponse(FeedIngredientResponseDto, { status: 201 })
   @RequireAdminPermission('feed-ingredient.manage')
   async create(
     @CurrentAdmin() admin: CurrentAdminContext,
@@ -73,6 +77,7 @@ export class AdminFeedIngredientController {
   }
 
   @Patch(':id')
+  @ApiEnvelopeResponse(FeedIngredientResponseDto)
   @RequireAdminPermission('feed-ingredient.manage')
   async update(
     @CurrentAdmin() admin: CurrentAdminContext,
@@ -96,6 +101,9 @@ export class AdminFeedIngredientController {
   }
 
   @Delete(':id')
+  @ApiEnvelopeResponse(FeedIngredientResponseDto, {
+    description: 'The archived catalogue ingredient.',
+  })
   @RequireAdminPermission('feed-ingredient.manage')
   async archive(
     @CurrentAdmin() admin: CurrentAdminContext,
@@ -117,6 +125,10 @@ export class AdminFeedIngredientController {
   }
 
   @Post(':id/restore')
+  @ApiEnvelopeResponse(FeedIngredientResponseDto, {
+    status: 201,
+    description: 'The restored catalogue ingredient.',
+  })
   @RequireAdminPermission('feed-ingredient.manage')
   async restore(
     @CurrentAdmin() admin: CurrentAdminContext,

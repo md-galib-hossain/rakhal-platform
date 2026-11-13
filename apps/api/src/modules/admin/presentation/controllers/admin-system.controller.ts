@@ -1,6 +1,8 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import { AdminCronListResponseDto } from '../dto/admin-system-response.dto';
 import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
@@ -23,6 +25,7 @@ export class AdminSystemController {
   constructor(private readonly registry: SchedulerRegistry) {}
 
   @Get()
+  @ApiEnvelopeResponse(AdminCronListResponseDto)
   @RequireAdminPermission('system.read')
   list() {
     const jobs = this.registry.getCronJobs();
@@ -36,3 +39,12 @@ export class AdminSystemController {
     };
   }
 }
+
+// Compile-time guard (RD-140): the documented cron response must match what `list()` really returns.
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+type Assert<T extends true> = T;
+export type AdminCronShapeGuards = [
+  Assert<
+    Same<ReturnType<AdminSystemController['list']>, AdminCronListResponseDto>
+  >,
+];

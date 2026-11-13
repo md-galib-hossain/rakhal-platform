@@ -212,6 +212,90 @@
         ],
         "type": "object"
       },
+      "AdminAuditLogDto": {
+        "properties": {
+          "action": {
+            "description": "An `AdminAuditAction` value (stored as text).",
+            "type": "string"
+          },
+          "actorEmail": {
+            "nullable": true,
+            "type": "string"
+          },
+          "adminId": {
+            "description": "Null for a failed login against an unknown email.",
+            "nullable": true,
+            "type": "string"
+          },
+          "after": {
+            "description": "JSON snapshot after the change (any JSON type, or null).",
+            "nullable": true,
+            "type": "object"
+          },
+          "before": {
+            "description": "JSON snapshot before the change (any JSON type, or null).",
+            "nullable": true,
+            "type": "object"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "entityId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ipAddress": {
+            "nullable": true,
+            "type": "string"
+          },
+          "metadata": {
+            "description": "Free-form JSON context (any JSON type, or null).",
+            "nullable": true,
+            "type": "object"
+          },
+          "outcome": {
+            "description": "SUCCESS or a failure outcome.",
+            "type": "string"
+          },
+          "requestId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "sessionId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "userAgent": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "adminId",
+          "action",
+          "entityType",
+          "entityId",
+          "metadata",
+          "outcome",
+          "actorEmail",
+          "before",
+          "after",
+          "sessionId",
+          "requestId",
+          "userAgent",
+          "ipAddress",
+          "createdAt"
+        ],
+        "type": "object"
+      },
       "AdminBroadcastMessageDto": {
         "properties": {
           "channel": {
@@ -374,6 +458,51 @@
           "status",
           "createdAt",
           "updatedAt"
+        ],
+        "type": "object"
+      },
+      "AdminCronJobDto": {
+        "properties": {
+          "last_run": {
+            "description": "Last run on this instance (null if it has not run yet).",
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "description": "Registered cron job name.",
+            "type": "string"
+          },
+          "next_run": {
+            "description": "Next scheduled run (null when the job is not active).",
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "running": {
+            "description": "True while the job is scheduled.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "running",
+          "next_run",
+          "last_run"
+        ],
+        "type": "object"
+      },
+      "AdminCronListResponseDto": {
+        "properties": {
+          "crons": {
+            "items": {
+              "$ref": "#/components/schemas/AdminCronJobDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "crons"
         ],
         "type": "object"
       },
@@ -1274,6 +1403,19 @@
           "farms",
           "cattle",
           "name"
+        ],
+        "type": "object"
+      },
+      "AdminHealthResponseDto": {
+        "properties": {
+          "status": {
+            "description": "Always \"ok\" when reachable.",
+            "example": "ok",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
         ],
         "type": "object"
       },
@@ -22745,6 +22887,35 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/AdminAuditLogDto"
+                      },
+                      "type": "array"
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/CursorPageMetaDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -23835,6 +24006,28 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminCronListResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -24399,6 +24592,31 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/FeedIngredientResponseDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -24426,6 +24644,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedIngredientResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -24454,7 +24694,29 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedIngredientResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The archived catalogue ingredient."
           }
         },
         "security": [
@@ -24490,6 +24752,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedIngredientResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -24518,7 +24802,29 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedIngredientResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The restored catalogue ingredient."
           }
         },
         "security": [
@@ -24609,6 +24915,28 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminHealthResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
