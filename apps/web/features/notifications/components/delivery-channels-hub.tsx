@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "@rakhal/ui/ui/switch";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Can } from "@/lib/auth/permissions";
 import type { TelegramStatusResult } from "../types";

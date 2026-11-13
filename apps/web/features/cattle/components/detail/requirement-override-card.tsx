@@ -21,7 +21,7 @@ import type { Locale } from "@/lib/constants/i18n";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "@rakhal/ui/ui/switch";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { ErrorState } from "@/components/shared/error-state";

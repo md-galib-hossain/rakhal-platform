@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { ChevronDown, LogOut, MessageSquare, Settings, UserRound } from "lucide-react";
 import { useLogout, useSession } from "@/lib/auth/use-session";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "@rakhal/ui/ui/switch";
 import {
   DropdownMenu,
   DropdownMenuContent,

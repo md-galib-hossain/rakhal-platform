@@ -14,7 +14,7 @@ import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Label } from "@rakhal/ui/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "@rakhal/ui/ui/switch";
 import { MoneyInput } from "@/components/shared/money-input";
 import { AccountPicker } from "@/features/finance/components/account-picker";
 import { useCreateExpense } from "../hooks/use-purchasing";
