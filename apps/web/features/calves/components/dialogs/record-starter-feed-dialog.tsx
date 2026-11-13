@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { FormSheet } from "@/components/shared/form-sheet";
 import { Label } from "@rakhal/ui/ui/label";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRecordStarterFeed } from "../../hooks/use-calves";
 import { recordStarterFeedSchema, type RecordStarterFeedInput } from "../../schemas";

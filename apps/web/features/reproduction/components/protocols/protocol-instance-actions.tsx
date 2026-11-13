@@ -12,7 +12,7 @@ import { FormSheet } from "@/components/shared/form-sheet";
 import { Button } from "@rakhal/ui/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@rakhal/ui/ui/label";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {

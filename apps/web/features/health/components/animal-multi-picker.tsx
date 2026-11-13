@@ -9,7 +9,7 @@ import type { CattleListItem } from "@/features/cattle/types";
 import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { Button } from "@rakhal/ui/ui/button";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";

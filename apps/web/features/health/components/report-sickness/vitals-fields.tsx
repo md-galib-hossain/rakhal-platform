@@ -5,7 +5,7 @@ import { Minus, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import type { AppetiteStatus } from "../../types";
 
 const APPETITES: AppetiteStatus[] = ["NORMAL", "REDUCED", "NONE", "HIGH"];

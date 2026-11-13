@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
 import { History, Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { EmptyState } from "@/components/shared/empty-state";

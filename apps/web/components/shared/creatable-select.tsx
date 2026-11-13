@@ -5,7 +5,7 @@ import { Check, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 
 const CREATE_NEW = "__creatable_select_create_new__";

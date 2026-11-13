@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CardSkeleton } from "@/components/shared/card-skeleton";

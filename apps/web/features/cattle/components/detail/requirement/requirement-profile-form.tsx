@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Check, Info, RotateCcw, X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@rakhal/ui/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";

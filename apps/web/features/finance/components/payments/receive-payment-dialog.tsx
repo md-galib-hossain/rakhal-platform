@@ -17,7 +17,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { MoneyInput } from "@/components/shared/money-input";

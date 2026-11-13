@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import {
   DrilldownFilterPopover,
   DrilldownFilterChips,

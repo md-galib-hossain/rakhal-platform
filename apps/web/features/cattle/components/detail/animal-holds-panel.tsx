@@ -19,7 +19,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAnimalHolds, useCreateAnimalHold, useReleaseAnimalHold } from "../../hooks/use-cattle";

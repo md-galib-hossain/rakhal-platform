@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { parseAsString, useQueryState } from "nuqs";
 import { Filter as FilterIcon, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { Button } from "@rakhal/ui/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

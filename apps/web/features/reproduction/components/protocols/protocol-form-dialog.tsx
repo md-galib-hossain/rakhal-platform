@@ -10,7 +10,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { Label } from "@rakhal/ui/ui/label";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Button } from "@rakhal/ui/ui/button";
