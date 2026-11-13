@@ -19,6 +19,13 @@ import {
 import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  AdminFarmActionResponseDto,
+  AdminPasswordResetSentResponseDto,
+  AdminRevokeSessionsResponseDto,
+  AdminUserBlockResponseDto,
+} from '../dto/admin-directory-response.dto';
 
 /**
  * Phase 4 controlled support operations. Farm suspension needs `farm.manage`
@@ -34,6 +41,7 @@ export class AdminSupportActionsController {
   constructor(private readonly actions: AdminSupportActionsService) {}
 
   @Post('farms/:id/suspend')
+  @ApiEnvelopeResponse(AdminFarmActionResponseDto)
   @HttpCode(200)
   @RequireAdminPermission('farm.manage')
   suspendFarm(
@@ -45,6 +53,7 @@ export class AdminSupportActionsController {
   }
 
   @Post('farms/:id/reactivate')
+  @ApiEnvelopeResponse(AdminFarmActionResponseDto)
   @HttpCode(200)
   @RequireAdminPermission('farm.manage')
   reactivateFarm(
@@ -56,6 +65,7 @@ export class AdminSupportActionsController {
   }
 
   @Post('users/:id/block')
+  @ApiEnvelopeResponse(AdminUserBlockResponseDto)
   @HttpCode(200)
   @RequireAdminPermission('user.manage')
   blockUser(
@@ -67,6 +77,7 @@ export class AdminSupportActionsController {
   }
 
   @Post('users/:id/unblock')
+  @ApiEnvelopeResponse(AdminUserBlockResponseDto)
   @HttpCode(200)
   @RequireAdminPermission('user.manage')
   unblockUser(
@@ -78,6 +89,7 @@ export class AdminSupportActionsController {
   }
 
   @Post('users/:id/send-password-reset')
+  @ApiEnvelopeResponse(AdminPasswordResetSentResponseDto)
   @HttpCode(200)
   @RequireAdminPermission('user.manage')
   sendPasswordReset(
@@ -89,6 +101,7 @@ export class AdminSupportActionsController {
   }
 
   @Post('users/:id/revoke-sessions')
+  @ApiEnvelopeResponse(AdminRevokeSessionsResponseDto)
   @HttpCode(200)
   @RequireAdminPermission('user.manage')
   revokeSessions(

@@ -258,6 +258,22 @@
         ],
         "type": "object"
       },
+      "AdminDayCountDto": {
+        "properties": {
+          "count": {
+            "type": "number"
+          },
+          "day": {
+            "description": "UTC calendar day, `YYYY-MM-DD`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day",
+          "count"
+        ],
+        "type": "object"
+      },
       "AdminEnableTwoFactorDto": {
         "properties": {
           "code": {
@@ -267,6 +283,322 @@
         },
         "required": [
           "code"
+        ],
+        "type": "object"
+      },
+      "AdminFarmActionResponseDto": {
+        "properties": {
+          "changed": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "SUSPENDED",
+              "ACTIVE"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "changed"
+        ],
+        "type": "object"
+      },
+      "AdminFarmDetailResponseDto": {
+        "properties": {
+          "address": {
+            "nullable": true,
+            "type": "string"
+          },
+          "cattleRecords": {
+            "type": "number"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "district": {
+            "nullable": true,
+            "type": "string"
+          },
+          "division": {
+            "nullable": true,
+            "type": "string"
+          },
+          "farmCode": {
+            "nullable": true,
+            "type": "string"
+          },
+          "hasCompletedOnboarding": {
+            "type": "boolean"
+          },
+          "herdSizeBand": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastActivityAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/AdminFarmMemberDto"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "operationalPurpose": {
+            "nullable": true,
+            "type": "string"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/AdminFarmOwnerDto"
+          },
+          "phone": {
+            "nullable": true,
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FarmStatus"
+              }
+            ]
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/AdminFarmSubscriptionDto"
+          },
+          "subscriptionHistory": {
+            "items": {
+              "$ref": "#/components/schemas/AdminFarmSubscriptionDto"
+            },
+            "type": "array"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "upazila": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "description",
+          "status",
+          "division",
+          "district",
+          "upazila",
+          "operationalPurpose",
+          "phone",
+          "address",
+          "herdSizeBand",
+          "farmCode",
+          "hasCompletedOnboarding",
+          "timezone",
+          "createdAt",
+          "owner",
+          "cattleRecords",
+          "lastActivityAt",
+          "subscription",
+          "subscriptionHistory",
+          "members"
+        ],
+        "type": "object"
+      },
+      "AdminFarmListItemDto": {
+        "properties": {
+          "cattleCount": {
+            "type": "number"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "district": {
+            "nullable": true,
+            "type": "string"
+          },
+          "division": {
+            "nullable": true,
+            "type": "string"
+          },
+          "farmCode": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "memberCount": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/AdminPersonRefDto"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FarmStatus"
+              }
+            ]
+          },
+          "subscription": {
+            "$ref": "#/components/schemas/AdminFarmSubscriptionDto"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status",
+          "division",
+          "district",
+          "farmCode",
+          "createdAt",
+          "owner",
+          "memberCount",
+          "cattleCount",
+          "subscription"
+        ],
+        "type": "object"
+      },
+      "AdminFarmMemberDto": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isBlocked": {
+            "type": "boolean"
+          },
+          "joinedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "lastLoginAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isBlocked",
+          "email",
+          "lastLoginAt",
+          "joinedAt",
+          "role"
+        ],
+        "type": "object"
+      },
+      "AdminFarmOwnerDto": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isBlocked": {
+            "type": "boolean"
+          },
+          "isEmailVerified": {
+            "type": "boolean"
+          },
+          "lastLoginAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "isBlocked",
+          "email",
+          "isEmailVerified",
+          "lastLoginAt"
+        ],
+        "type": "object"
+      },
+      "AdminFarmSubscriptionDto": {
+        "properties": {
+          "cancelledAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "pendingPlan": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdminPlanRefDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "startsAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SubscriptionStatus"
+              }
+            ]
+          },
+          "subscriptionPlan": {
+            "$ref": "#/components/schemas/AdminPlanRefDto"
+          }
+        },
+        "required": [
+          "status",
+          "startsAt",
+          "expiresAt",
+          "cancelledAt",
+          "subscriptionPlan",
+          "pendingPlan"
         ],
         "type": "object"
       },
@@ -457,6 +789,138 @@
         ],
         "type": "object"
       },
+      "AdminOverviewFarmsDto": {
+        "properties": {
+          "byStatus": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object"
+          },
+          "newLast30Days": {
+            "type": "number"
+          },
+          "newLast7Days": {
+            "type": "number"
+          },
+          "newThisMonth": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "total",
+          "byStatus",
+          "newLast7Days",
+          "newLast30Days",
+          "newThisMonth"
+        ],
+        "type": "object"
+      },
+      "AdminOverviewResponseDto": {
+        "properties": {
+          "farms": {
+            "$ref": "#/components/schemas/AdminOverviewFarmsDto"
+          },
+          "generatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "signups": {
+            "$ref": "#/components/schemas/AdminOverviewSignupsDto"
+          },
+          "subscriptions": {
+            "$ref": "#/components/schemas/AdminOverviewSubscriptionsDto"
+          },
+          "users": {
+            "$ref": "#/components/schemas/AdminOverviewUsersDto"
+          }
+        },
+        "required": [
+          "generatedAt",
+          "farms",
+          "users",
+          "subscriptions",
+          "signups"
+        ],
+        "type": "object"
+      },
+      "AdminOverviewSignupsDto": {
+        "properties": {
+          "days": {
+            "type": "number"
+          },
+          "farms": {
+            "items": {
+              "$ref": "#/components/schemas/AdminDayCountDto"
+            },
+            "type": "array"
+          },
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/AdminDayCountDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "days",
+          "farms",
+          "users"
+        ],
+        "type": "object"
+      },
+      "AdminOverviewSubscriptionsDto": {
+        "properties": {
+          "byStatus": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "byStatus"
+        ],
+        "type": "object"
+      },
+      "AdminOverviewUsersDto": {
+        "properties": {
+          "activeLast30Days": {
+            "type": "number"
+          },
+          "activeLastDay": {
+            "type": "number"
+          },
+          "blocked": {
+            "type": "number"
+          },
+          "newLast30Days": {
+            "type": "number"
+          },
+          "newLast7Days": {
+            "type": "number"
+          },
+          "newThisMonth": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "total",
+          "blocked",
+          "newLast7Days",
+          "newLast30Days",
+          "newThisMonth",
+          "activeLastDay",
+          "activeLast30Days"
+        ],
+        "type": "object"
+      },
       "AdminPasswordChangedResponseDto": {
         "properties": {
           "changed": {
@@ -466,6 +930,59 @@
         },
         "required": [
           "changed"
+        ],
+        "type": "object"
+      },
+      "AdminPasswordResetSentResponseDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "revokedSessions": {
+            "type": "number"
+          },
+          "sent": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "sent",
+          "revokedSessions"
+        ],
+        "type": "object"
+      },
+      "AdminPersonRefDto": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email"
+        ],
+        "type": "object"
+      },
+      "AdminPlanRefDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
         ],
         "type": "object"
       },
@@ -497,6 +1014,25 @@
           "accessToken",
           "refreshToken",
           "sessionId"
+        ],
+        "type": "object"
+      },
+      "AdminRevokeSessionsResponseDto": {
+        "properties": {
+          "revokedRefreshTokens": {
+            "type": "number"
+          },
+          "revokedSessions": {
+            "type": "number"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "revokedSessions",
+          "revokedRefreshTokens",
+          "success"
         ],
         "type": "object"
       },
@@ -664,6 +1200,320 @@
         "required": [
           "secret",
           "otpauthUrl"
+        ],
+        "type": "object"
+      },
+      "AdminUserBlockResponseDto": {
+        "properties": {
+          "changed": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isBlocked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "isBlocked",
+          "changed"
+        ],
+        "type": "object"
+      },
+      "AdminUserChannelDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastSeenAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "platform",
+          "createdAt",
+          "lastSeenAt"
+        ],
+        "type": "object"
+      },
+      "AdminUserDetailResponseDto": {
+        "properties": {
+          "activeSessionCount": {
+            "type": "number"
+          },
+          "connectedChannels": {
+            "items": {
+              "$ref": "#/components/schemas/AdminUserChannelDto"
+            },
+            "type": "array"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "emailVerifiedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "failedLoginAttempts": {
+            "type": "number"
+          },
+          "hasPush": {
+            "type": "boolean"
+          },
+          "hasTelegram": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isBlocked": {
+            "type": "boolean"
+          },
+          "isEmailVerified": {
+            "type": "boolean"
+          },
+          "lastFailedLoginAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "lastLoginAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "lastPasswordChangedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "lockedUntil": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "memberships": {
+            "items": {
+              "$ref": "#/components/schemas/AdminUserMembershipDto"
+            },
+            "type": "array"
+          },
+          "mfaConfigured": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownedFarmCount": {
+            "type": "number"
+          },
+          "preferredLanguage": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Language"
+              }
+            ]
+          },
+          "recentSessions": {
+            "items": {
+              "$ref": "#/components/schemas/AdminUserSessionDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "createdAt",
+          "isBlocked",
+          "email",
+          "isEmailVerified",
+          "emailVerifiedAt",
+          "failedLoginAttempts",
+          "lastFailedLoginAt",
+          "lockedUntil",
+          "lastLoginAt",
+          "lastPasswordChangedAt",
+          "preferredLanguage",
+          "hasTelegram",
+          "hasPush",
+          "mfaConfigured",
+          "ownedFarmCount",
+          "activeSessionCount",
+          "recentSessions",
+          "connectedChannels",
+          "memberships"
+        ],
+        "type": "object"
+      },
+      "AdminUserListItemDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "farmCount": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isBlocked": {
+            "type": "boolean"
+          },
+          "isEmailVerified": {
+            "type": "boolean"
+          },
+          "lastActiveAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "lastLoginAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "lockedUntil": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "ownedFarmCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "createdAt",
+          "isBlocked",
+          "email",
+          "isEmailVerified",
+          "lockedUntil",
+          "lastLoginAt",
+          "farmCount",
+          "ownedFarmCount",
+          "lastActiveAt"
+        ],
+        "type": "object"
+      },
+      "AdminUserMembershipDto": {
+        "properties": {
+          "farm": {
+            "$ref": "#/components/schemas/AdminUserMembershipFarmDto"
+          },
+          "joinedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "joinedAt",
+          "role",
+          "farm"
+        ],
+        "type": "object"
+      },
+      "AdminUserMembershipFarmDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FarmStatus"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "status"
+        ],
+        "type": "object"
+      },
+      "AdminUserSessionDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "deviceName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ipAddress": {
+            "nullable": true,
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SessionStatus"
+              }
+            ]
+          },
+          "userAgent": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "createdAt",
+          "expiresAt",
+          "lastUsedAt",
+          "ipAddress",
+          "userAgent",
+          "deviceName"
         ],
         "type": "object"
       },
@@ -10948,6 +11798,13 @@
         ],
         "type": "object"
       },
+      "Language": {
+        "enum": [
+          "BN",
+          "EN"
+        ],
+        "type": "string"
+      },
       "LeavesGroupProgramDto": {
         "properties": {
           "cattle_id": {
@@ -16544,6 +17401,15 @@
         ],
         "type": "object"
       },
+      "SessionStatus": {
+        "enum": [
+          "ACTIVE",
+          "REVOKED",
+          "EXPIRED",
+          "COMPROMISED"
+        ],
+        "type": "string"
+      },
       "SetFeedOverrideDto": {
         "properties": {
           "customAdfPct": {
@@ -17054,6 +17920,16 @@
           "reason"
         ],
         "type": "object"
+      },
+      "SubscriptionStatus": {
+        "enum": [
+          "ACTIVE",
+          "PAST_DUE",
+          "CANCELLED",
+          "EXPIRED",
+          "TRIALING"
+        ],
+        "type": "string"
       },
       "SupplierListResponseDto": {
         "properties": {
