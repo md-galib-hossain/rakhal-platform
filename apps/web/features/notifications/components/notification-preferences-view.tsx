@@ -19,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { ErrorState } from "@/components/shared/error-state";
 import { ApiError } from "@/lib/api/errors";

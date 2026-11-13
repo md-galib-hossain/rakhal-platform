@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Pagination } from "@/components/shared/pagination";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { DrilldownFilterBar } from "@/components/shared/drilldown-filter-bar";
 import type { FilterCategoryConfig } from "@/components/shared/drilldown-filter-popover";
 import { useHealthPlansPagedList, useHealthTasks, useRounds } from "../hooks/use-health";

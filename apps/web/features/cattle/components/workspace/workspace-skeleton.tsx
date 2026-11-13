@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { ArrowLeft, X } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { WS_AREA_NEXT, WS_AREA_RAIL, WS_AREA_TIME, WS_CONTAINER, WS_GRID } from "./workspace-grid";
 

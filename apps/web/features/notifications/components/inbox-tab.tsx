@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { qk } from "@/lib/query/keys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { notificationsApi } from "../api";

@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { useIncrementalReveal } from "@/lib/hooks/use-incremental-reveal";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useReproductionDashboard } from "../hooks/use-reproduction";
 import { ReproductionCard } from "./reproduction-card";

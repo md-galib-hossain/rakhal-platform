@@ -9,7 +9,7 @@ import { AnimalLink } from "@/components/shared/animal-link";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { useProtocolTasks } from "../hooks/use-health";
 import { buildProtocolGrid, dueTasksOfColumn, groupOfTasks, type GridRow } from "../protocol-grid-model";
 import type { ScheduledTaskGroup } from "../task-grouping";

@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
 import { ChartCard } from "@/components/shared/chart-card";
 import { ErrorState } from "@/components/shared/error-state";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { formatMoney } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import type { SaleLineType, SalesSummary } from "../../types";

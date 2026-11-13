@@ -4,7 +4,7 @@ import { AlertTriangle, Check, FileQuestion, Loader2, Lock, RefreshCw } from "lu
 import { ErrorState } from "@/components/shared/error-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useRetryReport } from "../../hooks/use-retry-report";
 import { isReportApiError, reportErrorCategoryKey, reportErrorKeyFor } from "../../lib/errors";

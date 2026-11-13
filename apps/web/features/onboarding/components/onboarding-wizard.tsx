@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { OnboardingShell } from "./onboarding-shell";
 import { WizardProgress, type WizardStep } from "./wizard-progress";
 import { ConfigureStep } from "./configure-step";

@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Chip, type ChipProps } from "@/components/ui/chip";
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import {
   Sheet,
   SheetContent,
