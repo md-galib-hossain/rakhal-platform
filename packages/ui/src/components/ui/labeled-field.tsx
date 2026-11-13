@@ -17,22 +17,24 @@ export interface LabeledInputProps extends React.InputHTMLAttributes<HTMLInputEl
   error?: string;
   /** Decorative trailing icon (e.g. a calendar glyph on a date field) — purely visual. */
   endIcon?: React.ReactNode;
+  inputClassName?: string;
+  containerClassName?: string;
 }
 
 export const LabeledInput = forwardRef<HTMLInputElement, LabeledInputProps>(function LabeledInput(
-  { label, error, endIcon, className, id, ...props },
+  { label, error, endIcon, className, inputClassName, containerClassName, id, ...props },
   ref,
 ) {
   return (
-    <div className="w-full">
+    <div className={cn("w-full", containerClassName, className)}>
       <div
         className={cn(
-          "flex items-center gap-2 rounded-xl border border-input bg-card px-4 py-2 shadow-xs transition-colors focus-within:ring-2 focus-within:ring-ring",
+          "flex min-h-[56px] items-center gap-2 rounded-xl border border-input bg-card px-4 py-2 shadow-xs transition-colors focus-within:ring-2 focus-within:ring-ring has-[:disabled]:opacity-50 has-[:disabled]:cursor-not-allowed",
           error && "border-destructive focus-within:ring-destructive",
         )}
       >
-        <div className="flex min-w-0 flex-1 flex-col">
-          <label htmlFor={id} className="text-xs text-muted-foreground">
+        <div className="flex min-w-0 flex-1 flex-col justify-center">
+          <label htmlFor={id} className="text-xs text-muted-foreground select-none">
             {label}
           </label>
           <input
@@ -40,7 +42,7 @@ export const LabeledInput = forwardRef<HTMLInputElement, LabeledInputProps>(func
             id={id}
             className={cn(
               "w-full border-0 bg-transparent p-0 text-sm text-foreground outline-none placeholder:text-muted-foreground",
-              className,
+              inputClassName,
             )}
             aria-invalid={!!error}
             {...props}
@@ -53,23 +55,31 @@ export const LabeledInput = forwardRef<HTMLInputElement, LabeledInputProps>(func
   );
 });
 
+export interface LabeledSelectTriggerProps extends React.ComponentProps<typeof SelectTrigger> {
+  label: string;
+  placeholder?: string;
+  error?: string;
+}
+
 /** Same stacked-label chrome as `LabeledInput`, for a Radix `<Select>` trigger. Use inside
  * `<Select>...</Select>` in place of the plain `SelectTrigger`. */
 export function LabeledSelectTrigger({
   label,
   placeholder,
+  error,
   className,
   ...props
-}: React.ComponentProps<typeof SelectTrigger> & { label: string; placeholder?: string }) {
+}: LabeledSelectTriggerProps) {
   return (
     <SelectTrigger
       className={cn(
-        "relative h-auto flex-col items-start gap-0 rounded-xl border-input px-4 py-2 shadow-xs [&>svg]:absolute [&>svg]:right-4 [&>svg]:top-1/2 [&>svg]:-translate-y-1/2",
+        "relative flex min-h-[56px] h-auto flex-col items-start justify-center gap-0 rounded-xl border-input bg-card px-4 py-2 text-left shadow-xs [&>svg]:absolute [&>svg]:right-4 [&>svg]:top-1/2 [&>svg]:-translate-y-1/2",
+        error && "border-destructive focus:ring-destructive",
         className,
       )}
       {...props}
     >
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className="text-xs text-muted-foreground select-none">{label}</span>
       <SelectValue placeholder={placeholder} className="text-sm text-foreground" />
     </SelectTrigger>
   );
