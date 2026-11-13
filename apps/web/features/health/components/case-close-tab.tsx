@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Label } from "@rakhal/ui/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@rakhal/ui/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { RadioGroup, RadioGroupItem } from "@rakhal/ui/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AccountPicker } from "@/features/finance/components/account-picker";
 import { SymptomChips } from "./symptom-chips";
