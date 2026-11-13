@@ -1967,6 +1967,108 @@
         ],
         "type": "object"
       },
+      "AdminReconciliationExceptionDto": {
+        "properties": {
+          "actual_amount": {
+            "nullable": true,
+            "type": "number"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "detail": {
+            "nullable": true,
+            "type": "string"
+          },
+          "expected_amount": {
+            "nullable": true,
+            "type": "number"
+          },
+          "farm_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "invoice_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "payment_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "provider_payment_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "resolution_note": {
+            "nullable": true,
+            "type": "string"
+          },
+          "resolved_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "resolved_by_admin_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReconciliationStatus"
+              }
+            ]
+          },
+          "type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReconciliationType"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "status",
+          "payment_id",
+          "invoice_id",
+          "farm_id",
+          "provider_payment_id",
+          "expected_amount",
+          "actual_amount",
+          "detail",
+          "resolved_by_admin_id",
+          "resolved_at",
+          "resolution_note",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "AdminReconciliationRunResponseDto": {
+        "properties": {
+          "checked": {
+            "type": "number"
+          },
+          "flagged": {
+            "type": "number"
+          },
+          "skipped": {
+            "description": "Present when the run was skipped; explains why.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "checked",
+          "flagged"
+        ],
+        "type": "object"
+      },
       "AdminReferralCommissionDto": {
         "properties": {
           "amount": {
@@ -16503,6 +16605,24 @@
         ],
         "type": "string"
       },
+      "ReconciliationStatus": {
+        "enum": [
+          "OPEN",
+          "RESOLVED",
+          "IGNORED"
+        ],
+        "type": "string"
+      },
+      "ReconciliationType": {
+        "enum": [
+          "PAID_NOT_SETTLED",
+          "STATUS_MISMATCH",
+          "AMOUNT_MISMATCH",
+          "DUPLICATE",
+          "SETTLED_NO_INVOICE"
+        ],
+        "type": "string"
+      },
       "RecordAiDto": {
         "properties": {
           "aiDate": {
@@ -24860,6 +24980,31 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/AdminReconciliationExceptionDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -24879,6 +25024,28 @@
         "parameters": [],
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminReconciliationRunResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -24917,6 +25084,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminReconciliationExceptionDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },

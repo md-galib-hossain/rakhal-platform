@@ -22,6 +22,11 @@ import {
   ListReconciliationQueryDto,
   ResolveReconciliationDto,
 } from '../dto/reconciliation.dto';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  AdminReconciliationExceptionDto,
+  AdminReconciliationRunResponseDto,
+} from '../dto/admin-reconciliation-response.dto';
 
 /**
  * Settlement-reconciliation console (RAKHAL-239, PRD §36.4). `admin-api`, behind
@@ -41,12 +46,14 @@ export class AdminReconciliationController {
   ) {}
 
   @Get()
+  @ApiEnvelopeResponse(AdminReconciliationExceptionDto, { isArray: true })
   @RequireAdminPermission('reconciliation.read')
   list(@Query() query: ListReconciliationQueryDto) {
     return this.reconciliation.list({ status: query.status, type: query.type });
   }
 
   @Post('run')
+  @ApiEnvelopeResponse(AdminReconciliationRunResponseDto, { status: 201 })
   @RequireAdminPermission('reconciliation.manage')
   async run(@CurrentAdmin() admin: CurrentAdminContext, @Req() req: Request) {
     const result = await this.reconciliation.runReconciliation();
@@ -61,6 +68,7 @@ export class AdminReconciliationController {
   }
 
   @Post(':id/resolve')
+  @ApiEnvelopeResponse(AdminReconciliationExceptionDto, { status: 201 })
   @RequireAdminPermission('reconciliation.manage')
   async resolve(
     @CurrentAdmin() admin: CurrentAdminContext,
