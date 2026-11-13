@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CalendarClock, CalendarDays, Download, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { reportErrorKeyFor, useDownloadReport, useReportsInfinite, type ReportSummary } from "@/features/reports";
 import { ReportStatusBadge } from "../history/report-status-badge";

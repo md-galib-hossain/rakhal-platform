@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Card } from "@rakhal/ui/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { MoneyText } from "@/components/shared/money-text";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";

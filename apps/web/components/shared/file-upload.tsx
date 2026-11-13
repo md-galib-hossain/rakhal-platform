@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { UploadCloud, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Progress } from "@/components/ui/progress";
 
 export interface FileUploadProps {

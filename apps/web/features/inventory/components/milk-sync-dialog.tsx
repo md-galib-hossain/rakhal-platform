@@ -11,7 +11,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Chip } from "@/components/ui/chip";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useAdjustMilkTankVolume, useUpdateMilkTank } from "../hooks/use-inventory";
 import { milkTankSyncFormSchema, type MilkTankSyncFormInput } from "../schemas";
 import type { MilkTank } from "../types";

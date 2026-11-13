@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Can } from "@/lib/auth/permissions";
 import { ApiError } from "@/lib/api/errors";
 import { Chip } from "@/components/ui/chip";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { useDeletePlan } from "../hooks/use-health";
 import type { HealthPlanListItem } from "../types";

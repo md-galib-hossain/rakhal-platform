@@ -17,7 +17,7 @@ import { Can } from "@/lib/auth/permissions";
 import { Switch } from "@rakhal/ui/ui/switch";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Label } from "@rakhal/ui/ui/label";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Input } from "@/components/ui/input";

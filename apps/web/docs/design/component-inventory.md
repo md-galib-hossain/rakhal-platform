@@ -8,7 +8,7 @@ component — it's very likely already built, just under a different name.
 
 | Figma name | Code |
 |---|---|
-| Buttons | `components/ui/button.tsx` (`Button`, variants: primary/secondary/destructive/outline/ghost/inverse) |
+| Buttons | `packages/ui/src/components/ui/button.tsx`, imported from `@rakhal/ui/ui/button` (`Button`, variants: primary/secondary/destructive/outline/ghost/inverse) |
 | Input Field | `components/ui/input.tsx`; auth-only floating-label variant: `components/ui/floating-input.tsx` |
 | Input Field (stacked label) | `components/ui/labeled-field.tsx` (`LabeledInput`/`LabeledSelectTrigger`) — the Add-Cattle-modal field chrome, distinct from `FloatingInput` |
 | Select/Dropdown | `components/ui/select.tsx` |

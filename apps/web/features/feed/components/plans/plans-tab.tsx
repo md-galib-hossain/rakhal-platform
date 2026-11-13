@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,

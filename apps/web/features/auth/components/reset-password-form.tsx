@@ -7,7 +7,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { ApiError } from "@/lib/api/errors";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { FloatingInput } from "@/components/ui/floating-input";
 import { useResetPassword } from "../hooks/use-reset-password";
 import { resetPasswordFormSchema, type ResetPasswordFormInput } from "../schemas";

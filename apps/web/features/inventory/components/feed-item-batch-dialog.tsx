@@ -12,7 +12,7 @@ import { LabeledInput } from "@/components/ui/labeled-field";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Label } from "@rakhal/ui/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { useCreateFeedItemBatch } from "../hooks/use-inventory";
 import { feedItemBatchFormSchema, nutritionFormSchema, type FeedItemBatchFormInput, type NutritionFormInput } from "../schemas";

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CheckCircle2, ClipboardList, Syringe } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import type { HealthCondition } from "../../types";
 import { ProtocolPicker } from "../protocol-picker";
 

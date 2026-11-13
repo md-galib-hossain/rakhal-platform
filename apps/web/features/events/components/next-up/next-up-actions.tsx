@@ -6,7 +6,7 @@ import { Clock, SkipForward } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { todayLocalIso } from "@/lib/local-date";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { UpcomingEvent } from "@/features/cattle/types";

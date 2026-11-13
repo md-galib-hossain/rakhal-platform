@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { cattleApi } from "@/features/cattle/api";
 import type { CattleListItem } from "@/features/cattle/types";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@rakhal/ui/ui/label";

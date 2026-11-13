@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { useSchedule } from "../hooks/use-schedules";
 import type { ComposerAnchor, ComposerAnimal } from "../schedule-model";

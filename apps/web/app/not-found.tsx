@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 
 /** Root 404 — used for unauthenticated/public routes that don't match any segment. */
 export default function NotFound() {

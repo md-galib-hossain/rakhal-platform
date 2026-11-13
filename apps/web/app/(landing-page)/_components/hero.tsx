@@ -1,7 +1,7 @@
 import { ArrowRight, Beef, HeartPulse, Milk, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { env } from "@/lib/env";
 import { MockBars } from "./mock-bits";
 import { Float, Reveal } from "./motion";

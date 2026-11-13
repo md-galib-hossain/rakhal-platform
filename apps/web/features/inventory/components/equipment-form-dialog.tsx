@@ -11,7 +11,7 @@ import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-fiel
 import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Label } from "@rakhal/ui/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { UnitPicker } from "./unit-picker";
 import { useCreateEquipment, useUpdateEquipment } from "../hooks/use-inventory";

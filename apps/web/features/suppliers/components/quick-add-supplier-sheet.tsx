@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { ArrowRightToLine } from "lucide-react";
 import type { z } from "zod";
 import { ApiError } from "@/lib/api/errors";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { useCreateSupplier } from "@/features/settings/hooks/use-workspace-mutations";

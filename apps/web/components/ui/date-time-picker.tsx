@@ -10,7 +10,7 @@ import type { Locale } from "@/lib/constants/i18n";
 import type { Matcher } from "react-day-picker";
 import { Calendar } from "./calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
-import { Button } from "./button";
+import { Button } from "@rakhal/ui/ui/button";
 
 /**
  * Rakhal-themed replacement for `<input type="datetime-local">`. The native control renders the

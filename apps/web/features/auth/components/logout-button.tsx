@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useLogout } from "@/lib/auth/use-session";
 
 export function LogoutButton() {

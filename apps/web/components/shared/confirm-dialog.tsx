@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ArrowRightToLine } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 
 export interface ConfirmDialogProps {
   open: boolean;

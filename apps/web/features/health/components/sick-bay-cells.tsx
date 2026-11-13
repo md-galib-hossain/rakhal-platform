@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { ShieldPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Can } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { TruncatedText } from "@/components/shared/truncated-text";
 import { Chip } from "@/components/ui/chip";
 import { diagnosisChipVariant } from "../format";

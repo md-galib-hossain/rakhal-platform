@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { useRequirementOverrideHistory } from "@/features/feed/hooks/use-requirement-override";

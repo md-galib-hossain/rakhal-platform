@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Input } from "@/components/ui/input";
 import type { AppetiteStatus } from "../../types";
 

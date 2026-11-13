@@ -7,7 +7,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Can } from "@/lib/auth/permissions";
 import { RecordColostrumDialog } from "../dialogs/record-colostrum-dialog";
 import type { CalfDetail } from "../../types";

@@ -8,7 +8,7 @@ import Link from "next/link";
 import { Utensils, Wheat } from "lucide-react";
 import { Card } from "@rakhal/ui/ui/card";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";

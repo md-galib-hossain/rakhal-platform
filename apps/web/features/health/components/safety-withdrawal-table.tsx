@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Chip, type ChipProps } from "@/components/ui/chip";
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";

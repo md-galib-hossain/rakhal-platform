@@ -12,7 +12,7 @@ import { Chip } from "@/components/ui/chip";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Label } from "@rakhal/ui/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useCreateCattle, useUpdateCattle } from "../hooks/use-cattle";
 import { cattleEditFormSchema, type CattleEditFormInput } from "../schemas";
 import { deriveAnimalCategoryPreview } from "../utils/animal-category-preview";

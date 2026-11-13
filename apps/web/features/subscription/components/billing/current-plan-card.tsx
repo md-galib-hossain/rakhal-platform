@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Settings2, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { MoneyText } from "@/components/shared/money-text";
 import { DateText } from "@/components/shared/date-text";
 import { toast } from "sonner";

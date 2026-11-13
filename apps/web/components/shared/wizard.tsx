@@ -2,7 +2,7 @@
 
 import { type ReactNode, useState } from "react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 
 /**
  * RAKHAL-355 — generic multi-step wizard, extracted from the 3 hand-rolled step-indicator +

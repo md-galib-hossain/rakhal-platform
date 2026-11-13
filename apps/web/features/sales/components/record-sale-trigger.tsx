@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { Can } from "@/lib/auth/permissions";
-import { Button } from "@/components/ui/button";
-import type { ButtonProps } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
+import type { ButtonProps } from "@rakhal/ui/ui/button";
 import { RecordSaleDialog } from "./record-sale-wizard";
 import type { RecordSaleInitial } from "../types";
 

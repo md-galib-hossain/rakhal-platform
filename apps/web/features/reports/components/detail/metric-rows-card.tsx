@@ -1,7 +1,7 @@
 "use client"; // local "show all" toggle
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import type { Locale } from "@/lib/constants/i18n";
 import { formatNumber } from "@/lib/format";

@@ -8,7 +8,7 @@ import { ApiError } from "@/lib/api/errors";
 import { todayLocalIso } from "@/lib/local-date";
 import { useCan } from "@/lib/auth/permissions";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { CattleListItem } from "@/features/cattle/types";
 import { useBulkDryRun, useBulkRecord } from "../../bulk/api";

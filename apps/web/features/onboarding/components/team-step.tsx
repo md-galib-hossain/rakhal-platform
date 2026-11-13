@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { FloatingInput } from "@/components/ui/floating-input";
 import { Label } from "@rakhal/ui/ui/label";
 import { Badge } from "@rakhal/ui/ui/badge";

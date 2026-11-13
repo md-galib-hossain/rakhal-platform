@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 
 export interface BulkAction {

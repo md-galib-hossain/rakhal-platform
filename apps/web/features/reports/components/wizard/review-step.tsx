@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { useWatch } from "react-hook-form";
 import type { Locale } from "@/lib/constants/i18n";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useAnimalGroups } from "@/features/cattle/hooks/use-cattle";
 import { formatMetricValue, formatPercentChange, periodLabel } from "../../lib/format";
 import { reportDomainKey, reportScopeKindKey, resolveBackendKey, resolveMetricLabel, type ReportTranslator } from "../../lib/labels";

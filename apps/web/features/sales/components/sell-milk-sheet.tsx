@@ -12,7 +12,7 @@ import { ApiError } from "@/lib/api/errors";
 import { formatMoney, formatNumber } from "@/lib/format";
 import { todayLocalIso } from "@/lib/local-date";
 import type { Locale } from "@/lib/constants/i18n";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Textarea } from "@rakhal/ui/ui/textarea";

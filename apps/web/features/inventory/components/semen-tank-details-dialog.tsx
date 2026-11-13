@@ -5,7 +5,7 @@ import { ArrowRightToLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Chip } from "@/components/ui/chip";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import type { SemenTank } from "../types";
 
 const REFILL_THRESHOLD = 0.2;

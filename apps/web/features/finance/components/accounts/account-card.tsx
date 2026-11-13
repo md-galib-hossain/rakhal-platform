@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Pencil, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";

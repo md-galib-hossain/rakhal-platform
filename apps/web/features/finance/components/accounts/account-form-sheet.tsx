@@ -9,7 +9,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useUpdateFinancialAccount } from "../../hooks/use-finance-v2";
 import { editAccountSchema, MFS_PROVIDERS, type EditAccountInput } from "../../schemas-v2";
 import type { FinancialAccount, MfsProvider } from "../../types-v2";

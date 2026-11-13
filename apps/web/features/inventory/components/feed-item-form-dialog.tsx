@@ -12,7 +12,7 @@ import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-fiel
 import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Label } from "@rakhal/ui/ui/label";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel } from "@/components/ui/select";
 import { IngredientPicker } from "@/features/feed/components/ingredient-picker";
 import { useFeedIngredients } from "@/features/feed/hooks/use-feed";

@@ -13,7 +13,7 @@ import { Label } from "@rakhal/ui/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCreateProtocol, useProtocol, useUpdateProtocol } from "../../hooks/use-reproduction";
 import { protocolFormSchema, reproStepTypeEnum, type ProtocolFormInput } from "../../schemas";

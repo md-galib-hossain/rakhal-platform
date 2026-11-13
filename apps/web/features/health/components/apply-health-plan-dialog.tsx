@@ -15,7 +15,7 @@ import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-fiel
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { cattleApi } from "@/features/cattle/api";
 import type { CattleListItem } from "@/features/cattle/types";
 import { useApplyPlanToAnimals, useProtocolStockCheck } from "../hooks/use-health";

@@ -12,7 +12,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Label } from "@rakhal/ui/ui/label";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { useDeleteCattle } from "../hooks/use-cattle";

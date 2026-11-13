@@ -7,7 +7,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@rakhal/ui/ui/label";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useUpdateFeedItem } from "../hooks/use-inventory";
 import type { FeedItem } from "../types";
 

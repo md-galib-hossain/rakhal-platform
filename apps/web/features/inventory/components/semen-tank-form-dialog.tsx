@@ -8,7 +8,7 @@ import { ArrowRightToLine } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput } from "@/components/ui/labeled-field";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useCreateSemenTank, useUpdateSemenTank } from "../hooks/use-inventory";
 import { semenTankFormSchema, type SemenTankFormInput } from "../schemas";
 import type { CreateSemenTankPayload, SemenTank, UpdateSemenTankPayload } from "../types";

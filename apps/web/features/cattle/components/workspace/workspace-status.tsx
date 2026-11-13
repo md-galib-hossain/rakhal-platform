@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { AlertTriangle, ArrowLeft, RefreshCw, SearchX, X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 
 export function isNotFound(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;

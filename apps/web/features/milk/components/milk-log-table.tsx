@@ -7,7 +7,7 @@ import { ChevronDown, History, Lock, Minus, Plus, TrendingDown, TrendingUp, Unlo
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

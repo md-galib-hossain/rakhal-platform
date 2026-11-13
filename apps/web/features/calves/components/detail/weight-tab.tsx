@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Can } from "@/lib/auth/permissions";
 import { RecordWeightDialog } from "../dialogs/record-weight-dialog";
 import type { CalfDetail } from "../../types";

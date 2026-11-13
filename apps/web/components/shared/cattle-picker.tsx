@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { apiFetchPage } from "@/lib/api/client";
 import { useInfiniteCursorList } from "@/lib/hooks/use-infinite-cursor-list";
 import { cattleApi } from "@/features/cattle/api";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";

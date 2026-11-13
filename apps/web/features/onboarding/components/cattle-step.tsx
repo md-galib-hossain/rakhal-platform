@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/query/keys";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { CattleFormDialog } from "@/features/cattle/components/cattle-form-dialog";
 import { useOnboardingStatus } from "../hooks/use-onboarding-status";
 

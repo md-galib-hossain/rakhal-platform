@@ -11,7 +11,7 @@ import { useSession } from "@/lib/auth/use-session";
 import { useCan } from "@/lib/auth/permissions";
 import { todayLocalIso } from "@/lib/local-date";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { LabeledInput } from "@/components/ui/labeled-field";

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
-import { Button } from "@/components/ui/button";
+import { Button } from "@rakhal/ui/ui/button";
 import { useSetPrimaryMilkTank } from "../hooks/use-inventory";
 import type { MilkTank } from "../types";
 import { TruncatedText } from "@/components/shared/truncated-text";
