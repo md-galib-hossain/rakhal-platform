@@ -5,7 +5,7 @@ import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Label } from "@rakhal/ui/ui/label";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@rakhal/ui/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AccountPicker } from "@/features/finance/components/account-picker";

@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { ArrowRightToLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 
 export type RemoveMode = "stop" | "cancel";

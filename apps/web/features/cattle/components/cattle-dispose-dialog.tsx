@@ -17,7 +17,7 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@rakhal/ui/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@rakhal/ui/ui/textarea";
 import { useDisposeCattle } from "../hooks/use-cattle";
 import type { CattleDisposeInput } from "../schemas";
 import type { CattleListItem } from "../types";

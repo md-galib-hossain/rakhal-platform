@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { FormSheet } from "@/components/shared/form-sheet";
 import { Label } from "@rakhal/ui/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSubmitFeedback } from "../hooks/use-support";
 import { feedbackFormSchema, type FeedbackFormInput } from "../schemas";
