@@ -4,7 +4,7 @@ import { currentMonthLocalIso } from "@/lib/local-date";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Label } from "@rakhal/ui/ui/label";
 import { Card } from "@rakhal/ui/ui/card";
 import { MoneyText } from "@/components/shared/money-text";
 import { DateText } from "@/components/shared/date-text";

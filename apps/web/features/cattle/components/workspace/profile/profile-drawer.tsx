@@ -10,7 +10,7 @@ import { ApiError } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { LabeledInput } from "@/components/ui/labeled-field";
-import { Label } from "@/components/ui/label";
+import { Label } from "@rakhal/ui/ui/label";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useUpdateCattle } from "../../../hooks/use-cattle";

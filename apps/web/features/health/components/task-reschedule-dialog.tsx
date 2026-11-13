@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useRescheduleTask } from "../hooks/use-health";
 import { groupIncompleteTasks, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Label } from "@/components/ui/label";
+import { Label } from "@rakhal/ui/ui/label";
 
 /**
  * "Task Reschedule" — Figma 734:44187 (`get_design_context`): current date → new date, Cancel/Confirm.

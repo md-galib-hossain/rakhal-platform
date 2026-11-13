@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { FormSheet } from "@/components/shared/form-sheet";
-import { Label } from "@/components/ui/label";
+import { Label } from "@rakhal/ui/ui/label";
 import { Input } from "@/components/ui/input";
 import { useRecordWeight } from "../../hooks/use-cattle-detail-tabs";
 import { recordWeightSchema, type RecordWeightInput } from "../../schemas";

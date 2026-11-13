@@ -15,7 +15,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Label } from "@rakhal/ui/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useReviewAnomaly } from "../hooks/use-milk";
 import { reviewAnomalySchema, type ReviewAnomalyFormInput } from "../schemas";

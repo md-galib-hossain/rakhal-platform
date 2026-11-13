@@ -18,7 +18,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Label } from "@rakhal/ui/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { MoneyInput } from "@/components/shared/money-input";
 import { PaymentMethodPicker } from "@/components/shared/payment-method-picker";

@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { useWatch } from "react-hook-form";
 import { cn } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import { Label } from "@rakhal/ui/ui/label";
 import { reportDomainKey, resolveMetricDefinition, resolveMetricLabel, type ReportTranslator } from "../../lib/labels";
 import type { TemplateSection } from "../../types";
 import { unitText, type Translate, type WizardForm } from "./shared";

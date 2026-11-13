@@ -15,7 +15,7 @@ import { AnimalLink } from "@/components/shared/animal-link";
 import { useCattleDetail } from "@/features/cattle/hooks/use-cattle";
 import { useConcentrationDetail, useLogDistribution } from "../hooks/use-feed";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Label } from "@/components/ui/label";
+import { Label } from "@rakhal/ui/ui/label";
 import { IngredientPicker, type IngredientOption } from "./ingredient-picker";
 import { X } from "lucide-react";
 import { distributionLineKey } from "../lib/recipe-line";

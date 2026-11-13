@@ -23,7 +23,7 @@ import { applyHealthPlanStep1Schema, type ApplyHealthPlanStep1Input } from "../s
 import type { HealthPlanListItem } from "../types";
 import { ProtocolPreviewTimeline } from "./protocol-preview-timeline";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Label } from "@/components/ui/label";
+import { Label } from "@rakhal/ui/ui/label";
 
 const ROUTES = ["IM", "IV", "SC", "ORAL"] as const;
 

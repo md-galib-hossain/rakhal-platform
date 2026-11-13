@@ -10,7 +10,7 @@ import { CattlePicker } from "@/components/shared/cattle-picker";
 import { CreatableSelect } from "@/components/shared/creatable-select";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Label } from "@/components/ui/label";
+import { Label } from "@rakhal/ui/ui/label";
 import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
