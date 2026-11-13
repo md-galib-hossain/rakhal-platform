@@ -343,6 +343,132 @@
         ],
         "type": "object"
       },
+      "AdminLoginIdentityDto": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role"
+        ],
+        "type": "object"
+      },
+      "AdminLoginResponseDto": {
+        "properties": {
+          "accessToken": {
+            "description": "Present only when `twoFactorSetupRequired` is false.",
+            "type": "string"
+          },
+          "admin": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AdminLoginIdentityDto"
+              }
+            ],
+            "description": "Present only when `twoFactorSetupRequired` is false."
+          },
+          "refreshToken": {
+            "description": "Present only when `twoFactorSetupRequired` is false.",
+            "type": "string"
+          },
+          "sessionId": {
+            "description": "Present only when `twoFactorSetupRequired` is false.",
+            "type": "string"
+          },
+          "setupToken": {
+            "description": "Present only when `twoFactorSetupRequired` is true.",
+            "type": "string"
+          },
+          "twoFactorSetupRequired": {
+            "description": "true: 2FA is not enabled yet; use `setupToken` to complete onboarding. false: signed in.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "twoFactorSetupRequired"
+        ],
+        "type": "object"
+      },
+      "AdminLogoutOthersResponseDto": {
+        "properties": {
+          "revoked": {
+            "description": "Number of other sessions revoked.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "revoked"
+        ],
+        "type": "object"
+      },
+      "AdminLogoutResponseDto": {
+        "properties": {
+          "loggedOut": {
+            "example": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "loggedOut"
+        ],
+        "type": "object"
+      },
+      "AdminMeResponseDto": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "mustChangePassword": {
+            "type": "boolean"
+          },
+          "permissions": {
+            "description": "Permission grants of the role (UI gating only).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "role": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlatformAdminRole"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "mustChangePassword",
+          "permissions"
+        ],
+        "type": "object"
+      },
+      "AdminPasswordChangedResponseDto": {
+        "properties": {
+          "changed": {
+            "example": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "changed"
+        ],
+        "type": "object"
+      },
       "AdminRefreshDto": {
         "properties": {
           "refreshToken": {
@@ -352,6 +478,25 @@
         },
         "required": [
           "refreshToken"
+        ],
+        "type": "object"
+      },
+      "AdminRefreshResponseDto": {
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "sessionId"
         ],
         "type": "object"
       },
@@ -407,6 +552,60 @@
         ],
         "type": "object"
       },
+      "AdminSessionDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "current": {
+            "description": "True for the session making this request.",
+            "type": "boolean"
+          },
+          "expiresAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "ipAddress": {
+            "nullable": true,
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "userAgent": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "expiresAt",
+          "lastUsedAt",
+          "ipAddress",
+          "userAgent",
+          "createdAt",
+          "current"
+        ],
+        "type": "object"
+      },
+      "AdminSessionRevokedResponseDto": {
+        "properties": {
+          "revoked": {
+            "example": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "revoked"
+        ],
+        "type": "object"
+      },
       "AdminSupportActionDto": {
         "properties": {
           "confirm": {
@@ -438,6 +637,33 @@
         "required": [
           "admin",
           "temporaryPassword"
+        ],
+        "type": "object"
+      },
+      "AdminTwoFactorEnabledResponseDto": {
+        "properties": {
+          "enabled": {
+            "example": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "AdminTwoFactorSetupResponseDto": {
+        "properties": {
+          "otpauthUrl": {
+            "type": "string"
+          },
+          "secret": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret",
+          "otpauthUrl"
         ],
         "type": "object"
       },
@@ -19790,6 +20016,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminTwoFactorEnabledResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -19809,6 +20057,28 @@
         "parameters": [],
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminTwoFactorSetupResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -19838,6 +20108,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminPasswordChangedResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -19870,11 +20162,26 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminLoginResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
             },
-            "description": ""
+            "description": "Either a 2FA-setup branch (`twoFactorSetupRequired: true` + `setupToken`) or a signed-in branch (tokens, `sessionId`, `admin`)."
           }
         },
         "tags": [
@@ -19888,6 +20195,28 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminLogoutResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -19907,6 +20236,28 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminLogoutOthersResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -19926,6 +20277,28 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminMeResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -19955,6 +20328,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminRefreshResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -19969,6 +20364,31 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/AdminSessionDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -19997,6 +20417,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminSessionRevokedResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },

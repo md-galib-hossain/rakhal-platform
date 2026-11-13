@@ -28,6 +28,19 @@ import { AdminEnableTwoFactorDto } from '../dto/admin-enable-2fa.dto';
 import { AdminTwoFactorSetupGuard } from '../guards/admin-two-factor-setup.guard';
 import { CurrentAdmin } from '../decorators/current-admin.decorator';
 import type { CurrentAdminContext } from '../../domain/authenticated-admin-request.type';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  AdminLoginResponseDto,
+  AdminLogoutOthersResponseDto,
+  AdminLogoutResponseDto,
+  AdminMeResponseDto,
+  AdminPasswordChangedResponseDto,
+  AdminRefreshResponseDto,
+  AdminSessionDto,
+  AdminSessionRevokedResponseDto,
+  AdminTwoFactorEnabledResponseDto,
+  AdminTwoFactorSetupResponseDto,
+} from '../dto/admin-auth-response.dto';
 
 function clientOf(req: Request): AdminClientContext {
   return { ipAddress: req.ip, userAgent: req.headers['user-agent'] };
@@ -51,6 +64,11 @@ export class AdminAuthController {
   ) {}
 
   @Post('login')
+  @ApiEnvelopeResponse(AdminLoginResponseDto, {
+    status: 201,
+    description:
+      'Either a 2FA-setup branch (`twoFactorSetupRequired: true` + `setupToken`) or a signed-in branch (tokens, `sessionId`, `admin`).',
+  })
   @ThrottleAuth()
   login(@Body() dto: AdminLoginDto, @Req() req: Request) {
     return this.adminAuth.login(
@@ -63,6 +81,7 @@ export class AdminAuthController {
 
   /** Rotates the refresh token (reuse of an old one revokes the session). */
   @Post('refresh')
+  @ApiEnvelopeResponse(AdminRefreshResponseDto)
   @HttpCode(200)
   @ThrottleAuth()
   refresh(@Body() dto: AdminRefreshDto, @Req() req: Request) {
@@ -70,6 +89,7 @@ export class AdminAuthController {
   }
 
   @Post('logout')
+  @ApiEnvelopeResponse(AdminLogoutResponseDto)
   @HttpCode(200)
   @ApiBearerAuth()
   @UseGuards(PlatformAdminGuard)
@@ -87,6 +107,7 @@ export class AdminAuthController {
    * what blocks every other route with `PASSWORD_CHANGE_REQUIRED`.
    */
   @Post('change-password')
+  @ApiEnvelopeResponse(AdminPasswordChangedResponseDto)
   @ThrottleAuth()
   @HttpCode(200)
   @ApiBearerAuth()
@@ -105,6 +126,7 @@ export class AdminAuthController {
 
   /** Revokes every other session of the calling admin, keeping this one. */
   @Post('logout-others')
+  @ApiEnvelopeResponse(AdminLogoutOthersResponseDto)
   @HttpCode(200)
   @ApiBearerAuth()
   @UseGuards(PlatformAdminGuard)
@@ -128,6 +150,7 @@ export class AdminAuthController {
    * `AdminPermissionGuard`) so the UI can route to change-password.
    */
   @Get('me')
+  @ApiEnvelopeResponse(AdminMeResponseDto)
   @ApiBearerAuth()
   @UseGuards(PlatformAdminGuard)
   me(@CurrentAdmin() admin: CurrentAdminContext) {
@@ -141,6 +164,7 @@ export class AdminAuthController {
   }
 
   @Get('sessions')
+  @ApiEnvelopeResponse(AdminSessionDto, { isArray: true })
   @ApiBearerAuth()
   @UseGuards(PlatformAdminGuard)
   async listSessions(@CurrentAdmin() admin: CurrentAdminContext) {
@@ -149,6 +173,7 @@ export class AdminAuthController {
   }
 
   @Delete('sessions/:id')
+  @ApiEnvelopeResponse(AdminSessionRevokedResponseDto)
   @HttpCode(200)
   @ApiBearerAuth()
   @UseGuards(PlatformAdminGuard)
@@ -168,6 +193,7 @@ export class AdminAuthController {
   }
 
   @Post('2fa/setup')
+  @ApiEnvelopeResponse(AdminTwoFactorSetupResponseDto, { status: 201 })
   @ApiBearerAuth()
   @UseGuards(AdminTwoFactorSetupGuard)
   setupTwoFactor(@CurrentAdmin() admin: CurrentAdminContext) {
@@ -175,6 +201,7 @@ export class AdminAuthController {
   }
 
   @Post('2fa/enable')
+  @ApiEnvelopeResponse(AdminTwoFactorEnabledResponseDto, { status: 201 })
   @ApiBearerAuth()
   @UseGuards(AdminTwoFactorSetupGuard)
   enableTwoFactor(
