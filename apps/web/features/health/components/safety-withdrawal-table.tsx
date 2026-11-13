@@ -6,7 +6,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
 import { Avatar, AvatarFallback, AvatarImage } from "@rakhal/ui/ui/avatar";
 import { Button } from "@rakhal/ui/ui/button";
-import { Chip, type ChipProps } from "@/components/ui/chip";
+import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";

@@ -28,7 +28,7 @@ import {
 import { useCan } from "@/lib/auth/permissions";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { Button } from "@rakhal/ui/ui/button";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";

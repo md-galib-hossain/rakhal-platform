@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { Repeat2 } from "lucide-react";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { MoneyText } from "@/components/shared/money-text";
 import type { CaseSummary } from "../types";
 

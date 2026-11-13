@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { ArrowRight, BellPlus, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Can } from "@/lib/auth/permissions";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { Button } from "@rakhal/ui/ui/button";
 import { openRemindMe } from "@/features/notifications/sheet-store";
 import { daysFromToday, groupCompletedCount, isGroupOverdue, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";

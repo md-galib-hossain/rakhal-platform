@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle, CheckCircle2, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import type { BulkCreateHealthCasesResult, HealthCondition } from "../../types";
 import type { PickedAnimal } from "../animal-multi-picker";
 import { ProtocolPicker } from "../protocol-picker";

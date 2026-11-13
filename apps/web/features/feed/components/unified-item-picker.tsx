@@ -8,7 +8,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { LabeledInput } from "@/components/ui/labeled-field";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { useCreateCustomIngredient, useFeedIngredients } from "../hooks/use-feed";
 import { useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";
 import { effectiveFromLot, itemStockKg } from "../lib/recipe-line";

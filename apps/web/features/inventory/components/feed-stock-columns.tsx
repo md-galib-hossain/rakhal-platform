@@ -3,7 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { Package, Trash2 } from "lucide-react";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { Can } from "@/lib/auth/permissions";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";

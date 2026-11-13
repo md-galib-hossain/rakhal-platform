@@ -7,7 +7,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
 import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
-import { Chip, type ChipProps } from "@/components/ui/chip";
+import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";

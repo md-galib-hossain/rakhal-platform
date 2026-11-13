@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";
 import { useFeedStock, useConcentrations } from "@/features/feed/hooks/use-feed";
 import { useFeedPlansList } from "@/features/feed/hooks/use-feed-plans";

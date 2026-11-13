@@ -3,7 +3,7 @@
 import { WS_CARD } from "../workspace/workspace-grid";
 import { useTranslations } from "next-intl";
 import { Card } from "@rakhal/ui/ui/card";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { DateText } from "@/components/shared/date-text";

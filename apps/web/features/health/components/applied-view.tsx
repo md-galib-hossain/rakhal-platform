@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/lib/auth/permissions";
 import { Button } from "@rakhal/ui/ui/button";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";

@@ -1,4 +1,4 @@
-import { Chip, type ChipProps } from "@/components/ui/chip";
+import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
 import { cn } from "@/lib/utils";
 
 /**

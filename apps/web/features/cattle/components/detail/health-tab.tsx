@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { WS_CARD } from "../workspace/workspace-grid";
 import { Card } from "@rakhal/ui/ui/card";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";

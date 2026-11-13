@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Check, ChevronsUpDown, Link2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";

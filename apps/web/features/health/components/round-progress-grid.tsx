@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { useCan } from "@/lib/auth/permissions";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { ApiError } from "@/lib/api/errors";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { ProtocolRemoveDialog, type RemoveMode } from "./protocol-remove-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
