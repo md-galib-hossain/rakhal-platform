@@ -22,7 +22,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@rakhal/ui/ui/dropdown-menu";
 import { Input } from "@rakhal/ui/ui/input";
 import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { CardSkeleton } from "@/components/shared/card-skeleton";

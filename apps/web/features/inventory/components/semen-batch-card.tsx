@@ -10,7 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@rakhal/ui/ui/dropdown-menu";
 import { cattleApi } from "@/features/cattle/api";
 import { AnimalLink } from "@/components/shared/animal-link";
 import type { SemenBatch, SemenTank } from "../types";

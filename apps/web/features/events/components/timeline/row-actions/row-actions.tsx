@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { MoreHorizontal } from "lucide-react";
 import { Button } from "@rakhal/ui/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@rakhal/ui/ui/dropdown-menu";
 import { useCan } from "@/lib/auth/permissions";
 import { useSession } from "@/lib/auth/use-session";
 import type { TimelineEvent } from "../../../timeline-model";
