@@ -20,6 +20,12 @@ import {
 import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  AdminBroadcastResponseDto,
+  AdminChannelStatsResponseDto,
+  AdminDirectMessageResponseDto,
+} from '../dto/admin-communications-response.dto';
 
 @ApiTags('Admin — Communications')
 @ApiBearerAuth()
@@ -29,12 +35,14 @@ export class AdminCommunicationsController {
   constructor(private readonly communications: AdminCommunicationsService) {}
 
   @Get('stats')
+  @ApiEnvelopeResponse(AdminChannelStatsResponseDto)
   @RequireAdminPermission('user.read')
   getChannelStats() {
     return this.communications.getChannelStats();
   }
 
   @Post('users/:id/message')
+  @ApiEnvelopeResponse(AdminDirectMessageResponseDto)
   @HttpCode(200)
   @ThrottleWrite()
   @RequireAdminPermission('user.manage')
@@ -47,6 +55,7 @@ export class AdminCommunicationsController {
   }
 
   @Post('broadcast')
+  @ApiEnvelopeResponse(AdminBroadcastResponseDto)
   @HttpCode(200)
   @ThrottleWrite()
   @RequireAdminPermission('user.manage')

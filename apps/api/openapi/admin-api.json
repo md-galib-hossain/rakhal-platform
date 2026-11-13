@@ -258,6 +258,44 @@
         ],
         "type": "object"
       },
+      "AdminBroadcastResponseDto": {
+        "properties": {
+          "deliveredCount": {
+            "type": "number"
+          },
+          "message": {
+            "description": "Present only when the service returns an explanatory note.",
+            "type": "string"
+          },
+          "targetedCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "targetedCount",
+          "deliveredCount"
+        ],
+        "type": "object"
+      },
+      "AdminChannelStatsResponseDto": {
+        "properties": {
+          "pushSubscribers": {
+            "type": "number"
+          },
+          "telegramSubscribers": {
+            "type": "number"
+          },
+          "totalUsers": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "totalUsers",
+          "telegramSubscribers",
+          "pushSubscribers"
+        ],
+        "type": "object"
+      },
       "AdminCouponDto": {
         "properties": {
           "applicablePlanIds": {
@@ -352,6 +390,21 @@
         "required": [
           "day",
           "count"
+        ],
+        "type": "object"
+      },
+      "AdminDirectMessageResponseDto": {
+        "properties": {
+          "delivered": {
+            "type": "boolean"
+          },
+          "recipient": {
+            "$ref": "#/components/schemas/AdminMessageRecipientDto"
+          }
+        },
+        "required": [
+          "delivered",
+          "recipient"
         ],
         "type": "object"
       },
@@ -953,6 +1006,25 @@
           "role",
           "mustChangePassword",
           "permissions"
+        ],
+        "type": "object"
+      },
+      "AdminMessageRecipientDto": {
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email"
         ],
         "type": "object"
       },
@@ -21886,6 +21958,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminBroadcastResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -21909,6 +21996,28 @@
         "parameters": [],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminChannelStatsResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -21947,6 +22056,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminDirectMessageResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
