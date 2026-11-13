@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
 import { FeedItemView } from "./feed-item-view";
 import { FeedStockView } from "./feed-stock-view";
 

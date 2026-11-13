@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
 import { TrendingUp, ArrowLeftRight, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
 import { DateRangePicker } from "@/components/shared/date-range-picker";
 import { usePeriod } from "@/lib/hooks/use-period";
 import { AgingSummaryStrip } from "../payments/aging-summary-strip";

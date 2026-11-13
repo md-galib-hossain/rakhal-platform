@@ -2,7 +2,7 @@
 import { AlertTriangle, ListChecks, ListX, User } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
 import type { TaskHighlights, TaskListFilter } from "../types";
 import { BADGE_TONE } from "./task-chip";
 
