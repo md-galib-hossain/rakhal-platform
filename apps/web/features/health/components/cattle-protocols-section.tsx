@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";

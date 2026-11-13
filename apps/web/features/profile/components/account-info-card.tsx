@@ -1,7 +1,7 @@
 "use client"; // next-intl's useTranslations is a client-only hook in this codebase (see components/layout/*)
 
 import { useTranslations } from "next-intl";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@rakhal/ui/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DateText } from "@/components/shared/date-text";

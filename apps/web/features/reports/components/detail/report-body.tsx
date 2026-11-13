@@ -1,7 +1,7 @@
 "use client"; // composes client-side cards that use the translators
 
 import { Lock } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import { resolveBackendKey } from "../../lib/labels";
 import type { MetricResult, ReportSnapshotPayload } from "../../types";
 import { DataQualityBox } from "./data-quality-box";

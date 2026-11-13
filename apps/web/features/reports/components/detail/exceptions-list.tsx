@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, Baby, Milk, PawPrint, Stethoscope, Wallet, Wheat, type LucideIcon } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import { resolveBackendKey, type ReportTranslator } from "../../lib/labels";
 import type { ReportDomain, ReportException } from "../../types";
 

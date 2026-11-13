@@ -1,7 +1,7 @@
 "use client"; // reads the active lactation
 
 import { useTranslations } from "next-intl";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import { useActiveLactation } from "@/features/reproduction/hooks/use-reproduction";
 import type { CattleDetail } from "../../../types";
 import { WS_CARD } from "../workspace-grid";

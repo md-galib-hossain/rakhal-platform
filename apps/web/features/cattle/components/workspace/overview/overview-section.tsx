@@ -7,7 +7,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ArrowUpRight, HeartPulse } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import { WS_CARD } from "../workspace-grid";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { todayLocalIso } from "@/lib/local-date";

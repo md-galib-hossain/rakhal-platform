@@ -6,7 +6,7 @@ import { BellPlus, BellRing } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/lib/auth/permissions";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import { useUpcomingEvents } from "@/features/cattle/hooks/use-cattle";
 import { KIND_ICON, useEventText } from "@/features/cattle/components/upcoming-event-row";
 import type { UpcomingEvent } from "@/features/cattle/types";

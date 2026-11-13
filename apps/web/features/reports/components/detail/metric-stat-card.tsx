@@ -1,5 +1,5 @@
 import { Activity, Baby, Milk, PawPrint, Stethoscope, Wallet, Wheat, type LucideIcon } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import type { Locale } from "@/lib/constants/i18n";
 import { cn } from "@/lib/utils";
 import { formatMetricValue } from "../../lib/format";
