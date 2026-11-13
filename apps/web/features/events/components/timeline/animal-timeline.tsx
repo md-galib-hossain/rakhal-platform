@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "@rakhal/ui/ui/switch";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";

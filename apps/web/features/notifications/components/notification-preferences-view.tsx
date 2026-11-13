@@ -14,7 +14,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { Can } from "@/lib/auth/permissions";
-import { Switch } from "@/components/ui/switch";
+import { Switch } from "@rakhal/ui/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
