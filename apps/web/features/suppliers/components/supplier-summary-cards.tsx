@@ -5,7 +5,7 @@ import { Truck, UserCheck, Wallet, AlertCircle } from "lucide-react";
 import { StatCard } from "@/components/shared/stat-card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 import { MoneyText } from "@/components/shared/money-text";
 import { useSuppliersSummaryV2 } from "../hooks";
 

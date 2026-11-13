@@ -7,7 +7,7 @@ import { qk } from "@/lib/query/keys";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
-import { Card } from "@/components/ui/card";
+import { Card } from "@rakhal/ui/ui/card";
 
 /** Mirrors `AgingReport`/`AgingBucketResult` (`business-reporting/application/aging.service.ts`,
  * RAKHAL-369) directly. `amount` is Decimal-as-string. */
