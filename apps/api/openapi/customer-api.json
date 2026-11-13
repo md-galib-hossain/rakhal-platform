@@ -7681,6 +7681,342 @@
         ],
         "type": "object"
       },
+      "FeedAnimalType": {
+        "enum": [
+          "COW",
+          "HEIFER",
+          "DRY"
+        ],
+        "type": "string"
+      },
+      "FeedCattleHistoryEntryDto": {
+        "properties": {
+          "cost_tk": {
+            "nullable": true,
+            "type": "number"
+          },
+          "distribution_id": {
+            "type": "string"
+          },
+          "fed_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "feed_name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "offered_kg": {
+            "type": "number"
+          },
+          "refusal_kg": {
+            "type": "number"
+          },
+          "source_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedGridSourceType"
+              }
+            ],
+            "nullable": true
+          },
+          "void_reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "voided_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "voided_by": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "distribution_id",
+          "offered_kg",
+          "refusal_kg",
+          "cost_tk",
+          "feed_name",
+          "source_type",
+          "fed_at",
+          "voided_at",
+          "voided_by",
+          "void_reason"
+        ],
+        "type": "object"
+      },
+      "FeedCattleHistoryMeasuredDto": {
+        "properties": {
+          "adf_kg": {
+            "type": "boolean"
+          },
+          "calcium_kg": {
+            "type": "boolean"
+          },
+          "cp_kg": {
+            "type": "boolean"
+          },
+          "dm_kg": {
+            "type": "boolean"
+          },
+          "fat_kg": {
+            "type": "boolean"
+          },
+          "me_mj": {
+            "type": "boolean"
+          },
+          "ndf_kg": {
+            "type": "boolean"
+          },
+          "phosphorus_kg": {
+            "type": "boolean"
+          },
+          "rdp_kg": {
+            "type": "boolean"
+          },
+          "rup_kg": {
+            "type": "boolean"
+          },
+          "starch_kg": {
+            "type": "boolean"
+          },
+          "tdn_kg": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "dm_kg",
+          "cp_kg",
+          "me_mj",
+          "fat_kg",
+          "ndf_kg",
+          "adf_kg",
+          "starch_kg",
+          "tdn_kg",
+          "calcium_kg",
+          "phosphorus_kg",
+          "rdp_kg",
+          "rup_kg"
+        ],
+        "type": "object"
+      },
+      "FeedCattleHistoryRequirementDto": {
+        "properties": {
+          "adf_kg": {
+            "type": "number"
+          },
+          "breakdown": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementBreakdownDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "ca_p_ratio_target": {
+            "type": "number"
+          },
+          "calcium_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "cp_kg": {
+            "type": "number"
+          },
+          "cp_pct_of_dm": {
+            "type": "number"
+          },
+          "dm_kg": {
+            "type": "number"
+          },
+          "energy_density_mj_per_kg_dm": {
+            "type": "number"
+          },
+          "fat_kg": {
+            "type": "number"
+          },
+          "me_mj": {
+            "type": "number"
+          },
+          "ndf_kg": {
+            "type": "number"
+          },
+          "ndf_max_kg": {
+            "type": "number"
+          },
+          "ne_mcal": {
+            "type": "number"
+          },
+          "phosphorus_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "rdp_pct": {
+            "type": "number"
+          },
+          "rup_pct": {
+            "type": "number"
+          },
+          "source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementSource"
+              }
+            ]
+          },
+          "tdn_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dm_kg",
+          "cp_kg",
+          "me_mj",
+          "ndf_kg",
+          "fat_kg",
+          "ne_mcal",
+          "energy_density_mj_per_kg_dm",
+          "cp_pct_of_dm",
+          "tdn_kg",
+          "calcium_kg",
+          "phosphorus_kg",
+          "adf_kg",
+          "rdp_pct",
+          "rup_pct",
+          "ndf_max_kg",
+          "ca_p_ratio_target",
+          "breakdown",
+          "source"
+        ],
+        "type": "object"
+      },
+      "FeedCattleHistoryResponseDto": {
+        "properties": {
+          "cattle_id": {
+            "type": "string"
+          },
+          "date": {
+            "description": "`YYYY-MM-DD`.",
+            "type": "string"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/FeedCattleHistoryEntryDto"
+            },
+            "type": "array"
+          },
+          "measured": {
+            "$ref": "#/components/schemas/FeedCattleHistoryMeasuredDto"
+          },
+          "requirement": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedCattleHistoryRequirementDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "totals": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedCattleHistoryTotalsDto"
+              }
+            ],
+            "description": "Totals over the non-voided entries."
+          }
+        },
+        "required": [
+          "cattle_id",
+          "date",
+          "requirement",
+          "measured",
+          "entries",
+          "totals"
+        ],
+        "type": "object"
+      },
+      "FeedCattleHistoryTotalsDto": {
+        "properties": {
+          "adf_kg": {
+            "type": "number"
+          },
+          "calcium_kg": {
+            "type": "number"
+          },
+          "cp_kg": {
+            "type": "number"
+          },
+          "dm_kg": {
+            "type": "number"
+          },
+          "fat_kg": {
+            "type": "number"
+          },
+          "me_mj": {
+            "type": "number"
+          },
+          "ndf_kg": {
+            "type": "number"
+          },
+          "phosphorus_kg": {
+            "type": "number"
+          },
+          "rdp_kg": {
+            "type": "number"
+          },
+          "rup_kg": {
+            "type": "number"
+          },
+          "starch_kg": {
+            "type": "number"
+          },
+          "tdn_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dm_kg",
+          "cp_kg",
+          "me_mj",
+          "fat_kg",
+          "ndf_kg",
+          "adf_kg",
+          "starch_kg",
+          "tdn_kg",
+          "calcium_kg",
+          "phosphorus_kg",
+          "rdp_kg",
+          "rup_kg"
+        ],
+        "type": "object"
+      },
+      "FeedCattleProgramResponseDto": {
+        "properties": {
+          "program": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedProgramDto"
+              }
+            ],
+            "description": "Null when no plan is applied to her.",
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "program"
+        ],
+        "type": "object"
+      },
       "FeedClass": {
         "enum": [
           "FORAGE",
@@ -7752,6 +8088,25 @@
         "required": [
           "date",
           "total_cost"
+        ],
+        "type": "object"
+      },
+      "FeedDensityDto": {
+        "properties": {
+          "cp_pct": {
+            "type": "number"
+          },
+          "dm_pct": {
+            "type": "number"
+          },
+          "me_mj_per_kg_dm": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dm_pct",
+          "cp_pct",
+          "me_mj_per_kg_dm"
         ],
         "type": "object"
       },
@@ -8074,6 +8429,888 @@
         "required": [
           "sourceType",
           "offeredKg"
+        ],
+        "type": "object"
+      },
+      "FeedFitCowDto": {
+        "properties": {
+          "cattle_id": {
+            "type": "string"
+          },
+          "delta_pct": {
+            "$ref": "#/components/schemas/FeedFitDeltaPctDto"
+          },
+          "dynamic_requirements": {
+            "additionalProperties": true,
+            "description": "What the engine says today. Present only when MANUAL (same shape as a requirement profile).",
+            "type": "object"
+          },
+          "fit": {
+            "$ref": "#/components/schemas/FeedFitDto"
+          },
+          "flags": {
+            "description": "Data-quality flags.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "inputs": {
+            "additionalProperties": true,
+            "description": "The inputs that fed the calculation (shape varies).",
+            "type": "object"
+          },
+          "manual": {
+            "additionalProperties": true,
+            "description": "The manual override that applies (same shape as `manual` on the requirement routes). Present only when MANUAL.",
+            "type": "object"
+          },
+          "nutrients": {
+            "items": {
+              "$ref": "#/components/schemas/FeedNutrientRowDto"
+            },
+            "type": "array"
+          },
+          "requirement": {
+            "$ref": "#/components/schemas/FeedFitRequirementDto"
+          },
+          "requirement_full": {
+            "$ref": "#/components/schemas/FeedPlanRequirementDto"
+          },
+          "source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementSource"
+              }
+            ]
+          }
+        },
+        "required": [
+          "requirement",
+          "requirement_full",
+          "delta_pct",
+          "fit",
+          "nutrients",
+          "inputs",
+          "flags",
+          "source",
+          "cattle_id"
+        ],
+        "type": "object"
+      },
+      "FeedFitDeltaPctDto": {
+        "properties": {
+          "cp": {
+            "nullable": true,
+            "type": "number"
+          },
+          "dm": {
+            "nullable": true,
+            "type": "number"
+          },
+          "me": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "dm",
+          "cp",
+          "me"
+        ],
+        "type": "object"
+      },
+      "FeedFitDto": {
+        "properties": {
+          "cp": {
+            "$ref": "#/components/schemas/FeedFitNutrientDto"
+          },
+          "dm": {
+            "$ref": "#/components/schemas/FeedFitNutrientDto"
+          },
+          "estimated": {
+            "description": "True when part of the supply is estimated, not measured.",
+            "type": "boolean"
+          },
+          "me": {
+            "$ref": "#/components/schemas/FeedFitNutrientDto"
+          },
+          "severity": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedFitSeverity"
+              }
+            ]
+          }
+        },
+        "required": [
+          "severity",
+          "estimated",
+          "dm",
+          "cp",
+          "me"
+        ],
+        "type": "object"
+      },
+      "FeedFitLineDto": {
+        "properties": {
+          "concentration_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "density": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedDensityDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "feed_item_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "kg_per_day": {
+            "type": "number"
+          },
+          "line_id": {
+            "type": "string"
+          },
+          "line_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedPlanLineType"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "nutrition": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedNutritionValuesDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedSourceRefDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "stock_ok": {
+            "type": "boolean"
+          },
+          "supply": {
+            "$ref": "#/components/schemas/FeedFitLineSupplyDto"
+          }
+        },
+        "required": [
+          "line_id",
+          "line_type",
+          "feed_item_id",
+          "concentration_id",
+          "name",
+          "kg_per_day",
+          "density",
+          "source",
+          "stock_ok",
+          "nutrition",
+          "supply"
+        ],
+        "type": "object"
+      },
+      "FeedFitLineSupplyDto": {
+        "properties": {
+          "as_fed_kg": {
+            "type": "number"
+          },
+          "cp_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "dm_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "me_mj": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "as_fed_kg",
+          "dm_kg",
+          "cp_kg",
+          "me_mj"
+        ],
+        "type": "object"
+      },
+      "FeedFitNutrientDto": {
+        "properties": {
+          "delta_pct": {
+            "description": "Supply vs requirement, in percent. Null when it cannot be judged.",
+            "nullable": true,
+            "type": "number"
+          },
+          "severity": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedFitSeverity"
+              }
+            ]
+          }
+        },
+        "required": [
+          "delta_pct",
+          "severity"
+        ],
+        "type": "object"
+      },
+      "FeedFitRequirementDto": {
+        "properties": {
+          "cp_kg": {
+            "type": "number"
+          },
+          "dm_kg": {
+            "type": "number"
+          },
+          "me_mj": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dm_kg",
+          "cp_kg",
+          "me_mj"
+        ],
+        "type": "object"
+      },
+      "FeedFitSeverity": {
+        "enum": [
+          "ok",
+          "warn",
+          "bad"
+        ],
+        "type": "string"
+      },
+      "FeedFitSupplyTotalDto": {
+        "properties": {
+          "as_fed_kg": {
+            "type": "number"
+          },
+          "cp_kg": {
+            "type": "number"
+          },
+          "dm_kg": {
+            "type": "number"
+          },
+          "me_mj": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "as_fed_kg",
+          "dm_kg",
+          "cp_kg",
+          "me_mj"
+        ],
+        "type": "object"
+      },
+      "FeedGridCalendarDayDto": {
+        "properties": {
+          "date": {
+            "description": "`YYYY-MM-DD`.",
+            "type": "string"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedGridDayStatus"
+              }
+            ]
+          }
+        },
+        "required": [
+          "date",
+          "status"
+        ],
+        "type": "object"
+      },
+      "FeedGridCalendarResponseDto": {
+        "properties": {
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/FeedGridCalendarDayDto"
+            },
+            "type": "array"
+          },
+          "month": {
+            "description": "The month, `YYYY-MM`.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "month",
+          "days"
+        ],
+        "type": "object"
+      },
+      "FeedGridConfirmCowDto": {
+        "properties": {
+          "cost_tk": {
+            "type": "number"
+          },
+          "offered_kg": {
+            "type": "number"
+          },
+          "refusal_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "offered_kg",
+          "refusal_kg",
+          "cost_tk"
+        ],
+        "type": "object"
+      },
+      "FeedGridConfirmResponseDto": {
+        "properties": {
+          "cows": {
+            "description": "Per-cow lines. Besides the three named figures each carries the cow identity and nutrient totals the distribution recorded.",
+            "items": {
+              "$ref": "#/components/schemas/FeedGridConfirmCowDto"
+            },
+            "type": "array"
+          },
+          "date": {
+            "description": "`YYYY-MM-DD`.",
+            "type": "string"
+          },
+          "id": {
+            "description": "The new `FeedDistribution` id.",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/FeedGridConfirmSourceDto"
+            },
+            "type": "array"
+          },
+          "total_actual_cost": {
+            "type": "number"
+          },
+          "total_actual_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "date",
+          "total_actual_kg",
+          "total_actual_cost",
+          "sources",
+          "cows"
+        ],
+        "type": "object"
+      },
+      "FeedGridConfirmSourceDto": {
+        "properties": {
+          "feed_item_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "feed_stock_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "source_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedGridSourceType"
+              }
+            ]
+          },
+          "total_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "source_type",
+          "feed_item_id",
+          "feed_stock_id",
+          "total_kg"
+        ],
+        "type": "object"
+      },
+      "FeedGridCowDto": {
+        "properties": {
+          "cattle_id": {
+            "type": "string"
+          },
+          "confirmed_offered_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "confirmed_supply": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedSupplyDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "default_offered_kg": {
+            "description": "Carried-forward per-head quantity (last confirmed).",
+            "nullable": true,
+            "type": "number"
+          },
+          "default_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedSourceRefDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "drafts": {
+            "items": {
+              "$ref": "#/components/schemas/FeedGridDraftRowDto"
+            },
+            "type": "array"
+          },
+          "fit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedFitDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "lookahead": {
+            "items": {
+              "$ref": "#/components/schemas/FeedLookaheadEventDto"
+            },
+            "type": "array"
+          },
+          "name": {
+            "nullable": true,
+            "type": "string"
+          },
+          "planned_kg_by_line": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Planned per-head kg, keyed by plan line id.",
+            "type": "object"
+          },
+          "planned_supply": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedSupplyDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "program_conflict": {
+            "type": "boolean"
+          },
+          "program_section_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "remaining_requirement": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedRemainingRequirementDto"
+              }
+            ],
+            "description": "Her requirement minus what she was already fed today.",
+            "nullable": true,
+            "type": "object"
+          },
+          "requirement": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedGridCowRequirementDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "tag_number": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "cattle_id",
+          "name",
+          "tag_number",
+          "drafts",
+          "default_offered_kg",
+          "default_source",
+          "confirmed_offered_kg",
+          "confirmed_supply",
+          "planned_supply",
+          "fit",
+          "remaining_requirement",
+          "requirement",
+          "program_section_id",
+          "program_conflict",
+          "lookahead",
+          "planned_kg_by_line"
+        ],
+        "type": "object"
+      },
+      "FeedGridCowRequirementDto": {
+        "properties": {
+          "cp_kg": {
+            "type": "number"
+          },
+          "dm_kg": {
+            "type": "number"
+          },
+          "dynamic_requirements": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementProfileDto"
+              }
+            ],
+            "description": "What the engine says today. Present only when MANUAL."
+          },
+          "flags": {
+            "description": "Data-quality flags.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "manual": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ManualInfoDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "me_mj": {
+            "type": "number"
+          },
+          "source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementSource"
+              }
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "dm_kg",
+          "cp_kg",
+          "me_mj",
+          "flags"
+        ],
+        "type": "object"
+      },
+      "FeedGridDayStatus": {
+        "enum": [
+          "complete",
+          "partial",
+          "missing",
+          "future",
+          "before_farm"
+        ],
+        "type": "string"
+      },
+      "FeedGridDraftResponseDto": {
+        "properties": {
+          "drafts": {
+            "description": "The cows' drafts for that source after the save.",
+            "items": {
+              "$ref": "#/components/schemas/FeedGridDraftRowDto"
+            },
+            "type": "array"
+          },
+          "saved": {
+            "description": "Number of cow rows written.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "saved",
+          "drafts"
+        ],
+        "type": "object"
+      },
+      "FeedGridDraftRowDto": {
+        "properties": {
+          "feed_item_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "feed_stock_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "offered_kg": {
+            "type": "number"
+          },
+          "plan_line_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "refusal_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "source_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedGridSourceType"
+              }
+            ]
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source_type",
+          "feed_item_id",
+          "feed_stock_id",
+          "offered_kg",
+          "refusal_kg",
+          "plan_line_id",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "FeedGridFitSummaryDto": {
+        "properties": {
+          "bad": {
+            "type": "number"
+          },
+          "estimated": {
+            "type": "number"
+          },
+          "ok": {
+            "type": "number"
+          },
+          "warn": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "ok",
+          "warn",
+          "bad",
+          "estimated"
+        ],
+        "type": "object"
+      },
+      "FeedGridResponseDto": {
+        "properties": {
+          "cows": {
+            "items": {
+              "$ref": "#/components/schemas/FeedGridCowDto"
+            },
+            "type": "array"
+          },
+          "date": {
+            "description": "The day, `YYYY-MM-DD`.",
+            "type": "string"
+          },
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/FeedGridSectionDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "date",
+          "sections",
+          "cows"
+        ],
+        "type": "object"
+      },
+      "FeedGridSectionDto": {
+        "properties": {
+          "cattle_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "conflict": {
+            "description": "True when two programs overlap for a cow.",
+            "type": "boolean"
+          },
+          "fit_summary": {
+            "$ref": "#/components/schemas/FeedGridFitSummaryDto"
+          },
+          "group_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedPlanKind"
+              }
+            ]
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/FeedGridSectionLineDto"
+            },
+            "type": "array"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "plan_name": {
+            "type": "string"
+          },
+          "via": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedProgramVia"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "plan_id",
+          "plan_name",
+          "kind",
+          "via",
+          "group_id",
+          "conflict",
+          "fit_summary",
+          "cattle_ids",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "FeedGridSectionLineDto": {
+        "properties": {
+          "density": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedDensityDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "kg_per_day": {
+            "type": "number"
+          },
+          "line_id": {
+            "type": "string"
+          },
+          "line_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedPlanLineType"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "prefill_kg": {
+            "description": "Per-head quantity the grid pre-fills.",
+            "type": "number"
+          },
+          "source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedSourceRefDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "stock_ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "line_id",
+          "line_type",
+          "name",
+          "kg_per_day",
+          "prefill_kg",
+          "source",
+          "density",
+          "stock_ok"
+        ],
+        "type": "object"
+      },
+      "FeedGridSourceType": {
+        "enum": [
+          "FEED_ITEM",
+          "FEED_STOCK"
+        ],
+        "type": "string"
+      },
+      "FeedGridVoidResponseDto": {
+        "properties": {
+          "cattle_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "offered_kg": {
+            "type": "number"
+          },
+          "void_reason": {
+            "nullable": true,
+            "type": "string"
+          },
+          "voided_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "voided_by": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "cattle_id",
+          "offered_kg",
+          "voided_at",
+          "voided_by",
+          "void_reason"
         ],
         "type": "object"
       },
@@ -8866,11 +10103,132 @@
         ],
         "type": "object"
       },
+      "FeedLookaheadEventDto": {
+        "properties": {
+          "in_days": {
+            "description": "Whole days from today (UTC). Negative = overdue and not yet recorded.",
+            "type": "number"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedLookaheadKind"
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "in_days"
+        ],
+        "type": "object"
+      },
+      "FeedLookaheadKind": {
+        "enum": [
+          "dry_off",
+          "calving",
+          "peak_dim"
+        ],
+        "type": "string"
+      },
       "FeedNutrientGroup": {
         "enum": [
           "PROTEIN",
           "ENERGY",
           "FIBER"
+        ],
+        "type": "string"
+      },
+      "FeedNutrientRowDto": {
+        "properties": {
+          "delta_pct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "key": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedNutrientRowKey"
+              }
+            ]
+          },
+          "max": {
+            "description": "Upper limit where one exists (NDF).",
+            "nullable": true,
+            "type": "number"
+          },
+          "measured": {
+            "description": "False when the supply figure rests on a default, not data.",
+            "type": "boolean"
+          },
+          "requirement": {
+            "nullable": true,
+            "type": "number"
+          },
+          "severity": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedNutrientSeverity"
+              }
+            ]
+          },
+          "supply": {
+            "nullable": true,
+            "type": "number"
+          },
+          "unit": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedNutrientUnit"
+              }
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "unit",
+          "supply",
+          "requirement",
+          "max",
+          "delta_pct",
+          "severity",
+          "measured"
+        ],
+        "type": "object"
+      },
+      "FeedNutrientRowKey": {
+        "enum": [
+          "dm",
+          "cp",
+          "me",
+          "fat",
+          "ndf",
+          "adf",
+          "tdn",
+          "calcium",
+          "phosphorus",
+          "ca_p_ratio",
+          "rdp_pct",
+          "rup_pct",
+          "starch"
+        ],
+        "type": "string"
+      },
+      "FeedNutrientSeverity": {
+        "enum": [
+          "ok",
+          "warn",
+          "bad",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "FeedNutrientUnit": {
+        "enum": [
+          "kg",
+          "MJ",
+          "% of CP",
+          ": 1"
         ],
         "type": "string"
       },
@@ -8926,6 +10284,75 @@
           "calcium_pct",
           "phosphorus_pct",
           "tdn_pct"
+        ],
+        "type": "object"
+      },
+      "FeedNutritionValuesDto": {
+        "properties": {
+          "adfPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "calciumPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "cpPct": {
+            "type": "number"
+          },
+          "dmPct": {
+            "type": "number"
+          },
+          "fatPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "meMjPerKgDm": {
+            "type": "number"
+          },
+          "ndfPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "phosphorusPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "rdpPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "rupPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "starchPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "sugarsPct": {
+            "nullable": true,
+            "type": "number"
+          },
+          "tdnPct": {
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "dmPct",
+          "cpPct",
+          "meMjPerKgDm",
+          "fatPct",
+          "ndfPct",
+          "adfPct",
+          "rdpPct",
+          "rupPct",
+          "starchPct",
+          "sugarsPct",
+          "calciumPct",
+          "phosphorusPct",
+          "tdnPct"
         ],
         "type": "object"
       },
@@ -9148,6 +10575,53 @@
         ],
         "type": "object"
       },
+      "FeedPlanFitResponseDto": {
+        "properties": {
+          "cows": {
+            "items": {
+              "$ref": "#/components/schemas/FeedFitCowDto"
+            },
+            "type": "array"
+          },
+          "date": {
+            "description": "`YYYY-MM-DD`.",
+            "type": "string"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/FeedFitLineDto"
+            },
+            "type": "array"
+          },
+          "missing_cattle_ids": {
+            "description": "Requested cattle ids that could not be found.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "supply": {
+            "$ref": "#/components/schemas/FeedFitSupplyTotalDto"
+          },
+          "supply_complete": {
+            "description": "False when some line has no nutrient data.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "plan_id",
+          "date",
+          "lines",
+          "supply",
+          "supply_complete",
+          "cows",
+          "missing_cattle_ids"
+        ],
+        "type": "object"
+      },
       "FeedPlanKind": {
         "enum": [
           "PLAN",
@@ -9237,6 +10711,145 @@
         ],
         "type": "string"
       },
+      "FeedPlanPreviewFitResponseDto": {
+        "properties": {
+          "delta_pct": {
+            "$ref": "#/components/schemas/FeedFitDeltaPctDto"
+          },
+          "dynamic_requirements": {
+            "additionalProperties": true,
+            "description": "What the engine says today. Present only when MANUAL (same shape as a requirement profile).",
+            "type": "object"
+          },
+          "fit": {
+            "$ref": "#/components/schemas/FeedFitDto"
+          },
+          "flags": {
+            "description": "Data-quality flags.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "inputs": {
+            "additionalProperties": true,
+            "description": "The inputs that fed the calculation (shape varies).",
+            "type": "object"
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/FeedFitLineDto"
+            },
+            "type": "array"
+          },
+          "manual": {
+            "additionalProperties": true,
+            "description": "The manual override that applies (same shape as `manual` on the requirement routes). Present only when MANUAL.",
+            "type": "object"
+          },
+          "nutrients": {
+            "items": {
+              "$ref": "#/components/schemas/FeedNutrientRowDto"
+            },
+            "type": "array"
+          },
+          "requirement": {
+            "$ref": "#/components/schemas/FeedFitRequirementDto"
+          },
+          "requirement_full": {
+            "$ref": "#/components/schemas/FeedPlanRequirementDto"
+          },
+          "source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementSource"
+              }
+            ]
+          },
+          "supply": {
+            "$ref": "#/components/schemas/FeedFitSupplyTotalDto"
+          },
+          "supply_complete": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "requirement",
+          "requirement_full",
+          "delta_pct",
+          "fit",
+          "nutrients",
+          "inputs",
+          "flags",
+          "source",
+          "lines",
+          "supply",
+          "supply_complete"
+        ],
+        "type": "object"
+      },
+      "FeedPlanRequirementDto": {
+        "properties": {
+          "adf_kg": {
+            "type": "number"
+          },
+          "ca_p_ratio_target": {
+            "type": "number"
+          },
+          "calcium_kg": {
+            "description": "Null for a manual-requirement cow (needs live weight and milk).",
+            "nullable": true,
+            "type": "number"
+          },
+          "cp_kg": {
+            "type": "number"
+          },
+          "dm_kg": {
+            "type": "number"
+          },
+          "fat_kg": {
+            "type": "number"
+          },
+          "me_mj": {
+            "type": "number"
+          },
+          "ndf_kg": {
+            "type": "number"
+          },
+          "ndf_max_kg": {
+            "type": "number"
+          },
+          "phosphorus_kg": {
+            "nullable": true,
+            "type": "number"
+          },
+          "rdp_pct": {
+            "type": "number"
+          },
+          "rup_pct": {
+            "type": "number"
+          },
+          "tdn_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dm_kg",
+          "cp_kg",
+          "me_mj",
+          "fat_kg",
+          "ndf_kg",
+          "ndf_max_kg",
+          "adf_kg",
+          "tdn_kg",
+          "calcium_kg",
+          "phosphorus_kg",
+          "rdp_pct",
+          "rup_pct",
+          "ca_p_ratio_target"
+        ],
+        "type": "object"
+      },
       "FeedPlanResponseDto": {
         "properties": {
           "applied_to": {
@@ -9318,6 +10931,109 @@
         ],
         "type": "string"
       },
+      "FeedProgramDto": {
+        "properties": {
+          "assignment_id": {
+            "type": "string"
+          },
+          "conflict": {
+            "description": "True when two group programs overlap for her.",
+            "type": "boolean"
+          },
+          "group_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedPlanKind"
+              }
+            ]
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/FeedProgramLineDto"
+            },
+            "type": "array"
+          },
+          "plan_id": {
+            "type": "string"
+          },
+          "plan_name": {
+            "type": "string"
+          },
+          "via": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedProgramVia"
+              }
+            ]
+          }
+        },
+        "required": [
+          "assignment_id",
+          "plan_id",
+          "plan_name",
+          "kind",
+          "via",
+          "group_id",
+          "conflict",
+          "lines"
+        ],
+        "type": "object"
+      },
+      "FeedProgramLineDto": {
+        "properties": {
+          "density": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedDensityDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "kg_per_day": {
+            "type": "number"
+          },
+          "line_id": {
+            "type": "string"
+          },
+          "line_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedPlanLineType"
+              }
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedSourceRefDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "stock_ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "line_id",
+          "line_type",
+          "name",
+          "kg_per_day",
+          "source",
+          "density",
+          "stock_ok"
+        ],
+        "type": "object"
+      },
       "FeedProgramRefDto": {
         "properties": {
           "conflict": {
@@ -9352,6 +11068,223 @@
           "HERD"
         ],
         "type": "string"
+      },
+      "FeedRemainingRequirementDto": {
+        "properties": {
+          "cp_kg": {
+            "type": "number"
+          },
+          "dm_kg": {
+            "type": "number"
+          },
+          "me_mj": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dm_kg",
+          "cp_kg",
+          "me_mj"
+        ],
+        "type": "object"
+      },
+      "FeedRequirementBatchCowDto": {
+        "properties": {
+          "cattle_id": {
+            "type": "string"
+          },
+          "dynamic_requirements": {
+            "$ref": "#/components/schemas/RequirementProfileDto"
+          },
+          "flags": {
+            "description": "Data-quality flags. Empty for a manual requirement.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "inputs": {
+            "additionalProperties": true,
+            "description": "The inputs that fed the calculation (shape varies by cow).",
+            "type": "object"
+          },
+          "manual": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ManualInfoDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "requirements": {
+            "$ref": "#/components/schemas/RequirementProfileDto"
+          },
+          "source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementSource"
+              }
+            ]
+          }
+        },
+        "required": [
+          "cattle_id",
+          "source",
+          "inputs",
+          "flags",
+          "requirements"
+        ],
+        "type": "object"
+      },
+      "FeedRequirementCattleCalcDto": {
+        "properties": {
+          "data_source": {
+            "$ref": "#/components/schemas/RequirementCalcDataSourceDto"
+          },
+          "dynamic_requirements": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementProfileDto"
+              }
+            ],
+            "description": "What the engine says today. Present only when MANUAL."
+          },
+          "inputs": {
+            "$ref": "#/components/schemas/RequirementCalcInputsDto"
+          },
+          "manual": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ManualInfoDto"
+              }
+            ],
+            "description": "Present only when MANUAL.",
+            "nullable": true,
+            "type": "object"
+          },
+          "requirements": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementProfileDto"
+              }
+            ],
+            "description": "The requirement that applies (the manual one when MANUAL)."
+          },
+          "source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementSource"
+              }
+            ]
+          }
+        },
+        "required": [
+          "source",
+          "inputs",
+          "data_source",
+          "requirements"
+        ],
+        "type": "object"
+      },
+      "FeedRequirementHerdCalcDto": {
+        "properties": {
+          "data_source": {
+            "$ref": "#/components/schemas/RequirementCalcDataSourceDto"
+          },
+          "inputs": {
+            "$ref": "#/components/schemas/RequirementCalcInputsDto"
+          },
+          "requirements": {
+            "$ref": "#/components/schemas/RequirementProfileDto"
+          }
+        },
+        "required": [
+          "inputs",
+          "data_source",
+          "requirements"
+        ],
+        "type": "object"
+      },
+      "FeedRequirementsBatchDto": {
+        "properties": {
+          "bands": {
+            "$ref": "#/components/schemas/FitBandsDto"
+          },
+          "cows": {
+            "items": {
+              "$ref": "#/components/schemas/FeedRequirementBatchCowDto"
+            },
+            "type": "array"
+          },
+          "date": {
+            "type": "string"
+          },
+          "missing_cattle_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "date",
+          "cows",
+          "missing_cattle_ids",
+          "bands"
+        ],
+        "type": "object"
+      },
+      "FeedResolvedRationResponseDto": {
+        "properties": {
+          "concentration": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ConcentrationDetailDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "match_level": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedProgramVia"
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "match_level",
+          "concentration"
+        ],
+        "type": "object"
+      },
+      "FeedSourceRefDto": {
+        "properties": {
+          "feed_item_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "feed_stock_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "source_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedGridSourceType"
+              }
+            ]
+          }
+        },
+        "required": [
+          "source_type",
+          "feed_item_id",
+          "feed_stock_id"
+        ],
+        "type": "object"
       },
       "FeedStockDetailResponseDto": {
         "properties": {
@@ -9622,6 +11555,30 @@
         ],
         "type": "string"
       },
+      "FeedSupplyDto": {
+        "properties": {
+          "complete": {
+            "description": "False when some feed in the supply has no nutrient data.",
+            "type": "boolean"
+          },
+          "cp_kg": {
+            "type": "number"
+          },
+          "dm_kg": {
+            "type": "number"
+          },
+          "me_mj": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dm_kg",
+          "cp_kg",
+          "me_mj",
+          "complete"
+        ],
+        "type": "object"
+      },
       "FeedTargetType": {
         "enum": [
           "INDIVIDUAL",
@@ -9763,6 +11720,37 @@
           "MFS"
         ],
         "type": "string"
+      },
+      "FitBandsDto": {
+        "properties": {
+          "cpAbovePct": {
+            "type": "number"
+          },
+          "cpBelowPct": {
+            "type": "number"
+          },
+          "dmAbovePct": {
+            "type": "number"
+          },
+          "dmBelowPct": {
+            "type": "number"
+          },
+          "meAbovePct": {
+            "type": "number"
+          },
+          "meBelowPct": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dmBelowPct",
+          "dmAbovePct",
+          "cpBelowPct",
+          "cpAbovePct",
+          "meBelowPct",
+          "meAbovePct"
+        ],
+        "type": "object"
       },
       "FollowUpToggleDto": {
         "properties": {
@@ -13929,6 +15917,83 @@
         },
         "type": "object"
       },
+      "ManualDriftDto": {
+        "properties": {
+          "cp_pct": {
+            "type": "number"
+          },
+          "dm_pct": {
+            "type": "number"
+          },
+          "me_pct": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "dm_pct",
+          "cp_pct",
+          "me_pct"
+        ],
+        "type": "object"
+      },
+      "ManualInfoDto": {
+        "properties": {
+          "animal_type_changed": {
+            "description": "True when her animal type changed since the value was set.",
+            "type": "boolean"
+          },
+          "drift": {
+            "$ref": "#/components/schemas/ManualDriftDto"
+          },
+          "note": {
+            "nullable": true,
+            "type": "string"
+          },
+          "override_id": {
+            "type": "string"
+          },
+          "set_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "set_by": {
+            "type": "string"
+          },
+          "stale": {
+            "description": "True when her calculated requirement has drifted past the farm threshold since the value was set.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "override_id",
+          "set_at",
+          "set_by",
+          "note",
+          "stale",
+          "drift",
+          "animal_type_changed"
+        ],
+        "type": "object"
+      },
+      "ManualValidationIssueDto": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
       "MarkAllReadResponseDto": {
         "properties": {
           "updated": {
@@ -17648,6 +19713,67 @@
         ],
         "type": "object"
       },
+      "RequirementCalcDataSourceDto": {
+        "properties": {
+          "dim": {
+            "description": "Cow calculation only.",
+            "type": "string"
+          },
+          "milk_yield": {
+            "description": "Where the milk yield came from.",
+            "type": "string"
+          },
+          "weight": {
+            "description": "Where the weight came from.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "weight",
+          "milk_yield"
+        ],
+        "type": "object"
+      },
+      "RequirementCalcInputsDto": {
+        "properties": {
+          "animal_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedAnimalType"
+              }
+            ]
+          },
+          "bcs": {
+            "type": "number"
+          },
+          "dim": {
+            "type": "number"
+          },
+          "gestation_days": {
+            "type": "number"
+          },
+          "milk_fat_pct": {
+            "type": "number"
+          },
+          "milk_protein_pct": {
+            "description": "Herd calculation only.",
+            "type": "number"
+          },
+          "milk_target_l": {
+            "type": "number"
+          },
+          "weight_kg": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "weight_kg",
+          "milk_target_l",
+          "milk_fat_pct",
+          "animal_type"
+        ],
+        "type": "object"
+      },
       "RequirementDmPartsDto": {
         "properties": {
           "bcsAdjustment": {
@@ -17821,6 +19947,88 @@
           "set_by_name",
           "ended_by",
           "ended_by_name"
+        ],
+        "type": "object"
+      },
+      "RequirementOverrideSetResponseDto": {
+        "properties": {
+          "active": {
+            "$ref": "#/components/schemas/RequirementOverrideRowDto"
+          },
+          "resolved": {
+            "$ref": "#/components/schemas/ResolvedRequirementDto"
+          },
+          "warnings": {
+            "description": "Soft-rule issues: the value was saved anyway.",
+            "items": {
+              "$ref": "#/components/schemas/ManualValidationIssueDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "active",
+          "resolved",
+          "warnings"
+        ],
+        "type": "object"
+      },
+      "RequirementOverrideStateDto": {
+        "properties": {
+          "active": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementOverrideRowDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "calculated": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementProfileDto"
+              }
+            ],
+            "description": "The engine-calculated requirement, whatever the source."
+          },
+          "last": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementOverrideRowDto"
+              }
+            ],
+            "description": "Newest closed override, to pre-fill \"turn back on\". Null if none.",
+            "nullable": true,
+            "type": "object"
+          },
+          "resolved": {
+            "$ref": "#/components/schemas/ResolvedRequirementDto"
+          }
+        },
+        "required": [
+          "active",
+          "resolved",
+          "calculated",
+          "last"
+        ],
+        "type": "object"
+      },
+      "RequirementOverrideTurnOffResponseDto": {
+        "properties": {
+          "active": {
+            "additionalProperties": true,
+            "description": "Always null: no override is open any more.",
+            "nullable": true,
+            "type": "object"
+          },
+          "resolved": {
+            "$ref": "#/components/schemas/ResolvedRequirementDto"
+          }
+        },
+        "required": [
+          "active",
+          "resolved"
         ],
         "type": "object"
       },
@@ -18333,6 +20541,13 @@
         ],
         "type": "object"
       },
+      "RequirementSource": {
+        "enum": [
+          "DYNAMIC",
+          "MANUAL"
+        ],
+        "type": "string"
+      },
       "RescheduleHealthTaskDto": {
         "properties": {
           "newDueDateTime": {
@@ -18394,6 +20609,53 @@
         },
         "required": [
           "status"
+        ],
+        "type": "object"
+      },
+      "ResolvedRequirementDto": {
+        "properties": {
+          "cattle_id": {
+            "type": "string"
+          },
+          "dynamic_requirements": {
+            "$ref": "#/components/schemas/RequirementProfileDto"
+          },
+          "flags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "inputs": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "manual": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ManualInfoDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "requirements": {
+            "$ref": "#/components/schemas/RequirementProfileDto"
+          },
+          "source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementSource"
+              }
+            ]
+          }
+        },
+        "required": [
+          "cattle_id",
+          "source",
+          "inputs",
+          "flags",
+          "requirements"
         ],
         "type": "object"
       },
@@ -26838,6 +29100,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedCattleProgramResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -26870,6 +29147,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RequirementOverrideTurnOffResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -26896,6 +29195,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RequirementOverrideStateDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -26932,6 +29253,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RequirementOverrideSetResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -27056,6 +29399,21 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedResolvedRationResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -28065,6 +30423,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedGridResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -28094,6 +30474,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedGridCalendarResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -28130,6 +30532,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedCattleHistoryResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -28159,6 +30583,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedGridConfirmResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -28205,6 +30651,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedGridVoidResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -28234,6 +30702,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedGridDraftResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -29152,6 +31642,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedPlanPreviewFitResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -29430,6 +31942,28 @@
         ],
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FeedPlanFitResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -29691,7 +32225,39 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "oneOf": [
+                        {
+                          "$ref": "#/components/schemas/FeedRequirementsBatchDto"
+                        },
+                        {
+                          "$ref": "#/components/schemas/FeedRequirementCattleCalcDto"
+                        },
+                        {
+                          "$ref": "#/components/schemas/FeedRequirementHerdCalcDto"
+                        }
+                      ]
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "The shape depends on the query: `?cattleIds=a,b,c` returns the batched per-cow result, `?cattleId=` one cow (calculated or manual), neither a herd-level calculation from the typed inputs."
           }
         },
         "security": [

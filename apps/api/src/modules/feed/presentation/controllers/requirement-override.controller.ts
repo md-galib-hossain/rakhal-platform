@@ -9,7 +9,15 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { ApiPaginatedResponse } from 'src/common/swagger/api-envelope';
+import {
+  ApiEnvelopeResponse,
+  ApiPaginatedResponse,
+} from 'src/common/swagger/api-envelope';
+import {
+  RequirementOverrideSetResponseDto,
+  RequirementOverrideStateDto,
+  RequirementOverrideTurnOffResponseDto,
+} from '../dto/feed-requirement-calc-response.dto';
 import { RequirementOverrideRowDto } from '../dto/feed-requirement-response.dto';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
@@ -46,6 +54,7 @@ export class RequirementOverrideController {
   /** `{ active, resolved, last }` — `last` is the newest closed row, to pre-fill "turn back on". */
   @Get('requirement-override')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(RequirementOverrideStateDto)
   get(@CurrentFarmId() farmId: string, @Param('cattleId') cattleId: string) {
     return this.overrides.get(farmId, cattleId);
   }
@@ -65,6 +74,7 @@ export class RequirementOverrideController {
   /** Turn manual on, or replace the values: closes the open row and opens a new one in one transaction. */
   @Put('requirement-override')
   @RequirePermission('feed.update')
+  @ApiEnvelopeResponse(RequirementOverrideSetResponseDto)
   set(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -77,6 +87,7 @@ export class RequirementOverrideController {
   /** Turn manual off — her calculated requirement applies again from now. */
   @Delete('requirement-override')
   @RequirePermission('feed.update')
+  @ApiEnvelopeResponse(RequirementOverrideTurnOffResponseDto)
   turnOff(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,

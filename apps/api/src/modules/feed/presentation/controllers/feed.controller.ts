@@ -57,7 +57,13 @@ import { FeedCattleHistoryQueryDto } from '../dto/feed-cattle-history-query.dto'
 import { VoidFeedCattleItemDto } from '../dto/void-feed-cattle-item.dto';
 import { FeedFeedingGridService } from '../../application/services/feed-feeding-grid.service';
 import { FeedPlanService } from '../../application/services/feed-plan.service';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiExtraModels,
+  ApiResponse,
+  ApiTags,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import {
   ApiEnvelopeResponse,
   ApiPaginatedResponse,
@@ -88,6 +94,23 @@ import {
   ConcentrationVersionDetailDto,
   ConcentrationVersionDto,
 } from 'src/modules/feed/presentation/dto/feed-concentration-response.dto';
+import {
+  FeedRequirementCattleCalcDto,
+  FeedRequirementHerdCalcDto,
+  FeedRequirementsBatchDto,
+} from 'src/modules/feed/presentation/dto/feed-requirement-calc-response.dto';
+import {
+  FeedCattleHistoryResponseDto,
+  FeedGridCalendarResponseDto,
+  FeedGridConfirmResponseDto,
+  FeedGridDraftResponseDto,
+  FeedGridResponseDto,
+  FeedGridVoidResponseDto,
+} from 'src/modules/feed/presentation/dto/feed-grid-response.dto';
+import {
+  FeedCattleProgramResponseDto,
+  FeedResolvedRationResponseDto,
+} from 'src/modules/feed/presentation/dto/feed-program-response.dto';
 import { BulkDeleteResponseDto } from 'src/modules/inventory/presentation/dto/inventory-response.dto';
 
 /**
@@ -199,6 +222,30 @@ export class FeedController {
   // ---- Requirements -------------------------------------------------------
   @Get('requirements')
   @RequirePermission('feed.read')
+  @ApiExtraModels(
+    FeedRequirementCattleCalcDto,
+    FeedRequirementHerdCalcDto,
+    FeedRequirementsBatchDto,
+  )
+  @ApiResponse({
+    status: 200,
+    description:
+      'The shape depends on the query: `?cattleIds=a,b,c` returns the batched per-cow result, `?cattleId=` one cow (calculated or manual), neither a herd-level calculation from the typed inputs.',
+    schema: {
+      type: 'object',
+      required: ['success', 'data'],
+      properties: {
+        success: { type: 'boolean', enum: [true] },
+        data: {
+          oneOf: [
+            { $ref: getSchemaPath(FeedRequirementsBatchDto) },
+            { $ref: getSchemaPath(FeedRequirementCattleCalcDto) },
+            { $ref: getSchemaPath(FeedRequirementHerdCalcDto) },
+          ],
+        },
+      },
+    },
+  })
   getRequirements(
     @CurrentFarmId() farmId: string,
     @Query() query: FeedRequirementsQueryDto,
@@ -391,6 +438,7 @@ export class FeedController {
    * (2026-08-13, user request). Used by the Cattle feeding tab and DMI comparison. */
   @Get('cattle/:cattleId/resolved-ration')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedResolvedRationResponseDto)
   async resolvedRation(
     @CurrentFarmId() farmId: string,
     @Param('cattleId') cattleId: string,
@@ -414,6 +462,7 @@ export class FeedController {
    * when none is applied. */
   @Get('cattle/:cattleId/program')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedCattleProgramResponseDto)
   programForCattle(
     @CurrentFarmId() farmId: string,
     @Param('cattleId') cattleId: string,
@@ -460,6 +509,7 @@ export class FeedController {
    * default (most recent confirmed per-head quantity). */
   @Get('grid')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedGridResponseDto)
   getFeedingGrid(
     @CurrentFarmId() farmId: string,
     @Query() query: FeedGridQueryDto,
@@ -470,6 +520,7 @@ export class FeedController {
   /** RAKHAL-434: per-day feeding-entry status for the missed-entry calendar picker. */
   @Get('grid/calendar')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedGridCalendarResponseDto)
   getFeedingGridCalendar(
     @CurrentFarmId() farmId: string,
     @Query() query: FeedGridCalendarQueryDto,
@@ -480,6 +531,7 @@ export class FeedController {
   /** Auto-save a day's per-cow grid quantities for one feed source. No inventory effect. */
   @Post('grid/draft')
   @RequirePermission('feed.distribution-log')
+  @ApiEnvelopeResponse(FeedGridDraftResponseDto, { status: 201 })
   saveFeedDraft(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -491,6 +543,7 @@ export class FeedController {
   /** Turn a day's feeding-grid quantities into one real `FeedDistribution` + inventory decrement. */
   @Post('grid/confirm')
   @RequirePermission('feed.distribution-log')
+  @ApiEnvelopeResponse(FeedGridConfirmResponseDto, { status: 201 })
   confirmFeedDraft(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
@@ -502,6 +555,7 @@ export class FeedController {
   /** RAKHAL-441 — one cow's own feeding entries for one exact day (defaults to today). */
   @Get('grid/cattle/:cattleId/history')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedCattleHistoryResponseDto)
   getCattleHistory(
     @CurrentFarmId() farmId: string,
     @Param('cattleId') cattleId: string,
@@ -513,6 +567,7 @@ export class FeedController {
   /** RAKHAL-441 §5 — void exactly one cow's line from a confirmed Feeding Grid distribution. */
   @Post('grid/distributions/:distributionId/cattle/:cattleItemId/void')
   @RequirePermission('feed.delete')
+  @ApiEnvelopeResponse(FeedGridVoidResponseDto, { status: 201 })
   voidCattleItem(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,

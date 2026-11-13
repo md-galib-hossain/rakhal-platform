@@ -39,6 +39,10 @@ import {
   FeedPlanArchiveResponseDto,
   FeedPlanResponseDto,
 } from 'src/modules/feed/presentation/dto/feed-response.dto';
+import {
+  FeedPlanFitResponseDto,
+  FeedPlanPreviewFitResponseDto,
+} from 'src/modules/feed/presentation/dto/feed-program-response.dto';
 
 /**
  * Feed Plans (MILESTONE 27, RAKHAL-455). `/api/v1/feed/plans`. Same guard chain + subscription gate
@@ -80,6 +84,7 @@ export class FeedPlanController {
   /** Supply vs requirement, per cow: `GET /feed/plans/:id/fit?cattleIds=a,b,c`. */
   @Get(':id/fit')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedPlanFitResponseDto)
   fit(
     @CurrentFarmId() farmId: string,
     @Param('id') id: string,
@@ -94,6 +99,7 @@ export class FeedPlanController {
    */
   @Post('preview-fit')
   @RequirePermission('feed.read')
+  @ApiEnvelopeResponse(FeedPlanPreviewFitResponseDto, { status: 201 })
   previewFit(@CurrentFarmId() farmId: string, @Body() dto: PreviewPlanFitDto) {
     return this.plans.previewFit(farmId, dto);
   }
