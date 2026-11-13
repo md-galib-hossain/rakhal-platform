@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Label } from "@rakhal/ui/ui/label";
 import { VetCostFields } from "./vet-cost-fields";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import type { TreatmentLine, TreatmentLineProblem } from "../treatment-lines";
 import { TreatmentLines } from "./treatment-lines";
 

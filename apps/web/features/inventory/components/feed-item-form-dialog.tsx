@@ -13,7 +13,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Label } from "@rakhal/ui/ui/label";
 import { Button } from "@rakhal/ui/ui/button";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel } from "@rakhal/ui/ui/select";
 import { IngredientPicker } from "@/features/feed/components/ingredient-picker";
 import { useFeedIngredients } from "@/features/feed/hooks/use-feed";
 import { UnitPicker } from "./unit-picker";

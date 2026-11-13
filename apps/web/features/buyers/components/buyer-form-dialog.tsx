@@ -9,7 +9,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Button } from "@rakhal/ui/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
-import { Select, SelectContent, SelectItem } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem } from "@rakhal/ui/ui/select";
 import { useCreateBuyer, useUpdateBuyer } from "../hooks/use-buyers";
 import { BUYER_TYPES, buyerFormSchema, type BuyerFormInput } from "../schemas";
 import type { Buyer } from "../types";

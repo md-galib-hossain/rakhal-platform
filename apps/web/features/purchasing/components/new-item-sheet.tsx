@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
-import { Select, SelectContent, SelectItem } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem } from "@rakhal/ui/ui/select";
 import { IngredientPicker } from "@/features/feed/components/ingredient-picker";
 import { useFeedIngredients } from "@/features/feed/hooks/use-feed";
 import { UnitPicker } from "@/features/inventory/components/unit-picker";

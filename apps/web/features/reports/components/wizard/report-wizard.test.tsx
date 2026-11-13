@@ -48,7 +48,7 @@ vi.mock("@/components/shared/date-range-picker", () => ({
   ),
 }));
 const SelectCtx = createContext<(v: string) => void>(() => {});
-vi.mock("@/components/ui/select", () => ({
+vi.mock("@rakhal/ui/ui/select", () => ({
   Select: ({ onValueChange, children }: { onValueChange: (v: string) => void; children: React.ReactNode }) => (
     <SelectCtx.Provider value={onValueChange}>{children}</SelectCtx.Provider>
   ),

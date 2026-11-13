@@ -6,7 +6,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
 import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
-import { Select, SelectContent, SelectItem } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem } from "@rakhal/ui/ui/select";
 import { useUnits } from "@/features/inventory/hooks/use-inventory";
 import type { MedicineOption } from "../api";
 import { MEDICINE_ROUTES } from "../types";

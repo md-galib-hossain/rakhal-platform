@@ -1,7 +1,7 @@
 "use client"; // dropdown interaction
 
 import { useTranslations } from "next-intl";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { MILK_TREND_RANGES, type MilkTrendRange } from "../types";
 
 /** Range picker for "Production Trend Over Time" (Milk page + dashboard preview) — backs the real

@@ -10,7 +10,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useConfigureOnboarding } from "../hooks/use-configure-onboarding";
 import { configureOnboardingFormSchema, type ConfigureOnboardingFormInput } from "../schemas";
 

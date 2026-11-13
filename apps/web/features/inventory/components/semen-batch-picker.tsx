@@ -10,7 +10,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { LabeledInput } from "@/components/ui/labeled-field";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useCreateSemenBatch, useSemenBatches } from "../hooks/use-inventory";
 import type { CreateSemenBatchPayload, SemenBatch, SemenType, TargetSex } from "../types";
 

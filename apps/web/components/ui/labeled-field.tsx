@@ -2,7 +2,7 @@
 
 import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
-import { SelectTrigger, SelectValue } from "./select";
+import { SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 
 /**
  * Stacked label-inside-value field container — matches the Figma "Add New Cattle" modal's input

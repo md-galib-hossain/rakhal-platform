@@ -11,7 +11,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { CreatableSelect } from "@/components/shared/creatable-select";
 import { useCreateShedInline } from "@/features/cattle/hooks/use-cattle";

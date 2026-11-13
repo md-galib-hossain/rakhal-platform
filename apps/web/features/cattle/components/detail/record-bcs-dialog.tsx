@@ -9,7 +9,7 @@ import { ApiError } from "@/lib/api/errors";
 import { FormSheet } from "@/components/shared/form-sheet";
 import { Label } from "@rakhal/ui/ui/label";
 import { Input } from "@rakhal/ui/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useRecordBcs } from "../../hooks/use-cattle-detail-tabs";
 import { recordBcsSchema, type RecordBcsInput } from "../../schemas";
 import { BCS_ALLOWED_SCORES } from "../../types";

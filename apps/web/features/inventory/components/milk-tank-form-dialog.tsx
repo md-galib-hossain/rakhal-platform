@@ -11,7 +11,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
 import { Button } from "@rakhal/ui/ui/button";
-import { Select, SelectContent, SelectItem } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem } from "@rakhal/ui/ui/select";
 import { useCreateMilkTank, useShedsForMilkTank, useUpdateMilkTank } from "../hooks/use-inventory";
 import { milkTankFormSchema, type MilkTankFormInput } from "../schemas";
 import type { CreateMilkTankPayload, MilkTank, MilkTankType, UpdateMilkTankPayload } from "../types";

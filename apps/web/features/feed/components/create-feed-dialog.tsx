@@ -14,7 +14,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { useAnimalGroups, useCattlePagedList } from "@/features/cattle/hooks/use-cattle";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import {
   useCattleOrGroupRequirements,
   useConcentrationDetail,

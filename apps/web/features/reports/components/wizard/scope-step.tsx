@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { RadioGroup, RadioGroupItem } from "@rakhal/ui/ui/radio-group";
 import { Label } from "@rakhal/ui/ui/label";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { useAnimalGroups } from "@/features/cattle/hooks/use-cattle";
 import type { ReportScopeKind } from "../../types";

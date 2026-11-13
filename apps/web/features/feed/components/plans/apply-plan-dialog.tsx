@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
 import { RadioGroup, RadioGroupItem } from "@rakhal/ui/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { useAnimalGroups } from "@/features/cattle/hooks/use-cattle";
 import { useApplyFeedPlan, useCreateFeedPlan } from "../../hooks/use-feed-plans";
