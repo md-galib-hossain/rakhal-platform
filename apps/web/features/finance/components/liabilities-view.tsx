@@ -8,7 +8,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
 import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { useLiabilities } from "../hooks/use-finance";
 import type { Loan, LoanStatus } from "../types";
 import type { ColumnDef } from "@tanstack/react-table";

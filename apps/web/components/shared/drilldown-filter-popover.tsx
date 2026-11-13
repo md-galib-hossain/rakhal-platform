@@ -5,7 +5,7 @@ import { ChevronRight, ChevronLeft, Search, Check, Filter, X } from "lucide-reac
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@rakhal/ui/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { cn } from "@/lib/utils";
 

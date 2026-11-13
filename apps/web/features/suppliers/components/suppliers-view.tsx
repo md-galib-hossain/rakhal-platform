@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { useIncrementalReveal } from "@/lib/hooks/use-incremental-reveal";
 import { RecordPurchaseDialog } from "@/features/purchasing/components/record-purchase-dialog";
 import { useSuppliers } from "@/features/settings/hooks/use-workspace";

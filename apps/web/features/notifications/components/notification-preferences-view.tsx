@@ -20,7 +20,7 @@ import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@rakhal/ui/ui/button";
 import { Label } from "@rakhal/ui/ui/label";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { ErrorState } from "@/components/shared/error-state";
 import { ApiError } from "@/lib/api/errors";
 import {

@@ -7,7 +7,7 @@ import { ArrowRight, ArrowRightToLine, Ban, Check, Package, Search } from "lucid
 import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { Chip } from "@rakhal/ui/ui/chip";

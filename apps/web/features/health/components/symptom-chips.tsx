@@ -4,7 +4,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { SYMPTOM_OPTIONS } from "../types";
 
 const PRESET_VALUES = new Set(SYMPTOM_OPTIONS.map((s) => s.value));

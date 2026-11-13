@@ -4,7 +4,7 @@ import { todayLocalIso } from "@/lib/local-date";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { EntryStatusDatePicker } from "@/components/shared/entry-status-date-picker";
 import { Table, TableBody } from "@rakhal/ui/ui/table";

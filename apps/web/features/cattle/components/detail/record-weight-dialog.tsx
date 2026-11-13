@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { FormSheet } from "@/components/shared/form-sheet";
 import { Label } from "@rakhal/ui/ui/label";
-import { Input } from "@/components/ui/input";
+import { Input } from "@rakhal/ui/ui/input";
 import { useRecordWeight } from "../../hooks/use-cattle-detail-tabs";
 import { recordWeightSchema, type RecordWeightInput } from "../../schemas";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
