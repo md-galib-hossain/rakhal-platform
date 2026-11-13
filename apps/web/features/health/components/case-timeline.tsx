@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { Activity, CheckCircle2, ListChecks, ShieldAlert, Skull, Stethoscope, Syringe, Undo2 } from "lucide-react";
-import { Timeline, type TimelineItem } from "@/components/ui/timeline";
+import { Timeline, type TimelineItem } from "@rakhal/ui/ui/timeline";
 import { formatDateTime } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { caseTitle } from "../format";
