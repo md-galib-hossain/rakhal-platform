@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@rakhal/ui/ui/button";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
-import { FloatingInput } from "@/components/ui/floating-input";
+import { FloatingInput } from "@rakhal/ui/ui/floating-input";
 import { useCreateFarm } from "../hooks/use-create-farm";
 import { createFarmSchema, type CreateFarmInput } from "../schemas";
 

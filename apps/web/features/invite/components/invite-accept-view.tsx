@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { z } from "zod";
 import { ApiError, NetworkError } from "@/lib/api/errors";
 import { Button } from "@rakhal/ui/ui/button";
-import { FloatingInput } from "@/components/ui/floating-input";
+import { FloatingInput } from "@rakhal/ui/ui/floating-input";
 import { authApi } from "@/features/auth/api";
 import type { InvitePreview } from "../types";
 

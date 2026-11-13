@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FloatingInput } from "@/components/ui/floating-input";
+import { FloatingInput } from "@rakhal/ui/ui/floating-input";
 import {
   Select,
   SelectContent,

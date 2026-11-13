@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@rakhal/ui/ui/button";
-import { FloatingInput } from "@/components/ui/floating-input";
+import { FloatingInput } from "@rakhal/ui/ui/floating-input";
 import { Label } from "@rakhal/ui/ui/label";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
