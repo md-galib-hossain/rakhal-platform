@@ -1,5 +1,5 @@
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
-import { TableCell, TableRow } from "@/components/ui/table";
+import { TableCell, TableRow } from "@rakhal/ui/ui/table";
 
 export interface TableSkeletonProps {
   rows?: number;

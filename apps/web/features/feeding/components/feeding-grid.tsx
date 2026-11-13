@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EntryStatusDatePicker } from "@/components/shared/entry-status-date-picker";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
