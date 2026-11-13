@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@rakhal/ui/ui/button";
 import { Chip } from "@rakhal/ui/ui/chip";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
 import { useUpcomingEvents } from "../hooks/use-cattle";
 import { useOptionalCattleDetailModal } from "../context/cattle-detail-modal-context";
 import type { CattleListItem, UpcomingEvent } from "../types";

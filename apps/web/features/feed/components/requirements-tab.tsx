@@ -6,7 +6,7 @@ import { CircleHelp, Scale } from "lucide-react";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@rakhal/ui/ui/button";
 import { Input } from "@rakhal/ui/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
 import {
   Select,
   SelectContent,

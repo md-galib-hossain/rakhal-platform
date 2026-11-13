@@ -7,7 +7,7 @@ import type { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@rakhal/ui/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
 import { PERIOD_PRESET_VALUES, type PeriodPreset, type PeriodRange } from "@/lib/period/presets";
 
 const SELECTABLE_PRESETS = PERIOD_PRESET_VALUES.filter((p): p is Exclude<PeriodPreset, "custom"> => p !== "custom");

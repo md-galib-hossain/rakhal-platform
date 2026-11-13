@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
 import { PickerFooter } from "@/components/ui/date-picker";
 
 /** Same shape as `EntryCalendarDayStatus` in `features/milk/types.ts` and `features/feed/types.ts`
