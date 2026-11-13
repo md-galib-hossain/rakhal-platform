@@ -5,7 +5,7 @@ import { CalendarDays, Coins, Package, Scale, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { Can } from "@/lib/auth/permissions";
-import { Progress } from "@/components/ui/progress";
+import { Progress } from "@rakhal/ui/ui/progress";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { EmptyState } from "@/components/shared/empty-state";

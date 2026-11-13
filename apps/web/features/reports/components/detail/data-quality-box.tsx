@@ -1,6 +1,6 @@
 import { Info } from "lucide-react";
 import { Card } from "@rakhal/ui/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { Progress } from "@rakhal/ui/ui/progress";
 import type { Locale } from "@/lib/constants/i18n";
 import { formatNumber } from "@/lib/format";
 import { resolveBackendKey, type ReportTranslator } from "../../lib/labels";

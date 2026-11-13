@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { Progress } from "@/components/ui/progress";
+import { Progress } from "@rakhal/ui/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { requirementProgress } from "../grid-model";
 

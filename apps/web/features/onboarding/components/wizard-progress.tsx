@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Progress } from "@/components/ui/progress";
+import { Progress } from "@rakhal/ui/ui/progress";
 
 const STEPS = ["configure", "cattle", "team"] as const;
 export type WizardStep = (typeof STEPS)[number];
