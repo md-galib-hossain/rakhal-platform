@@ -708,6 +708,67 @@
         ],
         "type": "object"
       },
+      "AdminFeatureFlagDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "farmIds": {
+            "description": "Farm ids the flag is targeted at (empty = no targeting).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedById": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "description",
+          "enabled",
+          "farmIds",
+          "updatedById",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "AdminFlagDeletedResponseDto": {
+        "properties": {
+          "deleted": {
+            "type": "boolean"
+          },
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "deleted"
+        ],
+        "type": "object"
+      },
       "AdminIssueCouponDto": {
         "properties": {
           "applicablePlanIds": {
@@ -1295,6 +1356,42 @@
         "required": [
           "id",
           "name"
+        ],
+        "type": "object"
+      },
+      "AdminPlatformSettingDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedById": {
+            "nullable": true,
+            "type": "string"
+          },
+          "value": {
+            "description": "Free-form JSON value of the setting (any JSON type, or null).",
+            "nullable": true,
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "description",
+          "updatedById",
+          "createdAt",
+          "updatedAt",
+          "value"
         ],
         "type": "object"
       },
@@ -21872,6 +21969,24 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/AdminFeatureFlagDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -21903,6 +22018,28 @@
         },
         "responses": {
           "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminFeatureFlagDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -21941,6 +22078,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminFlagDeletedResponseDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -21977,6 +22136,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminFeatureFlagDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
@@ -21999,6 +22180,24 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/AdminPlatformSettingDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
                   "type": "object"
                 }
               }
@@ -22041,6 +22240,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminPlatformSettingDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },

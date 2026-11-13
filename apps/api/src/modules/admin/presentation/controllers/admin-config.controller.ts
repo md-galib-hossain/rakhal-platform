@@ -25,6 +25,12 @@ import {
 import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  AdminFeatureFlagDto,
+  AdminFlagDeletedResponseDto,
+  AdminPlatformSettingDto,
+} from '../dto/admin-config-response.dto';
 
 /**
  * Feature flags and platform settings (Phase 5). Reading needs `config.read` (SUPPORT_ADMIN too); every change
@@ -39,12 +45,14 @@ export class AdminConfigController {
   constructor(private readonly config: AdminPlatformConfigService) {}
 
   @Get('flags')
+  @ApiEnvelopeResponse(AdminFeatureFlagDto, { isArray: true })
   @RequireAdminPermission('config.read')
   listFlags() {
     return this.config.listFlags();
   }
 
   @Post('flags')
+  @ApiEnvelopeResponse(AdminFeatureFlagDto, { status: 201 })
   @RequireAdminPermission('config.manage')
   createFlag(
     @CurrentAdmin() admin: CurrentAdminContext,
@@ -54,6 +62,7 @@ export class AdminConfigController {
   }
 
   @Patch('flags/:key')
+  @ApiEnvelopeResponse(AdminFeatureFlagDto)
   @RequireAdminPermission('config.manage')
   updateFlag(
     @CurrentAdmin() admin: CurrentAdminContext,
@@ -64,6 +73,7 @@ export class AdminConfigController {
   }
 
   @Delete('flags/:key')
+  @ApiEnvelopeResponse(AdminFlagDeletedResponseDto)
   @HttpCode(200)
   @RequireAdminPermission('config.manage')
   deleteFlag(
@@ -75,12 +85,14 @@ export class AdminConfigController {
   }
 
   @Get('settings')
+  @ApiEnvelopeResponse(AdminPlatformSettingDto, { isArray: true })
   @RequireAdminPermission('config.read')
   listSettings() {
     return this.config.listSettings();
   }
 
   @Put('settings/:key')
+  @ApiEnvelopeResponse(AdminPlatformSettingDto)
   @HttpCode(200)
   @RequireAdminPermission('config.manage')
   setSetting(
