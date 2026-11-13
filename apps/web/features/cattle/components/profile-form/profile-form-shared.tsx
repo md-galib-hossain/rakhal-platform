@@ -11,7 +11,7 @@ import { CreatableSelect } from "@/components/shared/creatable-select";
 import { Button } from "@rakhal/ui/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Label } from "@rakhal/ui/ui/label";
-import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
+import { LabeledInput, LabeledSelectTrigger } from "@rakhal/ui/ui/labeled-field";
 import { Select, SelectContent, SelectItem } from "@rakhal/ui/ui/select";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@rakhal/ui/ui/sheet";
 import {

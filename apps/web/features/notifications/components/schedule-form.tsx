@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
-import { LabeledInput } from "@/components/ui/labeled-field";
+import { LabeledInput } from "@rakhal/ui/ui/labeled-field";
 import { CattleMultiPicker } from "@/components/shared/cattle-picker";
 import { useTaskAssignees } from "@/features/tasks/hooks/use-tasks";
 import { useCreateSchedule, usePreviewSchedule, useUpdateSchedule } from "../hooks/use-schedules";

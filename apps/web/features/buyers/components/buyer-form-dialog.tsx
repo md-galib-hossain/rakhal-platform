@@ -8,7 +8,7 @@ import { ArrowRightToLine } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@rakhal/ui/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
-import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
+import { LabeledInput, LabeledSelectTrigger } from "@rakhal/ui/ui/labeled-field";
 import { Select, SelectContent, SelectItem } from "@rakhal/ui/ui/select";
 import { useCreateBuyer, useUpdateBuyer } from "../hooks/use-buyers";
 import { BUYER_TYPES, buyerFormSchema, type BuyerFormInput } from "../schemas";

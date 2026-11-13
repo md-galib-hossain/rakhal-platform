@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
+import { LabeledInput, LabeledSelectTrigger } from "@rakhal/ui/ui/labeled-field";
 import { Select, SelectContent, SelectItem } from "@rakhal/ui/ui/select";
 import { OPTIONAL_NUTRIENT_KEYS, type NutritionSource, type OptionalNutrientKey } from "../types";
 import type { NutritionFormInput } from "../schemas";

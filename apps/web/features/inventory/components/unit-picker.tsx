@@ -10,7 +10,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@rakhal/ui/ui/command";
-import { LabeledInput } from "@/components/ui/labeled-field";
+import { LabeledInput } from "@rakhal/ui/ui/labeled-field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useArchiveUnit, useCreateCustomUnit, useUnits } from "../hooks/use-inventory";
 import type { CreateUnitPayload, Unit, UnitDimension } from "../types";

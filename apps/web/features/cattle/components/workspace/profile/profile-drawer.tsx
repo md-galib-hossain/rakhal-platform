@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
-import { LabeledInput } from "@/components/ui/labeled-field";
+import { LabeledInput } from "@rakhal/ui/ui/labeled-field";
 import { Label } from "@rakhal/ui/ui/label";
 import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { Textarea } from "@rakhal/ui/ui/textarea";

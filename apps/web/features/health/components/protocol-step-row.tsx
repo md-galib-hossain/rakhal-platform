@@ -5,7 +5,7 @@ import { Controller, useWatch, type UseFormReturn } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { Trash2 } from "lucide-react";
-import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
+import { LabeledInput, LabeledSelectTrigger } from "@rakhal/ui/ui/labeled-field";
 import { Select, SelectContent, SelectItem } from "@rakhal/ui/ui/select";
 import { useUnits } from "@/features/inventory/hooks/use-inventory";
 import type { Unit } from "@/features/inventory/types";
