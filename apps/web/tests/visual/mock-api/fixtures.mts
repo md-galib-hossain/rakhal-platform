@@ -28,6 +28,8 @@ import type {
 import type { FarmSummary } from "../../../features/farm/types";
 import type { FeedCostSummary } from "../../../features/feed/types";
 import type { MilkOverviewResponse } from "../../../features/milk/types";
+import type { RoleListResult, TeamListResult } from "../../../features/settings/types";
+import type { OnboardingStatus } from "../../../features/onboarding/types";
 import type { NotificationListResult } from "../../../features/notifications/types";
 import type { ProfileUser } from "../../../features/profile/types";
 import type { ReportTemplatesResponse } from "../../../features/reports/types";
@@ -491,6 +493,11 @@ const milkOverview = (url: URL): Fixture => {
   return { data: body };
 };
 
+const onboardingStatus: OnboardingStatus = {
+  has_completed_onboarding: false,
+  steps: { farm: { done: true }, configure: { done: false, sheds: 0 }, cattle: { done: false, count: 0 }, team: { done: false, members: 0 } },
+};
+
 // --- reports (wizard) -------------------------------------------------------------------------------------
 
 const reportTemplates: ReportTemplatesResponse = {
@@ -561,5 +568,9 @@ export const routes: Record<string, Handler> = {
   "GET /activity-log": page(activityLog, 15),
   "GET /feed/cost-summary": { data: feedCostSummary },
   "GET /milk/overview": milkOverview,
+  "GET /settings/team": { data: { members: [] } satisfies TeamListResult },
+  "GET /settings/roles": { data: { roles: [], catalogue: [] } satisfies RoleListResult },
+  "GET /tasks": page([] as never[]),
+  "GET /onboarding/status": { data: onboardingStatus },
   "GET /reports/templates": { data: reportTemplates },
 };
