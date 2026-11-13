@@ -6,7 +6,7 @@ import { CalendarDays } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@rakhal/ui/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar } from "@rakhal/ui/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
 import { PERIOD_PRESET_VALUES, type PeriodPreset, type PeriodRange } from "@/lib/period/presets";
 

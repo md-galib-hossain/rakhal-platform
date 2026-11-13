@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import type { Matcher } from "react-day-picker";
-import { Calendar } from "./calendar";
+import { Calendar } from "@rakhal/ui/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
 import { Button } from "@rakhal/ui/ui/button";
 
