@@ -1056,6 +1056,56 @@
         ],
         "type": "object"
       },
+      "AdminFarmRequirementSettingsResponseDto": {
+        "properties": {
+          "defaults": {
+            "$ref": "#/components/schemas/RequirementSettingsDto"
+          },
+          "effective": {
+            "$ref": "#/components/schemas/RequirementSettingsDto"
+          },
+          "farm_changes": {
+            "$ref": "#/components/schemas/RequirementSettingsChangesDto"
+          },
+          "fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RequirementSettingFieldDto"
+            },
+            "description": "Editor metadata (group, label, unit, bounds) keyed by setting name.",
+            "type": "object"
+          },
+          "preset": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementPresetRefDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "sources": {
+            "additionalProperties": {
+              "enum": [
+                "farm",
+                "preset",
+                "default"
+              ],
+              "type": "string"
+            },
+            "description": "Which layer supplied each setting, keyed by setting name.",
+            "type": "object"
+          }
+        },
+        "required": [
+          "effective",
+          "defaults",
+          "preset",
+          "farm_changes",
+          "sources",
+          "fields"
+        ],
+        "type": "object"
+      },
       "AdminFarmSubscriptionDto": {
         "properties": {
           "cancelledAt": {
@@ -2151,6 +2201,91 @@
           "accessToken",
           "refreshToken",
           "sessionId"
+        ],
+        "type": "object"
+      },
+      "AdminRequirementPresetDto": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "created_by_admin_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "description": {
+            "nullable": true,
+            "type": "string"
+          },
+          "effective": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/RequirementSettingsDto"
+              }
+            ],
+            "description": "The built-in defaults with this preset applied."
+          },
+          "effective_from": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "description": "The overrides this preset stores on top of the built-in defaults (free-form JSON).",
+            "type": "object"
+          },
+          "version": {
+            "description": "Monotonic version; presets are immutable once active.",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "version",
+          "settings",
+          "effective",
+          "is_active",
+          "effective_from",
+          "created_by_admin_id",
+          "created_at"
+        ],
+        "type": "object"
+      },
+      "AdminRequirementPresetListResponseDto": {
+        "properties": {
+          "built_in_defaults": {
+            "$ref": "#/components/schemas/RequirementSettingsDto"
+          },
+          "fields": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RequirementSettingFieldDto"
+            },
+            "description": "Editor metadata (group, label, unit, bounds) keyed by setting name.",
+            "type": "object"
+          },
+          "presets": {
+            "items": {
+              "$ref": "#/components/schemas/AdminRequirementPresetDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "presets",
+          "built_in_defaults",
+          "fields"
         ],
         "type": "object"
       },
@@ -17651,6 +17786,46 @@
           "ndf_max_kg",
           "ca_p_ratio_target",
           "breakdown"
+        ],
+        "type": "object"
+      },
+      "RequirementSettingFieldDto": {
+        "properties": {
+          "group": {
+            "enum": [
+              "energy",
+              "protein",
+              "intake",
+              "alerts",
+              "pregnancy",
+              "heifer",
+              "bodyCondition",
+              "mineralsAndFibre"
+            ],
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "max": {
+            "description": "Inclusive upper bound.",
+            "type": "number"
+          },
+          "min": {
+            "description": "Inclusive lower bound.",
+            "type": "number"
+          },
+          "unit": {
+            "description": "Unit shown as helper text; empty for dimensionless factors.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group",
+          "label",
+          "unit",
+          "min",
+          "max"
         ],
         "type": "object"
       },

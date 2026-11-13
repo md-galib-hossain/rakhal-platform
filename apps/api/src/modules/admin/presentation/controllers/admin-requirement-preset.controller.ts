@@ -22,6 +22,12 @@ import { RequireAdminPermission } from '../decorators/require-admin-permission.d
 import { CurrentAdmin } from '../decorators/current-admin.decorator';
 import type { CurrentAdminContext } from '../../domain/authenticated-admin-request.type';
 import { AdminAuditService } from '../../application/services/admin-audit.service';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  AdminFarmRequirementSettingsResponseDto,
+  AdminRequirementPresetDto,
+  AdminRequirementPresetListResponseDto,
+} from '../dto/admin-requirement-preset-response.dto';
 
 /**
  * Admin Requirement Presets (RAKHAL-410, PRD §12.13 / §19.4).
@@ -54,6 +60,7 @@ export class AdminRequirementPresetController {
 
   /** Every preset, plus the built-in defaults and field metadata for diffing. */
   @Get()
+  @ApiEnvelopeResponse(AdminRequirementPresetListResponseDto)
   @RequireAdminPermission('requirement-preset.read')
   list() {
     return this.settings.listPresets();
@@ -61,6 +68,7 @@ export class AdminRequirementPresetController {
 
   /** Create a new version. Inactive until explicitly activated, so it can be reviewed first. */
   @Post()
+  @ApiEnvelopeResponse(AdminRequirementPresetDto, { status: 201 })
   @RequireAdminPermission('requirement-preset.manage')
   async create(
     @CurrentAdmin() admin: CurrentAdminContext,
@@ -94,6 +102,7 @@ export class AdminRequirementPresetController {
 
   /** Amend a preset that is not live yet. Rejected with 409 once it has been activated. */
   @Patch(':id')
+  @ApiEnvelopeResponse(AdminRequirementPresetDto)
   @RequireAdminPermission('requirement-preset.manage')
   async update(
     @CurrentAdmin() admin: CurrentAdminContext,
@@ -124,6 +133,7 @@ export class AdminRequirementPresetController {
    * same transaction and drops every farm's cached settings.
    */
   @Post(':id/activate')
+  @ApiEnvelopeResponse(AdminRequirementPresetDto, { status: 201 })
   @RequireAdminPermission('requirement-preset.manage')
   async activate(
     @CurrentAdmin() admin: CurrentAdminContext,
@@ -146,6 +156,7 @@ export class AdminRequirementPresetController {
 
   /** What one farm has changed on top of the active preset — support visibility. */
   @Get('farms/:farmId')
+  @ApiEnvelopeResponse(AdminFarmRequirementSettingsResponseDto)
   @RequireAdminPermission('requirement-preset.read')
   farmSettings(@Param('farmId') farmId: string) {
     return this.settings.farmSettingsForAdmin(farmId);
