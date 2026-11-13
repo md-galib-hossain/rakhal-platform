@@ -9,7 +9,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useConfigureOnboarding } from "../hooks/use-configure-onboarding";
 import { configureOnboardingFormSchema, type ConfigureOnboardingFormInput } from "../schemas";

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { cn } from "@/lib/utils";
 import type { PermissionCatalogueEntry, PermissionMatrix } from "../types";
 

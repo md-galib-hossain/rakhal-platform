@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Label } from "@rakhal/ui/ui/label";
 import { useReviseFeedBatchNutrition } from "../hooks/use-inventory";
 import { nutritionFormSchema, type NutritionFormInput } from "../schemas";

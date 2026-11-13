@@ -13,7 +13,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { LabeledInput, LabeledSelectTrigger } from "@/components/ui/labeled-field";
 import { Select, SelectContent, SelectItem } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cattleApi } from "@/features/cattle/api";

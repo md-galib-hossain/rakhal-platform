@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useCan } from "@/lib/auth/permissions";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { MoneyText } from "@/components/shared/money-text";
 import { balanceScoreBand } from "../lib/formula-math";

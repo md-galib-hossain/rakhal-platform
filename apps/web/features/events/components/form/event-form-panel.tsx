@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
 import { todayLocalIso } from "@/lib/local-date";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import type { CattleDetail } from "@/features/cattle/types";
 import { buildRequest, defaultValues, FORM_DEFS, validateValues, type FieldError } from "../../forms/definitions";

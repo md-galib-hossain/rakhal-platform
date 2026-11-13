@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { isMonthOnly, previewItems, type BreedingMethod, type HistoryValues, type YesNo } from "./history-model";
 

@@ -26,7 +26,7 @@ component — it's very likely already built, just under a different name.
 | Sheet (right-side drawer) | `components/ui/sheet.tsx` — the standard modal pattern app-wide (2026-09-03: `Dialog`/`DialogContent` retired for every form/confirm/detail modal in favor of this; `components/ui/dialog.tsx` remains only as the primitive backing `command.tsx`'s ⌘K palette, not for app modals) |
 | Tabs (pill tab bar) | `components/ui/tabs.tsx` |
 | Search (pill input + icon) | `components/shared/filter-bar.tsx`'s `SearchInput` (list pages), `components/shared/global-search.tsx` (topbar ⌘K) |
-| Checkbox (row selection) | `components/ui/checkbox.tsx` |
+| Checkbox (row selection) | `packages/ui/src/components/ui/checkbox.tsx` (imported from `@rakhal/ui/ui/checkbox`) |
 | Progress bar | `components/ui/progress.tsx` |
 | Calendar/date picker | `components/ui/calendar.tsx` |
 
