@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ChevronLeft } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Textarea } from "@rakhal/ui/ui/textarea";

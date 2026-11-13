@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ArrowRightToLine, BellPlus, Check, Pencil, RotateCcw, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { TaskChip } from "./task-chip";
 import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { Button } from "@rakhal/ui/ui/button";

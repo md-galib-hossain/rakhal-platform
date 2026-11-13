@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { ArrowRightToLine, Bug, ClipboardList, HeartPulse, Plus, Stethoscope, Syringe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Button } from "@rakhal/ui/ui/button";

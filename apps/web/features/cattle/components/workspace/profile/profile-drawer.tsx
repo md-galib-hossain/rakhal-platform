@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
 import { LabeledInput } from "@/components/ui/labeled-field";
 import { Label } from "@rakhal/ui/ui/label";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { useUpdateCattle } from "../../../hooks/use-cattle";
 import { cattleEditFormSchema, type CattleEditFormInput } from "../../../schemas";

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { ArrowRight, ArrowRightToLine, Ban, Check, Package, Search } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { Input } from "@rakhal/ui/ui/input";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";

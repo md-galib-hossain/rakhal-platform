@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { ArrowRightToLine } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { Button } from "@rakhal/ui/ui/button";
 import type { SemenTank } from "../types";

@@ -6,7 +6,7 @@ import { ArrowRightToLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
 import { Textarea } from "@rakhal/ui/ui/textarea";
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@rakhal/ui/ui/sheet";
 
 export type RemoveMode = "stop" | "cancel";
 
