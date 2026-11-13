@@ -6,7 +6,7 @@ import { ArrowRightToLine, Circle, CircleCheck } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { Timeline, type TimelineItem } from "@/components/ui/timeline";
+import { Timeline, type TimelineItem } from "@rakhal/ui/ui/timeline";
 import { formatDate, formatDateTime } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { useProtocol } from "../../hooks/use-reproduction";
