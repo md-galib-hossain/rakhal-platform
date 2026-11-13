@@ -14,7 +14,7 @@ import { Input } from "@rakhal/ui/ui/input";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Button } from "@rakhal/ui/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useCreateProtocol, useProtocol, useUpdateProtocol } from "../../hooks/use-reproduction";
 import { protocolFormSchema, reproStepTypeEnum, type ProtocolFormInput } from "../../schemas";
 import type { CreateProtocolPayload, ProtocolDetail } from "../../types";

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
 import { Input } from "@rakhal/ui/ui/input";
-import { Select, SelectContent, SelectItem } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem } from "@rakhal/ui/ui/select";
 
 const CREATE_NEW = "__creatable_select_create_new__";
 

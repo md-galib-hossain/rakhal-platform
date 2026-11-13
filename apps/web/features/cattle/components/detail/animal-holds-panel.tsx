@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sheet";
 import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useAnimalHolds, useCreateAnimalHold, useReleaseAnimalHold } from "../../hooks/use-cattle";
 import type { AnimalHoldType } from "../../types";
 

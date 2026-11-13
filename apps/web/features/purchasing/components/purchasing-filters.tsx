@@ -1,7 +1,7 @@
 "use client"; // controlled filter bar — state lives in the parent view
 
 import { useTranslations } from "next-intl";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { DateRangePicker } from "@/components/shared/date-range-picker";
 import { usePeriod } from "@/lib/hooks/use-period";
 import { PAYABLE_STATUSES, type PayableStatus } from "../types";

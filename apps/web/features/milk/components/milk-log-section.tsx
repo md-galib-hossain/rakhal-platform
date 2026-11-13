@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { Input } from "@rakhal/ui/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { EntryStatusDatePicker } from "@/components/shared/entry-status-date-picker";
 import { Table, TableBody } from "@rakhal/ui/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";

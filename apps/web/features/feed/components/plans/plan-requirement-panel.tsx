@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { usePreviewPlanFit } from "../../hooks/use-feed-plans";

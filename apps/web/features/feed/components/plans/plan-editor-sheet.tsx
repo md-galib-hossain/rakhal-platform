@@ -13,7 +13,7 @@ import { LabeledInput } from "@/components/ui/labeled-field";
 import { Button } from "@rakhal/ui/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { CattlePicker } from "@/components/shared/cattle-picker";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useAnimalGroups, useCattlePagedList } from "@/features/cattle/hooks/use-cattle";
 import { useCattleOrGroupRequirements, useConcentrations } from "../../hooks/use-feed";
 import { useCreateFeedPlan, useFeedPlan, usePreviewPlanFit, useUpdateFeedPlan } from "../../hooks/use-feed-plans";

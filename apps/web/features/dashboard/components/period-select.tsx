@@ -1,7 +1,7 @@
 "use client"; // dropdown interaction
 
 import { useTranslations } from "next-intl";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import type { DashboardPeriod } from "../types";
 
 /** Real period toggle styled as the Figma pill (732:1727/732:1792) — used by the two widgets that

@@ -9,7 +9,7 @@ import { ApiError } from "@/lib/api/errors";
 import { FormSheet } from "@/components/shared/form-sheet";
 import { Label } from "@rakhal/ui/ui/label";
 import { Input } from "@rakhal/ui/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useRecordColostrum } from "../../hooks/use-calves";
 import { recordColostrumSchema, type RecordColostrumInput } from "../../schemas";
 import { DateTimePicker } from "@/components/ui/date-time-picker";

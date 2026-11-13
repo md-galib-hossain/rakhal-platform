@@ -1,7 +1,7 @@
 "use client"; // dropdown interaction
 
 import { useTranslations } from "next-intl";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import type { WeightHistoryPeriod } from "../../../detail-types";
 
 /** Day/week/month/year toggle for the Overview weight-history chart — same structural pattern as

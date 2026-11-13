@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { ChartCard } from "@/components/shared/chart-card";
 import { ErrorState } from "@/components/shared/error-state";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import type { Locale } from "@/lib/constants/i18n";
 import type { SalesSummary, SalesTrendGranularity } from "../../types";
 

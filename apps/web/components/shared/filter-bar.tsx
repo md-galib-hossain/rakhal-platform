@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Input } from "@rakhal/ui/ui/input";
 import { Button } from "@rakhal/ui/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Chip } from "@rakhal/ui/ui/chip";
 

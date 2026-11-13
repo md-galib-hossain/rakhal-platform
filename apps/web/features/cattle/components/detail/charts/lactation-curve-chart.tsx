@@ -7,7 +7,7 @@ import { ChartCard } from "@/components/shared/chart-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useLactationCompare, useLactationCompareGroups } from "@/features/reproduction/hooks/use-lactation-compare";
 import { useLactationCurve } from "@/features/reproduction/hooks/use-lactation-curve";
 import type { LactationCurveRow } from "./lactation-curve-chart-inner";

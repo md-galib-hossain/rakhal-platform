@@ -27,7 +27,7 @@ import {
 import { Button } from "@rakhal/ui/ui/button";
 import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import {
   useAddToAnimalGroup,
   useAnimalGroups,

@@ -12,7 +12,7 @@ import { FormSheet } from "@/components/shared/form-sheet";
 import { CattleMultiPicker, type CattleOption } from "@/components/shared/cattle-picker";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { Label } from "@rakhal/ui/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { Button } from "@rakhal/ui/ui/button";
 import { DateTimePicker } from "@/components/ui/date-time-picker";
 import { useApplyProtocol, useProtocol, useProtocolInstance, useProtocols } from "../../hooks/use-reproduction";

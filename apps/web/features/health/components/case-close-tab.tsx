@@ -7,7 +7,7 @@ import { Label } from "@rakhal/ui/ui/label";
 import { Input } from "@rakhal/ui/ui/input";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@rakhal/ui/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { AccountPicker } from "@/features/finance/components/account-picker";
 import { SymptomChips } from "./symptom-chips";
 import type { CaseSummary, HealthCloseOutcome } from "../types";

@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { parseAsStringLiteral, useQueryStates } from "nuqs";
 import { Button } from "@rakhal/ui/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import {
   REPORT_ORIGINS,
   REPORT_STATUSES,

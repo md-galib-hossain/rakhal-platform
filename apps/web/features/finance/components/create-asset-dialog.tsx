@@ -18,7 +18,7 @@ import {
 import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
 import { Textarea } from "@rakhal/ui/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useCreateAsset } from "../hooks/use-finance";
 import { createAssetSchema, type CreateAssetInput } from "../schemas";
 import { DatePicker } from "@/components/ui/date-picker";
