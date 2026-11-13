@@ -23,7 +23,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { Input } from "@rakhal/ui/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
 import { EntryStatusDatePicker } from "@/components/shared/entry-status-date-picker";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { CardSkeleton } from "@/components/shared/card-skeleton";

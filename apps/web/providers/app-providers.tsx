@@ -2,7 +2,7 @@
 
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@rakhal/ui/ui/tooltip";
 import { CattleDetailModalProvider } from "@/features/cattle/context/cattle-detail-modal-provider";
 import { QueryProvider } from "./query-provider";
 import { ThemeProvider } from "./theme-provider";

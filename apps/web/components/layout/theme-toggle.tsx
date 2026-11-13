@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@rakhal/ui/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
 import { Button } from "@rakhal/ui/ui/button";
 
 const emptySubscribe = () => () => {};

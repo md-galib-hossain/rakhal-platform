@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Plus, RotateCcw, X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
 import { Can } from "@/lib/auth/permissions";
 import { useCattleProgram, useRemoveFeedAssignment } from "../../feed/hooks/use-feed-plans";
 import type { ApplyTarget } from "../../feed/components/plans/apply-plan-dialog";

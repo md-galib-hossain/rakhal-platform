@@ -5,7 +5,7 @@ import { CalendarClock, CalendarDays, Mars, MapPin, Scale, TriangleAlert, Venus 
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@rakhal/ui/ui/avatar";
 import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { SelectableCardOverlay } from "@/components/shared/selectable-card-overlay";

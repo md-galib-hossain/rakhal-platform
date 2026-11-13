@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import en from "@/i18n/messages/en.json";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@rakhal/ui/ui/tooltip";
 import { ApiError } from "@/lib/api/errors";
 import { ReportApiError } from "../../lib/errors";
 import type { MetricResult, ReportDetail, ReportSnapshotPayload } from "../../types";

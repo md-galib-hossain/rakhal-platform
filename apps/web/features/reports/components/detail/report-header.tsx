@@ -7,7 +7,7 @@ import { ArrowLeft, Download, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Button } from "@rakhal/ui/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { useDeleteReport } from "../../hooks/use-delete-report";
 import { useDownloadReport } from "../../hooks/use-download-report";

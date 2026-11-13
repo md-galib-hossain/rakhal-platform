@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@rakhal/ui/ui/avatar";
 import { Button } from "@rakhal/ui/ui/button";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@rakhal/ui/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RowActionsMenu, type RowAction } from "@/components/shared/row-actions-menu";
 import { useActiveLactation } from "@/features/reproduction/hooks/use-reproduction";

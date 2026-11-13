@@ -21,7 +21,7 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@rakhal/ui/ui/tooltip";
 import { useCattleFinance } from "../../hooks/use-cattle-detail-tabs";
 
 const TrendChartInner = dynamic(() => import("./charts/trend-chart-inner"), {

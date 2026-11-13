@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 import { ArrowUpRight, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { Chip } from "@rakhal/ui/ui/chip";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { cn } from "@/lib/utils";
