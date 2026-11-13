@@ -7,7 +7,7 @@ import { useCan } from "@/lib/auth/permissions";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@rakhal/ui/ui/button";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@rakhal/ui/ui/dropdown-menu";
 import { MoneyText } from "@/components/shared/money-text";
 import { balanceScoreBand } from "../lib/formula-math";
 import type { FeedConcentrationSummary } from "../types";

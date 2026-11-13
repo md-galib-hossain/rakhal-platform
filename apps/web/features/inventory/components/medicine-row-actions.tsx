@@ -12,7 +12,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@rakhal/ui/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { RecordSaleDialog } from "@/features/sales/components/record-sale-wizard";
 import { useRestoreMedicine } from "../hooks/use-inventory";

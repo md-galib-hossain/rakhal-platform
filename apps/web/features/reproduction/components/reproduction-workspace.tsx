@@ -17,7 +17,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@rakhal/ui/ui/dropdown-menu";
 import { useCan } from "@/lib/auth/permissions";
 import { useCattleDetailModal } from "@/features/cattle/context/cattle-detail-modal-context";
 import type { EventKey } from "@/features/events/types";

@@ -23,7 +23,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@rakhal/ui/ui/dropdown-menu";
 import { FloatingInput } from "@rakhal/ui/ui/floating-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";

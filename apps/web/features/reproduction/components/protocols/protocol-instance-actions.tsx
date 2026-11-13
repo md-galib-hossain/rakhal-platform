@@ -10,7 +10,7 @@ import { ApiError } from "@/lib/api/errors";
 import { useCan } from "@/lib/auth/permissions";
 import { FormSheet } from "@/components/shared/form-sheet";
 import { Button } from "@rakhal/ui/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@rakhal/ui/ui/dropdown-menu";
 import { Label } from "@rakhal/ui/ui/label";
 import { Input } from "@rakhal/ui/ui/input";
 import { Textarea } from "@rakhal/ui/ui/textarea";

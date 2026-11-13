@@ -11,7 +11,7 @@ import { Card } from "@rakhal/ui/ui/card";
 import { Button } from "@rakhal/ui/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { MoneyText } from "@/components/shared/money-text";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@rakhal/ui/ui/dropdown-menu";
 import { Can } from "@/lib/auth/permissions";
 import { useFinancialAccounts, useRakhalBalance, useSetPrimaryFinancialAccount } from "../../hooks/use-finance-v2";
 import { AccountFormSheet } from "./account-form-sheet";

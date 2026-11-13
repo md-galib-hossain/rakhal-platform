@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { Languages } from "lucide-react";
 import { toast } from "sonner";
-import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { DropdownMenuItem } from "@rakhal/ui/ui/dropdown-menu";
 import { useUpdateLanguage } from "@/features/profile/hooks/use-update-language";
 import { type Locale, locales } from "@/lib/constants/i18n";
 
