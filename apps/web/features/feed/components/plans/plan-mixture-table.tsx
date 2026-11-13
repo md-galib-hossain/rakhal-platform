@@ -6,7 +6,7 @@ import { Package, Wheat, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
 import { MoneyText } from "@/components/shared/money-text";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { Badge } from "@rakhal/ui/ui/badge";
 import type { FeedItem } from "@/features/inventory/types";
 import type { FeedConcentrationSummary } from "../../types";

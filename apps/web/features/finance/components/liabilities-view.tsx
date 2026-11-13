@@ -7,7 +7,7 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { DataTable } from "@/components/shared/data-table";
 import { ErrorState } from "@/components/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
-import { Chip, type ChipProps } from "@/components/ui/chip";
+import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
 import { Input } from "@/components/ui/input";
 import { useLiabilities } from "../hooks/use-finance";
 import type { Loan, LoanStatus } from "../types";

@@ -1,5 +1,5 @@
 import { useFormatter, useTranslations } from "next-intl";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import type { HealthPlanStats } from "../types";
 
 /** `YYYY-MM-DD` (the farm's calendar day) as a local `Date` at noon, so formatting it never slips a day across zones. */

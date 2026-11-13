@@ -1,6 +1,6 @@
 import { ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 
 /** RFE-136 / EPIC D8 — the one way an applied protocol is shown wherever an animal or round is listed (Sick Bay row,
  * preventive round, the cow's Health tab): the protocol's name with, when known, how far along it is. Rendered as a

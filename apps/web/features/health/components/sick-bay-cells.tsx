@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Can } from "@/lib/auth/permissions";
 import { Button } from "@rakhal/ui/ui/button";
 import { TruncatedText } from "@/components/shared/truncated-text";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { diagnosisChipVariant } from "../format";
 import { dayOfIllness, nextStepStatus } from "../sick-bay-model";
 import type { HealthCaseListItem, HealthPriority } from "../types";

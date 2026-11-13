@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { AlertCircle } from "lucide-react";
 import type { Locale } from "@/lib/constants/i18n";
 import { Avatar, AvatarFallback, AvatarImage } from "@rakhal/ui/ui/avatar";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { formatDate } from "@/lib/format";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { diagnosisChipVariant, priorityChipVariant } from "../format";

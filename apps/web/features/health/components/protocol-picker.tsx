@@ -7,7 +7,7 @@ import { ApiError } from "@/lib/api/errors";
 import { todayLocalIso } from "@/lib/local-date";
 import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { useApplyPlanToCase, useHealthPlans } from "../hooks/use-health";

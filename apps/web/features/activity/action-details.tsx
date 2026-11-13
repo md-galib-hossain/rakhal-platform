@@ -1,4 +1,4 @@
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { TruncatedText } from "@/components/shared/truncated-text";
 
 /**

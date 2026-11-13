@@ -20,7 +20,7 @@ import {
 } from "../lib/formula-math";
 import type { CreateFeedFormItem } from "../schemas";
 import { formLineKey, itemStockKg, kgPerUnit } from "../lib/recipe-line";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import type { BatchLink } from "./batch-link-picker";
 import { useFeedStock } from "../hooks/use-feed";
 import { useFeedItemPagedList } from "@/features/inventory/hooks/use-inventory";

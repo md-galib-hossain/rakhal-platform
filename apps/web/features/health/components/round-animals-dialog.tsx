@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { FormSheet } from "@/components/shared/form-sheet";
 import { Button } from "@rakhal/ui/ui/button";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { useAddRoundAnimals } from "../hooks/use-health";
 import type { AddRoundAnimalsResult, ProtocolRound } from "../types";
 import { AnimalMultiPicker, type PickedAnimal } from "./animal-multi-picker";

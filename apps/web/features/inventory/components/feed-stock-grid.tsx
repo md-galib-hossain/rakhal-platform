@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { CalendarDays, Coins, Package, Scale, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { Can } from "@/lib/auth/permissions";
 import { Progress } from "@/components/ui/progress";
 import { DateText } from "@/components/shared/date-text";

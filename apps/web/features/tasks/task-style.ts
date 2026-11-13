@@ -1,5 +1,5 @@
 import type { TaskCategory, TaskDisplayStatus, TaskPriority } from "./types";
-import type { ChipProps } from "@/components/ui/chip";
+import type { ChipProps } from "@rakhal/ui/ui/chip";
 
 /** Priority → `Chip` color, matching Figma's tinted "Subtle" priority pill exactly (High=rose,
  * Medium=amber, Low=green — 1039:48550/48730). */

@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@rakhal/ui/ui/button";
 import { Input } from "@/components/ui/input";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { cn } from "@/lib/utils";
 
 export type FilterSelectionMode = "single" | "multi";

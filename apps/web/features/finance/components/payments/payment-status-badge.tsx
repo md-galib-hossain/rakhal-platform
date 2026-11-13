@@ -1,7 +1,7 @@
 "use client"; // reads next-intl translations
 
 import { useTranslations } from "next-intl";
-import { Chip, type ChipProps } from "@/components/ui/chip";
+import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
 import type { SettlementStatusV2 } from "../../types-v2";
 
 const STATUS_VARIANT: Record<SettlementStatusV2, ChipProps["variant"]> = {

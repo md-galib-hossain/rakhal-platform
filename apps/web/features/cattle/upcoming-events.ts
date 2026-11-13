@@ -1,4 +1,4 @@
-import type { ChipProps } from "@/components/ui/chip";
+import type { ChipProps } from "@rakhal/ui/ui/chip";
 import type { UpcomingEvent } from "./types";
 
 /** Pure display helpers for the Animals list "Next event" column (RFE-151, MILESTONE 30). The server

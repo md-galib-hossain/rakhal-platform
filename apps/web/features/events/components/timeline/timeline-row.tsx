@@ -25,7 +25,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { DateText } from "@/components/shared/date-text";
 import { TYPE_GROUP, type TimelineEvent, type TimelineEventType, type TimelineGroup } from "../../timeline-model";
 import { formatEventSummary, safeText } from "../../forms/summary";

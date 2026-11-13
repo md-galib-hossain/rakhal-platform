@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { ArrowRightToLine, CalendarDays, Coins, Droplet, Package, Wheat } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@rakhal/ui/ui/button";
-import { Chip } from "@/components/ui/chip";
+import { Chip } from "@rakhal/ui/ui/chip";
 import { StatCard } from "@/components/shared/stat-card";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";

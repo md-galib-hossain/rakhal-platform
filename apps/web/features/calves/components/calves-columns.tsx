@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Check, Mars, Venus, X } from "lucide-react";
-import { Chip, type ChipProps } from "@/components/ui/chip";
+import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
 import { DateText } from "@/components/shared/date-text";
 import { AnimalLink } from "@/components/shared/animal-link";
 import type { CalfListItem, CalfStage } from "../types";

@@ -1,4 +1,4 @@
-import type { ChipProps } from "@/components/ui/chip";
+import type { ChipProps } from "@rakhal/ui/ui/chip";
 import type { Locale } from "@/lib/constants/i18n";
 import type { HealthCondition, HealthPriority } from "./types";
 
