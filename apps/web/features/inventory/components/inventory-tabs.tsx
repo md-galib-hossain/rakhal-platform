@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
 import { Box, LayoutGrid, List } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
 import { INVENTORY_TABS, type InventoryTabKey } from "../types";
 
 const TAB_KEYS = INVENTORY_TABS.map((t) => t.key) as [InventoryTabKey, ...InventoryTabKey[]];

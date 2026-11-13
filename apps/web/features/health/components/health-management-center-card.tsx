@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { createParser, useQueryState } from "nuqs";
 import { Stethoscope, Syringe } from "lucide-react";
 import { Button } from "@rakhal/ui/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
 import { HEALTH_MANAGEMENT_TABS, type HealthManagementTab } from "../types";
 import { TreatmentsTab } from "./treatments-tab";
 import { HealthPlanTab } from "./health-plan-tab";

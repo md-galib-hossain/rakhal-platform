@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringEnum, useQueryState } from "nuqs";
 import { cn } from "@/lib/utils";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
 import { Pagination } from "@/components/shared/pagination";
 import { SickBayTable } from "./sick-bay-table";
 import { SafetyWithdrawalSection } from "./safety-withdrawal-tab";

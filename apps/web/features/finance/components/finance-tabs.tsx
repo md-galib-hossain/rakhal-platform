@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
 import { ArrowDownToLine, ArrowUpFromLine, BarChart3, LayoutDashboard, Receipt, Wallet } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
 import { FINANCE_TABS, type FinanceTabKey } from "../types";
 
 const TAB_KEYS = FINANCE_TABS.map((t) => t.key) as [FinanceTabKey, ...FinanceTabKey[]];

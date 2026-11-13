@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
 import { LayoutDashboard, Receipt, Store, Truck } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
 import { BuyersView } from "@/features/buyers/components/buyers-view";
 import { SalesOverviewView } from "./overview/sales-overview-view";
 import { InvoicesView } from "./invoices/invoices-view";
