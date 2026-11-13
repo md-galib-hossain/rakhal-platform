@@ -25,6 +25,30 @@ possible and mechanical. The consumer app must not regress while it happens.
 | 5 (needs a seam) | `data-table`, `filter-bar`, `form-sheet`, `bulk-action-dock`, `infinite-scroll-footer`, date pickers, `money-*` | depend on `nuqs` / `next-intl` / `lib/format`: inject labels/formatters through props or a small context first |
 | never | `cattle-picker`, `animal-link`, `payment-method-picker`, `org-switcher`, `notification-bell`, `global-search`, `user-menu`, landing page | domain or app-shell coupled |
 
+### Status
+
+- **Wave 1: done (2026-11-13).** All ten components now come from `@rakhal/ui`; no local copy is left in
+  `apps/web/components/ui`. Plumbing: [#2](https://github.com/md-galib-hossain/rakhal-platform/pull/2)
+  (workspace dependency, `transpilePackages`, Tailwind `@source`, shared `--font-sans`). Per component:
+  skeleton [#3](https://github.com/md-galib-hossain/rakhal-platform/pull/3),
+  card [#4](https://github.com/md-galib-hossain/rakhal-platform/pull/4),
+  badge [#5](https://github.com/md-galib-hossain/rakhal-platform/pull/5),
+  label [#6](https://github.com/md-galib-hossain/rakhal-platform/pull/6),
+  textarea [#7](https://github.com/md-galib-hossain/rakhal-platform/pull/7),
+  switch [#9](https://github.com/md-galib-hossain/rakhal-platform/pull/9),
+  checkbox [#10](https://github.com/md-galib-hossain/rakhal-platform/pull/10),
+  radio-group [#11](https://github.com/md-galib-hossain/rakhal-platform/pull/11),
+  button [#12](https://github.com/md-galib-hossain/rakhal-platform/pull/12),
+  separator (delete-only) [#13](https://github.com/md-galib-hossain/rakhal-platform/pull/13).
+  Gate screens for switch, checkbox and radio-group were added first in
+  [#8](https://github.com/md-galib-hossain/rakhal-platform/pull/8) (28 to 36 screenshots). Details:
+  `M3-wave1-diff-2026-11-12.md`.
+- Lessons: overlapping import lines make open dedupe PRs conflict, so land them one at a time; relative sibling
+  imports (`./button`) are not caught by an `@/components/ui/x` rewrite, so grep for them;
+  `@radix-ui/react-separator` is still declared in `apps/web/package.json` and is now unused (remove in a
+  dependency-cleanup PR).
+- **Wave 2: analysis done**, proposal awaiting owner approval: `M3-wave2-diff-2026-11-13.md`.
+
 The admin app has already diverged from the original copy in some places (shell, `detail-list`, list
 components). Those admin-specific components stay in `apps/admin` unless a second consumer appears.
 
