@@ -19,6 +19,14 @@ import { RetryJobDto } from '../dto/admin-config.dto';
 import { AdminIpAllowlistGuard } from '../guards/admin-ip-allowlist.guard';
 import { AdminPermissionGuard } from '../guards/admin-permission.guard';
 import { PlatformAdminGuard } from '../guards/platform-admin.guard';
+import { ApiEnvelopeResponse } from 'src/common/swagger/api-envelope';
+import {
+  AdminEmailStatusResponseDto,
+  AdminFailedJobsResponseDto,
+  AdminIntegrationsResponseDto,
+  AdminQueuesResponseDto,
+  AdminRetryJobResponseDto,
+} from '../dto/admin-ops-response.dto';
 
 /**
  * Phase 5 reliability visibility: queues + failed jobs (one audited retry), email delivery status and
@@ -33,12 +41,14 @@ export class AdminOpsController {
   constructor(private readonly ops: AdminOpsService) {}
 
   @Get('queues')
+  @ApiEnvelopeResponse(AdminQueuesResponseDto)
   @RequireAdminPermission('system.read')
   queues() {
     return this.ops.listQueues();
   }
 
   @Get('queues/:name/failed')
+  @ApiEnvelopeResponse(AdminFailedJobsResponseDto)
   @RequireAdminPermission('system.read')
   failed(
     @Param('name') name: string,
@@ -48,6 +58,7 @@ export class AdminOpsController {
   }
 
   @Post('queues/:name/failed/:jobId/retry')
+  @ApiEnvelopeResponse(AdminRetryJobResponseDto)
   @HttpCode(200)
   @RequireAdminPermission('system.manage')
   retry(
@@ -60,12 +71,14 @@ export class AdminOpsController {
   }
 
   @Get('email-status')
+  @ApiEnvelopeResponse(AdminEmailStatusResponseDto)
   @RequireAdminPermission('system.read')
   emailStatus() {
     return this.ops.emailStatus();
   }
 
   @Get('integrations')
+  @ApiEnvelopeResponse(AdminIntegrationsResponseDto)
   @RequireAdminPermission('system.read')
   integrations() {
     return this.ops.integrations();

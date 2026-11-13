@@ -408,6 +408,81 @@
         ],
         "type": "object"
       },
+      "AdminEmailFailureDto": {
+        "properties": {
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "retries": {
+            "type": "number"
+          },
+          "template": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EmailTemplate"
+              }
+            ]
+          },
+          "to": {
+            "description": "Masked recipient address.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "to",
+          "template",
+          "retries",
+          "error",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "AdminEmailStatusResponseDto": {
+        "properties": {
+          "last24h": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Email counts by status.",
+            "type": "object"
+          },
+          "last7d": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Email counts by status.",
+            "type": "object"
+          },
+          "provider": {
+            "enum": [
+              "resend",
+              "smtp"
+            ],
+            "type": "string"
+          },
+          "recentFailures": {
+            "items": {
+              "$ref": "#/components/schemas/AdminEmailFailureDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "provider",
+          "last24h",
+          "last7d",
+          "recentFailures"
+        ],
+        "type": "object"
+      },
       "AdminEnableTwoFactorDto": {
         "properties": {
           "code": {
@@ -417,6 +492,60 @@
         },
         "required": [
           "code"
+        ],
+        "type": "object"
+      },
+      "AdminFailedJobDto": {
+        "properties": {
+          "attemptsMade": {
+            "type": "number"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "failedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "failedReason": {
+            "type": "string"
+          },
+          "id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "attemptsMade",
+          "failedReason",
+          "failedAt",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "AdminFailedJobsResponseDto": {
+        "properties": {
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/AdminFailedJobDto"
+            },
+            "type": "array"
+          },
+          "queue": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "queue",
+          "jobs"
         ],
         "type": "object"
       },
@@ -819,6 +948,59 @@
         "required": [
           "key",
           "deleted"
+        ],
+        "type": "object"
+      },
+      "AdminIntegrationCheckDto": {
+        "properties": {
+          "detail": {
+            "description": "Human detail. Never contains a credential or configured value.",
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "latencyMs": {
+            "type": "number"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "degraded",
+              "down",
+              "not_configured",
+              "info"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "status",
+          "detail"
+        ],
+        "type": "object"
+      },
+      "AdminIntegrationsResponseDto": {
+        "properties": {
+          "checkedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminIntegrationCheckDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "checkedAt",
+          "items"
         ],
         "type": "object"
       },
@@ -1467,6 +1649,48 @@
         ],
         "type": "object"
       },
+      "AdminQueueDto": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "Job counts by state (waiting, active, failed, ...).",
+            "type": "object"
+          },
+          "name": {
+            "type": "string"
+          },
+          "paused": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "paused",
+          "counts"
+        ],
+        "type": "object"
+      },
+      "AdminQueuesResponseDto": {
+        "properties": {
+          "checkedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "queues": {
+            "items": {
+              "$ref": "#/components/schemas/AdminQueueDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "checkedAt",
+          "queues"
+        ],
+        "type": "object"
+      },
       "AdminReferralCommissionDto": {
         "properties": {
           "amount": {
@@ -1549,6 +1773,25 @@
           "accessToken",
           "refreshToken",
           "sessionId"
+        ],
+        "type": "object"
+      },
+      "AdminRetryJobResponseDto": {
+        "properties": {
+          "jobId": {
+            "type": "string"
+          },
+          "queue": {
+            "type": "string"
+          },
+          "retried": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "queue",
+          "jobId",
+          "retried"
         ],
         "type": "object"
       },
@@ -6073,6 +6316,22 @@
           }
         },
         "type": "object"
+      },
+      "EmailTemplate": {
+        "enum": [
+          "WELCOME_EMAIL",
+          "EMAIL_VERIFICATION",
+          "PASSWORD_RESET",
+          "VACCINATION_REMINDER",
+          "SUBSCRIPTION_EXPIRY",
+          "PAYMENT_RECEIPT",
+          "PAYMENT_FAILED",
+          "SUBSCRIPTION_RENEWAL",
+          "FARM_REPORT",
+          "OTP_VERIFICATION",
+          "TEAM_INVITE"
+        ],
+        "type": "string"
       },
       "EquipmentResponseDto": {
         "properties": {
