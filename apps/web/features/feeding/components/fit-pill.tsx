@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { AlertCircle, AlertTriangle, Check, Info } from "lucide-react";
 import { Can } from "@/lib/auth/permissions";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { FeedFitSeverity, FeedGridProgramCowFields } from "../../feed/plans-types";

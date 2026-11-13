@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { ArrowRight, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/lib/auth/permissions";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";

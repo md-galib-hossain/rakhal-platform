@@ -5,7 +5,7 @@ import { AlertTriangle, Check, Skull } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { WS_CARD } from "../workspace/workspace-grid";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { Chip } from "@/components/ui/chip";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";

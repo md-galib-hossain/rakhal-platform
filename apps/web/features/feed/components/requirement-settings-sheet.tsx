@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { RotateCcw, SlidersHorizontal } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

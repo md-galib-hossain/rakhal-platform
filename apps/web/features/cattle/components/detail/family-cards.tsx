@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Baby, Dna, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@rakhal/ui/ui/badge";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useCattleDetailModal } from "../../context/cattle-detail-modal-context";
 import type { CattlePedigree } from "../../detail-types";
