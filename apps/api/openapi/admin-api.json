@@ -1352,6 +1352,77 @@
         ],
         "type": "object"
       },
+      "AdminFeedbackDto": {
+        "properties": {
+          "admin_note": {
+            "nullable": true,
+            "type": "string"
+          },
+          "category": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SupportCategory"
+              }
+            ]
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "farm_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "resolved_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
+          "resolved_by_admin_id": {
+            "nullable": true,
+            "type": "string"
+          },
+          "screenshot": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MediaUrlsDto"
+              }
+            ],
+            "description": "Signed screenshot URLs; null when none was attached or the asset is gone.",
+            "nullable": true,
+            "type": "object"
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FeedbackStatus"
+              }
+            ]
+          },
+          "user_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "farm_id",
+          "user_id",
+          "category",
+          "message",
+          "status",
+          "admin_note",
+          "screenshot",
+          "resolved_by_admin_id",
+          "resolved_at",
+          "created_at"
+        ],
+        "type": "object"
+      },
       "AdminFlagDeletedResponseDto": {
         "properties": {
           "deleted": {
@@ -11583,6 +11654,15 @@
         "enum": [
           "INDIVIDUAL",
           "HERD"
+        ],
+        "type": "string"
+      },
+      "FeedbackStatus": {
+        "enum": [
+          "OPEN",
+          "IN_REVIEW",
+          "RESOLVED",
+          "CLOSED"
         ],
         "type": "string"
       },
@@ -22237,6 +22317,16 @@
         ],
         "type": "object"
       },
+      "SupportCategory": {
+        "enum": [
+          "BUG",
+          "FEATURE_REQUEST",
+          "QUESTION",
+          "BILLING",
+          "OTHER"
+        ],
+        "type": "string"
+      },
       "TargetSex": {
         "enum": [
           "FEMALE",
@@ -27120,7 +27210,32 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "items": {
+                        "$ref": "#/components/schemas/AdminFeedbackDto"
+                      },
+                      "type": "array"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Newest first, capped at 200 rows (not cursor-paginated)."
           }
         },
         "security": [
@@ -27158,6 +27273,28 @@
         },
         "responses": {
           "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/AdminFeedbackDto"
+                    },
+                    "success": {
+                      "enum": [
+                        true
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "data"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
             "description": ""
           }
         },
