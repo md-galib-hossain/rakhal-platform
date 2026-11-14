@@ -10,7 +10,7 @@ import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { Pagination } from "@/components/shared/pagination";
-import { RowActionsMenu } from "@/components/shared/row-actions-menu";
+import { RowActionsMenu } from "@rakhal/ui/shared/row-actions-menu";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { useCan } from "@/lib/auth/permissions";
 import { ApiError } from "@/lib/api/errors";

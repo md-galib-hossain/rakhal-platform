@@ -10,7 +10,7 @@ import { Chip } from "@rakhal/ui/ui/chip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@rakhal/ui/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
-import { RowActionsMenu, type RowAction } from "@/components/shared/row-actions-menu";
+import { RowActionsMenu, type RowAction } from "@rakhal/ui/shared/row-actions-menu";
 import { useActiveLactation } from "@/features/reproduction/hooks/use-reproduction";
 import { openRemindMe } from "@/features/notifications/sheet-store";
 import { useMilkEligibility } from "@/features/milk/hooks/use-milk";

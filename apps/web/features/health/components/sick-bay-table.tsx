@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { RowActionsMenu } from "@/components/shared/row-actions-menu";
+import { RowActionsMenu } from "@rakhal/ui/shared/row-actions-menu";
 import { useCan } from "@/lib/auth/permissions";
 import { ApiError } from "@/lib/api/errors";
 import { Avatar, AvatarFallback, AvatarImage } from "@rakhal/ui/ui/avatar";

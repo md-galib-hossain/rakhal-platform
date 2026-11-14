@@ -1,7 +1,7 @@
 "use client"; // row actions
 
 import { useTranslations } from "next-intl";
-import { RowActionsMenu } from "@/components/shared/row-actions-menu";
+import { RowActionsMenu } from "@rakhal/ui/shared/row-actions-menu";
 import { useCan } from "@/lib/auth/permissions";
 import { Avatar, AvatarFallback, AvatarImage } from "@rakhal/ui/ui/avatar";
 import { Button } from "@rakhal/ui/ui/button";
