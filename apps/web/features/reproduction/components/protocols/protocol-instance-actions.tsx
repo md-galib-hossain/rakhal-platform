@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Ban, ListChecks, MoreHorizontal } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { useCan } from "@/lib/auth/permissions";
-import { FormSheet } from "@/components/shared/form-sheet";
+import { FormSheet } from "@rakhal/ui/shared/form-sheet";
 import { Button } from "@rakhal/ui/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@rakhal/ui/ui/dropdown-menu";
 import { Label } from "@rakhal/ui/ui/label";

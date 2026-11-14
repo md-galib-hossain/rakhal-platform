@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { CattlePicker } from "@/components/shared/cattle-picker";
-import { FormSheet } from "@/components/shared/form-sheet";
+import { FormSheet } from "@rakhal/ui/shared/form-sheet";
 import { useCattleDetail } from "@/features/cattle/hooks/use-cattle";
 import { EventFormPanel } from "@/features/events/components/form/event-form-panel";
 import type { EventKey } from "@/features/events/types";

@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormSheet } from "@/components/shared/form-sheet";
+import { FormSheet } from "@rakhal/ui/shared/form-sheet";
 import { Label } from "@rakhal/ui/ui/label";
 import { Input } from "@rakhal/ui/ui/input";
 import { useRecordWeight } from "../../hooks/use-calves";

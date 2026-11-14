@@ -1,7 +1,7 @@
 import { ArrowRightToLine } from "lucide-react";
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@rakhal/ui/ui/sheet";
-import { Button } from "@rakhal/ui/ui/button";
-import { cn } from "@/lib/utils";
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from "../ui/sheet";
+import { Button } from "../ui/button";
+import { cn } from "../../lib/utils";
 
 export interface FormSheetProps {
   open: boolean;
