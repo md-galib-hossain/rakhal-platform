@@ -5,8 +5,8 @@ import { useTranslations } from "next-intl";
 import { parseAsString, parseAsStringEnum, useQueryState } from "nuqs";
 import {
   DrilldownFilterBar,
-} from "@/components/shared/drilldown-filter-bar";
-import type { FilterCategoryConfig } from "@/components/shared/drilldown-filter-popover";
+} from "@rakhal/ui/shared/drilldown-filter-bar";
+import type { FilterCategoryConfig } from "@rakhal/ui/shared/drilldown-filter-popover";
 import { useSheds } from "@/features/cattle/hooks/use-cattle";
 import { useHealthDashboard } from "../hooks/use-health";
 import { SICK_BAY_VIEWS, type SickBayView } from "../types";
