@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Button } from "@rakhal/ui/ui/button";
-import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
+import { Button } from "../ui/button";
+import { ConfirmDialog } from "./confirm-dialog";
 
 export interface BulkAction {
   key: string;

@@ -12,7 +12,7 @@ import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
-import { BulkActionDock } from "@/components/shared/bulk-action-dock";
+import { BulkActionDock } from "@rakhal/ui/shared/bulk-action-dock";
 import { Can } from "@/lib/auth/permissions";
 import { useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
 import {
