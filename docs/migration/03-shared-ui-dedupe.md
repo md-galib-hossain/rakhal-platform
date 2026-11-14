@@ -118,10 +118,19 @@ possible and mechanical. The consumer app must not regress while it happens.
   not just added a new consumer; flag this explicitly in the PR body when it applies. No admin-side visual
   gate exists, so a pure-CSS admin change is unverified by anything beyond build/typecheck/test passing — this
   is a known, accepted gap for this migration, not a blocker.
-- **`pagination` deferred**: no shared copy exists yet and it imports `PAGE_SIZE_OPTIONS` from a `lib/*` hook
-  (`@/lib/hooks/use-cursor-pager`), making it ineligible as-is per principle 5. Not gate-covered either way, so
-  there is no urgency; revisit alongside wave 5's `lib/format`/`nuqs`-coupled components, or sooner if an owner
-  decision says otherwise.
+- **`pagination`: done** [#55](https://github.com/md-galib-hossain/rakhal-platform/pull/55). Resolved the
+  `lib/*` blocker (it imported `PAGE_SIZE_OPTIONS` from `@/lib/hooks/use-cursor-pager`) by giving the shared
+  copy its own default page-size array literal instead, keeping `pageSizeOptions` a caller-overridable prop.
+  No admin consumer; not gate-covered, same fallback as wave 2's `timeline`/`sonner` (full unit-test suite +
+  byte-identical logic otherwise). This closes wave 3 completely — all 12 `shared/*` components now come from
+  `@rakhal/ui`.
+- **Wave 5**: analysis done (2026-11-14), proposal awaiting owner approval (3 decisions needed — a locale
+  seam for `money-text`/`money-input`/the date pickers, a labels seam for `infinite-scroll-footer`, and
+  whether `filter-bar`/`data-table`'s `nuqs` coupling is worth resolving now or deferred): see
+  `M3-wave5-diff-2026-11-14.md`. 3 of 11 components (`bulk-action-dock`, `form-sheet`,
+  `drilldown-filter-bar`/`drilldown-filter-popover`) are already eligible with no seam needed. No admin
+  consumer exists for any of the 11 — zero admin-impact risk this wave, unlike wave 3. No component PRs
+  started.
 
 The admin app has already diverged from the original copy in some places (shell, `detail-list`, list
 components). Those admin-specific components stay in `apps/admin` unless a second consumer appears.
