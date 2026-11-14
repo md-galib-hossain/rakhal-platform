@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # No `version:` here: package.json's "packageManager" (pnpm@10.0.0) is the single source. Giving both makes
+      # No `version:` here: package.json's "packageManager" (pnpm@11.9.0) is the single source. Giving both makes
       # the action fail with "Multiple versions of pnpm specified" before any step runs.
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
