@@ -4,7 +4,7 @@
 
 - **Frontend repo:** GitHub Actions CI (lint, typecheck, test, build, Lighthouse). Deploys by hand per the
   runbook (`git pull --ff-only`, `pnpm build`, `pm2 reload rakhal-web`).
-- **Backend repo:** no CI workflow. Deploys by hand (`migrate deploy`, `pnpm build`, `pm2 reload rakhal-api`).
+- **Backend:** now `apps/api` with CI (`api.yml`). Deploys by hand (`migrate deploy`, `pnpm build`, `pm2 reload rakhal-api`); the monorepo deploy is in [07](07-api-deploy-from-monorepo.md).
 - **Monorepo:** `.github/workflows/ci.yml` runs `turbo run lint typecheck test` then `build`.
 - Production is a single VPS behind nginx; PM2 runs `rakhal-web` and `rakhal-api`. The admin app is **not yet
   deployed anywhere** (`apps/admin`, port 3010, intended host `admin.rakhal.com`).
@@ -29,7 +29,7 @@ The deployable units do not change. What changes is *where the build comes from*
 | Unit | Process | Port | Built from | Notes |
 |---|---|---|---|---|
 | web | `rakhal-web` | as today | `apps/web` | `pnpm --filter @rakhal/web build` |
-| api | `rakhal-api` | as today | old repo until M6 | unchanged until the optional backend move |
+| api | `rakhal-api` | as today | `apps/api` (code moved 2026-11-14); server still runs the old checkout until the cutover in [07](07-api-deploy-from-monorepo.md) | same process name and port; only `cwd` changes |
 | admin | `rakhal-admin` (new) | 3010 | `apps/admin` | host `admin.rakhal.com`, nginx IP allowlist, `ADMIN_API_BASE_URL` server-side only |
 
 Use the **release-folder pattern** from infra doc 14, Phase 2: build into

@@ -34,6 +34,7 @@ The aim is *one* place for web code and shared packages, with the deployable uni
 | 04 | [CI, deploy, cutover](04-ci-deploy-cutover.md) | How do three apps deploy from one repo, and how is cutover rolled back? |
 | 05 | [Risks and gates](05-risks-and-gates.md) | What must be true before each step, and what can go wrong? |
 | 06 | [Mobile track](06-mobile-track.md) | How does the Expo app get built in this repo, in parallel with M1-M5? |
+| 07 | [API deploy from the monorepo](07-api-deploy-from-monorepo.md) | How does `rakhal-api` run from `apps/api` on the VPS, and how do we roll back? |
 | ADR-004 | [Migration strategy](../decisions/ADR-004-migration-strategy.md) | The decisions, with alternatives. |
 | ADR-005 | [Mobile app in monorepo](../decisions/ADR-005-mobile-app-in-monorepo.md) | React Native + Expo, versions, sharing rules, offline. |
 
