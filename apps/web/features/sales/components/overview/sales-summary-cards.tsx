@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { AlertCircle, Receipt, ShoppingCart, Wallet } from "lucide-react";
-import { StatCard } from "@/components/shared/stat-card";
+import { StatCard } from "@rakhal/ui/shared/stat-card";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Card } from "@rakhal/ui/ui/card";

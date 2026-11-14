@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { AlertTriangle, CalendarClock, Utensils } from "lucide-react";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { StatCard } from "@/components/shared/stat-card";
+import { StatCard } from "@rakhal/ui/shared/stat-card";
 import { useCalvesPagedList } from "../hooks/use-calves";
 
 /** Three headline KPIs (RFE-033, no Figma frame) from `GET /calves`'s `meta.kpis` — tile grid/icon-chip
