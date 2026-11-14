@@ -17,6 +17,12 @@ allowBuilds:
   msgpackr-extract: true
   # Native resolver used by eslint tooling.
   unrs-resolver: true
+  # Optional file watcher (nest --watch falls back to fs.watch).
+  '@parcel/watcher': false
+  # Native binary comes from optional deps; install script not needed.
+  '@swc/core': false
+  # Prebuilt binaries via optional deps (same as pnpm 10, which skipped this script).
+  sharp: false
 
 # RD-143 (2026-11-11): patch vulnerable transitive dependencies without waiting for their parents to release.
 # Each pin is the lowest version that fixes every open advisory for that package line. Revisit and delete a pin
