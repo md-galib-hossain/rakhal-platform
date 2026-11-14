@@ -10,7 +10,7 @@ import { CalendarClock, RotateCcw, X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { FormSheet } from "@/components/shared/form-sheet";
 import { CattleMultiPicker, type CattleOption } from "@/components/shared/cattle-picker";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { Label } from "@rakhal/ui/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { Button } from "@rakhal/ui/ui/button";

@@ -20,7 +20,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@rakhal/ui/ui/dialog";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { Can } from "@/lib/auth/permissions";

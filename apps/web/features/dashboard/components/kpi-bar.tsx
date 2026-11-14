@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowDown, ArrowUp, DollarSign, Droplets, HeartPulse, Wallet } from "lucide-react";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { formatMoney, formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";

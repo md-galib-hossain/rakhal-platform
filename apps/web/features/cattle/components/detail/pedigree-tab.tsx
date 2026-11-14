@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@rakhal/ui/ui/button";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { FamilyCards } from "./family-cards";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";

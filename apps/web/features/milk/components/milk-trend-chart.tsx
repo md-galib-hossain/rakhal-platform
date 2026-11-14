@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { ChartCard } from "@/components/shared/chart-card";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { useMilkOverview } from "../hooks/use-milk";
 import type { MilkTrendRange } from "../types";

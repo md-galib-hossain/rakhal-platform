@@ -9,7 +9,7 @@ import { Utensils, Wheat } from "lucide-react";
 import { Card } from "@rakhal/ui/ui/card";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@rakhal/ui/ui/button";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { Can } from "@/lib/auth/permissions";

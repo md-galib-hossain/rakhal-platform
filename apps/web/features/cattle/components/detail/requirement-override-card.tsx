@@ -22,7 +22,7 @@ import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import { Switch } from "@rakhal/ui/ui/switch";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Can } from "@/lib/auth/permissions";
