@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { CalendarClock, RotateCcw, X } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
-import { FormSheet } from "@/components/shared/form-sheet";
+import { FormSheet } from "@rakhal/ui/shared/form-sheet";
 import { CattleMultiPicker, type CattleOption } from "@/components/shared/cattle-picker";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { Label } from "@rakhal/ui/ui/label";

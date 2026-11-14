@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { FormSheet } from "@/components/shared/form-sheet";
+import { FormSheet } from "@rakhal/ui/shared/form-sheet";
 import { Label } from "@rakhal/ui/ui/label";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
