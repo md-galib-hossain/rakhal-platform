@@ -9,7 +9,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { useResyncFeedBatchNutrition, useRevertFeedBatchNutrition } from "../hooks/use-inventory";
 import { OPTIONAL_NUTRIENT_KEYS, type FeedItem, type FeedItemBatch } from "../types";
 import { FeedBatchNutritionDialog } from "./feed-batch-nutrition-dialog";

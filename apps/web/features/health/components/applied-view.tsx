@@ -5,7 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { ChevronRight, Undo2, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { cn } from "@/lib/utils";
 import { useCan } from "@/lib/auth/permissions";
 import { Button } from "@rakhal/ui/ui/button";

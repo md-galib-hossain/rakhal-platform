@@ -12,7 +12,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { DateText } from "@/components/shared/date-text";
 import { ErrorState } from "@/components/shared/error-state";
 import { useCancelAnimalProtocol, useCattleProtocols, useSkipTask, useStopCattleProtocol } from "../hooks/use-health";

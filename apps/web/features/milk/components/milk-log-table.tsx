@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { TruncatedText } from "@/components/shared/truncated-text";
 import { Can, useCan } from "@/lib/auth/permissions";

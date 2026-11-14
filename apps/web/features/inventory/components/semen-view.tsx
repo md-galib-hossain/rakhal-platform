@@ -9,7 +9,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Input } from "@rakhal/ui/ui/input";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { useArchiveSemenBatch, useSemenBatchInfiniteList, useSemenTanks } from "../hooks/use-inventory";
 import { SemenTankCard } from "./semen-tank-card";

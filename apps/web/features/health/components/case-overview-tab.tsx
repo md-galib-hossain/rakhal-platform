@@ -8,7 +8,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { useCan } from "@/lib/auth/permissions";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { useVoidTreatment } from "../hooks/use-health";
 import { buildCaseEvents, suggestNext } from "../case-events";
 import type { CaseManageTab, HealthCaseDetail } from "../types";

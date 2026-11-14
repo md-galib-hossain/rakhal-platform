@@ -23,7 +23,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import { Switch } from "@rakhal/ui/ui/switch";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { ErrorState } from "@/components/shared/error-state";
 import { Can } from "@/lib/auth/permissions";
 import { useRequirementOverride, useTurnOffRequirementOverride } from "@/features/feed/hooks/use-requirement-override";

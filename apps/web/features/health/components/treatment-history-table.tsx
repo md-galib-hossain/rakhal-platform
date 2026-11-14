@@ -11,7 +11,7 @@ import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { Pagination } from "@/components/shared/pagination";
 import { RowActionsMenu } from "@/components/shared/row-actions-menu";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { useCan } from "@/lib/auth/permissions";
 import { ApiError } from "@/lib/api/errors";
 import { formatDateTime } from "@/lib/format";

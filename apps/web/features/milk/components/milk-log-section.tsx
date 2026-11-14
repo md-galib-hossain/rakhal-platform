@@ -11,7 +11,7 @@ import { Table, TableBody } from "@rakhal/ui/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@/components/shared/error-state";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { useMilkLogCalendar, useMilkLogTable } from "../hooks/use-milk";
 import { MilkCard } from "./milk-card";
 import { MilkLogTable } from "./milk-log-table";
