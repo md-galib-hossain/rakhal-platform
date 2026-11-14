@@ -47,7 +47,7 @@ The aim is *one* place for web code and shared packages, with the deployable uni
 | M3 | Shared UI dedupe, one component per PR, visual-regression gated | yes (per PR) | no |
 | M4 | Generate API types from the backend's OpenAPI into `@rakhal/admin-api-client` and a consumer client | yes | no |
 | M5 | Cutover: production web deploys from the monorepo | rollback runbook, tested first | **yes** |
-| M6 | Backend import (`apps/api`) - **optional, decide after M5** | yes until deploy moves | **yes** |
+| M6 | Backend import (`apps/api`) - **DONE 2026-11-14 (code on `main`, PR #51); owner pulled it ahead of M5. Deploy not moved yet.** See [M6 rehearsal](M6-rehearsal-2026-11-14.md) | yes until deploy moves | yes (given) |
 | M7 | Retire old repos (archive, never delete) after one full release cycle | archive is reversible | **yes** |
 
 Rough effort (no dates, per the plan's rule): M0 S, M1 M, M2 M, M3 L (many small PRs), M4 M, M5 M, M6 L, M7 S.

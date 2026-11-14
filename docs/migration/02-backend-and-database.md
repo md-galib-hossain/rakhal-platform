@@ -42,7 +42,7 @@ If M6 is later chosen, the safe version is below.
 3. `apps/web` migrates feature by feature from hand-written `types.ts` to generated types. Each feature is its
    own PR; the old type file is deleted only when nothing imports it.
 
-## M6 - Backend into `apps/api` (wanted after V1, still gated; rehearsed 2026-11-14)
+## M6 - Backend into `apps/api` (code merged to main 2026-11-14 by owner decision; deploy not moved)
 
 Only after M5 + one release cycle, and only with the owner's explicit go-ahead.
 
