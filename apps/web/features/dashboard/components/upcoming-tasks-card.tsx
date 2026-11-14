@@ -9,7 +9,7 @@ import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 import { useUpcomingTasks } from "../hooks/use-dashboard-widgets";
 import type { UpcomingTaskItem } from "../types";
 import { DashboardCard } from "./dashboard-card";

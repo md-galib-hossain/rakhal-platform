@@ -8,7 +8,7 @@ import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { useCattleDetailModal } from "@/features/cattle/context/cattle-detail-modal-context";
 import { useCalvingForecast } from "../hooks/use-dashboard-widgets";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 import { DashboardCard } from "./dashboard-card";
 
 export function CalvingForecastCard() {

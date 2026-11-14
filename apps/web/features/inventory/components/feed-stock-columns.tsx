@@ -10,7 +10,7 @@ import { MoneyText } from "@/components/shared/money-text";
 import { avatarTint } from "../avatar-tint";
 import type { FeedConcentrationKind, FeedStock } from "@/features/feed/types";
 import { costPerKg, remainingStatus, REMAINING_STOCK_COLOR } from "./feed-stock-metrics";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 export interface FeedStockSource {
   name: string;

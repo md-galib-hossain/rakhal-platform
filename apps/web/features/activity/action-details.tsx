@@ -1,5 +1,5 @@
 import { Chip } from "@rakhal/ui/ui/chip";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 /**
  * `actionDetails` strings wrap "chip-worthy" tokens in `[brackets]` — the real convention every

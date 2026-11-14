@@ -9,7 +9,7 @@ import { avatarTint } from "../avatar-tint";
 import { EquipmentRowActions } from "./equipment-row-actions";
 import { StockStatusIcon } from "./stock-status-icon";
 import type { Equipment } from "../types";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 /**
  * Column set matched to the Figma "Inventory - Other - Table View" frame (732:23402): No. / Item

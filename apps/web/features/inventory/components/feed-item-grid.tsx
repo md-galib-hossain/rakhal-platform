@@ -13,7 +13,7 @@ import { avatarTint } from "../avatar-tint";
 import { feedCategoryLabel } from "../feed-category";
 import { FeedItemRowActions } from "./feed-item-row-actions";
 import type { FeedItem } from "../types";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 const STOCK_COLOR: Record<FeedItem["stockStatus"], string> = {
   adequate: "text-success",

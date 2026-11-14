@@ -14,7 +14,7 @@ import {
   type StockInfo,
 } from "../grid-model";
 import { FeedSourcePicker, type PreparedOption } from "./feed-source-picker";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 const fmt = (n: number) => (Math.round(n * 100) / 100).toString();
 

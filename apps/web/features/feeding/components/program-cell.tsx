@@ -11,7 +11,7 @@ import { useCattleProgram, useRemoveFeedAssignment } from "../../feed/hooks/use-
 import type { ApplyTarget } from "../../feed/components/plans/apply-plan-dialog";
 import type { FeedGridSection } from "../../feed/plans-types";
 import { ProgramPicker } from "./program-picker";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 /**
  * A cow's program, right under her name: the plan she is on (click to change it to another plan / TMR / concentrate),

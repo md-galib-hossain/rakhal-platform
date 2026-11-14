@@ -8,7 +8,7 @@ import { avatarTint } from "../avatar-tint";
 import { MedicineRowActions } from "./medicine-row-actions";
 import { StockStatusIcon } from "./stock-status-icon";
 import type { Medicine } from "../types";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 /**
  * Column set matched to the Figma "Inventory - Medicine - Table View" frame (732:12409): No. /

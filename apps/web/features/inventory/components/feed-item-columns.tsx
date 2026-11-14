@@ -10,7 +10,7 @@ import { feedCategoryLabel } from "../feed-category";
 import { FeedItemRowActions } from "./feed-item-row-actions";
 import { StockStatusIcon } from "./stock-status-icon";
 import type { FeedItem } from "../types";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 /**
  * Column set matched to the Figma "Inventory - Forage - Table View" frame (732:12950): No. / Feed

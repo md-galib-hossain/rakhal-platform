@@ -16,7 +16,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { AnimalLink } from "@/components/shared/animal-link";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 import { Can, useCan } from "@/lib/auth/permissions";
 import { useMilkTanks } from "@/features/inventory/hooks/use-inventory";
 import { MilkTankFormDialog } from "@/features/inventory/components/milk-tank-form-dialog";

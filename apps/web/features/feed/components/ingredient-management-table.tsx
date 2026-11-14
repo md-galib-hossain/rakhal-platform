@@ -27,7 +27,7 @@ import {
 } from "../hooks/use-feed";
 import { IngredientFilters } from "./ingredient-filters";
 import type { CreateCustomIngredientPayload, FeedClass, FeedIngredient, SetFeedOverridePayload } from "../types";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 const numberField = { setValueAs: (v: string) => (v === "" ? undefined : Number(v)) };
 

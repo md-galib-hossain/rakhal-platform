@@ -9,7 +9,7 @@ import { avatarTint, initials } from "../avatar-tint";
 import { DISPLAY_STATUS_CHIP_VARIANT, PRIORITY_CHIP_VARIANT } from "../task-style";
 import { LACTATION_ALERT_ICON, lactationAlertSeverity, parseLactationAlert } from "../lactation-alert";
 import type { Task, TaskPriority } from "../types";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 /** Cow label — reuses the tag/name convention of the rest of the app. */
 function cattleLabel(c: { tagNumber: string; name: string | null }) {

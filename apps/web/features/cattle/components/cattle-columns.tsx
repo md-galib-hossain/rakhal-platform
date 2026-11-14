@@ -5,7 +5,7 @@ import { Mars, TriangleAlert, Venus } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@rakhal/ui/ui/avatar";
 import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 import { avatarTint } from "../avatar-tint";
 import { formatCattleAge } from "../format";
 import { ANIMAL_CATEGORY_VARIANT } from "../utils/animal-category-style";
