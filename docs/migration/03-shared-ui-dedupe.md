@@ -85,7 +85,10 @@ possible and mechanical. The consumer app must not regress while it happens.
   must move with its import (select's wizard test); reconciling a component with no current consumer (tabs,
   labeled-field before their swap PRs) is a safe no-op PR, useful for isolating the behaviour change from the
   256-file import rewrite.
-- **Wave 3** (`shared/*`) not started.
+- **Wave 3** (`shared/*`): analysis done (2026-11-14), proposal awaiting owner approval (3 decisions needed —
+  `page-card` and `stat-card` already have admin consumers on the *shared* behaviour, so reconciling toward web
+  changes admin's live rendering, not just adds a consumer; `pagination` has no shared copy and a blocking
+  `lib/*` import): `M3-wave3-diff-2026-11-14.md`. No component PRs started.
 
 The admin app has already diverged from the original copy in some places (shell, `detail-list`, list
 components). Those admin-specific components stay in `apps/admin` unless a second consumer appears.
