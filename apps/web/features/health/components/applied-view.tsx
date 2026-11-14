@@ -15,7 +15,7 @@ import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { Pagination } from "@/components/shared/pagination";
+import { Pagination } from "@rakhal/ui/shared/pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/hooks/use-cursor-pager";
 import { useCancelRound, useRounds } from "../hooks/use-health";
 import { APPLIED_STATUSES, farmDay, roundMatchesStatus, roundProgressPct, roundUrgency, type AppliedStatus } from "../round-model";

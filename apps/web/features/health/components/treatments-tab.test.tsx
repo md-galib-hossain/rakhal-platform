@@ -27,7 +27,7 @@ vi.mock("../hooks/use-health", () => ({
 vi.mock("./sick-bay-table", () => ({ SickBayTable: () => <div data-testid="sick-bay-table" /> }));
 vi.mock("./safety-withdrawal-tab", () => ({ SafetyWithdrawalSection: () => <div data-testid="withdrawals" /> }));
 vi.mock("./treatment-history-table", () => ({ TreatmentHistorySection: () => <div data-testid="treatment-history" /> }));
-vi.mock("@/components/shared/pagination", () => ({
+vi.mock("@rakhal/ui/shared/pagination", () => ({
   Pagination: ({ onPageChange }: { onPageChange: (page: number) => void }) => (
     <button type="button" onClick={() => onPageChange(2)}>
       next-page

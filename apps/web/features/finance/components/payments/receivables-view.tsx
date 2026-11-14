@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Pagination } from "@/components/shared/pagination";
+import { Pagination } from "@rakhal/ui/shared/pagination";
 import { useReceivablesV2PagedList } from "../../hooks/use-finance-v2";
 import { AgingSummaryStrip } from "./aging-summary-strip";
 import { ReceivablesTable } from "./receivables-table";

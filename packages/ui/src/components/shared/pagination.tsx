@@ -1,10 +1,11 @@
 "use client"; // page-jump select, page-size select, fetch-transition spinner
 
 import { ChevronLeft, ChevronRight, Loader2, MoreHorizontal } from "lucide-react";
-import { Button } from "@rakhal/ui/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
-import { cn } from "@/lib/utils";
-import { PAGE_SIZE_OPTIONS } from "@/lib/hooks/use-cursor-pager";
+import { Button } from "../ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { cn } from "../../lib/utils";
+
+const DEFAULT_PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 
 const ELLIPSIS = "…" as const;
 type PaginationItem = number | typeof ELLIPSIS;
@@ -76,7 +77,7 @@ export function Pagination({
   isFetching,
   pageSize,
   onPageSizeChange,
-  pageSizeOptions = PAGE_SIZE_OPTIONS,
+  pageSizeOptions = DEFAULT_PAGE_SIZE_OPTIONS,
   className,
 }: PaginationProps) {
   if (totalPages < 1) return null;

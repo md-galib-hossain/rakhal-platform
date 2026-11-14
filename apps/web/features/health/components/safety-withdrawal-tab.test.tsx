@@ -31,7 +31,7 @@ vi.mock("../hooks/use-health", () => ({
   useRefreshSafetyWithdrawals: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock("./safety-withdrawal-table", () => ({ SafetyWithdrawalTable: () => <div data-testid="table" /> }));
-vi.mock("@/components/shared/pagination", () => ({
+vi.mock("@rakhal/ui/shared/pagination", () => ({
   Pagination: ({ onPageChange }: { onPageChange: (page: number) => void }) => (
     <button type="button" onClick={() => onPageChange(2)}>
       next-page

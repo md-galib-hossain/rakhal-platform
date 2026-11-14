@@ -1,7 +1,7 @@
 "use client"; // dialog/sheet open state
 
 import { useState } from "react";
-import { Pagination } from "@/components/shared/pagination";
+import { Pagination } from "@rakhal/ui/shared/pagination";
 import { useReceivablesV2PagedList } from "@/features/finance/hooks/use-finance-v2";
 import { ReceivablesTable } from "@/features/finance/components/payments/receivables-table";
 import { ReceivePaymentDialog } from "@/features/finance/components/payments/receive-payment-dialog";
