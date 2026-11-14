@@ -72,7 +72,7 @@ pm2 status                                       # no restart-count creep
 pm2 logs rakhal-api --lines 100 --nostream
 ```
 
-Verify (runbook 13, section C): `curl -s localhost:5000/api/v1/health`, `/api/v1/ready`, login, one authenticated read,
+Verify (runbook 13, section C): `curl -s localhost:5000/health`, `/ready`, `/live` (these three are un-prefixed on purpose, see `src/main.ts`; `/api/v1/health` is a 404), login, one authenticated read,
 one authenticated write that appears in the activity log, a queue action drains, no new errors for ten minutes.
 
 ## Normal deploy after the cutover
