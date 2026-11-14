@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/shared/page-header";
+import { PageHeader } from "@rakhal/ui/shared/page-header";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 
 /** Placeholder body for module routes not yet built — swapped out ticket-by-ticket (RFE-020+). */

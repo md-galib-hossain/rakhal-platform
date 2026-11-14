@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { serverFetch } from "@/lib/api/server-fetch";
 import { getSession } from "@/lib/auth/session";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageHeader } from "@rakhal/ui/shared/page-header";
 import { AccountInfoCard } from "@/features/profile/components/account-info-card";
 import { LanguagePreferenceCard } from "@/features/profile/components/language-preference-card";
 import { SessionsCard } from "@/features/profile/components/sessions-card";
