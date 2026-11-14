@@ -6,7 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { TruncatedText } from "@/components/shared/truncated-text";
 import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { cn } from "@/lib/utils";

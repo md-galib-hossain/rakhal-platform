@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
 import { Card } from "@rakhal/ui/ui/card";
 import { useRakhalBalance } from "../../hooks/use-finance-v2";

@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { ANIMAL_CATEGORY_SLICE_COLOR } from "@/features/cattle/utils/animal-category-style";
 import { useHerdStatus } from "../hooks/use-dashboard-widgets";

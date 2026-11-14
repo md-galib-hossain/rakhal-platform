@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@rakhal/ui/ui/card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
 import type { SalesSummary } from "../../types";
 

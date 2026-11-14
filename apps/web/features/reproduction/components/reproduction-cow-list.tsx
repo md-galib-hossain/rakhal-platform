@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { useInfiniteCursorList } from "@/lib/hooks/use-infinite-cursor-list";
 import { qk } from "@/lib/query/keys";

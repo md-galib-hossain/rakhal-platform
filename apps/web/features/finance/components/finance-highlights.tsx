@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
 import { ChevronRight, TrendingDown, TrendingUp } from "lucide-react";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
 import { DateRangePicker } from "@/components/shared/date-range-picker";
 import { cn } from "@/lib/utils";

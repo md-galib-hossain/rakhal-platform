@@ -24,7 +24,7 @@ import {
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { SupplierFormDialog } from "@/features/suppliers/components/supplier-form-dialog";
 import { useSuppliers } from "../hooks/use-workspace";
 import { useDeleteSupplier } from "../hooks/use-workspace-mutations";

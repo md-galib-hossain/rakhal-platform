@@ -13,7 +13,7 @@ import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
 import { MoneyText } from "@/components/shared/money-text";
 import { DateText } from "@/components/shared/date-text";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { useBuyerStatement } from "../hooks/use-buyers";
 import type { Buyer } from "../types";

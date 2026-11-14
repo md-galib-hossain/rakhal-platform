@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { useProductionSummary } from "../hooks/use-dashboard-widgets";
 import { DashboardCard } from "./dashboard-card";
 import { PeriodSelect } from "./period-select";

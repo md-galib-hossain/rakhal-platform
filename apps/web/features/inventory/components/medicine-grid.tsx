@@ -7,7 +7,7 @@ import { Chip } from "@rakhal/ui/ui/chip";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { SelectableCardOverlay } from "@/components/shared/selectable-card-overlay";
 import { avatarTint } from "../avatar-tint";
 import { MedicineRowActions } from "./medicine-row-actions";

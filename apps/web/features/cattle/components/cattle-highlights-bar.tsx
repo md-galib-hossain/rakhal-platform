@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Award, Droplets, HeartPulse, TrendingDown, TrendingUp, Users } from "lucide-react";
 import { Card } from "@rakhal/ui/ui/card";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { cn } from "@/lib/utils";
 import { formatSignedPct } from "@/lib/format";
 import { useCattleHighlights } from "../hooks/use-cattle";

@@ -10,7 +10,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { useHealthPlan, useHealthTasks } from "../hooks/use-health";
 import { groupScheduledTasks, type ScheduledTaskGroup } from "../task-grouping";
 import type { HealthPlanListItem, HealthTaskFilters, HealthTaskStatus, ProtocolRound } from "../types";

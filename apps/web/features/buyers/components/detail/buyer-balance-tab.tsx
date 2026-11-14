@@ -8,7 +8,7 @@ import { Label } from "@rakhal/ui/ui/label";
 import { Card } from "@rakhal/ui/ui/card";
 import { MoneyText } from "@/components/shared/money-text";
 import { DateText } from "@/components/shared/date-text";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { useBuyerStatement } from "../../hooks/use-buyers";
 

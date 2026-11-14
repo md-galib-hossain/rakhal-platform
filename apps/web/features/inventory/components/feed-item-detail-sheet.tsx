@@ -10,7 +10,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { cn } from "@/lib/utils";
 import { avatarTint } from "../avatar-tint";
 import { feedCategoryLabel } from "../feed-category";

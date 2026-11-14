@@ -6,7 +6,7 @@ import { ChevronRight, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Pagination } from "@/components/shared/pagination";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { DrilldownFilterBar } from "@/components/shared/drilldown-filter-bar";

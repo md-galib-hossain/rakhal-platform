@@ -9,7 +9,7 @@ import { Progress } from "@rakhal/ui/ui/progress";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { SelectableCardOverlay } from "@/components/shared/selectable-card-overlay";
 import { avatarTint } from "../avatar-tint";
 import type { FeedStock } from "@/features/feed/types";

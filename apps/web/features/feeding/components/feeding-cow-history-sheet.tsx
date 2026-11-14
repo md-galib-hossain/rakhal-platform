@@ -21,7 +21,7 @@ import {
   DialogFooter,
 } from "@rakhal/ui/ui/dialog";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Can } from "@/lib/auth/permissions";
 import { useFeedCattleHistory, useVoidFeedCattleItem } from "../../feed/hooks/use-feed";

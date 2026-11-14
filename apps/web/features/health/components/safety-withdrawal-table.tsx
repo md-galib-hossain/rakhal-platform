@@ -10,7 +10,7 @@ import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { useReleaseWithdrawal } from "../hooks/use-health";
 import type { SafetyWithdrawalListItem, SafetyWithdrawalStatus } from "../types";

@@ -4,7 +4,7 @@ import { todayLocalIso } from "@/lib/local-date";
 import { useLocale, useTranslations } from "next-intl";
 import { Package, ShieldCheck, Users, Coins } from "lucide-react";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { StatCard } from "@/components/shared/stat-card";
 import { formatNumber } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";

@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { AlertTriangle, CalendarClock, Utensils } from "lucide-react";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { StatCard } from "@/components/shared/stat-card";
 import { useCalvesPagedList } from "../hooks/use-calves";
 

@@ -10,7 +10,7 @@ import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { Button } from "@rakhal/ui/ui/button";
 import { LabeledInput } from "@rakhal/ui/ui/labeled-field";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { useCattleDetail } from "@/features/cattle/hooks/use-cattle";
 import { useConcentrationDetail, useLogDistribution } from "../hooks/use-feed";

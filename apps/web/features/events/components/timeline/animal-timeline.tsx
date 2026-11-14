@@ -8,7 +8,7 @@ import { Switch } from "@rakhal/ui/ui/switch";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { todayLocalIso, addDaysLocalIso } from "@/lib/local-date";
 import { useAnimalTimeline } from "../../hooks/use-animal-timeline";
 import { TIMELINE_GROUPS, groupByDay, type TimelineGroup } from "../../timeline-model";

@@ -28,7 +28,7 @@ import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Pagination } from "@/components/shared/pagination";
 import { Can, useCan } from "@/lib/auth/permissions";
 import { avatarTint } from "@/features/cattle/avatar-tint";

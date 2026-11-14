@@ -5,7 +5,7 @@ import { parseAsStringEnum, useQueryState } from "nuqs";
 import { LayoutDashboard, Receipt, Truck, Wallet, ScrollText } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { useBuyer } from "../../hooks/use-buyers";
 import { BUYER_DETAIL_TABS, type BuyerDetailTabKey } from "../../types";
 import { BuyerDetailHeader } from "./buyer-detail-header";

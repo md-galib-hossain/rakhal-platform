@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Pill, Wheat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TruncatedText } from "@/components/shared/truncated-text";
 import { useFeedStockAlerts } from "../hooks/use-dashboard-widgets";

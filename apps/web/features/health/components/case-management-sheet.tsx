@@ -10,7 +10,7 @@ import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@rakh
 import { Button } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { useSession } from "@/lib/auth/use-session";
 import {
   useCloseHealthCase,

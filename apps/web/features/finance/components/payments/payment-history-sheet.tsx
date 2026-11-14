@@ -6,7 +6,7 @@ import { Sheet, SheetContent } from "@rakhal/ui/ui/sheet";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { usePaymentHistory, useFinancialAccounts } from "../../hooks/use-finance-v2";
 import { PaymentStatusBadge } from "./payment-status-badge";
 import type { Payable, Receivable, SettlementStatusV2 } from "../../types-v2";
