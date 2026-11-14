@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { ArrowLeft } from "lucide-react";
-import { PageCard } from "@/components/shared/page-card";
+import { PageCard } from "@rakhal/ui/shared/page-card";
 import { ReportWizard } from "@/features/reports/components/wizard/report-wizard";
 
 export async function generateMetadata(): Promise<Metadata> {
