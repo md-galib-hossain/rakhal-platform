@@ -25,7 +25,7 @@ import {
 } from "@rakhal/ui/ui/dropdown-menu";
 import { Input } from "@rakhal/ui/ui/input";
 import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";

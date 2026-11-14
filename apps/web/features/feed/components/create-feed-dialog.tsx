@@ -11,7 +11,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { LabeledInput } from "@rakhal/ui/ui/labeled-field";
 import { Button } from "@rakhal/ui/ui/button";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { useAnimalGroups, useCattlePagedList } from "@/features/cattle/hooks/use-cattle";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";

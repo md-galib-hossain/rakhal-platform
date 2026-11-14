@@ -8,7 +8,7 @@ import { Badge } from "@rakhal/ui/ui/badge";
 import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { usePreviewPlanFit } from "../../hooks/use-feed-plans";
 import type { FeedFitSeverity, FeedPlanLineInput, ManualRequirementInput, PreviewFitPayload } from "../../plans-types";

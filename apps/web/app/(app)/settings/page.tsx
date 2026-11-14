@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { PageHeader } from "@/components/shared/page-header";
+import { PageHeader } from "@rakhal/ui/shared/page-header";
 import { SettingsTabs } from "@/features/settings/components/settings-tabs";
 
 export async function generateMetadata(): Promise<Metadata> {

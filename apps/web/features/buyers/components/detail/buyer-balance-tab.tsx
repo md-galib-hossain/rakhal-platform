@@ -9,7 +9,7 @@ import { Card } from "@rakhal/ui/ui/card";
 import { MoneyText } from "@/components/shared/money-text";
 import { DateText } from "@/components/shared/date-text";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { useBuyerStatement } from "../../hooks/use-buyers";
 
 function currentMonth(): string {

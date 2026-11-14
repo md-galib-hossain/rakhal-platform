@@ -11,7 +11,7 @@ import { Card } from "@rakhal/ui/ui/card";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { cn } from "@/lib/utils";
 import { ChartCard } from "@/components/shared/chart-card";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
 import { Button } from "@rakhal/ui/ui/button";

@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Truck, UserCheck, Wallet, AlertCircle } from "lucide-react";
 import { StatCard } from "@/components/shared/stat-card";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Card } from "@rakhal/ui/ui/card";
 import { MoneyText } from "@/components/shared/money-text";
