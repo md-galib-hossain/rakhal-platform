@@ -49,7 +49,7 @@ Not run: a clean-DB e2e (all runs used the copy of the dev DB), a staging deploy
 ## Still open before a real M6
 
 - Owner decision on pnpm 11 (finding 2) and on unpinning (finding 1).
-- Port CI to root workflows with a path filter; make lint non-mutating in CI.
+- ~~Port CI to root workflows~~ DONE on the branch (`api.yml`, root `ci.yml` excludes `@rakhal/api`, nested workflow removed, `test:e2e:batched`). Verified locally: all workflow YAML parses, batcher lists all 214 specs in batches, OpenAPI drift check passes, eslint does not mutate files (112 errors, advisory). NOT verified: a run on GitHub (`pnpm/action-setup@v6` with no `version:`, Postgres service, e2e job).
 - Deploy runbook paths (`13-deployment-runbook.md`) for the monorepo layout, then a staging deploy.
 - Gates in doc 05 for M6: V1 live, M5 stable for a release cycle, owner sign-off. Today's work was a rehearsal at the owner's request; none of those gates were waived for a merge.
 - Push the `pre-monorepo-import` tag on `rakhal-backend` (not done; pushing is outward-facing).

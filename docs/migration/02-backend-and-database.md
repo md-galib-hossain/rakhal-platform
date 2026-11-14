@@ -9,7 +9,7 @@
 | Working tree | **13 uncommitted files** right now (parallel agents; admin work on this machine is also uncommitted) |
 | Stack | NestJS 11, Prisma 7 + Postgres, Redis + BullMQ, pnpm |
 | Prisma | one schema folder `prisma/schemas/*` (about 17 domains), `prisma.config.ts`, hand-authored additive migrations applied with `migrate deploy` |
-| CI | **none** in the repo (the frontend has one) |
+| CI | the backend repo has its own `ci.yml` (verify + advisory lint + manual e2e). Ported 2026-11-14 to the monorepo as `.github/workflows/api.yml` (path-filtered; e2e batched because one process runs out of memory). Rehearsal: [M6-rehearsal-2026-11-14.md](M6-rehearsal-2026-11-14.md) |
 | Deploy | VPS, PM2 process `rakhal-api`, runbook `13-deployment-runbook.md`: `git pull --ff-only`, `prisma migrate deploy`, `pnpm build`, `pm2 reload` |
 | Surfaces | `customer-api` and `admin-api` live in the **same NestJS app** (ADR-016); the admin API is the module `src/modules/admin` |
 
@@ -42,7 +42,7 @@ If M6 is later chosen, the safe version is below.
 3. `apps/web` migrates feature by feature from hand-written `types.ts` to generated types. Each feature is its
    own PR; the old type file is deleted only when nothing imports it.
 
-## M6 (optional) - Backend into `apps/api`
+## M6 - Backend into `apps/api` (wanted after V1, still gated; rehearsed 2026-11-14)
 
 Only after M5 + one release cycle, and only with the owner's explicit go-ahead.
 

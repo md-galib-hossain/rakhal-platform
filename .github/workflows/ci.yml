@@ -16,6 +16,6 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # apps/web has its own path-filtered workflow (web.yml); everything else is verified here.
-      - run: pnpm turbo run lint typecheck test --filter='!@rakhal/web'
-      - run: pnpm turbo run build --filter='!@rakhal/web'
+      # apps/web and apps/api have their own path-filtered workflows (web.yml, api.yml); everything else is verified here.
+      - run: pnpm turbo run lint typecheck test --filter='!@rakhal/web' --filter='!@rakhal/api'
+      - run: pnpm turbo run build --filter='!@rakhal/web' --filter='!@rakhal/api'

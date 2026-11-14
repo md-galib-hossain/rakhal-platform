@@ -6,7 +6,7 @@ Migration starts only when all of these hold. They are proposals; the owner edit
 
 - [ ] V1 has been in production for at least **4 weeks** with no rollback.
 - [ ] No open Sev-1/Sev-2 bug in the consumer app or API.
-- [ ] Backend CI exists and is green (it has none today - add it first, infra doc 14 Phase 3).
+- [ ] Backend CI exists and is green. It exists (`ci.yml` in the backend repo; ported to `.github/workflows/api.yml` on the M6 rehearsal branch 2026-11-14). Green on GitHub: **not yet verified**.
 - [ ] Both repos have a clean `git status` and `main == origin/main`.
 - [ ] `docs/IN_FLIGHT.md` shows no active claim in either repo.
 - [ ] A restore from the latest production backup has been rehearsed (infra doc 16).

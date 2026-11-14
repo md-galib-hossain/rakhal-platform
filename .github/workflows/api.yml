@@ -1,14 +1,31 @@
-name: CI
+name: API
 
+# Path-filtered CI for apps/api (docs/migration/02-backend-and-database.md "M6"). Ported from the backend repo's
+# own ci.yml. Runs only when the API, the install/build config, or this file changes.
+# The root ci.yml excludes @rakhal/api (it needs Postgres/Redis and its `lint` script runs with --fix).
 on:
+  pull_request:
+    paths:
+      - "apps/api/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/api.yml"
   push:
     branches: [main]
-  pull_request:
+    paths:
+      - "apps/api/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "turbo.json"
+      - ".github/workflows/api.yml"
   # Manual run, also the only trigger for the advisory e2e job below.
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: api-${{ github.ref }}
   cancel-in-progress: true
 
 # Dummy values only. src/core/config/env/env.ts validates the environment at import time and calls
@@ -23,6 +40,10 @@ env:
   EMAIL_FROM: ci@example.test
   EMAIL_VERIFICATION_BASE_URL: http://localhost:3000/verify
   EMAIL_PASSWORD_RESET_BASE_URL: http://localhost:3000/reset
+
+defaults:
+  run:
+    working-directory: apps/api
 
 jobs:
   verify:
@@ -43,19 +64,19 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
 
-      # pnpm 11 is required: pnpm-workspace.yaml uses the pnpm 11 `allowBuilds` setting.
+      # No `version:` here: the root package.json "packageManager" (pnpm 11) is the single source. Giving both makes
+      # the action fail with "Multiple versions of pnpm specified". The backend's own CI used @v6 for pnpm 11.
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+        working-directory: .
 
       - run: pnpm prisma:generate
 
@@ -82,7 +103,7 @@ jobs:
         run: pnpm exec eslint "{src,apps,libs,test}/**/*.ts"
 
   e2e:
-    name: E2E (manual, advisory, not yet verified in CI)
+    name: E2E, batched (manual, advisory, not yet verified in CI)
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -110,16 +131,16 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+        working-directory: .
       - run: pnpm prisma:generate
       - run: pnpm exec prisma migrate deploy --config prisma.config.ts
       - run: pnpm seed
-      - run: pnpm test:e2e
+      # One jest process per batch of 25 specs: a single --runInBand run over the whole suite runs out of memory.
+      - run: pnpm test:e2e:batched
