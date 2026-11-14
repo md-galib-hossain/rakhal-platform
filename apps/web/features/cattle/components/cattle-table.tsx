@@ -12,7 +12,7 @@ import { useCan } from "@/lib/auth/permissions";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { DataTable } from "@/components/shared/data-table";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
-import { BulkActionDock } from "@/components/shared/bulk-action-dock";
+import { BulkActionDock } from "@rakhal/ui/shared/bulk-action-dock";
 import { CreatableSelect } from "@/components/shared/creatable-select";
 import { useTableBulkSelection, useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
 import { useCattleDetailModal } from "../context/cattle-detail-modal-context";
