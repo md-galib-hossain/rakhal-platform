@@ -7,7 +7,7 @@ import { RefreshCw } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Can } from "@/lib/auth/permissions";
 import { cn } from "@/lib/utils";
-import { Pagination } from "@/components/shared/pagination";
+import { Pagination } from "@rakhal/ui/shared/pagination";
 import { Button } from "@rakhal/ui/ui/button";
 import { useRefreshSafetyWithdrawals, useSafetyWithdrawalsPagedList } from "../hooks/use-health";
 import { SafetyWithdrawalTable } from "./safety-withdrawal-table";

@@ -29,7 +29,7 @@ import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { Pagination } from "@/components/shared/pagination";
+import { Pagination } from "@rakhal/ui/shared/pagination";
 import { Can, useCan } from "@/lib/auth/permissions";
 import { avatarTint } from "@/features/cattle/avatar-tint";
 import { useAnimalGroups } from "@/features/cattle/hooks/use-cattle";

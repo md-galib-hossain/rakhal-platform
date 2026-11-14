@@ -76,7 +76,7 @@ vi.mock("./protocol-sheet", () => ({
 }));
 vi.mock("./create-health-plan-dialog", () => ({ CreateHealthPlanDialog: () => null }));
 vi.mock("./apply-health-plan-dialog", () => ({ ApplyHealthPlanDialog: () => null }));
-vi.mock("@/components/shared/pagination", () => ({
+vi.mock("@rakhal/ui/shared/pagination", () => ({
   Pagination: ({ onPageChange }: { onPageChange: (page: number) => void }) => (
     <button type="button" onClick={() => onPageChange(2)}>
       next-page

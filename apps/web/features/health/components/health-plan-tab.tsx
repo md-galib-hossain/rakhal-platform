@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { Pagination } from "@/components/shared/pagination";
+import { Pagination } from "@rakhal/ui/shared/pagination";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { DrilldownFilterBar } from "@/components/shared/drilldown-filter-bar";
 import type { FilterCategoryConfig } from "@/components/shared/drilldown-filter-popover";
