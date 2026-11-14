@@ -10,7 +10,7 @@ import { useCan } from "@/lib/auth/permissions";
 import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
-import type { RowAction } from "@/components/shared/row-actions-menu";
+import type { RowAction } from "@rakhal/ui/shared/row-actions-menu";
 import { EventFormPlaceholder } from "@/features/events/components/event-picker/event-form-placeholder";
 import { EventPicker } from "@/features/events/components/event-picker/event-picker";
 import { EventFormPanel } from "@/features/events/components/form/event-form-panel";

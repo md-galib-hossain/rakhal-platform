@@ -22,7 +22,7 @@ vi.mock("@/components/shared/animal-link", () => ({
   AnimalLink: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }));
 
-vi.mock("@/components/shared/row-actions-menu", () => ({
+vi.mock("@rakhal/ui/shared/row-actions-menu", () => ({
   RowActionsMenu: ({ actions }: { actions: { label: string; onSelect: () => void }[] }) => (
     <div>
       {actions.map((a) => (
