@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AnimalLink } from "@/components/shared/animal-link";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { TableSkeleton } from "@/components/shared/table-skeleton";
+import { TableSkeleton } from "@rakhal/ui/shared/table-skeleton";
 import { Can } from "@/lib/auth/permissions";
 import { useMilkAnomalies } from "../hooks/use-milk";
 import type { MilkAnomaly } from "../types";
