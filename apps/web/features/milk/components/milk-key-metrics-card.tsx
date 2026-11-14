@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Package, ShieldCheck, Users, Coins } from "lucide-react";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { StatCard } from "@/components/shared/stat-card";
+import { StatCard } from "@rakhal/ui/shared/stat-card";
 import { formatNumber } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { useMilkLogTable, useMilkOverview } from "../hooks/use-milk";
