@@ -1,0 +1,52 @@
+enum LegalDocumentType {
+  TERMS
+  PRIVACY
+}
+
+/// Versioned Terms of Service / Privacy Policy (RAKHAL-236, PRD §36.1 LGL-01).
+/// The **current** document of a type is the published one with the latest
+/// `effectiveAt <= now`. Authoring/publishing UI is the admin panel (RAKHAL-225,
+/// Content role) — for now versions are seeded; a new published version forces
+/// re-consent (LGL-03).
+model LegalDocument {
+  id String @id @default(cuid())
+
+  type    LegalDocumentType
+  version String
+  title   String
+
+  /// Inline content (markdown/text). `url` optionally points to a hosted copy.
+  content String
+  url     String?
+
+  effectiveAt DateTime
+  published   Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  consents ConsentRecord[] @relation("LegalDocumentToConsent")
+
+  @@unique([type, version])
+  @@index([type, published])
+}
+
+/// Immutable record of a user accepting a specific document version
+/// (RAKHAL-236, LGL-02). One row per (user, document-version); who accepted
+/// which version, when, from where.
+model ConsentRecord {
+  id String @id @default(cuid())
+
+  userId String
+  farmId String?
+
+  documentId   String
+  document     LegalDocument     @relation("LegalDocumentToConsent", fields: [documentId], references: [id])
+  documentType LegalDocumentType
+  version      String
+
+  acceptedAt DateTime @default(now())
+  ipAddress  String?
+
+  @@unique([userId, documentId])
+  @@index([userId])
+}

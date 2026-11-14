@@ -1,0 +1,65 @@
+/// Category of a farm operating expense (RAKHAL-348, Purchasing —
+/// `FINANCE_V2_DESIGN.md` §5.1). Deliberately restricted to exactly the
+/// **non-Purchase** expense ledger accounts RAKHAL-333 already seeded
+/// (`finance-v2/ledger/domain/default-chart-of-accounts.ts`, 5xxx range):
+/// `SALARY` (5200), `UTILITIES` (5400, the design doc's own worked example —
+/// "an electricity bill is an expense"), `BREEDING` (5300), `TRANSFER_FEE`
+/// (5500), `DEPRECIATION` (5600).
+///
+/// **`FEED` (5000) / `MEDICINE` (5100) are deliberately excluded** — a feed or
+/// medicine purchase is a `Purchase` (increases the Inventory asset), never an
+/// `Expense`, per this ticket's own core split (`FINANCE_V2_DESIGN.md` §5.1:
+/// "a feed purchase increases an asset, an electricity bill is an expense —
+/// not both recorded as generic expense"). Those two seeded expense-category
+/// ledger accounts exist for a different, later purpose (e.g. RAKHAL-351/352's
+/// per-animal/report cost bucketing), not for this model.
+///
+/// **No `OTHER` value** — unlike Revenue's `4900 Other Income`
+/// (`IncomeCategory`/`OtherIncome`, RAKHAL-350), RAKHAL-333's seeded chart has
+/// no catch-all "Other Expense" ledger account in the 5xxx range. Adding an
+/// `OTHER` category here would have nothing real to post against without
+/// editing `default-chart-of-accounts.ts` — out of this ticket's lane
+/// (`finance-v2/ledger/**` is RAKHAL-333/334's read-only lane). Flagged as
+/// `RD-060` in `TECH_DEBT.md` for a future ticket to add a seeded `5900 Other
+/// Expense` account and extend this enum additively.
+enum ExpenseCategory {
+  SALARY
+  UTILITIES
+  BREEDING
+  TRANSFER_FEE
+  DEPRECIATION
+
+  /// RAKHAL-367 (MILESTONE 22) — the catch-all this doc comment's own
+  /// "No `OTHER` value" note flagged as RD-060. Posts against the newly
+  /// seeded `5900 Other Expense` ledger account
+  /// (`finance-v2/ledger/domain/default-chart-of-accounts.ts`). Closes
+  /// RD-060.
+  OTHER
+
+  /// RAKHAL-419 (MILESTONE 24) — treatment-time medicine **consumption**
+  /// cost, not a medicine **purchase**. This does not contradict this enum's
+  /// own "`MEDICINE` deliberately excluded" note above: that note is about
+  /// buying medicine stock (still correctly a `Purchase`, still has no real
+  /// Finance posting anywhere in this codebase today — a separate,
+  /// pre-existing gap, not created or fixed by this value). `HEALTH` posts
+  /// the *value of medicine consumed* at treatment time against the already-
+  /// seeded `5100 Medicine` expense ledger account, mirroring the exact
+  /// precedent `BREEDING` already set for consumed inventory (RAKHAL-330
+  /// posts a `SemenBatch`'s cost as a fresh cash expense at AI-event time,
+  /// regardless of whether that batch was ever itself purchased through
+  /// Finance). Filed as `RD-084` for the day Medicine purchases do get wired
+  /// into `Purchase` — that ticket must confirm this doesn't then double-post
+  /// the same medicine's value (once at purchase, once again at consumption).
+  HEALTH
+}
+
+/// RAKHAL-367 (MILESTONE 22, `BUSINESS_IA_PRD.md` §9.4) — a `Purchase` has no
+/// `PATCH` that changes money on a posted document (journal immutability,
+/// RAKHAL-334 AC 3); the only correction is void + re-record. `Sale` already
+/// has this concept (`SaleStatus.CANCELLED`/`REFUNDED`) — `Purchase` needed
+/// its own since it has no status column at all today. The actual void route
+/// + reversal cascade is RAKHAL-377's job; this ticket only adds the column.
+enum PurchaseStatus {
+  CONFIRMED
+  VOIDED
+}

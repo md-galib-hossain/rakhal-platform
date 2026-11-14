@@ -1,0 +1,435 @@
+model ReproductionProfile {
+  id       String @id @default(cuid())
+  cattleId String @unique
+
+  pubertyDate DateTime?
+
+  /// Core breeding-cycle state (RAKHAL-271 v2). Nullable, **no default** — a
+  /// cow that was `DRY`/`LACTATING`/`HEIFER` under the old v1 enum is very
+  /// often still pregnant or fertile, so the migration does not CASE-guess a
+  /// value (a DB-level default would silently backfill every existing row on
+  /// `ADD COLUMN`, which is exactly the fabricated-fertility-data bug this
+  /// correction fixes). `prisma/backfill-reproduction-state.ts` re-derives the
+  /// real state per-cow from actual event history, leaving genuinely
+  /// ambiguous rows `NULL` ("not assessed") rather than guessing; new rows get
+  /// a real value from the first `refreshProfile()` call. Field name kept as
+  /// `reproductiveStatus` (only the type changed) to minimize call-site churn.
+  reproductiveStatus     ReproductionState?
+  currentLactationNumber Int                @default(0)
+
+  totalBreedings   Int @default(0)
+  totalPregnancies Int @default(0)
+  totalCalvings    Int @default(0)
+  totalAbortions   Int @default(0)
+
+  firstCalvingDate       DateTime?
+  lastBreedingDate       DateTime?
+  lastPregnancyCheckDate DateTime?
+  lastCalvingDate        DateTime?
+  currentPregnancyId     String?
+  currentLactationId     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cattle Cattle @relation(fields: [cattleId], references: [id])
+}
+
+model HeatEvent {
+  id       String @id @default(cuid())
+  cattleId String
+
+  heatDateTime DateTime
+
+  detectionMethod  HeatDetectionMethod
+  standingHeat     Boolean             @default(false)
+  mucusDischarge   Boolean             @default(false)
+  mountingBehavior Boolean             @default(false)
+  restlessness     Boolean             @default(false)
+
+  notes String?
+
+  createdAt DateTime @default(now())
+
+  /// RAKHAL-298: when/why this heat was closed. Nullable — an open heat has
+  /// both null. `resolvedByBreedingEventId` is the back-link an AI stamps
+  /// when it closes the heat that led to it (INSEMINATED only).
+  resolvedAt                DateTime?
+  resolvedByBreedingEventId String?               @unique
+  resolutionReason          HeatResolutionReason?
+
+  /// RAKHAL-316: this heat is a farmer-confirmed return to heat that
+  /// invalidates an unresolved (PENDING_CHECK) earlier breeding — the
+  /// opposite direction from `resolvedByBreedingEventId` above (that one
+  /// points backward from a breeding to the heat it closed; this points
+  /// forward from a new heat to the breeding it's invalidating). Set only by
+  /// `POST /reproduction/breeding-events/:id/return-to-heat`.
+  returnedFromBreedingEventId String?
+
+  cattle               Cattle         @relation(fields: [cattleId], references: [id])
+  resolvedByBreeding   BreedingEvent? @relation("HeatEventResolution", fields: [resolvedByBreedingEventId], references: [id])
+  returnedFromBreeding BreedingEvent? @relation("HeatEventReturnToHeat", fields: [returnedFromBreedingEventId], references: [id])
+
+  /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
+  updatedAt DateTime @updatedAt
+
+  @@index([cattleId])
+  @@index([heatDateTime])
+  @@index([cattleId, resolvedAt])
+  @@index([returnedFromBreedingEventId])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
+}
+
+model BreedingEvent {
+  id       String @id @default(cuid())
+  cattleId String
+
+  breedingDate DateTime
+
+  breedingMethod BreedingMethod
+  bullId         String?
+  semenBatchId   String?
+  inseminator    String?
+
+  /// Explicit semen provenance — required (DTO-level) only when
+  /// breedingMethod === AI; null for NATURAL/EMBRYO_TRANSFER.
+  semenSource       SemenSource?
+  serviceProviderId String?
+  serviceProvider   ServiceProvider? @relation(fields: [serviceProviderId], references: [id])
+
+  /// Progressive-optional traceability for TECHNICIAN_SUPPLIED / EXTERNAL,
+  /// where there's no SemenBatch to read this off of. Free text: describes a
+  /// bull the farm doesn't own and may have no structured record of.
+  sireNameOrCode String?
+  sireBreed      String?
+  semenType      SemenType?
+  /// Only meaningful when semenType === SEX_SORTED; mirrors the selected
+  /// SemenBatch's targetSex for FARM_INVENTORY, or the farmer's manual pick
+  /// for TECHNICIAN_SUPPLIED/EXTERNAL.
+  targetSex      TargetSex?
+  strawBatchCode String?
+  semenCompany   String?
+  serviceCost    Float?
+
+  /// RAKHAL-330: how the breeding/AI cost was paid; only meaningful when a
+  /// cost was actually posted to Finance (serviceCost/batch cost > 0).
+  /// RAKHAL-354: repointed from the dropped V1 `FinancePaymentMethod` to
+  /// Finance V2's own `PaymentMethod` (`finance-v2/payment.prisma`) — already
+  /// WALLET-less, so no separate migration of this field's semantics needed.
+  paymentMethod        PaymentMethod?
+  /// RAKHAL-330: loose link to the cost-posting this event's cost was posted
+  /// as — no FK (Finance lives in a different schema file), same
+  /// loose-coupling precedent `SemenStrawMovement.sourceEventId` already set.
+  /// RAKHAL-354: now holds a V2 `Expense.id` (was a V1 `FinanceTransaction.id`)
+  /// — `ReproductionEditService` looks up that expense's own `JournalTransaction`
+  /// (by `sourceType:'EXPENSE', sourceId`) to reverse it on edit, instead of
+  /// storing the journal transaction id directly, so the value stays a stable
+  /// handle even if the posting is re-derived.
+  financeTransactionId String?
+
+  breedingNumber             Int
+  expectedPregnancyCheckDate DateTime?
+  status                     BreedingStatus @default(PENDING_CHECK)
+  notes                      String?
+
+  /// Void (no ticket #, 2026-10-11): an AI/breeding recorded by mistake is voided, never deleted -
+  /// the row stays (status = VOIDED) so the Finance reversal, the straw restore and the audit trail
+  /// keep a stable id to point at. Set together with `status = VOIDED`; every list/KPI/derivation
+  /// read excludes it.
+  voidedAt   DateTime?
+  voidedById String?
+  voidReason String?
+
+  createdAt DateTime @default(now())
+  /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
+  updatedAt DateTime @updatedAt
+
+  cattle Cattle  @relation("BreedingEventCattle", fields: [cattleId], references: [id])
+  bull   Cattle? @relation("BreedingEventBull", fields: [bullId], references: [id])
+
+  diagnoses            PregnancyDiagnosis[]
+  pregnancies          Pregnancy[]
+  resolvedHeatEvent    HeatEvent?           @relation("HeatEventResolution")
+  returnedToHeatEvents HeatEvent[]          @relation("HeatEventReturnToHeat")
+
+  @@index([cattleId])
+  @@index([bullId])
+  @@index([breedingDate])
+  @@index([status])
+  @@index([semenSource])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
+}
+
+model PregnancyDiagnosis {
+  id              String  @id @default(cuid())
+  cattleId        String
+  breedingEventId String?
+
+  diagnosisDate       DateTime
+  result              PregnancyDiagnosisResult
+  diagnosisMethod     PregnancyDiagnosisMethod
+  gestationDay        Int?
+  expectedCalvingDate DateTime?
+  notes               String?
+
+  createdAt DateTime @default(now())
+  /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
+  updatedAt DateTime @updatedAt
+
+  cattle        Cattle         @relation(fields: [cattleId], references: [id])
+  breedingEvent BreedingEvent? @relation(fields: [breedingEventId], references: [id])
+
+  sourcedPregnancies Pregnancy[] @relation("PregnancySourceDiagnosis")
+
+  @@index([cattleId])
+  @@index([breedingEventId])
+  @@index([diagnosisDate])
+  @@index([result])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
+}
+
+/// RAKHAL-482: how `Pregnancy.conceptionDate` was obtained.
+enum ConceptionConfidence {
+  /// From a recorded breeding date.
+  RECORDED
+  /// Derived from gestation day or expected calving.
+  ESTIMATED
+  /// Nothing to derive it from; `conceptionDate` is null.
+  UNKNOWN
+}
+
+model Pregnancy {
+  id              String  @id @default(cuid())
+  cattleId        String
+  breedingEventId String?
+
+  /// RAKHAL-482: null when nothing lets us estimate it (`conceptionConfidence = UNKNOWN`).
+  conceptionDate       DateTime?
+  conceptionConfidence ConceptionConfidence @default(RECORDED)
+  expectedCalvingDate DateTime?
+  actualCalvingDate   DateTime?
+  gestationDays       Int?
+  status              PregnancyStatus @default(ACTIVE)
+
+  /// RAKHAL-317: the system's own conception+gestation-days estimate,
+  /// written once at creation, **never overwritten** by any edit handler —
+  /// `expectedCalvingDate` above is the farmer-facing value and may diverge
+  /// from this once `expectedCalvingDateSource` flips to MANUAL.
+  calculatedCalvingDate     DateTime?
+  expectedCalvingDateSource ExpectedCalvingDateSource @default(SYSTEM)
+
+  /// RAKHAL-299: which `PregnancyDiagnosis` produced this row — today
+  /// `createPregnancyDiagnosis` creates the `Pregnancy` with no back-link, so
+  /// an edit to the diagnosis (e.g. PREGNANT→NOT_PREGNANT) cannot find what to
+  /// update. Nullable, no backfill guess (ambiguous for pre-existing rows).
+  sourceDiagnosisId String?
+
+  /// RAKHAL-325: set only when `status=CANCELLED_CORRECTION` — the explicit
+  /// "this was a data-entry mistake, not a real biological event" path.
+  /// `correctedBy` is a `User.id`, kept as a plain string (no relation) to
+  /// match this file's existing style (`PregnancyDiagnosis`/`BreedingEvent`
+  /// carry no actor FK either).
+  correctionReason String?
+  correctedBy      String?
+  correctedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cattle          Cattle              @relation(fields: [cattleId], references: [id])
+  breedingEvent   BreedingEvent?      @relation(fields: [breedingEventId], references: [id])
+  sourceDiagnosis PregnancyDiagnosis? @relation("PregnancySourceDiagnosis", fields: [sourceDiagnosisId], references: [id])
+
+  calvingEvents  CalvingEvent[]
+  abortionEvents AbortionEvent[]
+
+  @@index([cattleId])
+  @@index([breedingEventId])
+  @@index([status])
+  @@index([sourceDiagnosisId])
+}
+
+model CalvingEvent {
+  id          String  @id @default(cuid())
+  cattleId    String
+  pregnancyId String?
+
+  calvingDate      DateTime
+  calvingNumber    Int
+  calvingEase      CalvingEase
+  calfCount        Int         @default(1)
+  placentaExpelled Boolean     @default(false)
+  retainedPlacenta Boolean     @default(false)
+  complications    String?
+  notes            String?
+
+  createdAt DateTime @default(now())
+  /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
+  updatedAt DateTime @updatedAt
+
+  cattle    Cattle     @relation(fields: [cattleId], references: [id])
+  pregnancy Pregnancy? @relation(fields: [pregnancyId], references: [id])
+
+  calfBirths CalfBirth[]
+  lactations Lactation[]
+
+  @@index([cattleId])
+  @@index([pregnancyId])
+  @@index([calvingDate])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
+}
+
+model CalfBirth {
+  id             String  @id @default(cuid())
+  calvingEventId String
+  calfId         String?
+
+  gender      CattleGender
+  birthWeight Decimal?
+  status      CalfBirthStatus
+
+  createdAt DateTime @default(now())
+
+  calvingEvent CalvingEvent @relation(fields: [calvingEventId], references: [id])
+  calf         Cattle?      @relation("CattleCalfBirth", fields: [calfId], references: [id])
+
+  @@index([calvingEventId])
+  @@index([calfId])
+}
+
+model AbortionEvent {
+  id          String  @id @default(cuid())
+  cattleId    String
+  pregnancyId String?
+
+  abortionDate   DateTime
+  gestationDay   Int?
+  suspectedCause String?
+  notes          String?
+
+  createdAt DateTime @default(now())
+  /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
+  updatedAt DateTime @updatedAt
+
+  cattle    Cattle     @relation(fields: [cattleId], references: [id])
+  pregnancy Pregnancy? @relation(fields: [pregnancyId], references: [id])
+
+  @@index([cattleId])
+  @@index([pregnancyId])
+  @@index([abortionDate])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
+}
+
+model DryPeriod {
+  id       String @id @default(cuid())
+  cattleId String
+
+  startDate       DateTime
+  expectedEndDate DateTime?
+  actualEndDate   DateTime?
+  notes           String?
+
+  /// RAKHAL-274: optional reason for the dry-off; nullable, no default.
+  reason DryOffReason?
+
+  createdAt DateTime @default(now())
+  /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
+  updatedAt DateTime @updatedAt
+
+  cattle Cattle @relation(fields: [cattleId], references: [id])
+
+  @@index([cattleId])
+  @@index([startDate])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
+}
+
+model Lactation {
+  id              String  @id @default(cuid())
+  cattleId        String
+  lactationNumber Int
+  calvingEventId  String?
+
+  startDate    DateTime
+  endDate      DateTime?
+  peakMilkDate DateTime?
+  status       LactationStatus @default(ACTIVE)
+
+  /// Why this lactation began (RAKHAL-271 v2 correction). Replaces the
+  /// rejected `Cattle.lactationStartDate` — this is now the sole source of
+  /// truth for lactation start. Defaults `CALVING` (safe for the migration
+  /// backfill of existing rows — every pre-existing `Lactation` row genuinely
+  /// came from a calving).
+  startReason          LactationStartReason @default(CALVING)
+  /// The `CalvingEvent` that produced this lactation, when `startReason` is
+  /// `CALVING` (redundant with `calvingEventId` for that case, but kept
+  /// distinct/nullable so `PURCHASE_IMPORT`/`MANUAL_CORRECTION` lactations —
+  /// which have no `calvingEventId` — still have an explicit, typed home for
+  /// provenance instead of overloading `calvingEventId`).
+  sourceCalvingEventId String?
+
+  /// RAKHAL-281: why this lactation ended. Nullable, set only when
+  /// `status=ENDED` — written by `recordDryOff()` (DRY_OFF),
+  /// `createCalvingEvent()` (MISSING_DRY_OFF_RECORD, for a dam whose prior
+  /// lactation was still ACTIVE), and `CattleService`'s sold/culled/death
+  /// lifecycle exits (SOLD/CULLED/DEATH) — all RAKHAL-290.
+  endReason LactationEndReason?
+
+  /// RAKHAL-281: purchased-lactating intake (`startReason:
+  /// PURCHASED_LACTATING`) has no `CalvingEvent` to derive DIM/lactation
+  /// number from — `isEstimated` flags that this lactation's DIM/number are
+  /// farmer-supplied estimates, never silently treated as verified.
+  /// `estimatedLactationNumber`/`estimatedDaysInMilk` capture what was
+  /// supplied at intake time (both null if the farmer supplied nothing),
+  /// kept distinct from the real `lactationNumber`/derived-DIM fields so a
+  /// later correction can't retroactively rewrite what was originally known.
+  isEstimated              Boolean @default(false)
+  estimatedLactationNumber Int?
+  estimatedDaysInMilk      Int?
+
+  /// RAKHAL-284: highest single "complete" day's yield recorded so far this
+  /// lactation (nullable — no complete day recorded yet). Recomputed on each
+  /// saleable-affecting milk-log write for this cow's active lactation
+  /// (`MilkService.saveLog()`), never guessed/backfilled otherwise.
+  /// `peakMilkDate` (above) already existed on this model — reused, not
+  /// duplicated. `peakDaysInMilk` is the DIM of that peak day, same 0-based
+  /// convention `lactation-curve.ts`'s `DailyYieldPoint.dim` already uses.
+  peakMilkYield  Float?
+  peakDaysInMilk Int?
+
+  /// RAKHAL-285: dynamic, pregnancy-driven dry-off projection — replaces a
+  /// fixed 305-day target (Bangladesh farms vary too widely in lactation
+  /// length to make that the primary metric). Set/recomputed by
+  /// `ReproductionService` whenever the dam's expected-calving date changes
+  /// (`createPregnancyDiagnosis` confirming/re-confirming PREGNANT) —
+  /// `expectedCalvingDate - farmModuleSettings.reproDryPeriodTargetDays`.
+  /// Nullable: null whenever the dam has no active `Pregnancy` with a known
+  /// expected-calving date (never pregnant yet, or `createAbortionEvent`
+  /// clears it back to null on pregnancy loss — the lactation itself is left
+  /// untouched, she keeps milking). The not-pregnant case is never guessed
+  /// onto this column — `LactationStatsService.getStats()` derives a labeled
+  /// `managementEstimateDimRange`/`confidence:LOW` estimate at read time
+  /// instead (`domain/lactation-dry-off-projection.ts`).
+  recommendedDryOffAt DateTime?
+  /// RAKHAL-285: farmer-set/adjustable target dry-off date, independent of
+  /// `recommendedDryOffAt` — both are tracked so planned-vs-actual can be
+  /// compared later. Never written by the recommended-value recompute;
+  /// only `LactationStatsService.updatePlannedDryOff()` writes this field.
+  plannedDryOffAt     DateTime?
+
+  createdAt DateTime @default(now())
+  /// RAKHAL-299: distinguishes an edited row from an original (edit substrate).
+  updatedAt DateTime @updatedAt
+
+  cattle       Cattle        @relation(fields: [cattleId], references: [id])
+  calvingEvent CalvingEvent? @relation(fields: [calvingEventId], references: [id])
+
+  @@index([cattleId])
+  @@index([calvingEventId])
+  @@index([status])
+}

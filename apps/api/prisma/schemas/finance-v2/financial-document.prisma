@@ -1,0 +1,60 @@
+/// RD-069 fix — a one-row-per-posting projection replacing the fan-out
+/// `TransactionFeedService.resolveParties` used to run across `Sale`/
+/// `Purchase`/`Expense` (up to 3 extra queries per page, and only those 3
+/// source types — `FinancePayment`/`Transfer`/`OtherIncome` never had a
+/// resolver at all) with no way to search by document number across types.
+///
+/// `JournalService.postJournal` writes this row (when the caller supplies
+/// `documentNumber`/`partyId`/`partyName`) inside the exact same
+/// `$transaction` as the `JournalTransaction`/`JournalEntry` rows — never a
+/// separate write, so it can never drift out of sync with the posting it
+/// describes. One row per `JournalTransaction` (`journalTransactionId` is
+/// `@unique`), not one row per `documentNumber` — two different source types
+/// can legitimately reuse the same human-facing number (e.g. `SALE-1` and
+/// `PURCHASE-1`), so `documentNumber` alone is not a safe primary key.
+///
+/// `TransactionFeedService.listTransactions` now does one indexed lookup
+/// (`journalTransactionId IN (...)`, replacing the whole `resolveParties`
+/// fan-out) and can filter/search by `documentNumber` directly via the
+/// `financialDocument` relation on `JournalTransaction`, closing the
+/// "reference search would require hitting six tables" gap RD-069 named.
+model FinancialDocument {
+  id     String @id @default(cuid())
+  farmId String
+
+  /// The exact `JournalTransaction` this projects. One row per posting.
+  journalTransactionId String @unique
+
+  /// Denormalized from `JournalTransaction` at write time so this table can
+  /// be queried standalone (e.g. a future export) without a join back.
+  sourceType String
+  sourceId   String
+
+  /// Human-facing document number (`SALE-000123`, `PUR-000045`, a payment's
+  /// free-text `referenceNumber`, ...). Null for source types with no such
+  /// number today (`FINANCE_TRANSFER`, `OTHER_INCOME`,
+  /// `FINANCIAL_ACCOUNT_OPENING_BALANCE`, the two feed-finalize sources) —
+  /// same "honest null, not invented" convention as `cattle-finance-
+  /// aggregation.ts`'s expense buckets.
+  documentNumber String?
+
+  documentDate DateTime
+
+  /// The counterparty, if this source type has one — `MilkBuyer` for a
+  /// `Sale`, `Supplier` for a `Purchase`/`Expense`. Resolved and denormalized
+  /// once at write time (the name is copied, not re-joined on every read) so
+  /// a renamed buyer/supplier does not retroactively rewrite old feed rows —
+  /// same "the document reads as it did when posted" principle
+  /// `sumUnreversedExpense`'s own doc comment relies on for money amounts.
+  partyId   String?
+  partyName String?
+
+  createdAt DateTime @default(now())
+
+  farm               Farm               @relation("FarmToFinancialDocument", fields: [farmId], references: [id])
+  journalTransaction JournalTransaction @relation(fields: [journalTransactionId], references: [id])
+
+  @@index([farmId, documentNumber])
+  @@index([farmId, sourceType, sourceId])
+  @@index([farmId, partyName])
+}

@@ -1,0 +1,25 @@
+/// Platform-wide feature flag (Phase 5). Managed from the admin panel; evaluated by
+/// `isFeatureEnabled` (domain/platform-config.ts): on when `enabled`, or when the asking farm is in
+/// `farmIds` (pilot / staged rollout). Flags are data, so shipping one needs no deploy.
+model PlatformFeatureFlag {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  description String   @default("")
+  enabled     Boolean  @default(false)
+  /// Farms the flag is on for even while `enabled` is false.
+  farmIds     String[] @default([])
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// Platform setting (Phase 5): small non-secret JSON values an operator may tune at runtime.
+/// Never store credentials here — keys that look secret are rejected on write.
+model PlatformSetting {
+  key         String   @id
+  value       Json
+  description String   @default("")
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

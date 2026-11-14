@@ -1,0 +1,115 @@
+model Farm {
+  id          String     @id @default(cuid())
+  name        String
+  slug        String     @unique
+  description String?
+  logo        String?
+  status      FarmStatus @default(ACTIVE)
+
+  division           String?
+  district           String?
+  upazila            String?
+  operationalPurpose String?
+  phone              String?
+  address            String?
+
+  /// PRD §5.1 Step 2 — approximate herd-size band ("10-50" / "51-200" / "201-500").
+  herdSizeBand   String?
+  /// Tag/Farm-ID prefix (e.g. "GVD"), user-supplied or derived from `name` at create time.
+  cattleIdPrefix String?
+  /// Auto-generated PREFIX-YEAR-SERIAL (e.g. "GVD-2026-001"), assigned once at create (RAKHAL-021).
+  farmCode       String? @unique
+
+  freePlanActivatedAt DateTime?
+
+  hasCompletedOnboarding Boolean @default(false)
+
+  /// IANA timezone the farm operates in. Decides what "today" means wherever a request omits a date (feeding/milk
+  /// logs, calendars, reports) — a UTC-derived "today" is the previous day for a UTC+6 farm until 6 AM local.
+  timezone String @default("Asia/Dhaka")
+
+  ownerId   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  owner User @relation("FarmOwner", fields: [ownerId], references: [id])
+
+  members                   FarmMember[]
+  roles                     Role[]                      @relation("FarmToRole")
+  subscriptions             FarmSubscription[]          @relation("FarmToSubscription")
+  auditLogs                 AuditLog[]                  @relation("FarmToAuditLog")
+  cattle                    Cattle[]                    @relation("FarmToCattle")
+  breeds                    Breed[]                     @relation("FarmToBreed")
+  sheds                     Shed[]                      @relation("FarmToShed")
+  healthCases               HealthCase[]                @relation("FarmToHealthCase")
+  healthPlans               HealthPlan[]                @relation("FarmToHealthPlan")
+  healthTasks               HealthTask[]                @relation("FarmToHealthTask")
+  planApplications          PlanApplication[]           @relation("FarmToPlanApplication")
+  planEnrollments           PlanEnrollment[]            @relation("FarmToPlanEnrollment")
+  treatmentLogs             TreatmentLog[]              @relation("FarmToTreatmentLog")
+  healthUpdates             HealthUpdate[]              @relation("FarmToHealthUpdate")
+  mortalityRecords          MortalityRecord[]           @relation("FarmToMortalityRecord")
+  safetyWithdrawals         SafetyWithdrawal[]          @relation("FarmToSafetyWithdrawal")
+  diseaseCatalogs           DiseaseCatalog[]            @relation("FarmToDiseaseCatalog")
+  medicines                 Medicine[]                  @relation("FarmToMedicine")
+  medicineBatches           MedicineBatch[]             @relation("FarmToMedicineBatch")
+  forages                   FeedItem[]                  @relation("FarmToForage")
+  semenTanks                SemenTank[]                 @relation("FarmToSemenTank")
+  semenBatches              SemenBatch[]                @relation("FarmToSemenBatch")
+  milkTanks                 MilkTank[]                  @relation("FarmToMilkTank")
+  equipment                 Equipment[]                 @relation("FarmToEquipment")
+  activityLogs              ActivityLog[]               @relation("FarmToActivityLog")
+  tasks                     Task[]                      @relation("FarmToTask")
+  milkLogEntries            MilkLogEntry[]              @relation("FarmToMilkLogEntry")
+  milkBuyers                MilkBuyer[]                 @relation("FarmToMilkBuyer")
+  milkDispatches            MilkDispatch[]              @relation("FarmToMilkDispatch")
+  // RAKHAL-354: `financeTransactions`/`financeReceivables`/`walletTransactions`
+  // relations dropped along with `FinanceTransaction`/`FinanceReceivable`/
+  // `WalletTransaction` (Finance V1) — see `finance/finance.prisma`'s own
+  // top doc comment. `financeLoans` survives (`FinanceLoan` kept, `FINANCE_V2_DESIGN.md` §5.2).
+  financeLoans              FinanceLoan[]               @relation("FarmToFinanceLoan")
+  animalGroups              AnimalGroup[]               @relation("FarmToAnimalGroup")
+  animalEvents              AnimalEvent[]               @relation("FarmToAnimalEvent")
+  animalEventBatches        AnimalEventBatch[]          @relation("FarmToAnimalEventBatch")
+  feedIngredientOverrides   FeedIngredientOverride[]    @relation("FarmToFeedIngredientOverride")
+  feedConcentrations        FeedConcentration[]         @relation("FarmToFeedConcentration")
+  feedConcentrationVersions FeedConcentrationVersion[]  @relation("FarmToFeedConcentrationVersion")
+  requirementSettings       FarmRequirementSettings?    @relation("FarmToRequirementSettings")
+  fixedAssets               FixedAsset[]                @relation("FarmToFixedAsset")
+  invitations               FarmInvitation[]            @relation("FarmToInvitation")
+  suppliers                 Supplier[]                  @relation("FarmToSupplier")
+  moduleSettings            FarmModuleSettings?         @relation("FarmToModuleSettings")
+  feedDistributions         FeedDistribution[]          @relation("FarmToFeedDistribution")
+  customFeedIngredients     FeedIngredient[]            @relation("FarmToCustomFeedIngredient")
+  feedStocks                FeedStock[]                 @relation("FarmToFeedStock")
+  feedPlans                 FeedPlan[]                  @relation("FarmToFeedPlan")
+  scoreboardParticipation   ScoreboardParticipation?    @relation("FarmToScoreboardParticipation")
+  notifications             Notification[]              @relation("FarmToNotification")
+  reproProtocols            ReproProtocol[]             @relation("FarmToReproProtocol")
+  reproProtocolInstances    ReproProtocolInstance[]     @relation("FarmToReproProtocolInstance")
+  units                     Unit[]                      @relation("FarmToUnit")
+  feedingDrafts             FeedFeedingDraft[]          @relation("FarmToFeedFeedingDraft")
+  serviceProviders          ServiceProvider[]           @relation("FarmToServiceProvider")
+  outboxEvents              OutboxEvent[]               @relation("FarmToOutboxEvent")
+  ledgerAccounts            LedgerAccount[]             @relation("FarmToLedgerAccount")
+  journalTransactions       JournalTransaction[]        @relation("FarmToJournalTransaction")
+  financialAccounts         FinancialAccount[]          @relation("FarmToFinancialAccount")
+  financePayments           FinancePayment[]            @relation("FarmToFinancePayment")
+  transfers                 Transfer[]                  @relation("FarmToTransfer")
+  sales                     Sale[]                      @relation("FarmToSale")
+  receivables               Receivable[]                @relation("FarmToReceivable")
+  cattleDispositions        CattleDisposition[]         @relation("FarmToCattleDisposition")
+  incomeCategories          IncomeCategory[]            @relation("FarmToIncomeCategory")
+  otherIncomes              OtherIncome[]               @relation("FarmToOtherIncome")
+  purchases                 Purchase[]                  @relation("FarmToPurchase")
+  expenses                  Expense[]                   @relation("FarmToExpense")
+  payables                  Payable[]                   @relation("FarmToPayable")
+  financialDocuments        FinancialDocument[]         @relation("FarmToFinancialDocument")
+  requirementOverrides      CattleRequirementOverride[]
+  reports                   Report[]                    @relation("FarmToReport")
+  notificationSchedules     NotificationSchedule[]
+
+  @@index([ownerId])
+  @@index([slug])
+}

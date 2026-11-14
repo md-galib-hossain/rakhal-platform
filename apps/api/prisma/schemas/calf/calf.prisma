@@ -1,0 +1,94 @@
+/// Calf Management (PRD §14). A calf is a `Cattle` row with `purpose = CALF`;
+/// these tables hang the calf-rearing records (colostrum, milk, weight, starter
+/// feed, weaning) off it. Farm scoping is via the `calf` relation
+/// (`calf.farmId`), matching the reproduction records these extend.
+
+model CalfColostrumRecord {
+  id     String @id @default(cuid())
+  calfId String
+
+  /// 1, 2, 3 … — colostrum feeds in the critical first 48 hours (PRD §14.4).
+  feedNumber Int
+  fedAt      DateTime
+  volumeMl   Int
+  quality    ColostrumQuality @default(UNKNOWN)
+  fedBy      String?
+  notes      String?
+
+  createdAt DateTime @default(now())
+
+  calf Cattle @relation(fields: [calfId], references: [id])
+
+  @@index([calfId])
+}
+
+model CalfMilkFeeding {
+  id     String @id @default(cuid())
+  calfId String
+
+  date      DateTime
+  morningMl Int          @default(0)
+  eveningMl Int          @default(0)
+  type      CalfMilkType @default(WHOLE_MILK)
+  notes     String?
+
+  createdAt DateTime @default(now())
+
+  calf Cattle @relation(fields: [calfId], references: [id])
+
+  @@index([calfId])
+  @@index([calfId, date])
+}
+
+model CalfWeightRecord {
+  id     String @id @default(cuid())
+  calfId String
+
+  weightKg     Float
+  measuredDate DateTime
+  recordedBy   String?
+  notes        String?
+
+  createdAt DateTime @default(now())
+
+  calf Cattle @relation(fields: [calfId], references: [id])
+
+  @@index([calfId])
+  @@index([calfId, measuredDate])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
+}
+
+model CalfStarterFeedRecord {
+  id     String @id @default(cuid())
+  calfId String
+
+  date      DateTime
+  eventType CalfStarterEventType
+  amountG   Int                  @default(0)
+  notes     String?
+
+  createdAt DateTime @default(now())
+
+  calf Cattle @relation(fields: [calfId], references: [id])
+
+  @@index([calfId])
+}
+
+/// One row per calf, written when it is weaned (PRD §14.4). Its existence marks
+/// the calf as weaned and it is moved out of Calf Management into the main herd.
+model CalfWeaningRecord {
+  id     String @id @default(cuid())
+  calfId String @unique
+
+  weaningDate     DateTime
+  weaningWeightKg Float?
+  adgAtWeaning    Float?
+  notes           String?
+
+  createdAt DateTime @default(now())
+
+  calf Cattle @relation(fields: [calfId], references: [id])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
+}

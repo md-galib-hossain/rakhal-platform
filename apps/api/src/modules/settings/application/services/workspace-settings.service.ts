@@ -1,0 +1,517 @@
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { ActivityLogModule, FarmModuleSettings, Prisma } from '@prisma/client';
+import { ActivityLogService } from 'src/modules/activity/application/services/activity-log.service';
+import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { CreateSupplierDto } from '../../presentation/dto/create-supplier.dto';
+import { UpdateSupplierDto } from '../../presentation/dto/update-supplier.dto';
+import { CreateServiceProviderDto } from '../../presentation/dto/create-service-provider.dto';
+import { UpdateServiceProviderDto } from '../../presentation/dto/update-service-provider.dto';
+import { UpdateModuleSettingsDto } from '../../presentation/dto/update-module-settings.dto';
+import { UpdateMilkSessionsDto } from '../../presentation/dto/update-milk-sessions.dto';
+import { parsePaymentTermsDays } from '../../domain/payment-terms';
+
+/**
+ * Settings → Module config, Suppliers, Billing (PRD §21.5–21.7 / API §18 —
+ * RAKHAL-032). Module settings persist the cross-module tunables (a row is lazily
+ * created with defaults on first access); modules consume hard-coded constants today
+ * (wiring is TECH_DEBT RD-014). Billing is read-only off the subscription. `farmId`
+ * from the token context.
+ */
+@Injectable()
+export class WorkspaceSettingsService {
+  private readonly log: LoggerService;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    logger: LoggerService,
+    private readonly activityLog: ActivityLogService,
+  ) {
+    this.log = logger.setContext(WorkspaceSettingsService.name);
+  }
+
+  /** Supplier changes are part of the purchasing trail. Post-commit and non-fatal: the supplier row
+   * is already saved, so a failed audit write must not turn into a 500. */
+  private async recordSupplierActivity(
+    farmId: string,
+    userId: string | undefined,
+    eventTitle: string,
+    actionDetails: string,
+  ): Promise<void> {
+    try {
+      await this.activityLog.record({
+        farmId,
+        module: ActivityLogModule.FINANCE,
+        eventTitle,
+        actionDetails,
+        actorId: userId,
+      });
+    } catch (error) {
+      this.log.error('Supplier activity log failed', {
+        farmId,
+        eventTitle,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  // ── Module settings ─────────────────────────────────────────────────────────
+
+  async getModules(farmId: string) {
+    const settings = await this.ensureModuleSettings(farmId);
+    return this.mapModules(settings);
+  }
+
+  async updateModules(farmId: string, dto: UpdateModuleSettingsDto) {
+    await this.ensureModuleSettings(farmId);
+    const data: Prisma.FarmModuleSettingsUpdateInput = {};
+
+    if (dto.cattle) {
+      this.assign(data, 'cattleIdFormat', dto.cattle.id_format);
+      this.assign(data, 'cattleTagPrefix', dto.cattle.tag_prefix);
+      this.assign(
+        data,
+        'cattleAvgMilkTargetRange',
+        dto.cattle.avg_daily_milk_target_range,
+      );
+    }
+    if (dto.milk) {
+      this.assign(data, 'milkMorningStart', dto.milk.morning_start);
+      this.assign(data, 'milkMorningEnd', dto.milk.morning_end);
+      this.assign(data, 'milkNoonStart', dto.milk.noon_start);
+      this.assign(data, 'milkNoonEnd', dto.milk.noon_end);
+      this.assign(data, 'milkEveningStart', dto.milk.evening_start);
+      this.assign(data, 'milkEveningEnd', dto.milk.evening_end);
+      this.assign(data, 'milkNightStart', dto.milk.night_start);
+      this.assign(data, 'milkNightEnd', dto.milk.night_end);
+      this.assign(data, 'milkUnit', dto.milk.milk_unit);
+      this.assign(
+        data,
+        'milkAnomalyThresholdPct',
+        dto.milk.anomaly_threshold_pct,
+      );
+      this.assign(
+        data,
+        'milkColostrumWindowDays',
+        dto.milk.colostrum_window_days,
+      );
+    }
+    if (dto.reproduction) {
+      this.assign(data, 'reproVwpDays', dto.reproduction.vwp_days);
+      this.assign(
+        data,
+        'reproPregnancyCheckDays',
+        dto.reproduction.pregnancy_check_days,
+      );
+      this.assign(
+        data,
+        'reproTargetCalvingIntervalDays',
+        dto.reproduction.target_calving_interval_days,
+      );
+      this.assign(
+        data,
+        'reproDryPeriodTargetDays',
+        dto.reproduction.dry_period_target_days,
+      );
+    }
+    if (dto.finance) {
+      this.assign(data, 'financeCurrency', dto.finance.currency);
+      this.assign(data, 'financeCurrencySymbol', dto.finance.currency_symbol);
+      this.assign(
+        data,
+        'financeRunwayWarningDays',
+        dto.finance.survival_runway_warning_days,
+      );
+      this.assign(
+        data,
+        'financeRunwayCriticalDays',
+        dto.finance.survival_runway_critical_days,
+      );
+      this.assign(
+        data,
+        'financeYearStartMonth',
+        dto.finance.financial_year_start_month,
+      );
+    }
+    if (dto.health) {
+      this.assign(
+        data,
+        'healthScoreWarningPct',
+        dto.health.herd_health_score_warning_pct,
+      );
+      this.assign(
+        data,
+        'healthSccAlertThreshold',
+        dto.health.scc_alert_threshold,
+      );
+      this.assign(
+        data,
+        'healthMorbidityOutbreakPct',
+        dto.health.morbidity_outbreak_threshold_pct,
+      );
+    }
+
+    const updated = await this.prisma.farmModuleSettings.update({
+      where: { farmId },
+      data,
+    });
+    this.log.info('Module settings updated', { farmId });
+    return this.mapModules(updated);
+  }
+
+  /**
+   * Owner-only (`settings.milk-sessions-manage`, enforced by the guard chain).
+   * Any of the 4 sessions may be locked/unlocked, but the farm must keep at
+   * least one active — a payload that drops the last one is rejected rather
+   * than silently re-added, so the caller notices.
+   */
+  async updateMilkSessions(farmId: string, dto: UpdateMilkSessionsDto) {
+    await this.ensureModuleSettings(farmId);
+
+    const sessions = new Set(dto.active_sessions.map((s) => s.toLowerCase()));
+    if (sessions.size === 0) {
+      throw new BadRequestException(
+        'At least one milk session must stay active',
+      );
+    }
+
+    const updated = await this.prisma.farmModuleSettings.update({
+      where: { farmId },
+      data: { milkActiveSessions: [...sessions] },
+    });
+    this.log.info('Milk sessions updated', {
+      farmId,
+      activeSessions: [...sessions],
+    });
+    return this.mapModules(updated).milk;
+  }
+
+  // ── Suppliers ───────────────────────────────────────────────────────────────
+
+  async listSuppliers(farmId: string) {
+    const suppliers = await this.prisma.supplier.findMany({
+      where: { farmId, deletedAt: null },
+      orderBy: { name: 'asc' },
+    });
+    return { suppliers: suppliers.map((s) => this.mapSupplier(s)) };
+  }
+
+  async createSupplier(
+    farmId: string,
+    dto: CreateSupplierDto,
+    userId?: string,
+  ) {
+    try {
+      const supplier = await this.prisma.supplier.create({
+        data: {
+          farmId,
+          name: dto.name,
+          contact: dto.contact,
+          phone: dto.phone,
+          category: dto.category,
+          paymentTerms: dto.payment_terms,
+          // RD-068: derived from `payment_terms`, not a separate input — see domain/payment-terms.ts.
+          paymentTermsDays: parsePaymentTermsDays(dto.payment_terms),
+          notes: dto.notes,
+        },
+      });
+      this.log.info('Supplier created', { supplierId: supplier.id, farmId });
+      await this.recordSupplierActivity(
+        farmId,
+        userId,
+        'Supplier Added',
+        `Supplier "${supplier.name}" added.`,
+      );
+      return this.mapSupplier(supplier);
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new ConflictException('A supplier with that name already exists');
+      }
+      throw e;
+    }
+  }
+
+  async updateSupplier(
+    farmId: string,
+    id: string,
+    dto: UpdateSupplierDto,
+    userId?: string,
+  ) {
+    await this.getSupplierOrThrow(farmId, id);
+    const supplier = await this.prisma.supplier.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.contact !== undefined ? { contact: dto.contact } : {}),
+        ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
+        ...(dto.category !== undefined ? { category: dto.category } : {}),
+        ...(dto.payment_terms !== undefined
+          ? {
+              paymentTerms: dto.payment_terms,
+              // RD-068: re-derive whenever the free-text terms change, keeping the two in sync.
+              paymentTermsDays: parsePaymentTermsDays(dto.payment_terms),
+            }
+          : {}),
+        ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+        ...(dto.deleted_at !== undefined
+          ? { deletedAt: dto.deleted_at === null ? null : new Date() }
+          : {}),
+      },
+    });
+    const archived = dto.deleted_at !== undefined && dto.deleted_at !== null;
+    const restored = dto.deleted_at === null;
+    await this.recordSupplierActivity(
+      farmId,
+      userId,
+      archived
+        ? 'Supplier Archived'
+        : restored
+          ? 'Supplier Restored'
+          : 'Supplier Updated',
+      `Supplier "${supplier.name}" ${archived ? 'archived' : restored ? 'restored' : 'updated'}.`,
+    );
+    return this.mapSupplier(supplier);
+  }
+
+  async deleteSupplier(farmId: string, id: string, userId?: string) {
+    const existing = await this.getSupplierOrThrow(farmId, id);
+    await this.prisma.supplier.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    this.log.info('Supplier deactivated', { supplierId: id, farmId });
+    await this.recordSupplierActivity(
+      farmId,
+      userId,
+      'Supplier Archived',
+      `Supplier "${existing.name}" archived.`,
+    );
+    return { id, deleted_at: new Date() };
+  }
+
+  // ── Service Providers ────────────────────────────────────────────────────────
+
+  async listServiceProviders(farmId: string) {
+    const providers = await this.prisma.serviceProvider.findMany({
+      where: { farmId, deletedAt: null },
+      orderBy: { name: 'asc' },
+    });
+    return {
+      service_providers: providers.map((p) => this.mapServiceProvider(p)),
+    };
+  }
+
+  async createServiceProvider(farmId: string, dto: CreateServiceProviderDto) {
+    try {
+      const provider = await this.prisma.serviceProvider.create({
+        data: {
+          farmId,
+          name: dto.name,
+          phone: dto.phone,
+          type: dto.type,
+        },
+      });
+      this.log.info('Service provider created', {
+        serviceProviderId: provider.id,
+        farmId,
+      });
+      return this.mapServiceProvider(provider);
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'A service provider with that name already exists',
+        );
+      }
+      throw e;
+    }
+  }
+
+  async updateServiceProvider(
+    farmId: string,
+    id: string,
+    dto: UpdateServiceProviderDto,
+  ) {
+    await this.getServiceProviderOrThrow(farmId, id);
+    const provider = await this.prisma.serviceProvider.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
+        ...(dto.phone !== undefined ? { phone: dto.phone } : {}),
+        ...(dto.type !== undefined ? { type: dto.type } : {}),
+        ...(dto.deleted_at !== undefined
+          ? { deletedAt: dto.deleted_at === null ? null : new Date() }
+          : {}),
+      },
+    });
+    return this.mapServiceProvider(provider);
+  }
+
+  async deleteServiceProvider(farmId: string, id: string) {
+    await this.getServiceProviderOrThrow(farmId, id);
+    await this.prisma.serviceProvider.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    this.log.info('Service provider deactivated', {
+      serviceProviderId: id,
+      farmId,
+    });
+    return { id, deleted_at: new Date() };
+  }
+
+  // ── Billing ───────────────────────────────────────────────────────────────--
+
+  async getBilling(farmId: string) {
+    const subscription = await this.prisma.farmSubscription.findFirst({
+      where: { farmId },
+      include: { subscriptionPlan: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      current_plan: subscription
+        ? {
+            name: subscription.subscriptionPlan.name,
+            price_per_month: Number(subscription.subscriptionPlan.monthlyPrice),
+            currency: 'Tk',
+            status: subscription.status.toLowerCase(),
+            next_billing_date: subscription.expiresAt,
+          }
+        : null,
+      // No payment provider/invoice store yet — surfaced empty (deferred).
+      payment_method: null,
+      invoices: [],
+    };
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────--
+
+  private async ensureModuleSettings(
+    farmId: string,
+  ): Promise<FarmModuleSettings> {
+    const existing = await this.prisma.farmModuleSettings.findUnique({
+      where: { farmId },
+    });
+    if (existing) return existing;
+    return this.prisma.farmModuleSettings.create({ data: { farmId } });
+  }
+
+  private async getSupplierOrThrow(farmId: string, id: string) {
+    const supplier = await this.prisma.supplier.findFirst({
+      where: { id, farmId },
+    });
+    if (!supplier) throw new NotFoundException('Supplier not found');
+    return supplier;
+  }
+
+  private async getServiceProviderOrThrow(farmId: string, id: string) {
+    const provider = await this.prisma.serviceProvider.findFirst({
+      where: { id, farmId },
+    });
+    if (!provider) throw new NotFoundException('Service provider not found');
+    return provider;
+  }
+
+  private assign<K extends keyof Prisma.FarmModuleSettingsUpdateInput>(
+    data: Prisma.FarmModuleSettingsUpdateInput,
+    key: K,
+    value: Prisma.FarmModuleSettingsUpdateInput[K] | undefined,
+  ): void {
+    if (value !== undefined) data[key] = value;
+  }
+
+  private mapSupplier(s: {
+    id: string;
+    name: string;
+    contact: string | null;
+    phone: string | null;
+    category: string | null;
+    paymentTerms: string | null;
+    paymentTermsDays: number;
+    notes: string | null;
+    deletedAt: Date | null;
+  }) {
+    return {
+      id: s.id,
+      name: s.name,
+      contact: s.contact,
+      phone: s.phone,
+      category: s.category,
+      payment_terms: s.paymentTerms,
+      // RD-068: read-only in the API — always derived from `payment_terms` server-side
+      // (`parsePaymentTermsDays`), not a second client-writable field.
+      payment_terms_days: s.paymentTermsDays,
+      notes: s.notes,
+      deleted_at: s.deletedAt,
+    };
+  }
+
+  private mapServiceProvider(p: {
+    id: string;
+    name: string;
+    phone: string | null;
+    type: string;
+    deletedAt: Date | null;
+  }) {
+    return {
+      id: p.id,
+      name: p.name,
+      phone: p.phone,
+      type: p.type,
+      deleted_at: p.deletedAt,
+    };
+  }
+
+  private mapModules(s: FarmModuleSettings) {
+    return {
+      cattle: {
+        id_format: s.cattleIdFormat,
+        tag_prefix: s.cattleTagPrefix,
+        avg_daily_milk_target_range: s.cattleAvgMilkTargetRange,
+      },
+      milk: {
+        active_sessions: s.milkActiveSessions,
+        morning_start: s.milkMorningStart,
+        morning_end: s.milkMorningEnd,
+        noon_start: s.milkNoonStart,
+        noon_end: s.milkNoonEnd,
+        evening_start: s.milkEveningStart,
+        evening_end: s.milkEveningEnd,
+        night_start: s.milkNightStart,
+        night_end: s.milkNightEnd,
+        milk_unit: s.milkUnit,
+        anomaly_threshold_pct: s.milkAnomalyThresholdPct,
+        colostrum_window_days: s.milkColostrumWindowDays,
+      },
+      reproduction: {
+        vwp_days: s.reproVwpDays,
+        pregnancy_check_days: s.reproPregnancyCheckDays,
+        target_calving_interval_days: s.reproTargetCalvingIntervalDays,
+        dry_period_target_days: s.reproDryPeriodTargetDays,
+      },
+      finance: {
+        currency: s.financeCurrency,
+        currency_symbol: s.financeCurrencySymbol,
+        survival_runway_warning_days: s.financeRunwayWarningDays,
+        survival_runway_critical_days: s.financeRunwayCriticalDays,
+        financial_year_start_month: s.financeYearStartMonth,
+      },
+      health: {
+        herd_health_score_warning_pct: s.healthScoreWarningPct,
+        scc_alert_threshold: s.healthSccAlertThreshold,
+        morbidity_outbreak_threshold_pct: s.healthMorbidityOutbreakPct,
+      },
+    };
+  }
+}

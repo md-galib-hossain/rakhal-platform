@@ -1,0 +1,76 @@
+/// Money the farm owes a supplier for a `Purchase` or `Expense` that wasn't
+/// fully paid at the moment it was recorded (RAKHAL-348, Purchasing —
+/// `FINANCE_V2_DESIGN.md` §4.3, §4.6, §5.1). **Mirrors `Receivable`**
+/// (`finance-v2/receivable.prisma`, RAKHAL-340) exactly — same derived-status
+/// discipline, same reasoning, on the liability side of the books instead of
+/// the asset side.
+///
+/// **Outstanding and status are computed, never stored** — same core decision
+/// as `Receivable` (`FINANCE_V2_DESIGN.md` §4.6, "Payment status is derived,
+/// never chosen"). `PayableService.getOutstanding`/`getStatus`
+/// (`purchasing/application/payable.service.ts`) derive both at read time
+/// from `PaymentAllocation` rows summed against this payable's id
+/// (`SUM(PaymentAllocation.amount) WHERE payableId = this`) — no column here
+/// duplicates that state.
+///
+/// **Exactly one of `purchaseId`/`expenseId` is set per row** — a `Payable`
+/// always traces back to exactly one of the two documents that can raise one,
+/// enforced in `PurchaseService.createPurchase`/`ExpenseService.recordExpense`
+/// (application layer, not the DB — Postgres has no native "exactly one of N
+/// nullable FKs" constraint short of a `CHECK` neither this ticket nor
+/// `Sale`'s equivalent choice added).
+///
+/// **`supplierId` — real FK (RAKHAL-365)**, same promotion and tenancy-assert
+/// discipline as `Purchase.supplierId`/`Expense.supplierId`.
+///
+/// Closes the `TODO(RAKHAL-348)` `PaymentAllocation.payableId` left as a
+/// plain scalar by RAKHAL-337/340 (`finance-v2/payment.prisma`) — that
+/// column is now a real `@relation` to this model (see `payment.prisma`'s
+/// own updated doc comment). **Gap closed by RAKHAL-349**:
+/// `PaymentService.allocatePayment` now calls `PayableService.
+/// assertWithinOutstanding`/`closeIfSettled` for `payableId` lines, the
+/// same guard `ReceivableService` already had for `receivableId` lines
+/// (RAKHAL-340) — a `payableId` allocation is bounded by this payable's
+/// real remaining outstanding balance across all its payments, not just
+/// the one payment's own `amount`.
+model Payable {
+  id     String @id @default(cuid())
+  farmId String
+
+  /// The `Purchase` this payable was raised for, if any. Real FK — exactly
+  /// one of `purchaseId`/`expenseId` is set (see this model's own doc
+  /// comment above).
+  purchaseId String? @unique
+  /// The `Expense` this payable was raised for, if any. Real FK — exactly
+  /// one of `purchaseId`/`expenseId` is set.
+  expenseId  String? @unique
+
+  /// See this model's own doc comment above — real FK to `Supplier`.
+  supplierId String?
+
+  /// Mirrors the parent document's `totalAmount` (or its unpaid remainder at
+  /// creation time) — a purchase/expense is never edited when money is paid
+  /// later, same convention as `Receivable.totalAmount`.
+  totalAmount Decimal @db.Decimal(18, 2)
+
+  dueDate DateTime?
+
+  /// Set once `getOutstanding` reaches zero — an operational bookkeeping
+  /// timestamp only, **not** the source of truth for `PAID` (that's always
+  /// derived from allocations; see `Receivable.closedAt`'s identical doc
+  /// comment).
+  closedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  farm     Farm      @relation("FarmToPayable", fields: [farmId], references: [id])
+  purchase Purchase? @relation("PurchaseToPayable", fields: [purchaseId], references: [id])
+  expense  Expense?  @relation("ExpenseToPayable", fields: [expenseId], references: [id])
+  supplier Supplier? @relation("SupplierToPayable", fields: [supplierId], references: [id], onDelete: Restrict)
+
+  allocations PaymentAllocation[] @relation("PayableToPaymentAllocation")
+
+  @@index([farmId])
+  @@index([farmId, supplierId])
+  @@index([farmId, dueDate])
+}

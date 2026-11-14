@@ -1,0 +1,683 @@
+import { Injectable } from '@nestjs/common';
+import {
+  AuditAction,
+  Language as PrismaLanguage,
+  SessionStatus,
+  TokenType,
+  User,
+} from '@prisma/client';
+import { createHash } from 'crypto';
+import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { EmailVerificationTokenPort } from 'src/modules/auth/application/ports/email-verification-token.port';
+
+/** Thrown when `completeRefreshRotation` loses the atomic claim on the
+ * incoming token — a concurrent request already rotated it first (two tabs,
+ * or the proactive middleware + reactive 401-retry firing near-simultaneously
+ * on the same stale cookie). Not the same as real token reuse: the caller
+ * should fall back to replaying the winner's result, not revoke the family. */
+export class RefreshTokenAlreadyRotatedError extends Error {
+  constructor() {
+    super('Refresh token was already rotated by a concurrent request');
+    this.name = 'RefreshTokenAlreadyRotatedError';
+  }
+}
+
+@Injectable()
+export class AuthRepository implements EmailVerificationTokenPort {
+  constructor(private readonly prisma: PrismaService) {}
+
+  findUserByEmail(email: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { email } });
+  }
+
+  findUserById(userId: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { id: userId } });
+  }
+
+  /** Active farm memberships for optional-`farmId` login resolution — 0/1/N
+   * drives whether login can auto-scope or must ask the client to pick.
+   * Mirrors `FarmService.listMine`'s shape so a multi-farm login response can
+   * render a picker without a second `GET /farms` round trip. */
+  async listActiveFarmMemberships(
+    userId: string,
+  ): Promise<{ id: string; name: string; slug: string; role: string }[]> {
+    const memberships = await this.prisma.farmMember.findMany({
+      where: { userId, farm: { deletedAt: null } },
+      select: {
+        role: { select: { name: true } },
+        farm: { select: { id: true, name: true, slug: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    return memberships.map((m) => ({ ...m.farm, role: m.role.name }));
+  }
+
+  /** Membership check for farm-switch (`POST /auth/refresh {farmId}`) — callers must not be
+   * able to mint a token scoped to a farm they don't belong to. Excludes the `''`/`'bootstrap'`
+   * sentinels the caller already skips before calling this. */
+  async isActiveFarmMember(userId: string, farmId: string): Promise<boolean> {
+    const membership = await this.prisma.farmMember.findFirst({
+      where: { userId, farmId, farm: { deletedAt: null } },
+      select: { id: true },
+    });
+    return membership !== null;
+  }
+
+  /** For anything returned to the client (`GET /auth/me`) — `findUserById` still carries
+   * `passwordHash` for internal use (e.g. `changePassword`'s re-verification). */
+  findSafeUserById(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      omit: { passwordHash: true },
+    });
+  }
+
+  createEmailVerificationToken(data: {
+    userId: string;
+    token: string;
+    expiresAt: Date;
+  }) {
+    return this.prisma.authToken.create({
+      data: {
+        userId: data.userId,
+        type: TokenType.EMAIL_VERIFICATION,
+        tokenHash: createHash('sha256').update(data.token).digest('hex'),
+        expiresAt: data.expiresAt,
+      },
+    });
+  }
+
+  createResetToken(data: {
+    userId: string;
+    tokenHash: string;
+    expiresAt: Date;
+  }) {
+    return this.prisma.authToken.create({
+      data: {
+        userId: data.userId,
+        type: TokenType.PASSWORD_RESET,
+        tokenHash: data.tokenHash,
+        expiresAt: data.expiresAt,
+      },
+    });
+  }
+
+  findResetToken(tokenHash: string) {
+    const now = new Date();
+
+    return this.prisma.authToken.findFirst({
+      where: {
+        tokenHash,
+        type: TokenType.PASSWORD_RESET,
+        isUsed: false,
+        expiresAt: { gt: now },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  markResetTokenUsed(tokenId: string) {
+    return this.prisma.authToken.update({
+      where: { id: tokenId },
+      data: { isUsed: true },
+    });
+  }
+
+  updateUserPassword(userId: string, passwordHash: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
+    });
+  }
+
+  async verifyEmailToken(token: string): Promise<User | null> {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const now = new Date();
+
+    return this.prisma.$transaction(async (prisma) => {
+      const authToken = await prisma.authToken.findFirst({
+        where: {
+          tokenHash,
+          type: TokenType.EMAIL_VERIFICATION,
+          isUsed: false,
+          expiresAt: { gt: now },
+        },
+      });
+
+      if (!authToken) {
+        return null;
+      }
+
+      await prisma.authToken.update({
+        where: { id: authToken.id },
+        data: { isUsed: true },
+      });
+
+      return prisma.user.update({
+        where: { id: authToken.userId },
+        data: { isEmailVerified: true },
+      });
+    });
+  }
+
+  createUser(data: { email: string; name: string; passwordHash: string }) {
+    return this.prisma.user.create({ data });
+  }
+
+  registerUserWithVerification(data: {
+    email: string;
+    name: string;
+    passwordHash: string;
+    verificationTokenHash: string;
+    verificationExpiresAt: Date;
+  }) {
+    return this.prisma.$transaction(async (prisma) => {
+      const user = await prisma.user.create({
+        data: {
+          email: data.email,
+          name: data.name,
+          passwordHash: data.passwordHash,
+        },
+      });
+
+      await prisma.authToken.create({
+        data: {
+          userId: user.id,
+          type: TokenType.EMAIL_VERIFICATION,
+          tokenHash: data.verificationTokenHash,
+          expiresAt: data.verificationExpiresAt,
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: user.id,
+          action: AuditAction.REGISTER,
+          entityType: 'User',
+          entityId: user.id,
+          metadata: {
+            emailDomain: data.email.split('@')[1] ?? null,
+          },
+        },
+      });
+
+      return user;
+    });
+  }
+
+  recordFailedLoginAttempt(data: {
+    userId: string;
+    failedLoginAttempts: number;
+    lockedUntil?: Date | null;
+    ipAddress?: string;
+    userAgent?: string;
+    deviceName?: string;
+    reason: string;
+  }) {
+    return this.prisma.$transaction(async (prisma) => {
+      const user = await prisma.user.update({
+        where: { id: data.userId },
+        data: {
+          failedLoginAttempts: data.failedLoginAttempts,
+          lockedUntil: data.lockedUntil ?? undefined,
+          lastFailedLoginAt: new Date(),
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: data.userId,
+          action: AuditAction.SUSPICIOUS_ACTIVITY,
+          entityType: 'User',
+          entityId: data.userId,
+          metadata: {
+            reason: data.reason,
+            failedLoginAttempts: data.failedLoginAttempts,
+          },
+          ipAddress: data.ipAddress,
+          userAgent: data.userAgent,
+        },
+      });
+
+      return user;
+    });
+  }
+
+  recordSuspiciousLogin(data: {
+    userId: string;
+    ipAddress?: string;
+    userAgent?: string;
+    deviceName?: string;
+    reason: string;
+  }) {
+    return this.prisma.auditLog.create({
+      data: {
+        actorUserId: data.userId,
+        action: AuditAction.SUSPICIOUS_ACTIVITY,
+        entityType: 'User',
+        entityId: data.userId,
+        metadata: {
+          reason: data.reason,
+          deviceName: data.deviceName ?? null,
+        },
+        ipAddress: data.ipAddress,
+        userAgent: data.userAgent,
+      },
+    });
+  }
+
+  completeSuccessfulLogin(data: {
+    userId: string;
+    sessionExpiresAt: Date;
+    refreshTokenHash: string;
+    tokenFamily: string;
+    refreshTokenExpiresAt: Date;
+    ipAddress?: string;
+    userAgent?: string;
+    deviceName?: string;
+  }) {
+    return this.prisma.$transaction(async (prisma) => {
+      const user = await prisma.user.update({
+        where: { id: data.userId },
+        data: {
+          failedLoginAttempts: 0,
+          lastFailedLoginAt: null,
+          lockedUntil: null,
+          lastLoginAt: new Date(),
+        },
+      });
+
+      const session = await prisma.session.create({
+        data: {
+          userId: data.userId,
+          status: SessionStatus.ACTIVE,
+          expiresAt: data.sessionExpiresAt,
+          ipAddress: data.ipAddress,
+          userAgent: data.userAgent,
+          deviceName: data.deviceName,
+        },
+      });
+
+      await prisma.refreshToken.create({
+        data: {
+          sessionId: session.id,
+          tokenHash: data.refreshTokenHash,
+          tokenFamily: data.tokenFamily,
+          expiresAt: data.refreshTokenExpiresAt,
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: data.userId,
+          action: AuditAction.LOGIN,
+          entityType: 'Session',
+          entityId: session.id,
+          ipAddress: data.ipAddress,
+          userAgent: data.userAgent,
+          metadata: {
+            deviceName: data.deviceName ?? null,
+          },
+        },
+      });
+
+      return { user, session };
+    });
+  }
+
+  createSession(data: {
+    userId: string;
+    expiresAt: Date;
+    ipAddress?: string;
+    userAgent?: string;
+    deviceName?: string;
+  }) {
+    return this.prisma.session.create({
+      data: {
+        ...data,
+        status: SessionStatus.ACTIVE,
+      },
+    });
+  }
+
+  getUserSessions(userId: string) {
+    return this.prisma.session.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  findSessionById(sessionId: string) {
+    return this.prisma.session.findUnique({
+      where: { id: sessionId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            permissionsVersion: true,
+            isBlocked: true,
+            deletedAt: true,
+            preferredLanguage: true,
+          },
+        },
+      },
+    });
+  }
+
+  updatePreferredLanguage(userId: string, preferredLanguage: PrismaLanguage) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { preferredLanguage },
+      select: { id: true, preferredLanguage: true },
+    });
+  }
+
+  revokeSessionForUser(data: {
+    sessionId: string;
+    userId: string;
+    auditAction: AuditAction;
+  }) {
+    return this.prisma.$transaction(async (prisma) => {
+      const session = await prisma.session.findFirst({
+        where: {
+          id: data.sessionId,
+          userId: data.userId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!session) {
+        return null;
+      }
+
+      await prisma.session.update({
+        where: { id: data.sessionId },
+        data: {
+          status: SessionStatus.REVOKED,
+        },
+      });
+
+      const revokedRefreshTokens = await prisma.refreshToken.updateMany({
+        where: {
+          sessionId: data.sessionId,
+        },
+        data: {
+          isRevoked: true,
+          revokedAt: new Date(),
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: data.userId,
+          action: data.auditAction,
+          entityType: 'Session',
+          entityId: data.sessionId,
+          metadata: {
+            revokedRefreshTokens: revokedRefreshTokens.count,
+          },
+        },
+      });
+
+      return {
+        sessionId: data.sessionId,
+        revokedRefreshTokens: revokedRefreshTokens.count,
+      };
+    });
+  }
+
+  revokeAllSessionsForUser(userId: string) {
+    return this.prisma.$transaction(async (prisma) => {
+      const activeSessions = await prisma.session.findMany({
+        where: {
+          userId,
+          status: SessionStatus.ACTIVE,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      const sessionIds = activeSessions.map((session) => session.id);
+
+      if (sessionIds.length === 0) {
+        return {
+          revokedSessions: 0,
+          revokedRefreshTokens: 0,
+        };
+      }
+
+      const revokedSessions = await prisma.session.updateMany({
+        where: {
+          id: {
+            in: sessionIds,
+          },
+        },
+        data: {
+          status: SessionStatus.REVOKED,
+        },
+      });
+
+      const revokedRefreshTokens = await prisma.refreshToken.updateMany({
+        where: {
+          sessionId: {
+            in: sessionIds,
+          },
+        },
+        data: {
+          isRevoked: true,
+          revokedAt: new Date(),
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: userId,
+          action: AuditAction.LOGOUT,
+          entityType: 'User',
+          entityId: userId,
+          metadata: {
+            scope: 'all-sessions',
+            revokedSessions: revokedSessions.count,
+            revokedRefreshTokens: revokedRefreshTokens.count,
+          },
+        },
+      });
+
+      return {
+        revokedSessions: revokedSessions.count,
+        revokedRefreshTokens: revokedRefreshTokens.count,
+      };
+    });
+  }
+
+  createRefreshToken(data: {
+    sessionId: string;
+    tokenHash: string;
+    tokenFamily: string;
+    expiresAt: Date;
+    parentTokenId?: string;
+  }) {
+    return this.prisma.refreshToken.create({
+      data: {
+        sessionId: data.sessionId,
+        tokenHash: data.tokenHash,
+        tokenFamily: data.tokenFamily,
+        expiresAt: data.expiresAt,
+        parentTokenId: data.parentTokenId,
+      },
+    });
+  }
+
+  findRefreshTokenByHash(tokenHash: string) {
+    return this.prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      include: {
+        session: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                permissionsVersion: true,
+                isBlocked: true,
+                deletedAt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  revokeRefreshToken(tokenId: string) {
+    return this.prisma.refreshToken.update({
+      where: { id: tokenId },
+      data: {
+        isRevoked: true,
+        revokedAt: new Date(),
+      },
+    });
+  }
+
+  completeRefreshRotation(data: {
+    refreshTokenId: string;
+    tokenFamily: string;
+    tokenHash: string;
+    tokenExpiresAt: Date;
+    parentTokenId: string;
+    sessionId: string;
+    userId: string;
+    ipAddress?: string;
+    userAgent?: string;
+    deviceName?: string;
+    farmId: string;
+    refreshReason: string;
+  }) {
+    return this.prisma.$transaction(async (prisma) => {
+      const claim = await prisma.refreshToken.updateMany({
+        where: { id: data.refreshTokenId, isRevoked: false },
+        data: {
+          isRevoked: true,
+          revokedAt: new Date(),
+        },
+      });
+
+      if (claim.count === 0) {
+        throw new RefreshTokenAlreadyRotatedError();
+      }
+
+      const previousToken = await prisma.refreshToken.findUniqueOrThrow({
+        where: { id: data.refreshTokenId },
+      });
+
+      const nextToken = await prisma.refreshToken.create({
+        data: {
+          sessionId: data.sessionId,
+          tokenHash: data.tokenHash,
+          tokenFamily: data.tokenFamily,
+          parentTokenId: data.parentTokenId,
+          expiresAt: data.tokenExpiresAt,
+        },
+      });
+
+      const session = await prisma.session.update({
+        where: { id: data.sessionId },
+        data: {
+          lastUsedAt: new Date(),
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: data.userId,
+          action: AuditAction.LOGIN,
+          entityType: 'Session',
+          entityId: data.sessionId,
+          ipAddress: data.ipAddress,
+          userAgent: data.userAgent,
+          metadata: {
+            event: 'refresh-rotated',
+            deviceName: data.deviceName ?? null,
+            farmId: data.farmId,
+            tokenFamily: data.tokenFamily,
+            parentTokenId: data.parentTokenId,
+            previousTokenId: previousToken.id,
+            nextTokenId: nextToken.id,
+          },
+        },
+      });
+
+      return { nextToken, session };
+    });
+  }
+
+  markRefreshReuse(data: {
+    refreshTokenId: string;
+    tokenFamily: string;
+    sessionId: string;
+    userId: string;
+    ipAddress?: string;
+    userAgent?: string;
+    deviceName?: string;
+    farmId: string;
+    reason: string;
+  }) {
+    return this.prisma.$transaction(async (prisma) => {
+      const compromisedSession = await prisma.session.update({
+        where: { id: data.sessionId },
+        data: {
+          status: SessionStatus.COMPROMISED,
+        },
+      });
+
+      await prisma.refreshToken.updateMany({
+        where: {
+          tokenFamily: data.tokenFamily,
+        },
+        data: {
+          isRevoked: true,
+          revokedAt: new Date(),
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          actorUserId: data.userId,
+          action: AuditAction.SUSPICIOUS_ACTIVITY,
+          entityType: 'Session',
+          entityId: data.sessionId,
+          ipAddress: data.ipAddress,
+          userAgent: data.userAgent,
+          metadata: {
+            event: 'refresh-token-reuse',
+            reason: data.reason,
+            deviceName: data.deviceName ?? null,
+            farmId: data.farmId,
+            tokenFamily: data.tokenFamily,
+            refreshTokenId: data.refreshTokenId,
+          },
+        },
+      });
+
+      return compromisedSession;
+    });
+  }
+}

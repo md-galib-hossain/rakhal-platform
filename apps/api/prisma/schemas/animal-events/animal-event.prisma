@@ -1,0 +1,134 @@
+/// MILESTONE 31 Events Core (RAKHAL-478): one header row per thing that happened
+/// to an animal. Single source for timeline, reproduction fold, void, bulk and
+/// follow-ups. Rich types keep typed detail tables linked 1:1 by `animalEventId`
+/// (added by later tickets); simple types keep their fields in `data`.
+/// Spec: docs/epic-events-core/04-event-model-and-flows.md §2.
+
+/// Code catalogue keys (animal-events/domain/catalogue.ts). CUSTOM = a farm-defined
+/// `AnimalEventTypeDef` (RAKHAL-486), referenced by `customTypeId`.
+enum AnimalEventType {
+  HEAT
+  BREEDING
+  PREG_CHECK
+  CALVING
+  ABORTION
+  DRY_OFF
+  ILLNESS
+  TREATMENT
+  VACCINATION
+  DEWORMING
+  WEIGHT
+  BCS
+  WEANING
+  CASTRATION
+  ENTER_FATTENING
+  LEAVE_FATTENING
+  MOVE
+  SOLD
+  DIED
+  CULLED
+  NOTE
+  HOOF_TRIM
+  DEHORN
+  CUSTOM
+}
+
+enum EventProvenance {
+  RECORDED
+  HISTORICAL
+}
+
+enum EventStatus {
+  ACTIVE
+  VOIDED
+}
+
+model AnimalEvent {
+  id            String          @id @default(cuid())
+  farmId        String
+  cattleId      String
+  type          AnimalEventType
+  customTypeId  String?
+  /// When it happened (UTC; the farm-local day is derived).
+  eventAt       DateTime
+  /// "Around March" history entries.
+  dateApprox    Boolean         @default(false)
+  provenance    EventProvenance @default(RECORDED)
+  status        EventStatus     @default(ACTIVE)
+  voidedAt      DateTime?
+  voidedById    String?
+  voidReason    String?
+  notes         String?
+  /// Only for types with no detail table; <= 4 KB, schema-checked.
+  data          Json?
+  /// Warnings accepted at save, e.g. HEAT_WHILE_PREGNANT.
+  findings      Json?
+  /// Set when recorded in bulk.
+  batchId       String?
+  /// Optional link: a preg check -> the AI it checks.
+  sourceEventId String?
+  recordedById  String
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  farm   Farm              @relation("FarmToAnimalEvent", fields: [farmId], references: [id])
+  cattle Cattle            @relation("CattleToAnimalEvent", fields: [cattleId], references: [id])
+  batch  AnimalEventBatch? @relation(fields: [batchId], references: [id])
+
+  @@index([farmId, cattleId, eventAt, id])
+  @@index([farmId, type, eventAt])
+  @@index([batchId])
+}
+
+/// One bulk save ("Vaccinate 18 animals").
+model AnimalEventBatch {
+  id           String          @id @default(cuid())
+  farmId       String
+  type         AnimalEventType
+  eventAt      DateTime
+  /// Chip used to pick animals.
+  category     String?
+  notes        String?
+  requested    Int
+  saved        Int
+  /// [{ cattleId, reason }]
+  skipped      Json?
+  recordedById String
+  createdAt    DateTime        @default(now())
+
+  farm   Farm          @relation("FarmToAnimalEventBatch", fields: [farmId], references: [id])
+  events AnimalEvent[]
+
+  @@index([farmId, createdAt])
+}
+
+/// RAKHAL-484: a farm's override of a code-defined follow-up rule (04 §2).
+model FollowUpRuleSetting {
+  farmId     String
+  /// e.g. BREEDING_TO_PREG_CHECK (animal-events/domain/follow-up-rules.ts)
+  ruleKey    String
+  enabled    Boolean @default(true)
+  offsetDays Float?
+
+  @@id([farmId, ruleKey])
+}
+
+/// RAKHAL-486: a farm-defined event type ("Hoof bath", "Ear tag replaced"), recorded as
+/// `AnimalEvent` type CUSTOM with `customTypeId` and its payload in `data`.
+model AnimalEventTypeDef {
+  id           String   @id @default(cuid())
+  farmId       String
+  name         String
+  /// HEALTH | REPRODUCTION | GROWTH | MOVEMENT | OTHER
+  group        String
+  /// Same shape as the catalogue's chip eligibility: { FEMALE: 'LISTED' | 'WARN' | 'BLOCK', ... }
+  appliesTo    Json
+  /// [{ key, label, kind: 'number' | 'text' | 'select', unit?, options?, required }]
+  fields       Json
+  followUpDays Int?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([farmId, name])
+}

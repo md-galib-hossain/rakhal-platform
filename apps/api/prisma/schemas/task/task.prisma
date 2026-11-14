@@ -1,0 +1,107 @@
+/// Task Hub task (PRD §17, §24.13). The same record is surfaced in the Task Hub
+/// and (when category = HEALTHCARE) the Healthcare task tab. Created either by a
+/// user (`source = MANUAL`) or programmatically by another module
+/// (`SYSTEM_AUTO` / `HEALTH_PLAN`) via the internal create API (RAKHAL-097).
+model Task {
+  id        String @id @default(cuid())
+  farmId    String
+  reference String // human ref, e.g. TSK-001 (sequential per farm)
+
+  name     String
+  details  String?
+  category TaskCategory @default(GENERAL)
+  priority TaskPriority @default(MEDIUM)
+  status   TaskStatus   @default(PENDING)
+
+  /// Start/scheduled time — distinct from dueAt (the deadline). Optional.
+  scheduledAt DateTime?
+  dueAt       DateTime
+
+  recurring         Boolean         @default(false)
+  recurrenceType    TaskRecurrence?
+  recurrenceEndDate DateTime?
+
+  safetyCritical Boolean    @default(false)
+  source         TaskSource @default(MANUAL)
+
+  /// Single-cow target — set by every system-generated task (RAKHAL-097 internal create API,
+  /// reproduction/health/calf/scheduler) and by a manual single-cow task. A plain scalar, not a
+  /// `@relation` — matches this model's own existing judgment call for cross-module FKs. Manual
+  /// tasks targeting more than one cow use `TaskCattle` instead; a multi-cow task's `relatedCattleId`
+  /// stays null (ambiguous which cow is "primary"), see `TaskCattle` below.
+  relatedCattleId String?
+
+  /// RAKHAL-299: edit substrate — the domain event this task was generated
+  /// from (e.g. "BREEDING_EVENT", "CALVING_EVENT"), paired with `sourceEventId`.
+  /// The only prior handle was a fuzzy `{relatedCattleId, source, category}`
+  /// triple that would reschedule unrelated tasks. Nullable — manual tasks
+  /// (`source: MANUAL`) have no source event. Not a Prisma enum: spans event
+  /// types across modules (reproduction/health/calf/...), so a plain string
+  /// discriminator avoids importing every module's enums into this shared model.
+  sourceEventType String?
+  sourceEventId   String?
+  /// RAKHAL-484: set on tasks made by a follow-up rule: `<ruleKey>:<sourceEventId>`, unique while the
+  /// task is open (partial unique index in the migration).
+  followUpKey     String?
+  ruleKey         String?
+
+  assignedToId       String?
+  completionPhotoUrl String?
+  completedById      String?
+  completedAt        DateTime?
+  completionNote     String?
+
+  cancelledAt   DateTime?
+  cancelledById String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm       Farm           @relation("FarmToTask", fields: [farmId], references: [id])
+  assignedTo User?          @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  cattles    TaskCattle[]
+  history    TaskAuditLog[]
+
+  @@unique([farmId, reference])
+  @@index([farmId, status])
+  @@index([assignedToId])
+  @@index([dueAt])
+  @@index([category])
+  @@index([farmId, status, dueAt])
+  @@index([sourceEventType, sourceEventId])
+}
+
+/// Task Hub activity/history section (user request, no ticket #). `actorId` is a plain scalar
+/// (matches `Task.relatedCattleId`'s own precedent in this file) — resolved to a display name in
+/// `TaskService#present` via a batched `User` lookup, same shape as the cow-name join. CREATED is
+/// never stored here (see `TaskAuditAction`'s own doc comment).
+model TaskAuditLog {
+  id        String          @id @default(cuid())
+  taskId    String
+  action    TaskAuditAction
+  actorId   String?
+  note      String?
+  createdAt DateTime        @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+}
+
+/// Multi-cow join for a manual task targeting more than one animal (user request, no ticket #).
+/// `cattleId` is a plain scalar (not a `@relation`), matching `Task.relatedCattleId`'s own precedent
+/// in this file — Task doesn't need a live FK into Cattle, only enough to join for display and to
+/// scope the per-animal Tasks tab filter. System-generated single-cow tasks never use this table.
+model TaskCattle {
+  id       String @id @default(cuid())
+  taskId   String
+  cattleId String
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([taskId, cattleId])
+  @@index([cattleId])
+}

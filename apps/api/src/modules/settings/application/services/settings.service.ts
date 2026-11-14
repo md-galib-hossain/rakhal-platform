@@ -1,0 +1,274 @@
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma, ShedPurpose } from '@prisma/client';
+import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { isValidTimezone } from 'src/common/farm-time/farm-time';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
+import { UpdateFarmSettingsDto } from '../../presentation/dto/update-farm-settings.dto';
+import { CreateShedDto } from '../../presentation/dto/create-shed.dto';
+import { UpdateShedDto } from '../../presentation/dto/update-shed.dto';
+
+@Injectable()
+export class SettingsService {
+  private readonly log: LoggerService;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    logger: LoggerService,
+  ) {
+    this.log = logger.setContext(SettingsService.name);
+  }
+
+  // ── Farm workspace ──────────────────────────────────────────────────────────
+
+  async getFarm(farmId: string) {
+    const farm = await this.prisma.farm.findUniqueOrThrow({
+      where: { id: farmId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        division: true,
+        district: true,
+        upazila: true,
+        operationalPurpose: true,
+        status: true,
+        phone: true,
+        address: true,
+        timezone: true,
+      },
+    });
+    return {
+      timezone: farm.timezone,
+      farm_id: farm.id,
+      farm_slug: farm.slug,
+      farm_name: farm.name,
+      description: farm.description,
+      division: farm.division,
+      district: farm.district,
+      upazila: farm.upazila,
+      operational_purpose: farm.operationalPurpose,
+      status: farm.status,
+      // Read-only here — the mutation path for these two lives on
+      // `PATCH /billing/profile` (the Free-plan profile-completion gate),
+      // not this route.
+      phone: farm.phone,
+      address: farm.address,
+    };
+  }
+
+  async updateFarm(farmId: string, userId: string, dto: UpdateFarmSettingsDto) {
+    const farm = await this.prisma.farm.findUniqueOrThrow({
+      where: { id: farmId },
+      select: { ownerId: true },
+    });
+
+    if (farm.ownerId !== userId) {
+      throw new ForbiddenException(
+        'Only the farm owner can update farm settings',
+      );
+    }
+
+    if (dto.timezone !== undefined && !isValidTimezone(dto.timezone)) {
+      throw new BadRequestException(
+        `"${dto.timezone}" is not a valid IANA timezone (e.g. "Asia/Dhaka")`,
+      );
+    }
+
+    const updated = await this.prisma.farm.update({
+      where: { id: farmId },
+      data: {
+        ...(dto.timezone !== undefined ? { timezone: dto.timezone } : {}),
+        ...(dto.farm_name ? { name: dto.farm_name } : {}),
+        ...(dto.description !== undefined
+          ? { description: dto.description }
+          : {}),
+        ...(dto.division !== undefined ? { division: dto.division } : {}),
+        ...(dto.district !== undefined ? { district: dto.district } : {}),
+        ...(dto.upazila !== undefined ? { upazila: dto.upazila } : {}),
+        ...(dto.operational_purpose !== undefined
+          ? { operationalPurpose: dto.operational_purpose }
+          : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        division: true,
+        district: true,
+        upazila: true,
+        operationalPurpose: true,
+        status: true,
+        phone: true,
+        address: true,
+        timezone: true,
+      },
+    });
+
+    this.log.info('Farm settings updated', { farmId });
+    return this.mapFarm(updated);
+  }
+
+  // ── Sheds ───────────────────────────────────────────────────────────────────
+
+  async listSheds(farmId: string) {
+    const sheds = await this.prisma.shed.findMany({
+      where: { farmId },
+      include: {
+        responsibleMember: { select: { id: true, name: true } },
+        _count: {
+          select: {
+            cattle: { where: activeHerd(farmId) },
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return sheds.map((s) => ({
+      id: s.id,
+      name: s.name,
+      code: s.code,
+      description: s.description,
+      capacity: s.capacity,
+      purpose: s.purpose,
+      responsible_member: s.responsibleMember,
+      current_count: s._count.cattle,
+      deleted_at: s.deletedAt,
+      created_at: s.createdAt,
+    }));
+  }
+
+  async createShed(farmId: string, dto: CreateShedDto) {
+    const code = dto.code ?? this.generateCode(dto.name);
+
+    try {
+      const shed = await this.prisma.shed.create({
+        data: {
+          farmId,
+          name: dto.name,
+          code,
+          description: dto.description,
+          capacity: dto.capacity,
+          purpose: (dto.purpose as ShedPurpose) ?? ShedPurpose.GENERAL,
+          responsibleMemberId: dto.responsible_member_id,
+        },
+      });
+      this.log.info('Shed created', { shedId: shed.id, farmId });
+      return shed;
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new ConflictException(`Shed with code "${code}" already exists`);
+      }
+      throw e;
+    }
+  }
+
+  async updateShed(farmId: string, id: string, dto: UpdateShedDto) {
+    await this.getShedOrThrow(farmId, id);
+
+    try {
+      const shed = await this.prisma.shed.update({
+        where: { id },
+        data: {
+          ...(dto.name ? { name: dto.name } : {}),
+          ...(dto.code ? { code: dto.code } : {}),
+          ...(dto.description !== undefined
+            ? { description: dto.description }
+            : {}),
+          ...(dto.capacity !== undefined ? { capacity: dto.capacity } : {}),
+          ...(dto.purpose ? { purpose: dto.purpose as ShedPurpose } : {}),
+          ...(dto.responsible_member_id !== undefined
+            ? { responsibleMemberId: dto.responsible_member_id }
+            : {}),
+        },
+      });
+      return shed;
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === 'P2002'
+      ) {
+        throw new ConflictException('A shed with that code already exists');
+      }
+      throw e;
+    }
+  }
+
+  async deleteShed(farmId: string, id: string) {
+    const shed = await this.getShedOrThrow(farmId, id);
+
+    const assignedCount = await this.prisma.cattle.count({
+      where: { shedId: id, ...activeHerd(farmId) },
+    });
+    if (assignedCount > 0) {
+      throw new BadRequestException(
+        `Cannot deactivate shed — ${assignedCount} active cattle are assigned to it`,
+      );
+    }
+
+    await this.prisma.shed.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    this.log.info('Shed deactivated', { shedId: id, farmId });
+    return { id: shed.id, deleted_at: new Date() };
+  }
+
+  // ── Private helpers ─────────────────────────────────────────────────────────
+
+  private async getShedOrThrow(farmId: string, id: string) {
+    const shed = await this.prisma.shed.findFirst({ where: { id, farmId } });
+    if (!shed) throw new NotFoundException('Shed not found');
+    return shed;
+  }
+
+  private mapFarm(f: {
+    id: string;
+    name: string;
+    slug: string;
+    description: string | null;
+    division: string | null;
+    district: string | null;
+    upazila: string | null;
+    operationalPurpose: string | null;
+    status: string;
+    phone: string | null;
+    address: string | null;
+    timezone: string;
+  }) {
+    return {
+      timezone: f.timezone,
+      farm_id: f.id,
+      farm_slug: f.slug,
+      farm_name: f.name,
+      description: f.description,
+      division: f.division,
+      district: f.district,
+      upazila: f.upazila,
+      operational_purpose: f.operationalPurpose,
+      status: f.status,
+      phone: f.phone,
+      address: f.address,
+    };
+  }
+
+  private generateCode(name: string): string {
+    return name
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+      .slice(0, 12);
+  }
+}

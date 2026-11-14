@@ -1,0 +1,19 @@
+model Role {
+  id           String  @id @default(cuid())
+  name         String
+  description  String?
+  farmId       String?
+  isSystemRole Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm? @relation("FarmToRole", fields: [farmId], references: [id])
+
+  permissions RolePermission[] @relation("RoleToRolePermission")
+  members     FarmMember[]
+  invitations FarmInvitation[] @relation("RoleToInvitation")
+
+  @@unique([farmId, name])
+  @@index([farmId])
+}

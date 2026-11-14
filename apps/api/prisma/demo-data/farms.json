@@ -1,0 +1,3 @@
+[
+  { "id": "sd_farm2", "name": "Green Valley Dairy", "slug": "green-valley-dairy", "description": "Referred second demo farm — exercises the referral/coupon flow", "status": "ACTIVE", "division": "Dhaka", "district": "Gazipur", "upazila": "Sreepur", "operationalPurpose": "Commercial dairy", "hasCompletedOnboarding": true, "ownerId": "@user:neighbor" }
+]

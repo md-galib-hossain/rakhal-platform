@@ -1,0 +1,86 @@
+/// Tuning numbers for the cow requirement model, as data (RAKHAL-409, PRD §12.13).
+///
+/// The equation shape lives in `src/modules/feed/domain/requirements.ts`; only the 33
+/// numbers it reads live here, so Rakhal Admin can retune the model and a farm can
+/// override it without a redeploy. Resolution order is
+/// **farm changes -> active preset -> the built-in launch defaults**, the same seam
+/// `AqrConfigService` describes in PRD §19.4 — but DB-backed rather than that stub's
+/// in-memory map.
+///
+/// Stored as `Json` rather than 33 nullable columns because one setting
+/// (`pregnancyIntakeStages`) is a 4-row table, no individual number is ever filtered or
+/// sorted on, and a future engine revision must be able to add a setting without a
+/// migration. Same reasoning as `FeedConcentrationVersion.snapshotItems`. Shape, bounds
+/// and validation live in `domain/requirement-settings.ts`; unknown or out-of-range
+/// fields are dropped on read, so a malformed row degrades to the defaults instead of
+/// taking the formulator down.
+///
+/// Zero `RequirementPreset` rows means every farm resolves the built-in defaults, so
+/// shipping this model changes no farm's numbers.
+model RequirementPreset {
+  id String @id @default(cuid())
+
+  /// Label shown in Rakhal Admin, e.g. "NRC-2001 baseline (Bangladesh)".
+  name        String
+  description String?
+
+  /// Monotonic per-name version. Publishing never mutates a row — it inserts a new
+  /// version, so a change is auditable and rollback is just re-activating the old row
+  /// (PRD §19.4: versioned, effective-dated, non-retroactive — already-computed
+  /// rations are never recomputed).
+  version Int @default(1)
+
+  /// A full `RequirementSettings` object. A partial one is legal: missing fields fall
+  /// through to the built-in defaults at resolve time.
+  settings Json
+
+  /// At most one preset is active at a time. Enforced by the partial unique index added
+  /// by hand in the migration (Prisma cannot express a filtered index) plus the
+  /// transaction in the Admin activate path.
+  isActive      Boolean  @default(false)
+  effectiveFrom DateTime @default(now())
+
+  /// `PlatformAdmin.id` — deliberately a plain string, not a Prisma relation. Admin
+  /// identity is a separate surface and farm-side code must never join it (ADR-016),
+  /// matching how `FeedConcentration.cattleId` is a plain validated FK.
+  createdByAdminId String?
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farmSettings FarmRequirementSettings[]
+
+  @@unique([name, version])
+  @@index([isActive, effectiveFrom])
+}
+
+/// One farm's changes layered over the active preset. Sparse by construction — only the
+/// fields the farm actually changed are stored, so a later Admin retune still flows
+/// through for everything else. The Json equivalent of `FeedIngredientOverride`'s
+/// null-means-inherit columns.
+model FarmRequirementSettings {
+  id     String @id @default(cuid())
+  farmId String
+
+  /// The preset these changes were authored against. Provenance only — the resolver
+  /// always merges onto the *currently active* preset, so an Admin retune is never
+  /// silently frozen by a stale farm override.
+  presetId String?
+
+  /// A sparse `Partial<RequirementSettings>`. `{}` means "no changes".
+  changes Json
+
+  notes String?
+
+  updatedBy String
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm   Farm               @relation("FarmToRequirementSettings", fields: [farmId], references: [id])
+  preset RequirementPreset? @relation(fields: [presetId], references: [id])
+
+  @@unique([farmId])
+  @@index([farmId])
+}

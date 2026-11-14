@@ -1,0 +1,15 @@
+model UserMFA {
+  id String @id @default(cuid())
+
+  userId String @unique
+
+  secret String
+
+  backupCodes String[]
+
+  isEnabled Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}

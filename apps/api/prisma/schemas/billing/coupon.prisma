@@ -1,0 +1,54 @@
+/// Platform-issued discount code (RAKHAL-222, PRD §33.1). Issuance/disable is
+/// platform-admin only (CPN-06); the HTTP admin surface is deferred to
+/// RAKHAL-224/225 (`PlatformAdminGuard` doesn't exist yet) — `CouponService`
+/// exposes `issue`/`list`/`disable` for that surface to wire in later, mirroring
+/// the AQR admin-config seam (`AqrConfigService`). Redemption happens at
+/// checkout (`customer-api`, Owner-only via `subscription.manage`).
+model Coupon {
+  id String @id @default(cuid())
+
+  /// Stored upper-cased; lookups upper-case the input for case-insensitive match.
+  code String @unique
+
+  type  CouponType
+  value Decimal    @db.Decimal(10, 2)
+
+  maxRedemptions Int
+  redeemedCount  Int @default(0)
+
+  perFarmLimit Int @default(1)
+
+  validFrom  DateTime
+  validUntil DateTime
+
+  /// Empty = applies to every plan.
+  applicablePlanIds String[] @default([])
+  minSpend          Decimal? @db.Decimal(12, 2)
+
+  status CouponStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  redemptions CouponRedemption[] @relation("CouponToCouponRedemption")
+
+  @@index([status])
+}
+
+/// One row per farm that redeemed a coupon (CPN-02: unique per coupon+farm).
+model CouponRedemption {
+  id String @id @default(cuid())
+
+  couponId String
+  coupon   Coupon @relation("CouponToCouponRedemption", fields: [couponId], references: [id])
+
+  farmId    String
+  invoiceId String
+
+  discountApplied Decimal @db.Decimal(12, 2)
+
+  redeemedAt DateTime @default(now())
+
+  @@unique([couponId, farmId])
+  @@index([farmId])
+}

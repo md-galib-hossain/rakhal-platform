@@ -1,0 +1,29 @@
+/// Lifecycle of a commercial sale document (RAKHAL-339, Sales — `FINANCE_V2_DESIGN.md`
+/// §4.3, §5.1). Deliberately **separate from payment status** (UNPAID/PARTIALLY_PAID/
+/// PAID/OVERDUE lives on `Receivable`, RAKHAL-340) — a `Sale` can be fully PAID while
+/// still CONFIRMED, and a DRAFT sale has no payment status at all yet.
+enum SaleStatus {
+  /// Being built, not yet committed — no stock/ledger side effects.
+  DRAFT
+  /// Committed — the sale-type use case (RAKHAL-342/345/346/347) has run its
+  /// atomic stock-decrement + receivable + journal posting.
+  CONFIRMED
+  /// Voided before any money moved.
+  CANCELLED
+  /// Fully reversed after money moved (a reversing use case, not built by this
+  /// ticket — RD-058-adjacent follow-on work).
+  REFUNDED
+  /// Part of the sale reversed.
+  PARTIALLY_REFUNDED
+}
+
+/// Which typed detail table a `SaleLine` carries (RAKHAL-339). Exactly one of
+/// `MilkSaleLine`/`AnimalSaleLine`/`InventorySaleLine`/`ManureSaleLine` exists per
+/// `SaleLine`, matched to this discriminator — enforced in `SaleService`, not the DB
+/// (Prisma has no first-class "exactly one of N optional 1:1s" constraint).
+enum SaleLineType {
+  MILK
+  ANIMAL
+  INVENTORY
+  MANURE
+}

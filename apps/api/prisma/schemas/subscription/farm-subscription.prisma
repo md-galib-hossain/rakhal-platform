@@ -1,0 +1,31 @@
+model FarmSubscription {
+  id String @id @default(cuid())
+
+  farmId             String
+  subscriptionPlanId String
+
+  status      SubscriptionStatus @default(ACTIVE)
+  startsAt    DateTime
+  expiresAt   DateTime?
+  cancelledAt DateTime?
+
+  // Deferred downgrade/lateral plan change (RFE-036 follow-up, PAY-08): set when the farm schedules a
+  // switch that takes effect at `expiresAt` instead of charging immediately. Cleared once applied (a
+  // fresh FarmSubscription row is created by `SubscriptionLifecycleService.activate`, same as every
+  // other plan change) or explicitly cancelled.
+  pendingPlanId        String?
+  pendingBillingPeriod BillingPeriod?
+  pendingScheduledBy   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm             Farm              @relation("FarmToSubscription", fields: [farmId], references: [id])
+  subscriptionPlan SubscriptionPlan  @relation("SubscriptionPlanToFarmSubscription", fields: [subscriptionPlanId], references: [id])
+  pendingPlan      SubscriptionPlan? @relation("SubscriptionPlanToPendingFarmSubscription", fields: [pendingPlanId], references: [id])
+
+  @@index([farmId])
+  @@index([subscriptionPlanId])
+  @@index([status])
+  @@index([pendingPlanId])
+}

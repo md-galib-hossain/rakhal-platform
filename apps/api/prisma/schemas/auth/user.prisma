@@ -1,0 +1,69 @@
+model User {
+  id String @id @default(cuid())
+
+  email String @unique
+  name  String
+
+  passwordHash String?
+
+  isEmailVerified Boolean   @default(false)
+  emailVerifiedAt DateTime?
+  // Set by the OTP flow (RAKHAL-216). Gates 100%-off coupon redemption (CPN-04)
+  // until then — no phone-verification path exists yet, so it stays null.
+  phoneVerifiedAt DateTime?
+  isBlocked       Boolean   @default(false)
+
+  failedLoginAttempts Int       @default(0)
+  /// RD-043 — timestamp of the most recent failed-password attempt. `handleFailedLogin` uses it
+  /// to age `failedLoginAttempts` over `AUTH_LOCKOUT_WINDOW_SECONDS`: a failure older than the
+  /// window resets the streak to 1 instead of accumulating forever.
+  lastFailedLoginAt   DateTime?
+
+  lockedUntil DateTime?
+
+  lastLoginAt           DateTime?
+  lastPasswordChangedAt DateTime?
+
+  permissionsVersion Int @default(1)
+
+  // RAKHAL-107 — worker-facing screens default to Bangla; Accept-Language can
+  // override per-request without changing this stored preference.
+  preferredLanguage Language @default(BN)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  sessions      Session[]
+  oauthAccounts OAuthAccount[]
+
+  authTokens AuthToken[]
+
+  mfa UserMFA?
+
+  ownedFarms              Farm[]                   @relation("FarmOwner")
+  farmMembers             FarmMember[]
+  sentFarmInvitations     FarmMember[]             @relation("FarmInvitations")
+  auditLogs               AuditLog[]               @relation("UserToAuditLog")
+  createdCattle           Cattle[]                 @relation("CattleCreator")
+  createdHealthPlans      HealthPlan[]             @relation("HealthPlanCreator")
+  appliedPlanApplications PlanApplication[]        @relation("PlanApplicationApplier")
+  createdMedicines        Medicine[]               @relation("MedicineCreator")
+  createdMedicineBatches  MedicineBatch[]          @relation("MedicineBatchCreator")
+  createdForages          FeedItem[]               @relation("ForageCreator")
+  createdSemenTanks       SemenTank[]              @relation("SemenTankCreator")
+  createdSemenBatches     SemenBatch[]             @relation("SemenBatchCreator")
+  createdMilkTanks        MilkTank[]               @relation("MilkTankCreator")
+  createdEquipment        Equipment[]              @relation("EquipmentCreator")
+  activityLogs            ActivityLog[]            @relation("UserToActivityLog")
+  assignedTasks           Task[]                   @relation("TaskAssignee")
+  responsibleForSheds     Shed[]                   @relation("ShedResponsible")
+  createdFixedAssets      FixedAsset[]             @relation("FixedAssetCreator")
+  sentInvitations         FarmInvitation[]         @relation("UserSentInvitations")
+  notifications           Notification[]           @relation("UserToNotification")
+  notificationPreferences NotificationPreference[] @relation("UserToNotificationPreference")
+  notificationSetting     NotificationSetting?     @relation("UserToNotificationSetting")
+  deviceTokens            DeviceToken[]            @relation("UserToDeviceToken")
+
+  @@index([email])
+}

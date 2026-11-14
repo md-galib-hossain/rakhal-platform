@@ -1,0 +1,158 @@
+/// Feed inventory (Inventory module — Feed tab, "Purchased" view, PRD §15.3).
+/// Feed is the umbrella: forage, concentrates, minerals, vitamins and
+/// additives are all feed, distinguished by `feedClass`/`feedSubType`
+/// (`shared/feed-class.prisma`). Stock is held in `unit` (e.g. bag);
+/// `kgPerUnit` lets the app show the kg equivalent. `ingredientId` links this
+/// purchased-stock row to its Feed Formulator nutrition/price catalogue
+/// counterpart (`FeedIngredient`) — a real FK, replacing the lowercased-name
+/// match the distribution/finance/report code used to rely on.
+/// `@@map("Forage")` — model renamed from `Forage`, underlying table kept
+/// as-is (zero migration cost for the rename itself).
+model FeedItem {
+  id String @id @default(cuid())
+
+  farmId String
+
+  name        String
+  feedClass   FeedClass
+  feedSubType FeedSubType?
+
+  /// MILESTONE 26 (ADR-026): optional — provenance / copy-from / price-sync target, no longer the
+  /// nutrition source (that is `NutritionProfile`, attached per `FeedItemBatch`).
+  ingredientId String?
+
+  /// MILESTONE 26: prefill for the nutrition of new batches of this product. Editing a batch's own
+  /// profile never rewrites this unless the user opts in.
+  defaultNutritionProfileId String?
+
+  /// Unit catalog (RAKHAL-326) — replaces the old free-text `unit` string.
+  unitId            String
+  unit              Unit   @relation(fields: [unitId], references: [id])
+  kgPerUnit         Float? // kg per unit (for bag → kg display)
+  lowStockThreshold Float  @default(0)
+
+  /// RAKHAL-450: stock, cost and purchase date live on the lots (`FeedItemBatch`) — the product has none
+  /// of its own; the API presents summed stock / newest-lot cost + date as derived summaries. Moisture is
+  /// derived from a lot's dry matter (`100 − dmPct`), never stored.
+  supplier String?
+
+  notes String?
+
+  deletedAt DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm                    Farm              @relation("FarmToForage", fields: [farmId], references: [id])
+  creator                 User              @relation("ForageCreator", fields: [createdBy], references: [id])
+  ingredient              FeedIngredient?   @relation(fields: [ingredientId], references: [id])
+  defaultNutritionProfile NutritionProfile? @relation("FeedItemDefaultNutritionProfile", fields: [defaultNutritionProfileId], references: [id])
+
+  /// MILESTONE 26: the lots of this product (RAKHAL-442) — the only place stock, cost and purchase date live.
+  batches FeedItemBatch[]
+
+  stockMovements     FeedItemStockMovement[]
+  inventorySaleLines InventorySaleLine[]     @relation("FeedItemToInventorySaleLine")
+  /// Back-relation for `PurchaseLine.feedItemId` (RAKHAL-348, `purchasing/**`) —
+  /// every purchase line that restocked this feed item.
+  purchaseLines      PurchaseLine[]          @relation("FeedItemToPurchaseLine")
+
+  @@index([farmId])
+  @@index([feedClass])
+  @@index([createdBy])
+  @@index([ingredientId])
+  @@index([unitId])
+  @@index([defaultNutritionProfileId])
+  @@map("Forage")
+}
+
+/// One purchase/lot of a `FeedItem` product (MILESTONE 26, ADR-026 — mirrors `MedicineBatch`). Owns
+/// the lot-level stock, cost and — the point of the model — its own immutable nutrition profile, so a
+/// restock of different quality is a new batch and lots are never blended into one number. Consumed
+/// FIFO by `purchaseDate asc, createdAt asc` (RAKHAL-444/446). `currentStock` is in the parent
+/// `FeedItem.unit`; `kgPerUnit` stays on the item. `farmId`/`createdBy` are plain scalars.
+model FeedItemBatch {
+  id String @id @default(cuid())
+
+  feedItemId String
+  farmId     String
+
+  /// Free-text lot code, indexed so a recall / "find every remaining bag of lot X" is a real lookup.
+  batchCode String?
+
+  currentStock Float    @default(0)
+  costPerUnit  Float
+  purchaseDate DateTime
+
+  nutritionProfileId String
+
+  notes String?
+
+  deletedAt DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  /// Cascade (RAKHAL-444): a lot has no meaning without its product. Production only ever archives
+  /// (`deletedAt`); this makes the hard deletes that tests/cleanup scripts do not orphan-block.
+  feedItem         FeedItem         @relation(fields: [feedItemId], references: [id], onDelete: Cascade)
+  nutritionProfile NutritionProfile @relation("FeedItemBatchNutritionProfile", fields: [nutritionProfileId], references: [id])
+
+  /// A sale/feeding can draw FIFO across several batches, so those link per-batch through
+  /// `FeedItemStockMovement` (which carries `saleLineId`/distribution refs) — only a purchase line maps
+  /// to exactly one batch, hence the single back-relation below.
+  stockMovements FeedItemStockMovement[]
+  purchaseLines  PurchaseLine[]          @relation("FeedItemBatchToPurchaseLine")
+
+  @@index([feedItemId, purchaseDate])
+  @@index([farmId])
+  @@index([batchCode])
+  @@index([nutritionProfileId])
+}
+
+/// Append-only audit of every stock change on a FeedItem row — mirrors
+/// `MedicineStockMovement`. Currently only the Finance-purchase path writes
+/// these (RAKHAL-085); Feed Distribution's own consumption decrements are not
+/// yet routed through here (out of scope for this ticket). `balanceAfter`
+/// snapshots the running stock so history is reconstructable without replaying.
+model FeedItemStockMovement {
+  id String @id @default(cuid())
+
+  feedItemId String
+  farmId     String
+
+  /// MILESTONE 26: the lot this movement changed. Nullable — rows written before batches existed
+  /// point only at the product (the backfill assigns each to its item's single migrated batch).
+  feedItemBatchId String?
+
+  reason       FeedItemStockMovementReason
+  delta        Float // signed: +purchase / -distribution
+  balanceAfter Float
+  notes        String?
+
+  /// Names the `SaleLine` that caused this movement, set only when
+  /// `reason == SALE` (RAKHAL-346, `SellInventoryUseCase`). Plain scalar, not
+  /// a `@relation` — same judgment call `CattleDisposition.saleId`/
+  /// `Sale.customerId` already document: `sales/**` is a different ticket's
+  /// lane, this column only needs to persist the id.
+  saleLineId String?
+
+  /// RAKHAL-446: the feeding that drew this lot (`reason == DISTRIBUTION`), so a void can credit back
+  /// exactly the lots a feeding consumed. Plain scalars, same rationale as `saleLineId`.
+  feedDistributionId           String?
+  feedDistributionCattleItemId String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  feedItem      FeedItem       @relation(fields: [feedItemId], references: [id], onDelete: Cascade)
+  feedItemBatch FeedItemBatch? @relation(fields: [feedItemBatchId], references: [id])
+
+  @@index([feedItemId])
+  @@index([feedItemBatchId])
+  @@index([farmId])
+  @@index([createdAt])
+  @@index([saleLineId])
+  @@index([feedDistributionId])
+  @@index([feedDistributionCattleItemId])
+}

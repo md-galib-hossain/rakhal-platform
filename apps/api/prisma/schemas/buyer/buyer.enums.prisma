@@ -1,0 +1,7 @@
+/// Category of a milk buyer (PRD §11.1).
+enum BuyerType {
+  DAIRY_COMPANY
+  COOPERATIVE
+  LOCAL_TRADER
+  DIRECT_CONSUMER
+}

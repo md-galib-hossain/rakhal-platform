@@ -1,0 +1,52 @@
+/// Invoice for a subscription purchase/renewal (RAKHAL-220, PRD §32.1). All money
+/// is ৳ (BDT) Decimal(12,2), computed server-side (PAY-01). `farmId` /
+/// `subscriptionPlanId` are plain scalar FKs (app-scoped, feed-module precedent)
+/// so the billing migration stays isolated from the hot Farm/Plan schemas.
+model Invoice {
+  id String @id @default(cuid())
+
+  farmId             String
+  subscriptionPlanId String
+
+  billingPeriod BillingPeriod
+  currency      String        @default("BDT")
+
+  subtotal      Decimal @db.Decimal(12, 2)
+  discountTotal Decimal @default(0) @db.Decimal(12, 2)
+  total         Decimal @db.Decimal(12, 2)
+
+  // Tax-ready receipt fields (RAKHAL-237, PRD §36.2). VAT is OFF at launch
+  // (`VAT_ENABLED=false`) so these default to 0 and the total is unchanged;
+  // flipping VAT on only affects new invoices (TAX-04 — no retro-mutation).
+  taxRate   Decimal @default(0) @db.Decimal(5, 2)
+  taxAmount Decimal @default(0) @db.Decimal(12, 2)
+
+  // Gapless sequential receipt number (TAX-02), assigned at creation from
+  // `InvoiceCounter` and never reused (a void/refund keeps its number).
+  invoiceNumber String? @unique
+
+  // Seller identity snapshotted at issue time so a past receipt renders
+  // identically even if the platform's config later changes (TAX-04).
+  sellerName    String?
+  sellerAddress String?
+  sellerBin     String?
+  placeOfSupply String?
+
+  status InvoiceStatus @default(PENDING)
+
+  // Seams for coupons (RAKHAL-222) + referral credit (RAKHAL-223).
+  couponId              String?
+  referralCreditApplied Decimal? @db.Decimal(12, 2)
+
+  idempotencyKey String
+
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  payments Payment[] @relation("InvoiceToPayment")
+
+  @@unique([farmId, idempotencyKey])
+  @@index([farmId])
+  @@index([status])
+}

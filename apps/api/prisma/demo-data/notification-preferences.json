@@ -1,0 +1,4 @@
+[
+  { "id": "sd_notifpref_001", "farmId": "@farm", "userId": "@user:worker", "eventKey": "daily_milk_log_reminder", "enabled": true, "inApp": true, "push": true, "sms": true },
+  { "id": "sd_notifpref_002", "farmId": "@farm", "userId": "@user:manager", "eventKey": "todays_tasks_ready", "enabled": false, "inApp": false, "push": false }
+]

@@ -1,0 +1,103 @@
+[
+  {
+    "id": "sd_batch_napier_1",
+    "feedItemId": "sd_forage_napier",
+    "farmId": "@farm",
+    "batchCode": "NAP-2609-01",
+    "currentStock": 1200,
+    "costPerUnit": 5,
+    "purchaseDate": "@daysAgo:2",
+    "nutritionProfileId": "sd_np_napier",
+    "createdBy": "@user:worker"
+  },
+  {
+    "id": "sd_batch_ricestraw_1",
+    "feedItemId": "sd_forage_ricestraw",
+    "farmId": "@farm",
+    "batchCode": "STR-2609-01",
+    "currentStock": 8,
+    "costPerUnit": 160,
+    "purchaseDate": "@daysAgo:20",
+    "nutritionProfileId": "sd_np_ricestraw",
+    "notes": "Low stock batch",
+    "createdBy": "@user:manager"
+  },
+  {
+    "id": "sd_batch_silage_1",
+    "feedItemId": "sd_forage_silage",
+    "farmId": "@farm",
+    "batchCode": "SIL-2609-01",
+    "currentStock": 3000,
+    "costPerUnit": 12,
+    "purchaseDate": "@daysAgo:15",
+    "nutritionProfileId": "sd_np_silage",
+    "createdBy": "@user:manager"
+  },
+  {
+    "id": "sd_batch_wheatbran_1",
+    "feedItemId": "sd_forage_wheatbran",
+    "farmId": "@farm",
+    "batchCode": "WB-2609-01",
+    "currentStock": 22,
+    "costPerUnit": 1520,
+    "purchaseDate": "@daysAgo:12",
+    "nutritionProfileId": "sd_np_wheatbran",
+    "createdBy": "@user:manager"
+  },
+  {
+    "id": "sd_batch_mustardcake_1",
+    "feedItemId": "sd_forage_mustardcake",
+    "farmId": "@farm",
+    "batchCode": "MOC-2608-01",
+    "currentStock": 12,
+    "costPerUnit": 1925,
+    "purchaseDate": "@daysAgo:25",
+    "nutritionProfileId": "sd_np_mustardcake",
+    "createdBy": "@user:owner"
+  },
+  {
+    "id": "sd_batch_mineral_1",
+    "feedItemId": "sd_forage_mineral",
+    "farmId": "@farm",
+    "batchCode": "MIN-2608-01",
+    "currentStock": 3,
+    "costPerUnit": 400,
+    "purchaseDate": "@daysAgo:35",
+    "nutritionProfileId": "sd_np_mineral",
+    "notes": "Low stock batch",
+    "createdBy": "@user:owner"
+  },
+  {
+    "id": "sd_batch_soybeanmeal_1",
+    "feedItemId": "sd_forage_soybeanmeal",
+    "farmId": "@farm",
+    "batchCode": "SBM-2609-01",
+    "currentStock": 15,
+    "costPerUnit": 3500,
+    "purchaseDate": "@daysAgo:10",
+    "nutritionProfileId": "sd_np_soybeanmeal",
+    "createdBy": "@user:manager"
+  },
+  {
+    "id": "sd_batch_maizegrain_1",
+    "feedItemId": "sd_forage_maizegrain",
+    "farmId": "@farm",
+    "batchCode": "MG-2609-01",
+    "currentStock": 20,
+    "costPerUnit": 2100,
+    "purchaseDate": "@daysAgo:8",
+    "nutritionProfileId": "sd_np_maizegrain",
+    "createdBy": "@user:manager"
+  },
+  {
+    "id": "sd_batch_molasses_1",
+    "feedItemId": "sd_forage_molasses",
+    "farmId": "@farm",
+    "batchCode": "MOL-2609-01",
+    "currentStock": 250,
+    "costPerUnit": 28,
+    "purchaseDate": "@daysAgo:14",
+    "nutritionProfileId": "sd_np_molasses",
+    "createdBy": "@user:owner"
+  }
+]

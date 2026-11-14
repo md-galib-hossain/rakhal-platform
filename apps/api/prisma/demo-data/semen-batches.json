@@ -1,0 +1,5 @@
+[
+  { "id": "sd_semen_batch_001", "farmId": "@farm", "name": "Holstein Premium (BRAC AI)", "batchCode": "HF-2411-88", "breed": "Holstein Friesian", "strawColor": "Blue", "initialVitalityPct": 85, "strawQuantity": 14, "lowStrawThreshold": 5, "semenType": "CONVENTIONAL", "tankId": "sd_semen_tank_001", "canister": "1", "goblet": "1", "notes": "Proven sire — daughters avg 18 L/day", "createdBy": "@user:owner" },
+  { "id": "sd_semen_batch_002", "farmId": "@farm", "name": "Sahiwal Elite (DLS)", "batchCode": "SW-2408-31", "breed": "Sahiwal", "strawColor": "Red", "initialVitalityPct": 80, "strawQuantity": 3, "lowStrawThreshold": 5, "tankId": "sd_semen_tank_001", "canister": "2", "goblet": "1", "notes": "LOW — 3 straws left, reorder from DLS", "createdBy": "@user:owner" },
+  { "id": "sd_semen_batch_003", "farmId": "@farm", "name": "Jersey Cross (American Dairy)", "batchCode": "JX-2501-12", "breed": "Jersey", "strawColor": "Yellow", "initialVitalityPct": 88, "strawQuantity": 25, "lowStrawThreshold": 5, "semenType": "SEX_SORTED", "targetSex": "FEMALE", "tankId": "sd_semen_tank_001", "canister": "3", "goblet": "2", "createdBy": "@user:manager" }
+]

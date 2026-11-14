@@ -1,0 +1,441 @@
+model HealthCase {
+  id       String @id @default(cuid())
+  farmId   String
+  cattleId String
+
+  caseCode  String
+  /// RAKHAL-418: was the required free-text `diagnosis` field. `condition` (below) is now the
+  /// primary structured classifier; `note` is optional detail alongside it, not the sole record.
+  note      String?
+  /// RAKHAL-275: structured condition bucket, additive/nullable.
+  condition HealthCondition?
+  /// RAKHAL-418: replaces `diagnosisType` (`HealthDiagnosisType`, 8 values) — every reader outside
+  /// Health only needed CURATIVE vs PREVENTIVE.
+  careType  HealthCareType
+  priority  HealthPriority
+  status    HealthCaseStatus @default(ACTIVE)
+
+  shedId   String?
+  shedName String?
+
+  reportedBy  String?
+  assignedVet String?
+
+  startDate            DateTime  @default(now())
+  expectedRecoveryDate DateTime?
+  closedDate           DateTime?
+  closeReason          String?
+  mortalityId          String?
+  healthPlanId         String?
+
+  currentStep        Int @default(0)
+  totalSteps         Int @default(0)
+  progressPercentage Int @default(0)
+
+  symptoms String[]
+  notes    String?
+  /// Photo of the affected area (PRD §8.7). URL only — binary upload is blocked
+  /// on the object-storage decision.
+  photoUrl String?
+
+  isSafetyWithholdingActive Boolean   @default(false)
+  milkWithdrawalUntil       DateTime?
+  meatWithdrawalUntil       DateTime?
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm       Farm        @relation("FarmToHealthCase", fields: [farmId], references: [id])
+  cattle     Cattle      @relation(fields: [cattleId], references: [id])
+  shed       Shed?       @relation(fields: [shedId], references: [id])
+  healthPlan HealthPlan? @relation(fields: [healthPlanId], references: [id])
+
+  tasks             HealthTask[]
+  treatmentLogs     TreatmentLog[]
+  healthUpdates     HealthUpdate[]
+  mortalityRecord   MortalityRecord?
+  safetyWithdrawals SafetyWithdrawal[]
+
+  @@unique([farmId, caseCode])
+  @@index([farmId, cattleId])
+  @@index([farmId, status])
+  @@index([farmId, note])
+  @@index([farmId, condition])
+  @@index([farmId, priority])
+  @@index([farmId, startDate])
+}
+
+model HealthPlan {
+  id     String @id @default(cuid())
+  farmId String
+
+  name        String
+  category    HealthPlanCategory
+  planType    HealthPlanType
+  description String?
+  diagnosis   String?
+  /// RAKHAL-468: the structured condition this protocol is for, so Report Sickness can suggest matching protocols
+  /// first. Optional — a general protocol (vaccination round, routine check) has none. RAKHAL-466 dropped the old
+  /// `successRate` / `currentlyActiveAnimalCount` columns (nothing ever wrote them); protocol results are computed
+  /// live from cases/enrollments (`HealthPlanStatsService`), never stored.
+  condition   HealthCondition?
+
+  cycleLengthDays  Int?
+  totalActionSteps Int  @default(0)
+
+  isTemplate Boolean   @default(false)
+  deletedAt  DateTime?
+  createdBy  String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  farm    Farm @relation("FarmToHealthPlan", fields: [farmId], references: [id])
+  creator User @relation("HealthPlanCreator", fields: [createdBy], references: [id])
+
+  steps            HealthPlanStep[]
+  cases            HealthCase[]
+  tasks            HealthTask[]
+  planApplications PlanApplication[]
+  planEnrollments  PlanEnrollment[]
+
+  @@unique([farmId, name])
+  @@index([farmId, category])
+  @@index([farmId, name])
+  @@index([farmId, condition])
+}
+
+model HealthPlanStep {
+  id           String @id @default(cuid())
+  healthPlanId String
+
+  dayNumber  Int
+  title      String
+  actionType HealthActionType
+
+  medicineId   String?
+  medicineName String?
+  doseAmount   Decimal?
+  doseUnit     String?
+  /// Protocols v2: `Unit.id` of the dose unit (validated against the medicine's unit dimension in
+  /// the service). `doseUnit` above stays as the symbol snapshot for display/legacy rows.
+  doseUnitId   String?
+  route        MedicineRoute?
+
+  /// Optional time of day ("HH:mm", farm-local) the step is due; null = any time that day.
+  timeOfDay          String?
+  instruction        String?
+  estimatedTime      String?
+  milkWithdrawalDays Int?
+  meatWithdrawalDays Int?
+  isRequired         Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  healthPlan HealthPlan @relation(fields: [healthPlanId], references: [id])
+
+  @@index([healthPlanId])
+  @@index([healthPlanId, dayNumber])
+}
+
+model HealthTask {
+  id               String  @id @default(cuid())
+  farmId           String
+  cattleId         String
+  /// RAKHAL-415: nullable — a task from a preventive `PlanApplication` round carries
+  /// `planEnrollmentId` instead and has no `HealthCase` at all. Exactly one of the two is set.
+  healthCaseId     String?
+  planEnrollmentId String?
+  healthPlanId     String?
+
+  taskCode    String
+  taskDate    DateTime
+  dueDateTime DateTime
+  status      HealthTaskStatus @default(PENDING)
+  taskType    HealthActionType
+
+  title       String
+  instruction String?
+  stepNumber  Int?
+  totalSteps  Int?
+
+  medicineId   String?
+  medicineName String?
+  doseAmount   Decimal?
+  doseUnit     String?
+  doseUnitId   String?
+  route        MedicineRoute?
+  /// Copied from the plan step; `dueDateTime` already carries it when set.
+  timeOfDay    String?
+
+  completedAt DateTime?
+  completedBy String?
+
+  rescheduledFrom DateTime?
+  rescheduledTo   DateTime?
+  notes           String?
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm           Farm            @relation("FarmToHealthTask", fields: [farmId], references: [id])
+  cattle         Cattle          @relation(fields: [cattleId], references: [id])
+  healthCase     HealthCase?     @relation(fields: [healthCaseId], references: [id])
+  planEnrollment PlanEnrollment? @relation(fields: [planEnrollmentId], references: [id])
+  healthPlan     HealthPlan?     @relation(fields: [healthPlanId], references: [id])
+
+  treatmentLogs TreatmentLog[]
+
+  @@unique([farmId, taskCode])
+  @@index([farmId, dueDateTime])
+  @@index([farmId, status])
+  @@index([farmId, cattleId])
+  @@index([farmId, healthCaseId])
+  @@index([farmId, planEnrollmentId])
+}
+
+/// RAKHAL-415: one row per preventive-plan "round" — e.g. one vaccination campaign applied to a
+/// shed. Replaces the old behavior where each animal in a preventive apply got its own real
+/// `HealthCase` (which made routine vaccination rounds render as N new "sick" animals). A curative
+/// plan (`HealthPlanCategory.TREATMENT`) still attaches to a real `HealthCase` — this model is only
+/// for the preventive categories (`PLAN_CATEGORY_TO_DIAGNOSIS_TYPE` in `health.service.ts`).
+model PlanApplication {
+  id           String @id @default(cuid())
+  farmId       String
+  healthPlanId String
+
+  startDate   DateTime
+  appliedBy   String
+  animalCount Int      @default(0)
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm       Farm       @relation("FarmToPlanApplication", fields: [farmId], references: [id])
+  healthPlan HealthPlan @relation(fields: [healthPlanId], references: [id])
+  applier    User       @relation("PlanApplicationApplier", fields: [appliedBy], references: [id])
+
+  enrollments PlanEnrollment[]
+
+  @@index([farmId, healthPlanId])
+  @@index([farmId, startDate])
+}
+
+/// RAKHAL-415: one row per animal in a `PlanApplication` round, carrying that animal's own
+/// progress — the preventive-round equivalent of `HealthCase.{currentStep,totalSteps,
+/// progressPercentage}`. An animal already `ACTIVE`-enrolled in the same plan is skipped (not
+/// duplicated) on a re-apply, mirroring `applyPlanToAnimals`'s existing curative-case skip rule.
+model PlanEnrollment {
+  id                String @id @default(cuid())
+  farmId            String
+  cattleId          String
+  healthPlanId      String
+  planApplicationId String
+
+  status             PlanEnrollmentStatus @default(ACTIVE)
+  startDate          DateTime
+  currentStep        Int                  @default(0)
+  totalSteps         Int                  @default(0)
+  progressPercentage Int                  @default(0)
+
+  /// Protocols v2 auto-repeat: 1 = first run; each auto re-apply increments it. `repeatedFromId`
+  /// links to the previous cycle; `nextCycleCreatedAt` is the idempotency marker the cycle sweep
+  /// stamps (in the same transaction as the successor) so a cycle is never spawned twice.
+  cycleNumber        Int       @default(1)
+  repeatedFromId     String?
+  nextCycleCreatedAt DateTime?
+
+  /// Set (with `deletedAt`) when the whole application was cancelled as a mistake - see `HealthCancelService`.
+  cancelledAt  DateTime?
+  cancelReason String?
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm            Farm            @relation("FarmToPlanEnrollment", fields: [farmId], references: [id])
+  cattle          Cattle          @relation(fields: [cattleId], references: [id])
+  healthPlan      HealthPlan      @relation(fields: [healthPlanId], references: [id])
+  planApplication PlanApplication @relation(fields: [planApplicationId], references: [id])
+
+  tasks HealthTask[]
+
+  @@index([farmId, cattleId])
+  @@index([farmId, healthPlanId])
+  @@index([farmId, planApplicationId])
+  @@index([farmId, status])
+}
+
+model TreatmentLog {
+  id           String  @id @default(cuid())
+  farmId       String
+  cattleId     String
+  healthCaseId String
+  healthTaskId String?
+
+  medicineId   String?
+  medicineName String?
+  route        MedicineRoute?
+  doseAmount   Decimal?
+  doseUnit     String?
+
+  administeredAt DateTime
+  administeredBy String
+
+  stockDeducted          Boolean  @default(false)
+  stockDeductionQuantity Decimal?
+  batchNo                String?
+  notes                  String?
+
+  /// RAKHAL-419: `Expense.id` once the medicine's consumption cost has been
+  /// posted to Finance (`ExpenseService.recordExpense`). Plain scalar, no
+  /// `@relation` — same cross-module-FK convention `BreedingEvent.
+  /// financeTransactionId` already uses (ADR-016: `health/**` must not join
+  /// `purchasing/**`'s tables directly). Null when the treatment had no
+  /// medicine or the medicine's `costPerUnit` was 0 — nothing to post.
+  financeTransactionId String?
+
+  /// Vet fee for this treatment (cash cost, unlike the medicine's inventory
+  /// consumption above). `vetExpenseId` is the `Expense.id` posted for it
+  /// (`ExpenseService.recordExpense`, paid from a chosen FinancialAccount);
+  /// reversed on void. Plain scalar, same cross-module-FK convention as
+  /// `financeTransactionId`.
+  vetCost      Decimal?
+  vetExpenseId String?
+
+  /// Protocols v2 undo: a recorded dose entered by mistake is *voided*, never deleted - the stock goes back to the
+  /// batch(es) it came from, the Finance expense is reversed and its safety withdrawal cancelled. A voided log stays
+  /// for the audit trail and is excluded from costs, counts and reports (`voidedAt: null` filter).
+  voidedAt   DateTime?
+  voidedBy   String?
+  voidReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm       Farm        @relation("FarmToTreatmentLog", fields: [farmId], references: [id])
+  cattle     Cattle      @relation(fields: [cattleId], references: [id])
+  healthCase HealthCase  @relation(fields: [healthCaseId], references: [id])
+  healthTask HealthTask? @relation(fields: [healthTaskId], references: [id])
+
+  safetyWithdrawals SafetyWithdrawal[]
+
+  @@index([farmId, cattleId])
+  @@index([farmId, healthCaseId])
+  @@index([farmId, administeredAt])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
+}
+
+model HealthUpdate {
+  id           String @id @default(cuid())
+  farmId       String
+  cattleId     String
+  healthCaseId String
+
+  clinicalProgress ClinicalProgress
+  symptoms         String[]
+  temperature      Decimal?
+  appetite         AppetiteStatus?
+  appearance       AppearanceStatus?
+  observation      String?
+  recordedBy       String
+  recordedAt       DateTime          @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm       Farm       @relation("FarmToHealthUpdate", fields: [farmId], references: [id])
+  cattle     Cattle     @relation(fields: [cattleId], references: [id])
+  healthCase HealthCase @relation(fields: [healthCaseId], references: [id])
+
+  @@index([farmId, healthCaseId])
+  @@index([farmId, cattleId])
+  @@index([farmId, recordedAt])
+}
+
+model MortalityRecord {
+  id           String @id @default(cuid())
+  farmId       String
+  cattleId     String
+  healthCaseId String @unique
+
+  deathDate           DateTime
+  primaryCauseOfDeath String
+  vetSignOff          String?
+  symptoms            String[]
+  postMortemPerformed Boolean  @default(false)
+  disposalMethod      String?
+  disposalCost        Decimal?
+  disposalLocation    String?
+  additionalNotes     String?
+  recordedBy          String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm       Farm       @relation("FarmToMortalityRecord", fields: [farmId], references: [id])
+  cattle     Cattle     @relation(fields: [cattleId], references: [id])
+  healthCase HealthCase @relation(fields: [healthCaseId], references: [id])
+
+  @@index([farmId, cattleId])
+  @@index([farmId, healthCaseId])
+  @@index([farmId, deathDate])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
+}
+
+model SafetyWithdrawal {
+  id             String  @id @default(cuid())
+  farmId         String
+  cattleId       String
+  healthCaseId   String
+  treatmentLogId String?
+  medicineId     String?
+
+  milkWithdrawalUntil DateTime?
+  meatWithdrawalUntil DateTime?
+  status              SafetyWithdrawalStatus @default(ACTIVE)
+  safeMilkDate        DateTime?
+  safeMeatDate        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm         Farm          @relation("FarmToSafetyWithdrawal", fields: [farmId], references: [id])
+  cattle       Cattle        @relation(fields: [cattleId], references: [id])
+  healthCase   HealthCase    @relation(fields: [healthCaseId], references: [id])
+  treatmentLog TreatmentLog? @relation(fields: [treatmentLogId], references: [id])
+
+  @@index([farmId, cattleId])
+  @@index([farmId, status])
+  @@index([farmId, healthCaseId])
+}
+
+model DiseaseCatalog {
+  id     String  @id @default(cuid())
+  farmId String?
+
+  name            String
+  category        String?
+  defaultPriority HealthPriority?
+  defaultSymptoms String[]
+
+  isContagious              Boolean   @default(false)
+  recommendedIsolation      Boolean   @default(false)
+  defaultMilkWithdrawalDays Int?
+  defaultMeatWithdrawalDays Int?
+  isSystemDefault           Boolean   @default(false)
+  deletedAt                 DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm? @relation("FarmToDiseaseCatalog", fields: [farmId], references: [id])
+
+  @@index([farmId])
+  @@index([name])
+}

@@ -1,0 +1,25 @@
+/// RAKHAL-323: generic per-farm idempotency guard for write endpoints. A
+/// caller supplies an `Idempotency-Key` header; the create-then-check-P2002
+/// race pattern in `ReproductionService.withIdempotency()` reserves the row
+/// before running the real write, so two concurrent identical requests can't
+/// both succeed — the loser reads back the winner's stored `responseBody`.
+/// No `Farm` relation (matches `EmailLog`'s existing farmId-only style, no
+/// FK required for this kind of ephemeral bookkeeping row).
+model IdempotencyKey {
+  id       String @id @default(cuid())
+  farmId   String
+  key      String
+  /// The route this key is scoped to (e.g. "reproduction.createBreedingEvent")
+  /// — the same key string reused across two different endpoints must not
+  /// collide.
+  endpoint String
+
+  /// Null while the original request is still in flight; populated once it
+  /// completes, so a replay returns the exact same response body.
+  responseBody Json?
+
+  createdAt DateTime @default(now())
+
+  @@unique([farmId, key, endpoint])
+  @@index([farmId, endpoint])
+}

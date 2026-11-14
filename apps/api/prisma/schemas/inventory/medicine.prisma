@@ -1,0 +1,140 @@
+/// Medicine inventory (Inventory module — Medicine tab). One row per batch:
+/// the same medicine bought in two batches is two rows, enabling FIFO selection
+/// by earliest expiry at treatment time (PRD §15.2 / business rules INV-01..06).
+model Medicine {
+  id String @id @default(cuid())
+
+  farmId String
+
+  name         String
+  imageUrl     String?
+  /// Uploaded product photo (RAKHAL-074 follow-up) — resolved to a signed thumb URL at read time
+  /// via `MediaService`, same private-R2-bucket pattern as `Cattle.profilePhotoAssetId`. `imageUrl`
+  /// stays as a legacy plain-string fallback (pre-upload rows / external links); the presented
+  /// `imageUrl` in API responses prefers the signed photo when both are present.
+  photoAssetId String?
+  type         MedicineType
+  category     MedicineCategory
+  manufacturer String?
+  batchId      String?
+
+  /// Unit catalog (RAKHAL-326) — replaces the old free-text `unit` string.
+  unitId            String
+  unit              Unit   @relation(fields: [unitId], references: [id])
+  currentStock      Float  @default(0)
+  costPerUnit       Float
+  lowStockThreshold Float  @default(0)
+
+  purchaseDate DateTime
+  expiryDate   DateTime
+
+  milkWithdrawalDays Int @default(0)
+  meatWithdrawalDays Int @default(0)
+
+  notes String?
+
+  deletedAt DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm    Farm @relation("FarmToMedicine", fields: [farmId], references: [id])
+  creator User @relation("MedicineCreator", fields: [createdBy], references: [id])
+
+  stockMovements     MedicineStockMovement[]
+  inventorySaleLines InventorySaleLine[]     @relation("MedicineToInventorySaleLine")
+  /// Back-relation for `PurchaseLine.medicineId` (RAKHAL-348, `purchasing/**`) —
+  /// every purchase line that restocked this medicine.
+  purchaseLines      PurchaseLine[]          @relation("MedicineToPurchaseLine")
+  /// RAKHAL-434 (`docs/EPIC_MEDICINE_BATCH_MODEL.md`) — additive, unread by any
+  /// service yet. `currentStock`/`costPerUnit`/`purchaseDate`/`expiryDate`/`batchId`
+  /// above stay authoritative until RAKHAL-435 rewrites `MedicineService` onto batches.
+  batches            MedicineBatch[]
+
+  @@index([farmId])
+  @@index([category])
+  @@index([expiryDate])
+  @@index([createdBy])
+  @@index([unitId])
+}
+
+/// One purchase/lot of a `Medicine` product (RAKHAL-434, `docs/EPIC_MEDICINE_BATCH_MODEL.md`).
+/// Schema-only for now: not yet read or written by any service (RAKHAL-435). Once wired,
+/// replaces `Medicine.currentStock`/`costPerUnit`/`purchaseDate`/`expiryDate`/`batchId` —
+/// those columns stay on `Medicine` until the backfill is confirmed and every consumer
+/// (RAKHAL-435..439) has moved off them, same two-step pattern RAKHAL-418 used.
+model MedicineBatch {
+  id String @id @default(cuid())
+
+  medicineId String
+  farmId     String
+
+  batchCode String? // was Medicine.batchId — a real indexed lookup field here
+
+  currentStock Float @default(0)
+  costPerUnit  Float
+
+  purchaseDate DateTime
+  expiryDate   DateTime
+
+  notes String?
+
+  deletedAt DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  medicine       Medicine                @relation(fields: [medicineId], references: [id])
+  farm           Farm                    @relation("FarmToMedicineBatch", fields: [farmId], references: [id])
+  creator        User                    @relation("MedicineBatchCreator", fields: [createdBy], references: [id])
+  stockMovements MedicineStockMovement[]
+  /// Back-relation for `PurchaseLine.medicineBatchId` (RAKHAL-439) — every
+  /// purchase line that created this exact batch (normally exactly one).
+  purchaseLines  PurchaseLine[]
+
+  @@index([medicineId])
+  @@index([farmId])
+  @@index([batchCode])
+  @@index([expiryDate])
+}
+
+/// Append-only audit of every stock change on a Medicine (purchase, treatment
+/// decrement, manual adjustment, disposal). `balanceAfter` snapshots the running
+/// stock so history is reconstructable without replaying.
+model MedicineStockMovement {
+  id String @id @default(cuid())
+
+  medicineId      String
+  farmId          String
+  /// RAKHAL-434 — nullable until RAKHAL-435 repoints stock ops onto `MedicineBatch`;
+  /// the backfill script sets it on every pre-existing row's new 1:1 batch.
+  medicineBatchId String?
+
+  reason       MedicineStockMovementReason
+  delta        Float // signed: +purchase / -consumption
+  balanceAfter Float
+  notes        String?
+
+  /// Names the `SaleLine` that caused this movement, set only when
+  /// `reason == SALE` (RAKHAL-346, `SellInventoryUseCase`). Plain scalar, not
+  /// a `@relation` — same judgment call `CattleDisposition.saleId`/
+  /// `Sale.customerId` already document: `sales/**` is a different ticket's
+  /// lane, this column only needs to persist the id.
+  saleLineId String?
+  /// Protocols v2: the `TreatmentLog` this consumption belongs to (plain scalar, ADR-016 cross-module convention) - lets a
+  /// voided dose give the stock back to exactly the batches it was drawn from.
+  treatmentLogId String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  medicine      Medicine       @relation(fields: [medicineId], references: [id])
+  medicineBatch MedicineBatch? @relation(fields: [medicineBatchId], references: [id])
+
+  @@index([medicineId])
+  @@index([medicineBatchId])
+  @@index([farmId])
+  @@index([createdAt])
+  @@index([saleLineId])
+  @@index([treatmentLogId])
+}

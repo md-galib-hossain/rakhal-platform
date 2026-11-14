@@ -1,0 +1,6 @@
+[
+  { "id": "sd_asset_milkingmachine", "farmId": "@farm", "name": "Milking machine (double bucket)", "category": "EQUIPMENT", "description": "Two-bucket mobile milking unit", "purchaseDate": "@daysAgo:400", "purchasePrice": 120000, "usefulLifeYears": 5, "salvageValue": 15000, "createdBy": "@user:owner" },
+  { "id": "sd_asset_cowshed", "farmId": "@farm", "name": "Cowshed building (Shed A+B)", "category": "BUILDING", "description": "Brick-and-tin 22-stall shed", "purchaseDate": "@daysAgo:1400", "purchasePrice": 800000, "usefulLifeYears": 20, "salvageValue": 100000, "createdBy": "@user:owner" },
+  { "id": "sd_asset_pickup", "farmId": "@farm", "name": "Pickup van (milk delivery)", "category": "VEHICLE", "description": "Second-hand 1-ton pickup", "purchaseDate": "@daysAgo:600", "purchasePrice": 950000, "usefulLifeYears": 8, "salvageValue": 200000, "createdBy": "@user:owner" },
+  { "id": "sd_asset_chaffcutter", "farmId": "@farm", "name": "Chaff cutter (2HP electric)", "category": "EQUIPMENT", "purchaseDate": "@daysAgo:700", "purchasePrice": 35000, "usefulLifeYears": 5, "salvageValue": 3000, "createdBy": "@user:owner" }
+]

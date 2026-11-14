@@ -1,0 +1,31 @@
+[
+  {
+    "id": "sd_feedconc_high",
+    "farmId": "@farm",
+    "name": "High Yield Ration",
+    "durationDays": 30,
+    "targetType": "HERD",
+    "targetMilkL": 14,
+    "createdBy": "@user:manager",
+    "kind": "CONCENTRATE_TEMPLATE"
+  },
+  {
+    "id": "sd_feedconc_mid",
+    "farmId": "@farm",
+    "name": "Mid Yield Ration",
+    "durationDays": 30,
+    "targetType": "HERD",
+    "targetMilkL": 8,
+    "createdBy": "@user:manager",
+    "kind": "CONCENTRATE_TEMPLATE"
+  },
+  {
+    "id": "sd_feedconc_dry",
+    "farmId": "@farm",
+    "name": "Dry Cow Ration",
+    "durationDays": 60,
+    "targetType": "HERD",
+    "createdBy": "@user:manager",
+    "kind": "CONCENTRATE_TEMPLATE"
+  }
+]

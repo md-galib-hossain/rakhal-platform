@@ -1,0 +1,47 @@
+enum TaskCategory {
+  FEEDING
+  HEALTHCARE
+  BREEDING
+  MAINTENANCE
+  MILKING
+  CALF_CARE
+  GENERAL
+}
+
+enum TaskPriority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+/// Stored status. "Overdue" is derived (not stored): a non-completed task whose
+/// dueAt has passed is presented as overdue (PRD §17).
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+  CANCELLED
+}
+
+enum TaskSource {
+  MANUAL
+  HEALTH_PLAN
+  SYSTEM_AUTO
+}
+
+enum TaskRecurrence {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+/// Task Hub activity/history section (user request, no ticket #). CREATED is never stored as a row
+/// here — synthesized in `TaskService#present` from the task's own `createdBy`/`createdAt`, which
+/// already carry that information.
+enum TaskAuditAction {
+  UPDATED
+  COMPLETED
+  REOPENED
+  CANCELLED
+}

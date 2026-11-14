@@ -1,0 +1,4 @@
+[
+  { "id": "sd_healthplan_mastitis", "farmId": "@farm", "name": "Clinical Mastitis Treatment (5-day)", "category": "TREATMENT", "planType": "MEDICAL", "description": "Standard 5-day intramuscular antibiotic course with anti-inflammatory support and end-of-course milk check.", "diagnosis": "Clinical Mastitis", "condition": "MASTITIS", "cycleLengthDays": 5, "totalActionSteps": 5, "isTemplate": true, "createdBy": "@user:owner" },
+  { "id": "sd_healthplan_fmdvax", "farmId": "@farm", "name": "FMD Vaccination Schedule", "category": "VACCINATION", "planType": "PREVENTION", "description": "Primary FMD vaccination with 6-month booster for the whole herd.", "diagnosis": "FMD prophylaxis", "cycleLengthDays": 180, "totalActionSteps": 2, "isTemplate": true, "createdBy": "@user:owner" }
+]

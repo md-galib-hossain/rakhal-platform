@@ -1,0 +1,21 @@
+/// Quality grade of a colostrum feed (PRD §14.4). Drives the first-48h alerting.
+enum ColostrumQuality {
+  EXCELLENT
+  GOOD
+  POOR
+  UNKNOWN
+}
+
+/// Source of a daily calf milk feeding (PRD §14.4).
+enum CalfMilkType {
+  DAM_MILK
+  WHOLE_MILK
+  MILK_REPLACER
+}
+
+/// Lifecycle of a starter-feed introduction record (PRD §14.4).
+enum CalfStarterEventType {
+  FIRST_OFFERED
+  FIRST_INTAKE
+  DAILY_INTAKE
+}

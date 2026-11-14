@@ -1,0 +1,3 @@
+[
+  { "id": "sd_referral_001", "referralCodeId": "sd_refcode_owner", "referrerFarmId": "@farm", "referredFarmId": "@farm2", "status": "QUALIFIED", "boundAt": "@daysAgo:20", "qualifiedAt": "@daysAgo:18" }
+]

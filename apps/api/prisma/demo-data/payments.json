@@ -1,0 +1,3 @@
+[
+  { "id": "sd_payment_farm2", "invoiceId": "sd_invoice_farm2", "farmId": "@farm2", "provider": "MANUAL", "providerPaymentId": "SEED-MANUAL-001", "amount": 900, "status": "COMPLETED", "idempotencyKey": "sd-seed-payment-farm2" }
+]

@@ -1,0 +1,27 @@
+import { Module } from '@nestjs/common';
+import { LoggerModule } from 'src/core/logger/logger/logger.module';
+import { AuthModule } from '../auth/auth.module';
+import { TenantAccessModule } from '../tenant-access/tenant-access.module';
+import { PermissionModule } from '../permission/permission.module';
+import { TaskModule } from '../task/task.module';
+import { SubscriptionModule } from '../subscription/subscription.module';
+import { AnimalEventsModule } from '../animal-events/animal-events.module';
+import { CalfEventHandler } from './application/events/calf-events.handler';
+import { CalfService } from './application/services/calf.service';
+import { CalfController } from './presentation/controllers/calf.controller';
+
+@Module({
+  imports: [
+    AnimalEventsModule,
+    AuthModule,
+    LoggerModule,
+    TenantAccessModule,
+    PermissionModule,
+    TaskModule,
+    SubscriptionModule,
+  ],
+  controllers: [CalfController],
+  providers: [CalfService, CalfEventHandler],
+  exports: [CalfService],
+})
+export class CalfModule {}

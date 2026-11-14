@@ -1,0 +1,117 @@
+/// Milk Sales & Buyer Management (PRD §11). A buyer is a farm-scoped customer
+/// with a price agreement; a dispatch records milk handed to a buyer (which
+/// decrements the SELLABLE tank via a SALE adjustment) and the receivable it
+/// generates. Farm-scoped by `farmId`.
+
+model MilkBuyer {
+  id     String @id @default(cuid())
+  farmId String
+
+  name          String
+  contactPerson String?
+  phone         String?
+  email         String?
+  buyerType     BuyerType
+
+  paymentTermsDays  Int      @default(0)
+  /// RAKHAL-364 — gained `@default(0)` (additive) so `MilkBuyer` can be
+  /// created as the generic `Sale.customer`/`Receivable.customer` FK target
+  /// for a non-milk buyer (animal trader, manure buyer) without inventing a
+  /// milk price. `MilkBuyer` doubling as the generic sales customer is
+  /// tracked as RD-067 — a real `Party`+`MilkPriceAgreement` split is future
+  /// work, not this ticket's scope.
+  basePricePerLitre Float    @default(0)
+  baseFatPct        Float    @default(3.5)
+  fatBonusPer01Pct  Float    @default(0)
+  sccThreshold      Int      @default(200000)
+  sccPenaltyPer100k Float    @default(0)
+  collectionDays    String[] @default([])
+  collectionTime    String?
+  bankDetails       String?
+
+  deletedAt DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm       Farm           @relation("FarmToMilkBuyer", fields: [farmId], references: [id])
+  dispatches MilkDispatch[]
+
+  /// RAKHAL-364 (MILESTONE 22) — back-relations for `Sale.customer` /
+  /// `Receivable.customer`, both in separate top-level modules (`sales`,
+  /// `finance-v2`). Schema-level FK only, no Nest module import — precedent
+  /// `AnimalSaleLine.cattleId` (RAKHAL-344).
+  sales       Sale[]
+  receivables Receivable[]
+
+  @@index([farmId])
+  @@index([farmId, deletedAt])
+}
+
+model MilkDispatch {
+  id      String @id @default(cuid())
+  farmId  String
+  buyerId String
+
+  /// RAKHAL-366 (MILESTONE 22) — `DSP-NNNNNN`, allocated through the same
+  /// `FarmCounter`-based pattern as `Sale.saleNumber`
+  /// (`sales/infrastructure/sale-number.allocator.ts`), scope
+  /// `dispatch:<farmId>`. Never `count()+1`.
+  dispatchNumber String
+
+  /// RAKHAL-366 — driver on this dispatch run; settable at record time and
+  /// on later PATCH (RAKHAL-378).
+  driverName String?
+
+  /// RAKHAL-366 — set only by the cancel flow (RAKHAL-377). Presence of this
+  /// timestamp is what `deriveDispatchStatus` reads as CANCELLED; there is
+  /// no separate stored status column.
+  cancelledAt DateTime?
+
+  dispatchedAt      DateTime
+  volumeDispatchedL Float
+  volumeReceivedL   Float?
+  fatPct            Float?
+  scc               Int?
+
+  discrepancyL       Float?
+  discrepancyFlagged Boolean @default(false)
+
+  /// Price snapshot + breakdown at dispatch time (PRD §11.4).
+  basePricePerLitre Float
+  fatBonus          Float     @default(0)
+  sccPenalty        Float     @default(0)
+  calculatedAmount  Float
+  paymentDueDate    DateTime?
+  paidAmount        Float     @default(0)
+
+  /// V1 finance linkage — dead for any dispatch recorded after RAKHAL-342.
+  /// Loose reference (no FK — cross-module, matches FinanceTransaction.buyerId
+  /// convention) to the V1 `FinanceTransaction` this dispatch's revenue used
+  /// to post to. Kept only so historical dispatches (recorded before
+  /// RAKHAL-342) keep their old linkage; never written by
+  /// `BuyerService.recordDispatch` again.
+  financeTransactionId String?
+
+  /// RAKHAL-342 (`SellMilk`, Finance V2): the `Sale` this dispatch's revenue
+  /// actually posts to (Sale + SaleLine(MILK) + Receivable + journal, all in
+  /// the same transaction as this dispatch row). Loose reference (no FK) —
+  /// same "cross-module, no FK" convention `financeTransactionId` already
+  /// used, since `Sales` is a separate top-level module this Buyer-owned
+  /// table must not depend on directly. Null only for a zero-volume dispatch
+  /// (no sale is posted for a physically-empty dispatch, same as the old
+  /// `sellFromTank` no-op).
+  saleId String?
+
+  notes     String?
+  createdBy String
+  createdAt DateTime @default(now())
+
+  farm  Farm      @relation("FarmToMilkDispatch", fields: [farmId], references: [id])
+  buyer MilkBuyer @relation(fields: [buyerId], references: [id])
+
+  @@unique([farmId, dispatchNumber])
+  @@index([farmId])
+  @@index([farmId, dispatchedAt])
+  @@index([buyerId])
+}

@@ -1,0 +1,15 @@
+[
+  { "id": "sd_calfmilk_013_5", "calfId": "sd_cattle_013", "date": "@dayStart:5", "morningMl": 2000, "eveningMl": 2000, "type": "DAM_MILK" },
+  { "id": "sd_calfmilk_013_4", "calfId": "sd_cattle_013", "date": "@dayStart:4", "morningMl": 2000, "eveningMl": 2000, "type": "DAM_MILK" },
+  { "id": "sd_calfmilk_013_3", "calfId": "sd_cattle_013", "date": "@dayStart:3", "morningMl": 2000, "eveningMl": 2000, "type": "DAM_MILK" },
+  { "id": "sd_calfmilk_013_2", "calfId": "sd_cattle_013", "date": "@dayStart:2", "morningMl": 2200, "eveningMl": 2000, "type": "DAM_MILK" },
+  { "id": "sd_calfmilk_013_1", "calfId": "sd_cattle_013", "date": "@dayStart:1", "morningMl": 2200, "eveningMl": 2200, "type": "DAM_MILK" },
+  { "id": "sd_calfmilk_014_5", "calfId": "sd_cattle_014", "date": "@dayStart:5", "morningMl": 2500, "eveningMl": 2500, "type": "WHOLE_MILK" },
+  { "id": "sd_calfmilk_014_4", "calfId": "sd_cattle_014", "date": "@dayStart:4", "morningMl": 2500, "eveningMl": 2500, "type": "WHOLE_MILK" },
+  { "id": "sd_calfmilk_014_3", "calfId": "sd_cattle_014", "date": "@dayStart:3", "morningMl": 2500, "eveningMl": 2500, "type": "WHOLE_MILK" },
+  { "id": "sd_calfmilk_014_2", "calfId": "sd_cattle_014", "date": "@dayStart:2", "morningMl": 2500, "eveningMl": 2300, "type": "WHOLE_MILK", "notes": "Left some in the evening" },
+  { "id": "sd_calfmilk_014_1", "calfId": "sd_cattle_014", "date": "@dayStart:1", "morningMl": 2500, "eveningMl": 2500, "type": "WHOLE_MILK" },
+  { "id": "sd_calfmilk_016_3", "calfId": "sd_cattle_016", "date": "@dayStart:3", "morningMl": 2000, "eveningMl": 2000, "type": "MILK_REPLACER" },
+  { "id": "sd_calfmilk_016_2", "calfId": "sd_cattle_016", "date": "@dayStart:2", "morningMl": 2000, "eveningMl": 2000, "type": "MILK_REPLACER" },
+  { "id": "sd_calfmilk_016_1", "calfId": "sd_cattle_016", "date": "@dayStart:1", "morningMl": 2000, "eveningMl": 2000, "type": "MILK_REPLACER" }
+]

@@ -1,0 +1,81 @@
+enum MedicineType {
+  LIQUID
+  POWDER
+  TABLET
+  INJECTABLE
+  BOLUS
+  OINTMENT
+  OTHER
+}
+
+enum MedicineCategory {
+  ANTIBIOTIC
+  ANTIPARASITIC
+  VACCINE
+  VITAMIN
+  MINERAL
+  HORMONE
+  ANTI_INFLAMMATORY
+  ANALGESIC
+  OTHER
+}
+
+enum MedicineStockMovementReason {
+  PURCHASE
+  TREATMENT
+  ADJUSTMENT
+  EXPIRED_DISPOSED
+  CORRECTION
+  /// Sold via `SellInventoryUseCase` (RAKHAL-346, Finance V2 Sales). The
+  /// movement's `saleLineId` names the `SaleLine` that caused it.
+  SALE
+}
+
+enum MilkTankType {
+  SELLABLE
+  WITHHOLDING
+}
+
+enum MilkTankActivity {
+  COLLECTION
+  SALE
+  ADJUSTMENT
+  TRANSFER
+  CALF_ALLOCATION
+}
+
+enum EquipmentType {
+  EQUIPMENT
+  MACHINERY
+  TOOL
+  SUPPLY
+  OTHER
+}
+
+/// Which inventory table a cross-module reference (e.g. a Finance purchase
+/// transaction's `inventoryItemId`) points into — RAKHAL-085.
+enum InventoryItemType {
+  MEDICINE
+  FEED_ITEM
+  EQUIPMENT
+}
+
+enum EquipmentStockMovementReason {
+  PURCHASE
+  ADJUSTMENT
+  DISPOSED
+  CORRECTION
+  /// Sold via `SellInventoryUseCase` (RAKHAL-346, Finance V2 Sales). The
+  /// movement's `saleLineId` names the `SaleLine` that caused it.
+  SALE
+}
+
+enum FeedItemStockMovementReason {
+  PURCHASE
+  DISTRIBUTION
+  ADJUSTMENT
+  CORRECTION
+  /// Sold via `SellInventoryUseCase` (RAKHAL-346, Finance V2 Sales). The
+  /// movement's `saleLineId` names the `SaleLine` that caused it.
+  SALE
+}

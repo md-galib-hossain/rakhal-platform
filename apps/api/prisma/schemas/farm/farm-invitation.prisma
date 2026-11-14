@@ -1,0 +1,42 @@
+/// Team invitation (PRD §21.4 / API §18 — RAKHAL-030). A pending invite to join a
+/// farm with a given role. Delivered by email (no SMS provider is wired yet —
+/// `phone` stays optional for a future SMS adapter but is no longer the delivery
+/// channel). `email` also binds the redeemer: `acceptInvite` requires the
+/// accepting user's account email to match, closing the "anyone holding the
+/// token can join" gap. The token + accept flow is consumed by the onboarding
+/// accept-invite path (RAKHAL-025).
+
+model FarmInvitation {
+  id     String @id @default(cuid())
+  farmId String
+
+  email       String
+  phone       String?
+  name        String?
+  roleId      String
+  invitedById String
+
+  token      String           @unique @default(cuid())
+  status     InvitationStatus @default(PENDING)
+  expiresAt  DateTime
+  acceptedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm      Farm @relation("FarmToInvitation", fields: [farmId], references: [id])
+  role      Role @relation("RoleToInvitation", fields: [roleId], references: [id])
+  invitedBy User @relation("UserSentInvitations", fields: [invitedById], references: [id])
+
+  @@index([farmId])
+  @@index([farmId, status])
+  @@index([roleId])
+  @@index([invitedById])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}

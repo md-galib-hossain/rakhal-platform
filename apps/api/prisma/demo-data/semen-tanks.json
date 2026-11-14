@@ -1,0 +1,3 @@
+[
+  { "id": "sd_semen_tank_001", "farmId": "@farm", "name": "LN2 Tank 1", "modelManufacturer": "IBP 3XT (India)", "strawCapacity": 120, "numCanisters": 6, "numGoblets": 24, "storageLocation": "Office store room", "currentTempC": -196, "ln2LevelPct": 62, "createdBy": "@user:owner" }
+]

@@ -1,0 +1,3 @@
+[
+  { "id": "sd_refcommission_001", "referrerFarmId": "@farm", "referredFarmId": "@farm2", "triggerInvoiceId": "sd_invoice_farm2", "rewardType": "CREDIT", "amount": 100, "status": "APPROVED", "idempotencyKey": "sd_invoice_farm2" }
+]

@@ -1,0 +1,30 @@
+model RefreshToken {
+  id String @id @default(cuid())
+
+  sessionId String
+
+  tokenHash String
+
+  tokenFamily String
+
+  parentTokenId String?
+
+  isRevoked Boolean @default(false)
+
+  revokedAt DateTime?
+
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id])
+
+  parentToken RefreshToken? @relation("TokenChain", fields: [parentTokenId], references: [id])
+
+  nextTokens RefreshToken[] @relation("TokenChain")
+
+  @@unique([tokenHash])
+  @@index([sessionId])
+  @@index([tokenFamily])
+  @@index([parentTokenId])
+}

@@ -1,0 +1,79 @@
+/// Milk storage tank (Inventory module — Milk tab, PRD §15.5). A farm keeps at
+/// least a SELLABLE and a WITHHOLDING tank. Volume is updated by the Milk module
+/// on "Submit All Logs" and decremented on sale (those integrations land with
+/// the Milk/Finance modules). `assignedShedId` is a soft reference validated in
+/// the service (no FK, to avoid cross-module coupling).
+model MilkTank {
+  id String @id @default(cuid())
+
+  farmId String
+
+  name           String
+  tankType       MilkTankType
+  totalCapacityL Float
+  currentVolumeL Float        @default(0)
+
+  fatPct     Float?
+  proteinPct Float?
+  snfPct     Float?
+
+  smartSensorId        String?
+  targetTempC          Float?
+  agitationIntervalMin Int?
+  assignedShedId       String?
+
+  /// One primary tank per farm (enforced in `MilkTankService.setPrimary`, not a DB constraint —
+  /// Prisma has no partial-unique-index syntax for "unique where farmId, deletedAt null"). The Milk
+  /// Log grid seeds each row's default tank from it when its `tankType` matches the cow's milk.
+  isPrimary Boolean @default(false)
+
+  deletedAt DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm    Farm @relation("FarmToMilkTank", fields: [farmId], references: [id])
+  creator User @relation("MilkTankCreator", fields: [createdBy], references: [id])
+
+  auditLogs  MilkTankAuditLog[]
+  logEntries MilkLogEntry[]     @relation("MilkLogEntryToMilkTank")
+
+  @@index([farmId])
+  @@index([tankType])
+  @@index([createdBy])
+}
+
+/// Append-only audit of every volume change on a MilkTank (collection from a
+/// milk session, sale, manual adjustment, transfer, calf allocation).
+model MilkTankAuditLog {
+  id String @id @default(cuid())
+
+  milkTankId String
+  farmId     String
+
+  activityType  MilkTankActivity
+  quantityL     Float
+  balanceAfterL Float
+  source        String? // milk_log_submission | finance_sale | manual
+  notes         String?
+
+  /// RAKHAL-342 (`SellMilk`, Finance V2): the `SaleLine` (type MILK) whose
+  /// atomic sale caused this SALE-activity decrement, so the audit trail can
+  /// be traced back to the exact Sale/Receivable/journal posting that moved
+  /// this volume. Loose reference (no FK) — same cross-module convention as
+  /// `MilkDispatch.financeTransactionId`/`saleId`, since `Sales` is a
+  /// separate top-level module this Inventory-owned table must not depend on
+  /// directly. Null for every non-SALE activity and for SALE rows predating
+  /// this ticket.
+  saleLineId String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  milkTank MilkTank @relation(fields: [milkTankId], references: [id])
+
+  @@index([milkTankId])
+  @@index([farmId])
+  @@index([createdAt])
+  @@index([saleLineId])
+}

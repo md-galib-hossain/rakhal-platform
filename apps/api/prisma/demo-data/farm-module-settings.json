@@ -1,0 +1,3 @@
+[
+  { "id": "sd_modsettings_demo", "farmId": "@farm", "cattleTagPrefix": "RKL", "cattleAvgMilkTargetRange": "8-14", "milkActiveSessions": ["morning", "evening"], "milkAnomalyThresholdPct": 30, "reproVwpDays": 60, "reproTargetCalvingIntervalDays": 380, "reproDryPeriodTargetDays": 60, "financeRunwayWarningDays": 20, "financeRunwayCriticalDays": 10, "healthScoreWarningPct": 70, "healthSccAlertThreshold": 200000 }
+]

@@ -1,0 +1,34 @@
+/// Renewal-reminder ledger (RAKHAL-240, PRD §36.5 / RNW-04). One row per
+/// (subscription, stage) — the unique index makes the daily sweep idempotent
+/// (a re-run / restart on the same day never re-mails) **and** makes the campaign
+/// measurable: reminder→renewal conversion is a join from here to a later ACTIVE
+/// `FarmSubscription` (feeds RAKHAL-226). `channels` records what actually fired
+/// (empty = due but suppressed by opt-out). `farmId`/`subscriptionId` are plain
+/// scalar FKs (billing/media precedent). **No auto-charge** (ADR-014) — this only
+/// reminds; renewal is always a fresh manual checkout.
+model RenewalReminder {
+  id String @id @default(cuid())
+
+  farmId         String
+  subscriptionId String
+  stage          RenewalStage
+
+  /// Channels that delivered, e.g. `["in_app","email"]`; `[]` = opted out.
+  channels String[] @default([])
+
+  createdAt DateTime @default(now())
+
+  @@unique([subscriptionId, stage])
+  @@index([farmId])
+  @@index([stage, createdAt])
+}
+
+enum RenewalStage {
+  T_MINUS_7
+  T_MINUS_3
+  T_MINUS_1
+  EXPIRY_DAY
+  WINBACK_3
+  WINBACK_7
+  WINBACK_30
+}

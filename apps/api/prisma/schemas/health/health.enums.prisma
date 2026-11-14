@@ -1,0 +1,140 @@
+/// RAKHAL-418: replaces the 8-value `HealthDiagnosisType`. Every consumer outside the Health
+/// module only ever asked a yes/no question of it ("is this preventive care, or real sickness?"
+/// — `isPreventiveDiagnosisType()`'s whole job) — so the derived two-value split is now the actual
+/// stored field instead of an 8-value enum plus a `PREVENTIVE_DIAGNOSIS_TYPES` membership check.
+/// The finer-grained "what kind of preventive/curative care" detail moves to the structured
+/// `condition` (`HealthCondition`) field plus free-text `note` (RAKHAL-275's field, formerly the
+/// required `diagnosis`, now optional).
+enum HealthCareType {
+  CURATIVE
+  PREVENTIVE
+}
+
+enum HealthPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum HealthCaseStatus {
+  ACTIVE
+  IMPROVING
+  WORSENING
+  STABLE
+  RECOVERED
+  MORTALITY
+  CLOSED
+}
+
+enum HealthPlanCategory {
+  TREATMENT
+  PREVENTION
+  BREEDING
+  VACCINATION
+  DEWORMING
+  ROUTINE
+}
+
+enum HealthPlanType {
+  MEDICAL
+  PREVENTION
+  BREEDING
+  GENERAL
+}
+
+enum HealthActionType {
+  MEDICINE
+  OBSERVATION
+  VACCINATION
+  DEWORMING
+  CHECKUP
+  LAB_TEST
+  OTHER
+}
+
+enum MedicineRoute {
+  IM
+  IV
+  SC
+  ORAL
+  TOPICAL
+  OTHER
+}
+
+enum HealthTaskStatus {
+  PENDING
+  COMPLETED
+  MISSED
+  OVERDUE
+  SKIPPED
+  RESCHEDULED
+}
+
+enum ClinicalProgress {
+  IMPROVING
+  WORSENING
+  STABLE
+}
+
+enum AppetiteStatus {
+  NORMAL
+  REDUCED
+  NONE
+  HIGH
+}
+
+enum AppearanceStatus {
+  BRIGHT
+  DULL
+  DEPRESSED
+  WEAK
+}
+
+/// RAKHAL-276 (v2 correction): was ACTIVE|COMPLETED. `COMPLETED` is renamed
+/// `RELEASED` and is now reached *only* via `HealthService.releaseWithdrawal`
+/// (an explicit, audited action) — never as a side effect of a read. The new
+/// `READY_FOR_RELEASE` value is the state a withdrawal sits in once its
+/// `until` date has passed but nobody has confirmed release yet; the daily
+/// sweep cron (`SchedulerService.runDailySweeps`) is the only place that
+/// transitions ACTIVE -> READY_FOR_RELEASE. `CANCELLED` covers a withdrawal
+/// voided before its window elapsed (e.g. logged in error).
+///
+/// Migration note: the Postgres enum type keeps the legacy `COMPLETED` value
+/// (Postgres can't cheaply drop enum values without a rename/recreate, and
+/// this ticket's migration is deliberately additive-only) — `COMPLETED` is
+/// simply never written or read by application code from this point on.
+enum SafetyWithdrawalStatus {
+  ACTIVE
+  READY_FOR_RELEASE
+  RELEASED
+  CANCELLED
+}
+
+enum HealthCloseOutcome {
+  RECOVERED
+  MORTALITY
+}
+
+/// RAKHAL-275: structured condition classification, kept alongside the
+/// free-text `diagnosis` field (nullable/additive — diagnosis remains the
+/// source of detail, condition is a coarse structured bucket for reporting).
+enum HealthCondition {
+  MASTITIS
+  LAMENESS
+  METRITIS
+  KETOSIS
+  MILK_FEVER
+  FEVER
+  INJURY
+  OTHER
+}
+
+/// RAKHAL-415: status of one animal's enrollment in a preventive `PlanApplication` round —
+/// mirrors the open/closed split `HealthCaseStatus` already has, collapsed to two values since an
+/// enrollment has no diagnosis/recovery-outcome dimension to track, only "still has pending steps"
+/// vs "done."
+enum PlanEnrollmentStatus {
+  ACTIVE
+  COMPLETED
+}

@@ -1,0 +1,3 @@
+[
+  { "id": "sd_couponredeem_001", "couponId": "sd_coupon_welcome10", "farmId": "@farm2", "invoiceId": "sd_invoice_farm2", "discountApplied": 100, "redeemedAt": "@daysAgo:18" }
+]

@@ -1,0 +1,30 @@
+/// What an OTP verifies (RAKHAL-216). `ACCOUNT_VERIFICATION` is the anti-fraud
+/// gate that unlocks 100%-off coupons (CPN-04) + trial-abuse defense (SUP-02):
+/// on success it sets `User.phoneVerifiedAt`. Email-delivered today (MimSMS
+/// creds pending, RAKHAL-215).
+enum OtpPurpose {
+  ACCOUNT_VERIFICATION
+}
+
+/// A short-lived OTP challenge (RAKHAL-216). Stored in Postgres — same pattern
+/// as the email-verification / password-reset tokens (not the best-effort Redis
+/// cache, which isn't a reliable store here; see RD-028). The code is **hashed**;
+/// `attempts` caps brute-force; `consumedAt` makes it single-use; a fresh request
+/// invalidates prior unconsumed challenges.
+model OtpChallenge {
+  id String @id @default(cuid())
+
+  userId  String
+  purpose OtpPurpose
+
+  codeHash String
+  attempts Int    @default(0)
+
+  expiresAt  DateTime
+  consumedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
+}

@@ -1,0 +1,15 @@
+model Permission {
+  id String @id @default(cuid())
+
+  key String @unique
+
+  description String?
+
+  group PermissionGroup
+
+  createdAt DateTime @default(now())
+
+  roles RolePermission[] @relation("PermissionToRolePermission")
+
+  @@index([group])
+}

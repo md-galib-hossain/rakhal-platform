@@ -1,0 +1,78 @@
+/// Money a customer owes the farm for a confirmed `Sale` (RAKHAL-340, Finance
+/// V2 — `FINANCE_V2_DESIGN.md` §4.3, §4.6). Created by the sale-type use
+/// cases (RAKHAL-342/345/346/347) when a sale isn't fully paid at the moment
+/// it's recorded — `ReceivableService.createReceivable` is the seam they call
+/// as a later step of their own `$transaction`, after `Sale`+`SaleLine`
+/// (RAKHAL-339).
+///
+/// **Outstanding and status are computed, never stored** — this is the
+/// ticket's own core decision (`FINANCE_V2_DESIGN.md` §4.6, "Payment status
+/// is derived, never chosen"). The V1 `FinanceReceivable`
+/// (`prisma/schemas/finance/finance.prisma`) carried a `status`
+/// `FULL`/`PARTIAL` column the farmer had to pick by hand; V2 deletes that
+/// input entirely. `ReceivableService.getOutstanding`/`getStatus` derive both
+/// at read time from `PaymentAllocation` rows summed against this
+/// receivable's id (`SUM(PaymentAllocation.amount) WHERE receivableId = this`)
+/// — no column here duplicates that state, so it can never drift out of sync
+/// with the ledger the way V1's hand-set status could.
+///
+/// **`customerId` — real FK as of RAKHAL-364 (MILESTONE 22,
+/// `BUSINESS_IA_PRD.md` §7)**, same `MilkBuyer` target as `Sale.customerId`.
+/// **Kept as its own denormalized column, not a join through `sale.customer`**
+/// — `Receivable` already snapshots `Sale.totalAmount` by the same
+/// "never a live read of `Sale`" design; snapshotting the counterparty
+/// alongside the amount is consistent, not novel, and the existing
+/// `@@index([farmId, customerId])` is what keeps a buyer's outstanding-
+/// receivables lookup off a join. **`Receivable.customerId === Sale.customerId`,
+/// always** — `ReceivableService.createReceivable` derives it from the `Sale`
+/// row every sale-type use case already has in hand, and an e2e guards the
+/// invariant. This closes RD-062 (`customerId` was previously the one column
+/// here that was never actually written).
+///
+/// Closes the `TODO(RAKHAL-340)` `PaymentAllocation.receivableId` left as a
+/// plain scalar by RAKHAL-337 (`payment.prisma`) — that column is now a real
+/// `@relation` to this model (see `payment.prisma`'s own updated doc
+/// comment).
+model Receivable {
+  id     String @id @default(cuid())
+  farmId String
+
+  /// The `Sale` this receivable was raised for. Real FK — unlike
+  /// `PaymentAllocation.receivableId`/`payableId`'s placeholder-era scalar
+  /// columns, `Sale` already exists (RAKHAL-339) by the time this model is
+  /// created.
+  saleId String @unique
+
+  /// FK column backing the `customer` relation below — see this model's own
+  /// doc comment for the naming-alias rationale.
+  customerId String?
+
+  /// Mirrors the `Sale.totalAmount` at the moment this receivable was
+  /// raised — a sale is never edited when money arrives later
+  /// (`FINANCE_V2_DESIGN.md` §4.5's worked example), so this column is a
+  /// snapshot, not a live read of `Sale`.
+  totalAmount Decimal @db.Decimal(18, 2)
+
+  dueDate DateTime?
+
+  /// Set once `getOutstanding` reaches zero — an operational bookkeeping
+  /// timestamp only, **not** the source of truth for `PAID` (that's always
+  /// derived from allocations; `closedAt` just records *when* it happened
+  /// for reporting, and is written by `ReceivableService` alongside the
+  /// allocation that closes it, not read back to decide status).
+  closedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  farm Farm @relation("FarmToReceivable", fields: [farmId], references: [id])
+  sale Sale @relation("SaleToReceivable", fields: [saleId], references: [id])
+
+  /// RAKHAL-364 — see this model's own doc comment above.
+  customer MilkBuyer? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  allocations PaymentAllocation[] @relation("ReceivableToPaymentAllocation")
+
+  @@index([farmId])
+  @@index([farmId, customerId])
+  @@index([farmId, dueDate])
+}

@@ -1,0 +1,8 @@
+[
+  { "id": "sd_heat_001", "cattleId": "sd_cattle_002", "heatDateTime": "@daysAgo:26", "detectionMethod": "VISUAL", "standingHeat": true, "mucusDischarge": true, "restlessness": true, "notes": "Bred by AI the next morning" },
+  { "id": "sd_heat_002", "cattleId": "sd_cattle_006", "heatDateTime": "@daysAgo:151", "detectionMethod": "VISUAL", "standingHeat": true, "mountingBehavior": true },
+  { "id": "sd_heat_003", "cattleId": "sd_cattle_009", "heatDateTime": "@daysAgo:39", "detectionMethod": "MANUAL", "standingHeat": true, "restlessness": true, "notes": "First observed heat strong enough to breed" },
+  { "id": "sd_heat_004", "cattleId": "sd_cattle_004", "heatDateTime": "@daysAgo:3", "detectionMethod": "VISUAL", "standingHeat": false, "mucusDischarge": true, "restlessness": true, "notes": "Weak signs — watch for standing heat" },
+  { "id": "sd_heat_005", "cattleId": "sd_cattle_010", "heatDateTime": "@daysAgo:1", "detectionMethod": "VISUAL", "mountingBehavior": true, "restlessness": true, "notes": "On Ovsynch — expected response" },
+  { "id": "sd_heat_006", "cattleId": "sd_cattle_005", "heatDateTime": "@daysAgo:60", "detectionMethod": "VISUAL", "standingHeat": true, "notes": "Not bred — under observation at the time" }
+]

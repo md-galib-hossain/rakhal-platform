@@ -1,0 +1,28 @@
+/// Fixed Asset model for depreciation tracking (RD-010).
+/// Stores depreciable assets (equipment, vehicles, buildings).
+/// Straight-line depreciation: (purchasePrice - salvageValue) / usefulLifeYears.
+
+model FixedAsset {
+  id     String @id @default(cuid())
+  farmId String
+
+  name        String
+  category    FixedAssetCategory @default(EQUIPMENT)
+  description String?
+
+  purchaseDate    DateTime
+  purchasePrice   Float
+  usefulLifeYears Int      @default(5)
+  salvageValue    Float    @default(0)
+
+  deletedAt DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm    Farm @relation("FarmToFixedAsset", fields: [farmId], references: [id])
+  creator User @relation("FixedAssetCreator", fields: [createdBy], references: [id])
+
+  @@index([farmId])
+  @@index([farmId, category])
+}

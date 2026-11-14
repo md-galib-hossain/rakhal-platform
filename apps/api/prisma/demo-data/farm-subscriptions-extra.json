@@ -1,0 +1,3 @@
+[
+  { "id": "sd_farmsub_farm2", "farmId": "@farm2", "subscriptionPlanId": "@plan:Starter", "status": "ACTIVE", "startsAt": "@daysAgo:18", "expiresAt": "@daysFromNow:12" }
+]

@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: "Rakhal Dashboards"
+    orgId: 1
+    folder: "Rakhal"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

@@ -1,0 +1,4 @@
+[
+  { "id": "sd_loan_001", "farmId": "@farm", "lenderName": "Krishi Bank, Sreepur", "totalAmount": 200000, "paidAmount": 40000, "monthlyEmi": 10000, "startDate": "@daysAgo:120", "durationMonths": 24, "status": "ACTIVE", "createdBy": "@user:owner" },
+  { "id": "sd_loan_002", "farmId": "@farm", "lenderName": "BRAC Microfinance", "totalAmount": 50000, "paidAmount": 50000, "monthlyEmi": 4500, "startDate": "@daysAgo:700", "durationMonths": 12, "status": "CLOSED", "createdBy": "@user:owner" }
+]

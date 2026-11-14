@@ -1,0 +1,110 @@
+/// Notification engine (PRD §20 / API §17, RAKHAL-098/099). Per-user, farm-scoped
+/// in-app notifications + per-event channel preferences + quiet hours. The event
+/// catalogue (categories, priority, can-disable, default channels) lives in code
+/// (`domain/notification-events.ts`); these tables store the delivered feed and
+/// each user's overrides. SMS/WhatsApp/Email delivery is a stubbed provider seam
+/// (in-app is always live) until a provider lands (RAKHAL-110).
+
+model Notification {
+  id     String @id @default(cuid())
+  farmId String
+  userId String /// recipient
+
+  eventKey String
+  category String
+  priority String
+  title    String
+  message  String
+  link     String?
+
+  /// Interpolation params for the catalogue copy (`notification.<eventKey>.*`).
+  /// When set, the bell feed re-renders title/message at read time in the
+  /// request's language, so switching UI language also switches old rows.
+  /// Null for legacy rows / events with no catalogue entry — `title`/`message`
+  /// above are then served verbatim.
+  params Json?
+
+  /// RAKHAL-485 follow-up: structured payload for client deep links (cattleId, taskId, ruleKey, ...).
+  /// Not used for copy; returned by the bell feed as `data`.
+  data Json?
+
+  /// Channels actually delivered (subset of the resolved preference).
+  channelsSent String[] @default([])
+
+  /// Idempotency key for recurring (scheduled) emits — e.g.
+  /// `payment_overdue:<receivableId>:<YYYY-MM-DD>`. A daily sweep skips a user who
+  /// already holds a notification with the same key, so re-runs don't spam.
+  dedupeKey String?
+
+  isRead Boolean   @default(false)
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  farm Farm @relation("FarmToNotification", fields: [farmId], references: [id])
+  user User @relation("UserToNotification", fields: [userId], references: [id])
+
+  @@index([farmId, userId, isRead])
+  @@index([userId, createdAt])
+  @@index([userId, dedupeKey])
+}
+
+/// Per (user, event) channel override. Absence = the catalogue default.
+model NotificationPreference {
+  id     String @id @default(cuid())
+  farmId String
+  userId String
+
+  eventKey String
+  enabled  Boolean @default(true)
+
+  inApp    Boolean @default(true)
+  push     Boolean @default(true)
+  sms      Boolean @default(false)
+  whatsapp Boolean @default(false)
+  telegram Boolean @default(false)
+  email    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("UserToNotificationPreference", fields: [userId], references: [id])
+
+  @@unique([userId, eventKey])
+  @@index([farmId, userId])
+}
+
+/// A registered device push token (FCM, later APNs). One per device per user;
+/// the push channel sends to every token a user has and prunes stale ones.
+model DeviceToken {
+  id     String  @id @default(cuid())
+  userId String
+  farmId String?
+
+  token    String /// FCM registration token
+  platform String /// android | ios | web
+  provider String @default("fcm")
+
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  user User @relation("UserToDeviceToken", fields: [userId], references: [id])
+
+  @@unique([token])
+  @@index([userId])
+}
+
+/// Per-user quiet hours (HH:mm). No SMS/WhatsApp delivery inside the window.
+model NotificationSetting {
+  id     String @id @default(cuid())
+  farmId String
+  userId String @unique
+
+  quietHoursStart String? /// "22:00"
+  quietHoursEnd   String? /// "05:00"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("UserToNotificationSetting", fields: [userId], references: [id])
+}

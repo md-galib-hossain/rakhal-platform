@@ -1,0 +1,112 @@
+/// Per-farm module settings (PRD §21.5 / API §18 — RAKHAL-032). One row per farm.
+/// These are the tunables that power cross-module behaviour (VWP, anomaly %, runway
+/// thresholds, SCC alert, etc.). Persisted here with sensible defaults; modules read
+/// hard-coded constants today — wiring each module to consume this row is follow-up
+/// (TECH_DEBT RD-014). Created lazily on first GET/PATCH.
+
+model FarmModuleSettings {
+  id     String @id @default(cuid())
+  farmId String @unique
+
+  // Cattle
+  cattleIdFormat                  String  @default("{TAG}-{SERIAL}")
+  cattleTagPrefix                 String?
+  cattleAvgMilkTargetRange        String?
+  /// Lifecycle sub-stage day boundaries (RAKHAL-401) — `deriveLifecycleSubStage`'s
+  /// `LifecycleBoundaries`. 0..this-1 days = still a CALF (no sub-stage); this..
+  /// growingStartDays-1 = WEANED_HEIFER/WEANER_BULL.
+  cattleLifecycleWeaningDays      Int     @default(60)
+  /// growingStartDays..breedingAgeDays-1 = GROWING_HEIFER/GROWING_BULL.
+  cattleLifecycleGrowingStartDays Int     @default(180)
+  /// breedingAgeDays.. = BREEDING_HEIFER/MATURE_BULL (until the animal calves,
+  /// which moves her out of HEIFER into COW regardless of age).
+  cattleLifecycleBreedingAgeDays  Int     @default(390)
+
+  // Milk
+  milkActiveSessions      String[] @default(["morning", "evening"])
+  milkMorningStart        String   @default("06:00")
+  milkMorningEnd          String   @default("11:59")
+  milkNoonStart           String   @default("12:00")
+  milkNoonEnd             String   @default("14:59")
+  milkEveningStart        String   @default("15:00")
+  milkEveningEnd          String   @default("17:59")
+  milkNightStart          String   @default("18:00")
+  milkNightEnd            String   @default("23:59")
+  milkUnit                String   @default("litres")
+  milkAnomalyThresholdPct Int      @default(30)
+  /// Days since `Lactation.startDate` a fresh cow's milk is classified `COLOSTRUM`
+  /// (RAKHAL-277) — `0..this-1` days since calving = COLOSTRUM, beyond = SALEABLE
+  /// (absent an active safety withdrawal, which always wins as WITHHELD).
+  milkColostrumWindowDays Int      @default(5)
+
+  // Reproduction
+  reproVwpDays                   Int @default(60)
+  reproTargetCalvingIntervalDays Int @default(380)
+  reproDryPeriodTargetDays       Int @default(60)
+  /// Recent-heat lookback window, in days — a `HeatEvent` inside this window
+  /// (and not yet followed by a breeding) contributes the `HEAT_DETECTED`
+  /// `ReproductionAlert` (RAKHAL-271 v2: alerts are derived, layered on top of
+  /// `ReproductionState`, not a state of their own).
+  reproHeatWindowDays            Int @default(3)
+  /// Close-up window before `Pregnancy.expectedCalvingDate`, in days — inside
+  /// it a `PREGNANT` cow gains the `CALVING_DUE` `ReproductionAlert` (RAKHAL-271
+  /// v2: no longer a separate `ReproductionState`).
+  reproCloseUpWindowDays         Int @default(21)
+  /// `LactationStage` day-threshold, in days since `Lactation.startDate`
+  /// (RAKHAL-273) — 0..this = FRESH.
+  lactationFreshDays             Int @default(21)
+  /// `LactationStage` day-threshold, in days since `Lactation.startDate`
+  /// (RAKHAL-273) — freshDays..this = EARLY, this..midDays = MID, beyond = LATE
+  /// (until dry-off).
+  lactationEarlyDays             Int @default(100)
+  /// `LactationStage` day-threshold, in days since `Lactation.startDate`
+  /// (RAKHAL-273) — earlyDays..this = MID, beyond = LATE (until dry-off).
+  lactationMidDays               Int @default(200)
+  /// `PregnancyStage` day-thresholds, in days since `Pregnancy.conceptionDate`
+  /// (RAKHAL-273) — 0..this = EARLY.
+  pregnancyEarlyDays             Int @default(90)
+  /// `PregnancyStage` day-threshold, in days since `Pregnancy.conceptionDate`
+  /// (RAKHAL-273) — earlyDays..this = MID, beyond (until the close-up window,
+  /// `reproCloseUpWindowDays`) = LATE.
+  pregnancyMidDays               Int @default(180)
+  /// Extra days past `BreedingEvent.expectedPregnancyCheckDate` (on top of the
+  /// plain `PREGNANCY_CHECK_DUE` trigger) before the `OVERDUE_PREGNANCY_CHECK`
+  /// `ReproductionAlert` also fires (RAKHAL-272).
+  reproOverduePregnancyCheckDays Int @default(7)
+  /// Count of `BreedingEvent`s since a cow's last calving (or her whole
+  /// history, if she's never calved) with no successful outcome before the
+  /// `REPEAT_BREEDER` `ReproductionAlert` fires (RAKHAL-272).
+  reproRepeatBreederThreshold    Int @default(3)
+  /// Days since a cow's last calving (with no confirmed pregnancy since)
+  /// before the `LONG_DAYS_OPEN` `ReproductionAlert` fires (RAKHAL-272).
+  reproLongDaysOpenDays          Int @default(120)
+  /// Extra days past `Pregnancy.expectedCalvingDate` before the
+  /// `CALVING_OVERDUE` `ReproductionAlert` fires (RAKHAL-272 extension — see
+  /// `reproduction-alerts.ts`'s file-level doc comment).
+  reproCalvingOverdueDays        Int @default(7)
+  /// RAKHAL-285: minimum recorded days-in-milk before `Lactation` stats expose
+  /// `standardized305DayYield` — below this, projecting a 305-day figure from
+  /// too few real days is unreliable, so it stays null (same
+  /// null-below-threshold convention already used elsewhere in this module).
+  minDimFor305DayYield           Int @default(30)
+  /// RAKHAL-476: days after a breeding before `expectedPregnancyCheckDate`
+  /// (and the pregnancy-check task). Was hard-coded 35.
+  reproPregnancyCheckDays        Int @default(35)
+
+  // Finance
+  financeCurrency           String @default("Tk")
+  financeCurrencySymbol     String @default("৳")
+  financeRunwayWarningDays  Int    @default(20)
+  financeRunwayCriticalDays Int    @default(10)
+  financeYearStartMonth     Int    @default(1)
+
+  // Health
+  healthScoreWarningPct      Int @default(70)
+  healthSccAlertThreshold    Int @default(200000)
+  healthMorbidityOutbreakPct Int @default(5)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm @relation("FarmToModuleSettings", fields: [farmId], references: [id])
+}

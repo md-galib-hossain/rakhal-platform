@@ -1,0 +1,7 @@
+[
+  { "id": "sd_supplier_feed", "farmId": "@farm", "name": "Gazipur Feed Traders", "contact": "Md. Alamgir", "phone": "+8801711223344", "category": "feed", "paymentTerms": "net_15", "notes": "Main feed vendor; delivers Saturday" },
+  { "id": "sd_supplier_medicine", "farmId": "@farm", "name": "Rahman Pharmacy (Vet)", "contact": "Rahman Mia", "phone": "+8801822334455", "category": "medicine", "paymentTerms": "cod" },
+  { "id": "sd_supplier_equipment", "farmId": "@farm", "name": "AgroTech BD", "contact": "Sales desk", "phone": "+8801933445566", "category": "equipment", "paymentTerms": "net_30", "notes": "Milking machine service contract" },
+  { "id": "sd_supplier_ai", "farmId": "@farm", "name": "District AI Center (Md. Salam)", "phone": "+8801544556677", "category": "services", "paymentTerms": "cod", "notes": "AI technician; ৳500/service incl. travel" },
+  { "id": "sd_supplier_hardware", "farmId": "@farm", "name": "Karim Hardware", "phone": "+8801655667788", "category": "other", "paymentTerms": "cod" }
+]

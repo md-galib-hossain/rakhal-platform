@@ -1,0 +1,116 @@
+/// Platform-admin roles (RAKHAL-224, RAKHAL-225, PRD §32.5/§35.21). Granular
+/// back-office roles beyond `SUPER_ADMIN` (wildcard access); each maps to a
+/// fixed permission set in `domain/admin-permission-matrix.ts`.
+enum PlatformAdminRole {
+  SUPER_ADMIN
+  SUPPORT_ADMIN
+  BILLING_ADMIN
+  CONTENT_ADMIN
+}
+
+/// A Rakhal-team back-office identity (RAKHAL-224, PRD §32.5 / ADR-019).
+/// **Deliberately a separate table from farm `User`** — a farm role can never
+/// become a platform admin (ADR-016). Admin tokens are signed with a distinct
+/// `JWT_ADMIN_SECRET`, so a farm access token can never authenticate here and
+/// vice-versa. RAKHAL-225 extends this with 2FA, sessions, and granular RBAC.
+model PlatformAdmin {
+  id String @id @default(cuid())
+
+  email        String @unique
+  name         String
+  passwordHash String
+
+  role     PlatformAdminRole @default(SUPER_ADMIN)
+  isActive Boolean           @default(true)
+
+  /// TOTP secret (RAKHAL-225, base32) — set once at 2FA setup, kept even after
+  /// enabling (no rotation flow yet). `totpEnabled=false` means the admin must
+  /// complete setup before a real session token is issued (mandatory 2FA).
+  totpSecret  String?
+  totpEnabled Boolean @default(false)
+
+  /// P2-05: set when a SUPER_ADMIN issues a temporary password (create / reset).
+  /// While true, every admin route except change-password/logout answers 403
+  /// `PASSWORD_CHANGE_REQUIRED` (see `AdminPermissionGuard`).
+  mustChangePassword Boolean   @default(false)
+  passwordChangedAt  DateTime?
+
+  lastLoginAt DateTime?
+  lastLoginIp String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs PlatformAdminAuditLog[] @relation("PlatformAdminToAudit")
+  sessions  PlatformAdminSession[]  @relation("PlatformAdminToSession")
+
+  @@index([email])
+}
+
+/// A signed-in platform-admin session (P2-01). The access JWT carries this id
+/// as `sid`; `PlatformAdminGuard` rejects the token once `revokedAt` is set or
+/// `expiresAt` has passed, so logout/revoke take effect on the very next
+/// request. The refresh token is an opaque random string — only its SHA-256
+/// hash is stored. Rotation keeps the previous hash so replaying an already
+/// rotated token (theft signal) revokes the whole session.
+model PlatformAdminSession {
+  id String @id @default(cuid())
+
+  adminId String
+  admin   PlatformAdmin @relation("PlatformAdminToSession", fields: [adminId], references: [id], onDelete: Cascade)
+
+  refreshTokenHash         String  @unique
+  previousRefreshTokenHash String?
+
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokedReason String?
+  lastUsedAt    DateTime?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([previousRefreshTokenHash])
+}
+
+/// Immutable audit trail for platform-admin actions (RAKHAL-224). Separate from
+/// the farm `AuditLog` (whose `actorUserId` FKs `User`) precisely because the
+/// actor here is a `PlatformAdmin`, not a farm user. `action` is a free-text
+/// code for now (e.g. `COUPON_ISSUED`); RAKHAL-225 may formalise it + add
+/// IP/geo/session context as the admin audit surface grows.
+model PlatformAdminAuditLog {
+  id String @id @default(cuid())
+
+  /// Null for a failed login against an unknown email (no admin to attribute to);
+  /// the attempted address is kept in `actorEmail`.
+  adminId String?
+  admin   PlatformAdmin? @relation("PlatformAdminToAudit", fields: [adminId], references: [id], onDelete: Restrict)
+
+  /// One of `AdminAuditAction` (domain/admin-audit-actions.ts) — typed in code,
+  /// stored as text so adding an action never needs a migration.
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+
+  /// P2-04 structured context.
+  outcome    String  @default("SUCCESS")
+  actorEmail String?
+  before     Json?
+  after      Json?
+  sessionId  String?
+  requestId  String?
+  userAgent  String?
+
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([action])
+  @@index([sessionId])
+  @@index([createdAt])
+}

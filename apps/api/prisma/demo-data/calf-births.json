@@ -1,0 +1,5 @@
+[
+  { "id": "sd_calfbirth_001", "calvingEventId": "sd_calving_001", "calfId": "sd_cattle_013", "gender": "FEMALE", "birthWeight": 28, "status": "ALIVE" },
+  { "id": "sd_calfbirth_002", "calvingEventId": "sd_calving_002", "calfId": "sd_cattle_014", "gender": "MALE", "birthWeight": 30, "status": "ALIVE" },
+  { "id": "sd_calfbirth_003", "calvingEventId": "sd_calving_003", "gender": "MALE", "birthWeight": 26, "status": "STILLBORN" }
+]

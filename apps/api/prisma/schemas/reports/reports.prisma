@@ -1,0 +1,147 @@
+/// Reports v2 (RPT-07, docs/EPIC_REPORTS.md). Enums mirror
+/// `src/modules/reports/domain/contracts/enums.ts` EXACTLY (guarded by
+/// `reports-prisma-enums.spec.ts`). Replaces the removed RAKHAL-103
+/// `ReportJob`/`ReportSchedule` tables (dropped in the same migration).
+
+enum ReportType {
+  WEEKLY
+  MONTHLY
+  ON_DEMAND
+}
+
+enum ReportOrigin {
+  SCHEDULED
+  ON_DEMAND
+}
+
+enum ReportStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ReportErrorCategory {
+  STORAGE_UNAVAILABLE
+  DB_TIMEOUT
+  QUEUE_UNAVAILABLE
+  INVALID_CONFIG
+  PLAN_LIMIT
+  PERMISSION_DENIED
+  RENDER_FAILED
+  GENERATION_FAILED
+}
+
+/// Global (not per farm), founder-controlled. A new version affects future
+/// reports only; existing reports keep the version they were built with.
+model ReportTemplateVersion {
+  id String @id @default(cuid())
+
+  type    ReportType
+  version Int
+
+  /// `ReportTemplateDefinition` (contracts/template.ts).
+  definition Json
+
+  effectiveFrom DateTime
+
+  /// Platform admin id (admin-api), nullable for seeded rows.
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  reports Report[]
+
+  @@unique([type, version])
+  @@index([type, effectiveFrom])
+}
+
+model Report {
+  id String @id @default(cuid())
+
+  farmId String
+
+  origin ReportOrigin
+  type   ReportType
+
+  templateVersionId String
+
+  /// Exclusive end instant.
+  periodStart     DateTime
+  periodEnd       DateTime
+  /// Farm-local civil dates, YYYY-MM-DD.
+  periodStartDate String
+  periodEndDate   String
+  timezone        String
+
+  scope             Json
+  selectedMetricIds Json
+  includesFinance   Boolean @default(false)
+
+  status   ReportStatus @default(QUEUED)
+  attempts Int          @default(0)
+  /// Owner-triggered retries of a FAILED report (capped in the service).
+  manualRetries Int     @default(0)
+
+  errorCategory ReportErrorCategory?
+  /// Short, non-sensitive.
+  errorMessage  String?
+
+  /// Null for SCHEDULED.
+  requestedBy    String?
+  /// Client duplicate-detection key; unique per (farmId, requestedBy) when set.
+  idempotencyKey String?
+  /// SHA-256 hex of the normalised create-request config; rejects an idempotency-key replay
+  /// with a different body. Null for old and scheduled rows.
+  requestHash    String?
+  /// `scheduledReportKey()` output; UNIQUE (NULLs distinct) so concurrent
+  /// schedulers collide.
+  scheduledKey   String?
+
+  artifactKey         String?
+  artifactBytes       Int?
+  artifactContentType String?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  /// Retention (SubscriptionPlan.reportRetentionDays).
+  expiresAt   DateTime?
+  /// Owner delete (soft).
+  deletedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm            Farm                  @relation("FarmToReport", fields: [farmId], references: [id], onDelete: Restrict)
+  templateVersion ReportTemplateVersion @relation(fields: [templateVersionId], references: [id], onDelete: Restrict)
+  snapshot        ReportSnapshot?
+
+  // Postgres UNIQUE treats NULLs as distinct, so these behave as partial
+  // "where not null" uniques: SCHEDULED rows (scheduledKey) and keyed
+  // on-demand requests collide; null-keyed rows never do.
+  @@unique([scheduledKey])
+  @@unique([farmId, requestedBy, idempotencyKey])
+  @@index([farmId, createdAt(sort: Desc)])
+  @@index([farmId, status])
+  @@index([farmId, type, periodStart])
+  @@index([status, expiresAt])
+}
+
+/// IMMUTABLE: a DB trigger (`ReportSnapshot_block_update`) rejects UPDATE.
+/// Hence no `updatedAt`.
+model ReportSnapshot {
+  id String @id @default(cuid())
+
+  reportId String @unique
+
+  /// `ReportSnapshotPayload` (contracts/snapshot.ts).
+  payload Json
+
+  schemaVersion   Int
+  calcVersion     Int
+  templateVersion Int
+  includesFinance Boolean
+
+  createdAt DateTime @default(now())
+
+  report Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+}

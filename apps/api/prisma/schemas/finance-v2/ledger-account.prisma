@@ -1,0 +1,51 @@
+enum LedgerAccountCategory {
+  ASSET
+  LIABILITY
+  REVENUE
+  EXPENSE
+  EQUITY
+}
+
+/// Per-farm chart of accounts (RAKHAL-333, Finance V2 — `FINANCE_V2_DESIGN.md` §4.4).
+/// **Internal only** — never exposed as a farmer-facing route. Farmers see
+/// `FinancialAccount` (RAKHAL-335, Cash/Bank/MFS); this is the accounting-side
+/// ledger those accounts post against, plus the revenue/expense/receivable/
+/// payable/equity accounts every `JournalEntry` (RAKHAL-334) debits or credits.
+///
+/// Standard accounting number ranges, seeded per farm on bootstrap (never
+/// globally — a farm-custom account needs its own farm-scoped `code` space):
+/// 1xxx assets, 2xxx liabilities, 3xxx equity, 4xxx revenue, 5xxx expense.
+/// `isSystem: true` for every row `LedgerAccountService.seedDefaultChart`
+/// creates; a future farm-custom account (out of this ticket's scope) would
+/// be `isSystem: false`.
+model LedgerAccount {
+  id     String @id @default(cuid())
+  farmId String
+
+  category LedgerAccountCategory
+  /// e.g. "1000" (Cash), "4100" (Milk Sales). Unique per farm, not globally —
+  /// two farms both have a "1000".
+  code     String
+  name     String
+
+  /// True for every account `LedgerAccountService.seedDefaultChart` creates.
+  /// False is reserved for a future farm-custom chart-of-accounts entry —
+  /// not built by this ticket.
+  isSystem Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm @relation("FarmToLedgerAccount", fields: [farmId], references: [id])
+
+  /// Back-relation for `JournalEntry.ledgerAccountId` (RAKHAL-334) — every
+  /// debit/credit line posted against this account.
+  journalEntries JournalEntry[]
+
+  /// Back-relation for `FinancialAccount.ledgerAccountId` (RAKHAL-335) — the
+  /// farmer-facing Cash/Bank/MFS account(s) that post against this ledger row.
+  financialAccounts FinancialAccount[] @relation("LedgerAccountToFinancialAccount")
+
+  @@unique([farmId, code])
+  @@index([farmId, category])
+}

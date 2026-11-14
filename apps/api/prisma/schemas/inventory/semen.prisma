@@ -1,0 +1,116 @@
+/// LN2 semen storage tank (Inventory module — Semen tab, PRD §15.4).
+model SemenTank {
+  id String @id @default(cuid())
+
+  farmId String
+
+  name              String
+  modelManufacturer String?
+  strawCapacity     Int
+  numCanisters      Int?
+  numGoblets        Int?
+  storageLocation   String?
+  currentTempC      Float?
+  ln2LevelPct       Float?
+
+  deletedAt DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm    Farm @relation("FarmToSemenTank", fields: [farmId], references: [id])
+  creator User @relation("SemenTankCreator", fields: [createdBy], references: [id])
+
+  batches SemenBatch[]
+
+  @@index([farmId])
+  @@index([createdBy])
+}
+
+/// A registered batch of semen straws. `strawQuantity` is decremented by 1 on
+/// each AI event recorded in the Reproduction module (PRD §15.4 / REP-05); a
+/// low-straw alert fires below `lowStrawThreshold`.
+model SemenBatch {
+  id String @id @default(cuid())
+
+  farmId String
+
+  name               String
+  batchCode          String?
+  bullId             String?
+  breed              String?
+  strawColor         String?
+  initialVitalityPct Float?
+  strawQuantity      Int     @default(0)
+  lowStrawThreshold  Int     @default(5)
+
+  /// Conventional vs Sex-Sorted straws in this batch. `targetSex` only
+  /// meaningful when this is SEX_SORTED — nulled out otherwise (service rule).
+  semenType SemenType?
+  targetSex TargetSex?
+
+  /// RAKHAL-330: cost per straw — mandatory (DTO-level) on create so every
+  /// FARM_INVENTORY AI event has a real cost basis to post to Finance; an AI
+  /// event against a batch with this still null is blocked service-side.
+  costPerUnit Float?
+
+  fatherId String?
+  motherId String?
+
+  tankId   String?
+  canister String?
+  goblet   String?
+
+  notes String?
+
+  deletedAt DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm    Farm       @relation("FarmToSemenBatch", fields: [farmId], references: [id])
+  creator User       @relation("SemenBatchCreator", fields: [createdBy], references: [id])
+  tank    SemenTank? @relation(fields: [tankId], references: [id])
+
+  strawMovements SemenStrawMovement[]
+
+  @@index([farmId])
+  @@index([tankId])
+  @@index([createdBy])
+}
+
+enum SemenStrawMovementReason {
+  AI_USE // decrementStraw — an AI event consumed a straw (REP-05)
+  REVERSAL // restoreStraw — an edited/undone AI event's straw count is restored
+  OPENING_BALANCE // backfill-only: pre-RAKHAL-302 usage with no reconstructable per-event history
+}
+
+/// Append-only audit of every straw-count change on a SemenBatch — mirrors
+/// `EquipmentStockMovement`/`MedicineStockMovement`. `balanceAfter` snapshots
+/// the running count so history is reconstructable without replaying deltas.
+/// `sourceEventId` optionally links a movement back to the `BreedingEvent`
+/// that caused it (no FK — `BreedingEvent` lives in a different schema file
+/// and the id is farm-scoped-unique, same loose-coupling precedent
+/// `Task.sourceEventId` (RAKHAL-299) already set).
+model SemenStrawMovement {
+  id String @id @default(cuid())
+
+  batchId String
+  farmId  String
+
+  reason       SemenStrawMovementReason
+  delta        Int // signed: -1 AI_USE / +n REVERSAL / +n OPENING_BALANCE
+  balanceAfter Int
+  notes        String? // e.g. free-text reason a REVERSAL was issued
+
+  sourceEventId String?
+
+  createdBy String? // nullable: decrementStraw's existing callers (Reproduction AI flow, repro-protocol) have no actor in scope today
+  createdAt DateTime @default(now())
+
+  batch SemenBatch @relation(fields: [batchId], references: [id])
+
+  @@index([batchId])
+  @@index([farmId])
+  @@index([createdAt])
+}

@@ -1,0 +1,102 @@
+/// Milk Module (PRD §10). One row per cow per session per day. Entries are
+/// saved (draft) then finalized via "Submit All Logs", which updates the
+/// Inventory milk tanks (SELLABLE / WITHHOLDING) and emits AQR/Activity events.
+/// Farm-scoped by `farmId`; withholding is derived from the health
+/// SafetyWithdrawal, so the tank for a flagged cow is locked to WITHHOLDING.
+
+model MilkLogEntry {
+  id     String @id @default(cuid())
+  farmId String
+
+  cattleId String
+  logDate  DateTime /// production day (UTC midnight)
+  session  MilkSession
+
+  yieldL      Float
+  tankType    MilkTankType    @default(SELLABLE)
+  /// Optional specific tank chosen by the worker/owner (header default or per-row override);
+  /// null falls back to submit()'s "first active tank of the matching type" behavior.
+  tankId      String?
+  /// Business-meaning classification (RAKHAL-277) — distinct from `tankType` (physical
+  /// routing). Deliberately **no DB default**: `MilkService.saveLog()` computes this from a
+  /// live withholding + colostrum-window check before every insert, in the same
+  /// transaction as the eligibility check, so a failed lookup can never silently fall
+  /// through to a default and ship milk that should have been withheld. Historical rows
+  /// predating this column were one-time backfilled to `SALEABLE` by this feature's
+  /// migration — see that migration's SQL comment; that backfill is not ongoing behavior.
+  disposition MilkDisposition
+
+  /// session yield < 70% of the cow's 7-day average for that session (PRD §10.2)
+  anomalyFlag  Boolean @default(false)
+  anomalyNote  String? /// worker note explaining the drop
+  reviewed     Boolean @default(false)
+  reviewAction String?
+  reviewNote   String?
+
+  submitted   Boolean   @default(false)
+  submittedAt DateTime?
+  editReason  String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm   Farm      @relation("FarmToMilkLogEntry", fields: [farmId], references: [id])
+  cattle Cattle    @relation(fields: [cattleId], references: [id])
+  tank   MilkTank? @relation("MilkLogEntryToMilkTank", fields: [tankId], references: [id])
+
+  @@unique([cattleId, logDate, session])
+  @@index([farmId])
+  @@index([farmId, logDate])
+  @@index([farmId, logDate, session])
+  @@index([farmId, anomalyFlag])
+  @@index([cattleId])
+  @@index([tankId])
+}
+
+/// Lab/device milk-quality reading (RAKHAL-282, PRD §10.6 groundwork) — fat/
+/// protein/lactose %, somatic cell count, milk urea nitrogen for one cow's
+/// sample on a given date. Distinct from `MilkLogEntry` (daily yield volume):
+/// this is periodic composition testing, not every session. Farm-scoped by a
+/// plain scalar `farmId` (no Prisma `@relation` to `Farm`) — same "isolated
+/// migration" precedent as `AnimalHold`/`MediaAsset`
+/// (`prisma/schemas/cattle/animal-hold.prisma`), kept loose-coupled so this
+/// file doesn't need to touch the hot `farm.prisma` schema; farm scoping is
+/// enforced in `MilkQualityService`, not via a DB-level FK. `lactationId` is
+/// likewise a plain scalar FK (no relation into `reproduction.prisma`) — that
+/// schema file had an active concurrent editor (RAKHAL-281) at the time this
+/// was written, so the cross-schema relation was deliberately deferred rather
+/// than risk a collision on a hot-under-edit file; `cattleId` DOES get a real
+/// Prisma relation (`cattle.prisma` was free) per this ticket's explicit ask.
+model MilkQualityTest {
+  id     String @id @default(cuid())
+  farmId String
+
+  cattleId    String
+  lactationId String
+  sampleDate  DateTime /// day the sample was taken (UTC midnight)
+
+  fatPct     Float
+  proteinPct Float
+  lactosePct Float?
+
+  /// Cells per mL. Elevated SCC is the primary mastitis/udder-health signal.
+  somaticCellCount Float?
+  /// mg/dL. Milk Urea Nitrogen — a feed-protein-balance indicator.
+  milkUreaNitrogen Float?
+
+  source MilkQualityTestSource
+  notes  String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cattle Cattle @relation(fields: [cattleId], references: [id])
+
+  @@index([farmId])
+  @@index([farmId, sampleDate])
+  @@index([cattleId])
+  @@index([cattleId, sampleDate])
+  @@index([lactationId])
+}

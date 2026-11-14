@@ -1,0 +1,37 @@
+/// Finance Module (PRD §16). RAKHAL-354 (`FINANCE_V2_DESIGN.md` §5.3): dropped
+/// `FinanceTransaction`/`FinanceReceivable`/`WalletTransaction` — the V1
+/// ledger, settlements and cash-wallet, fully superseded by Finance V2
+/// (`prisma/schemas/finance-v2/**` + `purchasing/**`: `JournalTransaction`,
+/// `Sale`/`Purchase`, `Receivable`/`Payable`, `FinancialAccount`). Only
+/// `FinanceLoan` and `FixedAsset` (`fixed-asset.prisma`) survive — V2 never
+/// grew a loans/fixed-assets flow during MILESTONE 21 (32 tickets, none of
+/// which touched either concept), so the frontend's Liabilities/Assets tabs
+/// (`liabilities-view.tsx`/`asset-distribution-view.tsx`/
+/// `create-asset-dialog.tsx`, deliberately kept by RAKHAL-361) still depend
+/// on these two models and their `FinanceService`/`FinanceController`
+/// read/create surface (`GET /finance/liabilities`, `GET`/`POST
+/// /finance/assets`) — the only 3 V1 routes still live. Filed as new tech
+/// debt (`docs/TECH_DEBT.md`) rather than silently deleted or force-migrated
+/// with no V2 target to re-point at.
+
+model FinanceLoan {
+  id     String @id @default(cuid())
+  farmId String
+
+  lenderName     String
+  totalAmount    Float
+  paidAmount     Float      @default(0)
+  monthlyEmi     Float      @default(0)
+  startDate      DateTime
+  durationMonths Int        @default(0)
+  status         LoanStatus @default(ACTIVE)
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm @relation("FarmToFinanceLoan", fields: [farmId], references: [id])
+
+  @@index([farmId])
+  @@index([farmId, status])
+}

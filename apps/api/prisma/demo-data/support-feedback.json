@@ -1,0 +1,4 @@
+[
+  { "id": "sd_feedback_001", "farmId": "@farm", "userId": "@user:manager", "category": "FEATURE_REQUEST", "message": "It would help to filter the milk log by shed, not just by cow — checking Shed A each morning takes too long.", "status": "IN_REVIEW", "adminNote": "Logged for the Milk module backlog.", "createdAt": "@daysAgo:12" },
+  { "id": "sd_feedback_002", "farmId": "@farm", "userId": "@user:owner", "category": "BUG", "message": "The feed cost report showed ৳0 for the Dry Cow group yesterday even though we distributed feed.", "status": "OPEN", "createdAt": "@daysAgo:2" }
+]

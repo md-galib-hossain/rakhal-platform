@@ -1,0 +1,45 @@
+enum CattleGender {
+  MALE
+  FEMALE
+  CASTRATED_MALE
+}
+
+/// RAKHAL-397 (ADR-024): renamed from `CattleStatus`. Pure herd-membership
+/// state — never a record-deletion concept. `ARCHIVED` was dropped (that was
+/// always record-level deletion, now `Cattle.deletedAt`); `DEAD` renamed to
+/// `DECEASED`; `TRANSFERRED` folded into `SOLD` (an ownership transfer out is
+/// still an exit sale, `CattleDisposition.type` keeps the real TRANSFER
+/// reason); `MISSING` dropped (zero live rows at migration time). Written
+/// only by `CattleService.recordDisposition()` — see `herd-scope.ts`.
+enum HerdStatus {
+  ACTIVE
+  SOLD
+  CULLED
+  DECEASED
+}
+
+/// Production dimension of the multi-state status model (PRD §8.1 / §24.2,
+/// RAKHAL-269). Independent of reproduction state (`ReproductionState`) and
+/// the derived health status. Trimmed to only the two real production states —
+/// lifecycle/archival (sold/deceased/culled/archived) lives on `CattleStatus` +
+/// `Cattle.isActive` instead (was previously overloaded onto this enum).
+enum ProductionStatus {
+  MILKING
+  DRY
+}
+
+enum CattleSourceType {
+  BORN
+  PURCHASED
+  GIFTED
+  UNKNOWN
+}
+
+enum ShedPurpose {
+  MILKING
+  HEIFER
+  DRY
+  CALF
+  QUARANTINE
+  GENERAL
+}

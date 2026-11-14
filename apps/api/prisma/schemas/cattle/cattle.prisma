@@ -1,0 +1,236 @@
+model Cattle {
+  id String @id @default(cuid())
+
+  farmId String
+
+  name      String?
+  tagNumber String
+  image     String?
+
+  breedId     String?
+  gender      CattleGender
+  dateOfBirth DateTime?
+  herdStatus  HerdStatus   @default(ACTIVE)
+  shedId      String?
+
+  /// Production dimension of the multi-state status (PRD §8.1). Reproductive
+  /// status lives on `ReproductionProfile`; health status is derived from active
+  /// `HealthCase`/`SafetyWithdrawal` — neither is duplicated here. Nullable
+  /// (RAKHAL-269) — unset until a farm explicitly marks the animal
+  /// Milking/Dry; no default (was `GROWING`, now dropped from the enum).
+  productionStatus ProductionStatus?
+
+  /// Denormalized latest physical readings (PRD §8.5 header / §24.2).
+  /// `lastBcs` is maintained by BCS records (`BodyConditionScore`).
+  lastBcs      Float?
+  lastWeightKg Float?
+
+  motherId String?
+  fatherId String?
+
+  sourceType CattleSourceType @default(UNKNOWN)
+  color      String?
+  notes      String?
+
+  /// Current profile photo (RAKHAL-009) — a scalar FK to a READY `MediaAsset`
+  /// (no Prisma relation, keeping media's migration isolated). Replaced only
+  /// after the new upload is processed + READY; the previous asset is soft-deleted.
+  profilePhotoAssetId String?
+
+  /// Animal Quality Rating (0–100), event-driven via the AQR engine (PRD §19.2,
+  /// §25.7). Null = nullified (e.g. on mortality); excluded from the herd mean.
+  aqrScore Float? @default(0)
+
+  /// RAKHAL-397 (ADR-024): record-level soft delete, independent of
+  /// `herdStatus`. An animal leaves the active herd via a `CattleDisposition`
+  /// (`herdStatus` change) — it is deleted only when a duplicate/mistaken
+  /// entry needs removing. Active-herd membership is
+  /// `herdStatus == ACTIVE && deletedAt == null` (see `domain/herd-scope.ts`).
+  deletedAt     DateTime?
+  deletedById   String?
+  /// Set when this animal exits the herd via a SALE `CattleDisposition`
+  /// (RAKHAL-344, `FINANCE_V2_DESIGN.md` §1.1/§5.1). Null until sold.
+  soldAt        DateTime?
+  /// The `CattleDisposition` row that sold/disposed this animal (SALE/DEATH/
+  /// CULL/TRANSFER). Null until `CattleService.recordDisposition()` runs.
+  dispositionId String?   @unique
+  /// Civil date the animal entered the herd (Reports v2, EPIC_REPORTS decision 1).
+  /// Backfilled from farm-local createdAt; null = fall back to createdAt.
+  enteredHerdAt DateTime? @db.Date
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  farm    Farm   @relation("FarmToCattle", fields: [farmId], references: [id])
+  breed   Breed? @relation(fields: [breedId], references: [id])
+  shed    Shed?  @relation(fields: [shedId], references: [id])
+  creator User   @relation("CattleCreator", fields: [createdBy], references: [id])
+
+  mother   Cattle?  @relation("CattleMother", fields: [motherId], references: [id])
+  motherOf Cattle[] @relation("CattleMother")
+  father   Cattle?  @relation("CattleFather", fields: [fatherId], references: [id])
+  fatherOf Cattle[] @relation("CattleFather")
+
+  animalGroupMemberships AnimalGroupMember[]
+  reproductionProfile    ReproductionProfile?
+  heatEvents             HeatEvent[]
+  breedingEvents         BreedingEvent[]             @relation("BreedingEventCattle")
+  breedingAsBull         BreedingEvent[]             @relation("BreedingEventBull")
+  pregnancyDiagnoses     PregnancyDiagnosis[]
+  pregnancies            Pregnancy[]
+  calvingEvents          CalvingEvent[]
+  abortionEvents         AbortionEvent[]
+  dryPeriods             DryPeriod[]
+  lactations             Lactation[]
+  calfBirths             CalfBirth[]                 @relation("CattleCalfBirth")
+  calfColostrumRecords   CalfColostrumRecord[]
+  calfMilkFeedings       CalfMilkFeeding[]
+  calfWeightRecords      CalfWeightRecord[]
+  calfStarterFeedRecords CalfStarterFeedRecord[]
+  calfWeaningRecord      CalfWeaningRecord?
+  milkLogEntries         MilkLogEntry[]
+  milkQualityTests       MilkQualityTest[]
+  healthCases            HealthCase[]
+  healthTasks            HealthTask[]
+  planEnrollments        PlanEnrollment[]
+  treatmentLogs          TreatmentLog[]
+  healthUpdates          HealthUpdate[]
+  mortalityRecords       MortalityRecord[]
+  safetyWithdrawals      SafetyWithdrawal[]
+  bcsRecords             BodyConditionScore[]
+  weightRecords          WeightRecord[]
+  animalEvents           AnimalEvent[]          @relation("CattleToAnimalEvent")
+  animalSaleLines        AnimalSaleLine[]            @relation("CattleToAnimalSaleLine")
+  dispositions           CattleDisposition[]         @relation("CattleToCattleDisposition")
+  disposition            CattleDisposition?          @relation("CattleDispositionRecord", fields: [dispositionId], references: [id])
+  requirementOverrides   CattleRequirementOverride[]
+
+  @@unique([farmId, tagNumber])
+  @@index([farmId])
+  @@index([breedId])
+  @@index([shedId])
+  @@index([farmId, herdStatus])
+  @@index([farmId, deletedAt])
+  @@index([farmId, productionStatus])
+  @@index([motherId])
+  @@index([fatherId])
+  @@index([createdBy])
+}
+
+/// Body Condition Score record (PRD §8.6 / §24.6). A timestamped reading
+/// (1.0–5.0 in 0.25 steps; validated in the DTO). Scoped via `cattle`
+/// (`cattle.farmId`), matching the calf sub-record pattern in `calf.prisma`.
+/// The latest score is denormalized to `Cattle.lastBcs`.
+model BodyConditionScore {
+  id       String @id @default(cuid())
+  cattleId String
+
+  score        Float
+  recordedDate DateTime
+  recordedBy   String?
+  notes        String?
+
+  createdAt DateTime @default(now())
+
+  cattle Cattle @relation(fields: [cattleId], references: [id])
+
+  @@index([cattleId])
+  @@index([cattleId, recordedDate])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
+}
+
+/// Body weight record (PRD §8.5, RAKHAL-039). Timestamped; denormalized to
+/// `Cattle.lastWeightKg` on each save.
+model WeightRecord {
+  id       String @id @default(cuid())
+  cattleId String
+
+  weightKg     Float
+  recordedDate DateTime
+  recordedBy   String?
+  notes        String?
+
+  createdAt DateTime @default(now())
+
+  cattle Cattle @relation(fields: [cattleId], references: [id])
+
+  @@index([cattleId])
+  @@index([cattleId, recordedDate])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
+}
+
+model Breed {
+  id String @id @default(cuid())
+
+  farmId      String
+  name        String
+  description String?
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  farm   Farm     @relation("FarmToBreed", fields: [farmId], references: [id])
+  cattle Cattle[]
+
+  @@unique([farmId, name])
+  @@index([farmId])
+}
+
+model Shed {
+  id String @id @default(cuid())
+
+  farmId              String
+  name                String
+  code                String
+  description         String?
+  capacity            Int?
+  purpose             ShedPurpose @default(GENERAL)
+  responsibleMemberId String?
+  deletedAt           DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  farm              Farm         @relation("FarmToShed", fields: [farmId], references: [id])
+  responsibleMember User?        @relation("ShedResponsible", fields: [responsibleMemberId], references: [id])
+  cattle            Cattle[]
+  healthCases       HealthCase[]
+
+  @@unique([farmId, code])
+  @@index([farmId])
+}
+
+/// RAKHAL-452: a named, farm-defined set of animals (many-to-many via
+/// `AnimalGroupMember`). Neutral tag for bulk actions — carries no feeding logic.
+model AnimalGroup {
+  id          String    @id @default(cuid())
+  farmId      String
+  name        String
+  description String?
+  deletedAt   DateTime?
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  farm    Farm                @relation("FarmToAnimalGroup", fields: [farmId], references: [id])
+  members AnimalGroupMember[]
+
+  @@unique([farmId, name])
+  @@index([farmId])
+}
+
+model AnimalGroupMember {
+  groupId   String
+  cattleId  String
+  farmId    String
+  addedBy   String?
+  createdAt DateTime @default(now())
+
+  group  AnimalGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  cattle Cattle      @relation(fields: [cattleId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, cattleId])
+  @@index([cattleId])
+  @@index([farmId])
+}

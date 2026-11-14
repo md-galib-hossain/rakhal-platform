@@ -1,0 +1,31 @@
+/// Reusable farm-scoped contact directory for service providers (AI
+/// technicians, vets, ...), same pattern as `Supplier`. Referenced today
+/// only from `BreedingEvent.serviceProviderId` (Reproduction module's
+/// TECHNICIAN_SUPPLIED semen source), designed to be reused by other
+/// modules (e.g. Health vet visits) without change.
+/// Soft-deleted via `deletedAt` (CONV: archive, not hard delete).
+
+enum ServiceProviderType {
+  AI_TECHNICIAN
+  VETERINARIAN
+  OTHER
+}
+
+model ServiceProvider {
+  id     String @id @default(cuid())
+  farmId String
+
+  name  String
+  phone String?
+  type  ServiceProviderType
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm           Farm            @relation("FarmToServiceProvider", fields: [farmId], references: [id])
+  breedingEvents BreedingEvent[]
+
+  @@index([farmId])
+  @@index([farmId, deletedAt])
+}

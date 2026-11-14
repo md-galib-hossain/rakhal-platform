@@ -1,0 +1,1593 @@
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  FeedConcentration,
+  FeedConcentrationItem,
+  FeedConcentrationKind,
+  FeedIngredient,
+  Prisma,
+} from '@prisma/client';
+import { PrismaService } from 'src/core/database/prisma/prisma.service';
+import { LoggerService } from 'src/core/logger/logger/logger.service';
+import { activeHerd } from 'src/modules/cattle/domain/herd-scope';
+import { EffectiveIngredient } from '../../domain/ingredient-resolver';
+import {
+  balanceScore,
+  computeTotals,
+  FormulaLine,
+  FormulaTotals,
+  normalize,
+} from '../../domain/formula-math';
+import { computeRequirements, Requirements } from '../../domain/requirements';
+import { RequirementSettingsService } from './requirement-settings.service';
+import {
+  CreateConcentrationDto,
+  NormalizeConcentrationDto,
+  UpdateConcentrationDto,
+} from '../../presentation/dto/concentration.dto';
+import { FeedStockService, StockNutritionSnapshot } from './feed-stock.service';
+import { FeedRequirementsService } from './feed-requirements.service';
+import { FeedLotResolver } from './feed-lot-resolver.service';
+import { FeedDistributionService } from './feed-distribution.service';
+import {
+  FeedDrawPlan,
+  FeedItemService,
+} from 'src/modules/inventory/application/services/feed-item.service';
+import { resolveKgPerUnit } from 'src/modules/inventory/application/services/unit.service';
+import { lineKey, RecipeLineRef } from '../../domain/recipe-line';
+
+type ConcentrationWithItems = FeedConcentration & {
+  items: FeedConcentrationItem[];
+};
+
+const round2 = (v: number) => Math.round(v * 100) / 100;
+
+/** A saved or draft recipe line, however it arrived (Prisma row or request DTO). */
+type LineLike = {
+  ingredientId?: string | null;
+  feedItemId?: string | null;
+  feedItemBatchId?: string | null;
+  amountKg: number;
+};
+const lineRef = (i: LineLike): RecipeLineRef => ({
+  ingredientId: i.ingredientId ?? null,
+  feedItemId: i.feedItemId ?? null,
+  feedItemBatchId: i.feedItemBatchId ?? null,
+});
+
+/**
+ * Concentration templates (PRD §12.3–12.4, RAKHAL-082): the formula builder.
+ * Persists name + target + ingredient lines; on read, enriches with nutritional
+ * totals, a 0–100 balance score vs the target's requirements, and cost — all via
+ * the pure `formula-math`/`requirements` domain. `normalize` scales a draft to
+ * meet the dry-matter target. Farm-scoped throughout.
+ */
+@Injectable()
+export class FeedConcentrationService {
+  private readonly log: LoggerService;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly logger: LoggerService,
+    private readonly feedStock: FeedStockService,
+    private readonly feedRequirements: FeedRequirementsService,
+    private readonly requirementSettings: RequirementSettingsService,
+    private readonly feedDistribution: FeedDistributionService,
+    private readonly lotResolver: FeedLotResolver,
+    private readonly feedItems: FeedItemService,
+  ) {
+    this.log = this.logger.setContext(FeedConcentrationService.name);
+  }
+
+  async list(
+    farmId: string,
+    kind?: FeedConcentrationKind,
+    includeArchived = false,
+  ) {
+    const rows = await this.prisma.feedConcentration.findMany({
+      where: {
+        farmId,
+        ...(includeArchived ? {} : { deletedAt: null }),
+        ...(kind ? { kind } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      include: { items: true },
+    });
+    const finalizedIds = await this.finalizedIds(
+      farmId,
+      rows.map((r) => ({ id: r.id, kind: r.kind })),
+    );
+    // One batched resolve for the whole page (RAKHAL-411) — resolving per row would be an
+    // O(N) round-trip to cattle/reproduction/milk for a list that is usually a handful of rows
+    // but need not stay that way.
+    // RD-079: price every ingredient on the page in one pass too. `enrich()` used to call
+    // `effectiveMap()` itself, which is two queries, so listing N rations cost 2N round-trips
+    // just to resolve prices — measured at 2691 for ~1345 rations, growing by exactly 2 per
+    // ration added. The map is keyed by ingredient id, so one shared map serves every row.
+    const [requirements, effById] = await Promise.all([
+      this.feedRequirements.resolveForConcentrations(farmId, rows),
+      this.effectiveLineMap(
+        farmId,
+        rows.flatMap((r) => r.items),
+      ),
+    ]);
+    return Promise.all(
+      rows.map((r) =>
+        this.enrich(
+          farmId,
+          r,
+          false,
+          finalizedIds,
+          requirements.get(r.id) ?? null,
+          effById,
+        ),
+      ),
+    );
+  }
+
+  async get(farmId: string, id: string) {
+    const row = await this.getOrThrow(farmId, id);
+    const finalizedIds = await this.finalizedIds(farmId, [
+      { id: row.id, kind: row.kind },
+    ]);
+    return this.enrich(farmId, row, true, finalizedIds);
+  }
+
+  /** Which of these concentration ids have ever been finalized at least once. The two kinds
+   * finalize into different things — a Concentrate Mixer is a virtual recipe/calculator that
+   * never touches inventory, only ever promotes/refreshes a reusable `FeedIngredient`; a Total
+   * Mixed Ration is the real ration, and finalizing one produces an actual `FeedStock` inventory
+   * lot (see `finalize()`'s doc comment) — so each kind needs its own existence check, never the
+   * other's. */
+  private async finalizedIds(
+    farmId: string,
+    rows: { id: string; kind: FeedConcentrationKind }[],
+  ): Promise<Set<string>> {
+    const templateIds = rows
+      .filter((r) => r.kind === 'CONCENTRATE_TEMPLATE')
+      .map((r) => r.id);
+    const mixtureIds = rows
+      .filter((r) => r.kind === 'FEED_MIXTURE')
+      .map((r) => r.id);
+    // `in: []` is a safe no-op query (returns `[]`), so both queries can always run — no need to
+    // branch on whether either id list is non-empty, which sidesteps a TS inference gotcha where a
+    // ternary's two `Promise.all` branches (a real query vs `Promise.resolve([])`) collapse to `any`.
+    // No `deletedAt` filter on either read (RAKHAL-310): this only asks
+    // "has this concentration ever been finalized", which must stay true
+    // even if the resulting ingredient/stock row was later archived.
+    const [ingredientRows, stockRows] = await Promise.all([
+      this.prisma.feedIngredient.findMany({
+        where: { farmId, sourceConcentrationId: { in: templateIds } },
+        select: { sourceConcentrationId: true },
+      }),
+      this.prisma.feedStock.findMany({
+        where: { farmId, sourceConcentrationId: { in: mixtureIds } },
+        select: { sourceConcentrationId: true },
+        distinct: ['sourceConcentrationId'],
+      }),
+    ]);
+    return new Set([
+      ...ingredientRows.map((r) => r.sourceConcentrationId as string),
+      ...stockRows.map((r) => r.sourceConcentrationId),
+    ]);
+  }
+
+  async create(farmId: string, userId: string, dto: CreateConcentrationDto) {
+    // Concentrate Mixer templates are recipes, not cow-targeted rations — force-null every target
+    // field regardless of what the payload sent (belt-and-suspenders: the frontend form also never
+    // shows these fields for this kind, but a template must never accidentally end up bucketed as a
+    // Feed Mixture the way every concentration did before `kind` existed, user request 2026-07-18).
+    const isTemplate = dto.kind === 'CONCENTRATE_TEMPLATE';
+    const targetType = isTemplate ? undefined : dto.targetType;
+    const cattleId = isTemplate ? undefined : dto.cattleId;
+    let targetWeightKg = isTemplate ? undefined : dto.targetWeightKg;
+    let targetMilkL = isTemplate ? undefined : dto.targetMilkL;
+
+    // Once a real cow target is picked, manual weight/milk entry is optional (user request
+    // 2026-07-18) — the wizard already surfaces these live-derived values, so the backend must be
+    // able to resolve them too instead of hard-rejecting whenever they're omitted. Reuses the exact
+    // same cattle derivation `GET /feed/requirements` already exposes to the wizard's live
+    // preview, so the stored value matches what the farmer actually saw on screen.
+    if (!isTemplate && (targetWeightKg == null || targetMilkL == null)) {
+      if (cattleId) {
+        const resolved = await this.feedRequirements.calc(farmId, {
+          cattleId,
+          weightKg: targetWeightKg,
+          milkTargetL: targetMilkL,
+        });
+        targetWeightKg ??= resolved.inputs.weight_kg;
+        targetMilkL ??= resolved.inputs.milk_target_l;
+      }
+      if (targetWeightKg == null || targetMilkL == null) {
+        throw new BadRequestException(
+          'A Total Mixed Ration requires targetWeightKg and targetMilkL — supply them manually or target a cow with a real weight record',
+        );
+      }
+    }
+
+    await this.validateTargets(farmId, cattleId);
+    this.assertLineIdentity(dto.items);
+    await this.assertIngredients(dto.items.map((i) => i.ingredientId));
+    await this.assertBatchLinks(farmId, dto.items);
+    if (!isTemplate) {
+      await this.assertHasConcentrateDerivedLine(dto.items);
+    }
+
+    const created = await this.prisma.feedConcentration.create({
+      data: {
+        farmId,
+        kind: dto.kind,
+        name: dto.name,
+        durationDays: dto.durationDays,
+        targetType,
+        cattleId,
+        targetWeightKg,
+        targetMilkL,
+        createdBy: userId,
+        items: {
+          create: dto.items.map((i) => ({
+            ingredientId: i.ingredientId,
+            amountKg: i.amountKg,
+            feedItemId: i.feedItemId,
+            feedItemBatchId: i.feedItemBatchId,
+            feedStockId: i.feedStockId,
+          })),
+        },
+      },
+      include: { items: true },
+    });
+    this.log.info('Feed concentration created', {
+      farmId,
+      id: created.id,
+      kind: created.kind,
+    });
+    return this.enrich(farmId, created, true);
+  }
+
+  /**
+   * `kind` is immutable — a template can never pick up a target via edit either (same
+   * defense-in-depth as `create`, see that method's comment). Live-sync (user request
+   * 2026-07-18): if this template has already been finalized at least once, every save keeps its
+   * promoted `FeedIngredient` in sync — no extra Finalize click needed for the change to reach
+   * every TMR that already uses it. Never auto-promotes an ingredient that doesn't exist yet
+   * (see `refreshPromotedIngredientIfExists`'s doc comment) — that stays a deliberate Finalize
+   * action.
+   */
+  async update(farmId: string, id: string, dto: UpdateConcentrationDto) {
+    const existing = await this.getOrThrow(farmId, id);
+    const isTemplate = existing.kind === 'CONCENTRATE_TEMPLATE';
+    const targetType = isTemplate ? undefined : dto.targetType;
+    const cattleId = isTemplate ? undefined : dto.cattleId;
+    const targetWeightKg = isTemplate ? undefined : dto.targetWeightKg;
+    const targetMilkL = isTemplate ? undefined : dto.targetMilkL;
+
+    await this.validateTargets(farmId, cattleId);
+    if (dto.items) {
+      this.assertLineIdentity(dto.items);
+      await this.assertIngredients(dto.items.map((i) => i.ingredientId));
+      await this.assertBatchLinks(farmId, dto.items);
+      if (!isTemplate) {
+        await this.assertHasConcentrateDerivedLine(dto.items);
+      }
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (dto.items) {
+        await tx.feedConcentrationItem.deleteMany({
+          where: { concentrationId: id },
+        });
+        await tx.feedConcentrationItem.createMany({
+          data: dto.items.map((i) => ({
+            concentrationId: id,
+            ingredientId: i.ingredientId,
+            amountKg: i.amountKg,
+            feedItemId: i.feedItemId,
+            feedItemBatchId: i.feedItemBatchId,
+            feedStockId: i.feedStockId,
+          })),
+        });
+      }
+      return tx.feedConcentration.update({
+        where: { id },
+        data: {
+          name: dto.name,
+          durationDays: dto.durationDays,
+          targetType,
+          cattleId,
+          targetWeightKg,
+          targetMilkL,
+        },
+        include: { items: true },
+      });
+    });
+
+    if (isTemplate) {
+      await this.refreshPromotedIngredientIfExists(farmId, updated);
+    }
+
+    this.log.info('Feed concentration updated', { farmId, id });
+    return this.enrich(farmId, updated, true);
+  }
+
+  /** Archiving a concentration must also archive any `FeedIngredient` promoted from it
+   * (`finalize()`'s `sourceConcentrationId`) — otherwise the ghost ingredient keeps passing
+   * `listMerged`'s `deletedAt: null` filter and stays selectable in every ingredient picker
+   * forever, even though the user believes they deleted it (user report 2026-07-18). */
+  async remove(farmId: string, id: string) {
+    await this.getOrThrow(farmId, id);
+    await this.prisma.$transaction([
+      this.prisma.feedConcentration.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      }),
+      this.prisma.feedIngredient.updateMany({
+        where: { sourceConcentrationId: id, deletedAt: null },
+        data: { deletedAt: new Date() },
+      }),
+    ]);
+    this.log.info('Feed concentration archived', { farmId, id });
+    return { id, archived: true };
+  }
+
+  /** Multi-select delete (user request 2026-07-18) — one `updateMany`, silently skipping any id
+   * outside this farm or already inactive rather than erroring the whole batch. Also archives any
+   * `FeedIngredient` promoted from these concentrations — see `remove()`'s doc comment. */
+  async removeMany(farmId: string, ids: string[]) {
+    const [result] = await this.prisma.$transaction([
+      this.prisma.feedConcentration.updateMany({
+        where: { farmId, id: { in: ids }, deletedAt: null },
+        data: { deletedAt: new Date() },
+      }),
+      this.prisma.feedIngredient.updateMany({
+        where: { sourceConcentrationId: { in: ids }, deletedAt: null },
+        data: { deletedAt: new Date() },
+      }),
+    ]);
+    this.log.info('Feed concentrations bulk-archived', {
+      farmId,
+      requested: ids.length,
+      archived: result.count,
+    });
+    return { deleted: result.count };
+  }
+
+  /**
+   * **Concentrate Mixer** (`kind=CONCENTRATE_TEMPLATE`) is a formula builder — a farm can create
+   * unlimited templates. Finalizing one promote-or-refreshes the formula into a reusable
+   * `FeedIngredient` row, an **upsert by `sourceConcentrationId`**, not "always create a new frozen
+   * version" (that versioning/freeze design was retired 2026-07-18 per user request: editing the
+   * template must live-propagate to every TMR already using it, and since a TMR's line item
+   * resolves nutrition via a live join on `ingredientId` — see `effectiveMap()` — updating this one
+   * row in place is all propagation needs). RAKHAL-421 (2026-09-13, closes RD-080): finalizing a
+   * Concentrate Mixer now **also** produces a `FeedStock` batch/lot (`kind: CONCENTRATE_TEMPLATE`)
+   * via `FeedStockService.produceFromConcentration` — RAKHAL-406 (2026-08-28) had this produce a
+   * plain Inventory `FeedItem` instead, which put two incompatible "prepared feed" shapes in the
+   * database (RD-080); this unifies both kinds onto `FeedStock`, so a concentrate batch gets the
+   * same `FeedStockMovement` audit trail, frozen nutrient snapshot and soft-delete a TMR batch
+   * always had, and needs no "kg unit exists in the catalog" precondition (`FeedStock` is
+   * kg-native). `producedQtyKg`/`currentStockKg` set from `batchQuantityKg` (defaults to the
+   * formula's own `totalAsFedKg` when omitted) — every finalize call creates a **new** `FeedStock`
+   * row (not an upsert, unlike the ingredient promotion above), since each finalize represents a
+   * distinct physical batch the farmer mixed. `producedCostTk` is always the recipe's full
+   * `total_cost_tk`, regardless of `batchQuantityKg` — that parameter scales how much of the batch
+   * was produced, not the recipe's cost.
+   * **Total Mixed Ration** (`kind=FEED_MIXTURE`) is the real ration actually fed to cows —
+   * finalizing one produces a `FeedStock` lot the same way, but with no ingredient promotion
+   * (user request 2026-07-18: a TMR is the final ration, never a building block for another
+   * recipe). Producing a new physical stock batch on every finalize stays a **deliberate,
+   * unconditional action** for both kinds (not idempotent — refinalizing produces another lot);
+   * only the ingredient-promotion half (Concentrate Mixer only) stays idempotent. A plain
+   * edit-save (`update()`) can refresh nutrition on either kind, but never produces stock.
+   * RAKHAL-428 (2026-09-15, closes RD-090): payment is symmetric across both kinds too — a
+   * finalize with real unlinked cost (lines not backed by an owned batch) requires
+   * `financialAccountId` and posts an Inventory-debit/cash-credit journal for the unlinked
+   * portion, whether the batch produced is a Concentrate Mixer's or a TMR's. Before this, only
+   * `FEED_MIXTURE` paid — a Concentrate Mixer could produce a real, sellable `FeedStock` batch
+   * from ingredients it never paid for.
+   */
+  async finalize(
+    farmId: string,
+    userId: string,
+    id: string,
+    batchQuantityKg?: number,
+  ) {
+    const row = await this.getOrThrow(farmId, id);
+    if (row.items.length === 0) {
+      throw new BadRequestException(
+        'Cannot finalize an empty concentration — add ingredients first',
+      );
+    }
+
+    const effById = await this.effectiveLineMap(farmId, row.items);
+    const lines = this.formulaLines(row.items);
+    const { totals } = computeTotals(lines, effById);
+    const totalAsFedKg = row.items.reduce((sum, i) => sum + i.amountKg, 0);
+
+    if (totalAsFedKg <= 0 || totals.dm_kg <= 0) {
+      throw new BadRequestException(
+        'Concentration has no measurable dry matter to promote',
+      );
+    }
+
+    // 2026-09-24 (user request): a recipe may be *built* from ingredients the farm doesn't stock,
+    // but it can only be *finalized* from inventory the farm already owns — so finalize never
+    // buys anything and needs no wallet (the purchase already happened, in Inventory). Every line
+    // must resolve to a feed item / prepared batch; anything else blocks with the names the
+    // farmer must add to Inventory first (`inventoryCheck` returns the same list for the UI).
+    const inventory = await this.resolveInventoryLines(farmId, row.items);
+    const missing = inventory.filter((l) => l.status === 'MISSING');
+    if (missing.length > 0) {
+      throw new BadRequestException(
+        `Not in inventory yet: ${missing.map((m) => m.name).join(', ')}. Add ${missing.length === 1 ? 'it' : 'them'} to Inventory before finalizing.`,
+      );
+    }
+    const resolvedItems = row.items.map((it) => {
+      const hit = inventory.find((l) => l.item.id === it.id);
+      return hit?.source === 'MATCHED'
+        ? { ...it, feedItemId: hit.feedItemId, feedStockId: hit.feedStockId }
+        : it;
+    });
+
+    // RAKHAL-423: resolve each line's batch (validates sufficiency + self-consumption, fail-fast
+    // before anything is written); the batch's own real cost prices the produced stock.
+    const deductions = await this.resolveBatchDeductions(
+      farmId,
+      userId,
+      row.id,
+      resolvedItems,
+      effById,
+    );
+    const correctedTotalCostTk = round2(deductions.linkedCostTk);
+
+    let ingredientResult: ReturnType<typeof this.mapIngredient> | null = null;
+    let stock: Awaited<
+      ReturnType<typeof this.feedStock.produceFromConcentration>
+    > | null = null;
+    if (row.kind === 'CONCENTRATE_TEMPLATE') {
+      const nutrition = this.buildIngredientNutrition(
+        row.name,
+        totals,
+        totalAsFedKg,
+      );
+      const ingredient = await this.prisma.$transaction(async (tx) => {
+        const existing = await tx.feedIngredient.findFirst({
+          where: { sourceConcentrationId: row.id },
+        });
+        if (existing) {
+          return tx.feedIngredient.update({
+            where: { id: existing.id },
+            data: { ...nutrition, deletedAt: null },
+          });
+        }
+        return tx.feedIngredient.create({
+          data: {
+            farmId,
+            ...nutrition,
+            isSystemDefault: false,
+            isAvailableBd: true,
+            sourceConcentrationId: row.id,
+            sourceConcentrationVersion: 1,
+            isLatestVersion: true,
+          },
+        });
+      });
+      this.log.info(
+        'Feed concentration promoted/refreshed into a reusable ingredient',
+        {
+          farmId,
+          concentrationId: row.id,
+          ingredientId: ingredient.id,
+          userId,
+        },
+      );
+      ingredientResult = this.mapIngredient(ingredient);
+
+      // RAKHAL-421: every finalize also produces a fresh FeedStock batch — a distinct physical
+      // lot, not an upsert like the ingredient promotion above.
+      const qtyKg = batchQuantityKg ?? totalAsFedKg;
+      if (qtyKg <= 0) {
+        throw new BadRequestException(
+          'batchQuantityKg must be greater than zero',
+        );
+      }
+      stock = await this.prisma.$transaction(async (tx) => {
+        await this.applyBatchDeductions(farmId, userId, tx, deductions);
+        return this.feedStock.produceFromConcentration(
+          farmId,
+          userId,
+          {
+            concentrationId: row.id,
+            version: 1,
+            qtyKg,
+            costTk: correctedTotalCostTk,
+            nutrition: this.buildStockNutritionSnapshot(totals, totalAsFedKg),
+            kind: 'CONCENTRATE_TEMPLATE',
+          },
+          tx,
+        );
+      });
+      this.log.info('Concentrate Mixer finalize produced a FeedStock batch', {
+        farmId,
+        concentrationId: row.id,
+        stockId: stock.id,
+        qtyKg,
+        userId,
+      });
+    }
+
+    // RAKHAL-354: `JournalService.postJournal` (above) debits Inventory (ledger code `1200`, the
+    // asset `FeedStock` becomes), credits the resolved `FinancialAccount` — deliberately NOT
+    // `ExpenseService.recordExpense`: a produced batch becomes `FeedStock`, a real inventory asset
+    // (mirrors `PurchaseService.createPurchase`'s own Inventory-debit treatment for a
+    // Medicine/FeedItem/Equipment purchase), not a consumed expense — booking it as an expense
+    // would double-count once real feed-consumption costing exists. RAKHAL-393 (closes RD-066):
+    // `financialAccountId` comes straight from the frontend's `AccountPicker`. Always paid in
+    // full immediately (no partial-payment/Payable concept exists for this route).
+    if (row.kind === 'FEED_MIXTURE') {
+      stock = await this.prisma.$transaction(async (tx) => {
+        await this.applyBatchDeductions(farmId, userId, tx, deductions);
+        return this.feedStock.produceFromConcentration(
+          farmId,
+          userId,
+          {
+            concentrationId: row.id,
+            version: 1,
+            qtyKg: totalAsFedKg,
+            costTk: correctedTotalCostTk,
+            // RAKHAL-327: batch nutrient snapshot, same back-derivation math as
+            // `buildIngredientNutrition` (a Concentrate Mixer's promoted-ingredient path) —
+            // this is the recipe's on-paper composition, not a lab measurement, hence the
+            // service-side `nutritionSource: REFERENCE` default.
+            nutrition: this.buildStockNutritionSnapshot(totals, totalAsFedKg),
+            kind: 'FEED_MIXTURE',
+          },
+          tx,
+        );
+      });
+    }
+
+    // Auto-checkpoint on first finalize (2026-08-13) — every produced TMR batch should have
+    // at least one traceable version, even if the farmer never explicitly clicked "Save as
+    // Template" first. No-op if a version already exists (explicit saves take priority).
+    if (row.kind === 'FEED_MIXTURE') {
+      const hasVersion = await this.prisma.feedConcentrationVersion.findFirst({
+        where: { concentrationId: row.id },
+        select: { id: true },
+      });
+      if (!hasVersion) {
+        await this.saveAsVersion(farmId, userId, row.id);
+      }
+    }
+
+    return {
+      concentration_id: row.id,
+      stock,
+      ingredient: ingredientResult,
+      // Kept (always null) so existing clients reading `finance` don't break — finalize no longer
+      // posts money; the purchase happened in Inventory.
+      finance: null,
+    };
+  }
+
+  /**
+   * Which of this recipe's lines are backed by inventory the farm owns (and which are not) — the
+   * same check `finalize` enforces, so the UI can show the farmer exactly what to add first.
+   * A line is in inventory when it links a feed item / prepared batch, or when its catalogue
+   * ingredient has a live feed item (`FeedItem.ingredientId`) — the fullest-stocked one is used.
+   */
+  async inventoryCheck(farmId: string, id: string) {
+    const row = await this.getOrThrow(farmId, id);
+    const lines = await this.resolveInventoryLines(farmId, row.items);
+
+    // Total needed per stocked source (a feed item or a prepared batch can back several lines).
+    const neededBySource = new Map<
+      string,
+      { name: string; neededKg: number; availableKg: number | null }
+    >();
+    for (const l of lines) {
+      const sourceKey = l.feedItemId ?? l.feedStockId;
+      if (!sourceKey) continue;
+      const prev = neededBySource.get(sourceKey);
+      neededBySource.set(sourceKey, {
+        name: l.name,
+        neededKg: (prev?.neededKg ?? 0) + l.item.amountKg,
+        availableKg: l.availableKg,
+      });
+    }
+    const shortfalls = [...neededBySource.values()]
+      .filter((n) => n.availableKg != null && n.neededKg > n.availableKg)
+      .map((n) => ({
+        name: n.name,
+        needed_kg: round2(n.neededKg),
+        available_kg: round2(n.availableKg as number),
+      }));
+
+    const missing = lines
+      .filter((l) => l.status === 'MISSING')
+      .map((l) => ({
+        ingredient_id: l.item.ingredientId,
+        name: l.name,
+        amount_kg: l.item.amountKg,
+        feed_class: l.feedClass,
+        feed_sub_type: l.feedSubType,
+        is_prepared_feed: l.isPreparedFeed,
+      }));
+
+    return {
+      can_finalize: missing.length === 0 && shortfalls.length === 0,
+      lines: lines.map((l) => ({
+        ingredient_id: l.item.ingredientId,
+        name: l.name,
+        amount_kg: l.item.amountKg,
+        status: l.status,
+        feed_item_id: l.feedItemId,
+        feed_stock_id: l.feedStockId,
+        available_kg: l.availableKg,
+      })),
+      missing,
+      shortfalls,
+    };
+  }
+
+  private async resolveInventoryLines(
+    farmId: string,
+    items: FeedConcentrationItem[],
+  ) {
+    const linkedItemIds = items
+      .filter((i) => i.feedItemId)
+      .map((i) => i.feedItemId as string);
+    const linkedStockIds = items
+      .filter((i) => !i.feedItemId && i.feedStockId)
+      .map((i) => i.feedStockId as string);
+    const ingredientIds = items
+      .filter((i) => !i.feedItemId && !i.feedStockId && i.ingredientId)
+      .map((i) => i.ingredientId as string);
+
+    // RAKHAL-450: a product's stock is the sum of its live lots (it has no stock column of its own).
+    const lotsInclude = {
+      unit: true,
+      batches: { where: { deletedAt: null }, select: { currentStock: true } },
+    } satisfies Prisma.FeedItemInclude;
+    type FeedItemWithUnit = Prisma.FeedItemGetPayload<{
+      include: typeof lotsInclude;
+    }>;
+    const stockOf = (fi: FeedItemWithUnit) =>
+      fi.batches.reduce((sum, b) => sum + b.currentStock, 0);
+    const feedItems: FeedItemWithUnit[] =
+      linkedItemIds.length || ingredientIds.length
+        ? await this.prisma.feedItem.findMany({
+            where: {
+              farmId,
+              deletedAt: null,
+              OR: [
+                { id: { in: linkedItemIds } },
+                { ingredientId: { in: ingredientIds } },
+              ],
+            },
+            include: lotsInclude,
+          })
+        : [];
+    const stocks: { id: string; currentStockKg: number }[] =
+      linkedStockIds.length
+        ? await this.prisma.feedStock.findMany({
+            where: { farmId, id: { in: linkedStockIds }, deletedAt: null },
+            select: { id: true, currentStockKg: true },
+          })
+        : [];
+    const ingredients: Pick<
+      FeedIngredient,
+      'id' | 'nameEn' | 'feedClass' | 'feedSubType' | 'sourceConcentrationId'
+    >[] = ingredientIds.length
+      ? await this.prisma.feedIngredient.findMany({
+          where: { id: { in: [...new Set(ingredientIds)] } },
+          select: {
+            id: true,
+            nameEn: true,
+            feedClass: true,
+            feedSubType: true,
+            sourceConcentrationId: true,
+          },
+        })
+      : [];
+    // An ingredient promoted from a Concentrate Mixer lives in inventory as that concentrate's
+    // prepared batches (`FeedStock`), not as a purchased `FeedItem` — resolve it to the fullest one.
+    const sourceConcentrationIds = ingredients
+      .map((i) => i.sourceConcentrationId)
+      .filter((v): v is string => v != null);
+    const preparedStocks: {
+      id: string;
+      sourceConcentrationId: string | null;
+      currentStockKg: number;
+    }[] = sourceConcentrationIds.length
+      ? await this.prisma.feedStock.findMany({
+          where: {
+            farmId,
+            deletedAt: null,
+            currentStockKg: { gt: 0 },
+            sourceConcentrationId: { in: sourceConcentrationIds },
+          },
+          select: {
+            id: true,
+            sourceConcentrationId: true,
+            currentStockKg: true,
+          },
+        })
+      : [];
+    const bestPreparedByConcentration = new Map<
+      string,
+      (typeof preparedStocks)[number]
+    >();
+    for (const s of preparedStocks) {
+      if (!s.sourceConcentrationId) continue;
+      const cur = bestPreparedByConcentration.get(s.sourceConcentrationId);
+      if (!cur || s.currentStockKg > cur.currentStockKg) {
+        bestPreparedByConcentration.set(s.sourceConcentrationId, s);
+      }
+    }
+    const names = await this.lotResolver.lineNames(farmId, items.map(lineRef));
+
+    const kgOf = (fi: (typeof feedItems)[number]) => {
+      const kgPerUnit = resolveKgPerUnit(fi.unit, fi.kgPerUnit);
+      return kgPerUnit && kgPerUnit > 0 ? stockOf(fi) * kgPerUnit : null;
+    };
+    const itemById = new Map(feedItems.map((f) => [f.id, f] as const));
+    const stockById = new Map(stocks.map((s) => [s.id, s] as const));
+    const ingredientById = new Map(ingredients.map((i) => [i.id, i] as const));
+    // Fullest-stocked live feed item per catalogue ingredient.
+    const bestByIngredient = new Map<string, (typeof feedItems)[number]>();
+    for (const f of feedItems) {
+      if (!f.ingredientId) continue;
+      const cur = bestByIngredient.get(f.ingredientId);
+      if (!cur || stockOf(f) > stockOf(cur)) {
+        bestByIngredient.set(f.ingredientId, f);
+      }
+    }
+
+    return items.map((item) => {
+      const ing = item.ingredientId
+        ? ingredientById.get(item.ingredientId)
+        : undefined;
+      const name =
+        names.get(lineKey(lineRef(item))) ??
+        ing?.nameEn ??
+        'Unknown ingredient';
+      const base = {
+        item,
+        name,
+        feedClass: ing?.feedClass ?? null,
+        feedSubType: ing?.feedSubType ?? null,
+        // Made from a Concentrate Mixer — restocked by finalizing that concentrate, not by buying.
+        isPreparedFeed: Boolean(ing?.sourceConcentrationId),
+      };
+      // A zero-kg line consumes nothing, so it needs nothing in stock.
+      if (item.amountKg <= 0) {
+        return {
+          ...base,
+          status: 'IN_INVENTORY' as const,
+          source: null,
+          feedItemId: null,
+          feedStockId: null,
+          availableKg: null,
+        };
+      }
+      if (item.feedItemId) {
+        const fi = itemById.get(item.feedItemId);
+        if (fi) {
+          return {
+            ...base,
+            status: 'IN_INVENTORY' as const,
+            source: 'LINKED' as const,
+            feedItemId: fi.id,
+            feedStockId: null,
+            availableKg: kgOf(fi),
+          };
+        }
+      } else if (item.feedStockId) {
+        const st = stockById.get(item.feedStockId);
+        if (st) {
+          return {
+            ...base,
+            status: 'IN_INVENTORY' as const,
+            source: 'LINKED' as const,
+            feedItemId: null,
+            feedStockId: st.id,
+            availableKg: st.currentStockKg,
+          };
+        }
+      } else if (item.ingredientId) {
+        if (ing?.sourceConcentrationId) {
+          const st = bestPreparedByConcentration.get(ing.sourceConcentrationId);
+          if (st) {
+            return {
+              ...base,
+              status: 'IN_INVENTORY' as const,
+              source: 'MATCHED' as const,
+              feedItemId: null,
+              feedStockId: st.id,
+              availableKg: st.currentStockKg,
+            };
+          }
+        }
+        const fi = bestByIngredient.get(item.ingredientId);
+        if (fi) {
+          return {
+            ...base,
+            status: 'IN_INVENTORY' as const,
+            source: 'MATCHED' as const,
+            feedItemId: fi.id,
+            feedStockId: null,
+            availableKg: kgOf(fi),
+          };
+        }
+      }
+      return {
+        ...base,
+        status: 'MISSING' as const,
+        source: null,
+        feedItemId: null,
+        feedStockId: null,
+        availableKg: null,
+      };
+    });
+  }
+
+  /**
+   * Explicit-checkpoint versioning (2026-08-13, user request — "develop his existing ration
+   * day by day... save it as template"), `FEED_MIXTURE` only: a Concentrate Mixer stays
+   * live-sync-only, never versioned (see `FeedConcentration.versionNumber`'s doc comment).
+   * Freezes the current ingredient lines + cost into a `FeedConcentrationVersion` row and
+   * bumps `versionNumber` — day-to-day edits between checkpoints stay live-sync, only an
+   * explicit save (or a first `finalize()`, see that method) creates a checkpoint.
+   */
+  async saveAsVersion(
+    farmId: string,
+    userId: string,
+    id: string,
+    name?: string,
+  ) {
+    const row = await this.getOrThrow(farmId, id);
+    if (row.kind !== 'FEED_MIXTURE') {
+      throw new BadRequestException(
+        'Only a Total Mixed Ration can be versioned — a Concentrate Mixer stays live-sync',
+      );
+    }
+    if (row.items.length === 0) {
+      throw new BadRequestException(
+        'Cannot version an empty concentration — add ingredients first',
+      );
+    }
+
+    const [effById, nameByKey] = await Promise.all([
+      this.effectiveLineMap(farmId, row.items),
+      this.lotResolver.lineNames(farmId, row.items.map(lineRef)),
+    ]);
+    const lines = this.formulaLines(row.items);
+    const { totals } = computeTotals(lines, effById);
+
+    const nextVersionNumber = row.versionNumber;
+    const snapshotItems = row.items.map((i) => {
+      const key = lineKey(lineRef(i));
+      return {
+        ingredientId: i.ingredientId,
+        feedItemId: i.feedItemId,
+        ingredientName: nameByKey.get(key) ?? key,
+        amountKg: i.amountKg,
+        pricePerKg: effById.get(key)?.pricePerKg ?? 0,
+      };
+    });
+
+    const [version] = await this.prisma.$transaction([
+      this.prisma.feedConcentrationVersion.create({
+        data: {
+          farmId,
+          concentrationId: id,
+          versionNumber: nextVersionNumber,
+          name,
+          snapshotItems,
+          totalCostPerDay: totals.total_cost_tk,
+          createdBy: userId,
+        },
+      }),
+      this.prisma.feedConcentration.update({
+        where: { id },
+        data: { versionNumber: nextVersionNumber + 1 },
+      }),
+    ]);
+
+    this.log.info('Feed concentration version saved', {
+      farmId,
+      concentrationId: id,
+      versionNumber: version.versionNumber,
+    });
+    return {
+      id: version.id,
+      version_number: version.versionNumber,
+      name: version.name,
+      total_cost_per_day: version.totalCostPerDay,
+      created_at: version.createdAt,
+    };
+  }
+
+  async listVersions(farmId: string, id: string) {
+    await this.getOrThrow(farmId, id);
+    const rows = await this.prisma.feedConcentrationVersion.findMany({
+      where: { farmId, concentrationId: id },
+      orderBy: { versionNumber: 'desc' },
+    });
+    return rows.map((v) => ({
+      id: v.id,
+      version_number: v.versionNumber,
+      name: v.name,
+      items: v.snapshotItems,
+      total_cost_per_day: v.totalCostPerDay,
+      created_at: v.createdAt,
+    }));
+  }
+
+  /** Scale a draft formula's amounts so total DM meets the requirement (§12.4). */
+  async normalize(farmId: string, dto: NormalizeConcentrationDto) {
+    this.assertLineIdentity(dto.items);
+    await this.assertIngredients(dto.items.map((i) => i.ingredientId));
+    const effById = await this.effectiveLineMap(farmId, dto.items);
+    // RAKHAL-411: the farm's own tuned model, not the built-in defaults — otherwise a
+    // farm that adjusted its settings would still be balanced against stock numbers here.
+    const settings = await this.requirementSettings.resolve(farmId);
+    const req = computeRequirements(
+      {
+        weightKg: dto.weightKg,
+        milkTargetL: dto.milkTargetL,
+        milkFatPct: dto.milkFatPct,
+      },
+      settings,
+    );
+    const lines = this.formulaLines(dto.items);
+    const normalized = normalize(lines, req, effById);
+    const comp = computeTotals(normalized, effById);
+    const dtoByKey = new Map(dto.items.map((i) => [lineKey(lineRef(i)), i]));
+    return {
+      requirements: this.reqShape(req),
+      items: normalized.map((l) => ({
+        ingredient_id: dtoByKey.get(l.ingredientId)?.ingredientId ?? null,
+        feed_item_id: dtoByKey.get(l.ingredientId)?.feedItemId ?? null,
+        amount_kg: l.amountKg,
+      })),
+      totals: comp.totals,
+      balance_score: balanceScore(comp.totals, req),
+    };
+  }
+
+  // ---- internals ----------------------------------------------------------
+
+  private async enrich(
+    farmId: string,
+    row: ConcentrationWithItems,
+    detailed = false,
+    finalizedIds?: Set<string>,
+    /** Pre-resolved by the caller for a batch; omit and this row resolves its own. */
+    requirement?: Requirements | null,
+    /** Likewise for ingredient pricing and nutrition (RD-079) — the list path resolves the whole
+     * page's ingredients once instead of two queries per row. Keyed by ingredient id, so one
+     * shared map serves every row; single-row callers still resolve their own. */
+    effByIdForBatch?: Map<string, EffectiveIngredient>,
+  ) {
+    const effById =
+      effByIdForBatch ?? (await this.effectiveLineMap(farmId, row.items));
+    const lines = this.formulaLines(row.items);
+    const comp = computeTotals(lines, effById);
+
+    // RAKHAL-411 (completed): the requirement now comes from the live cow record — her weight,
+    // body condition, gestation days and 7-day milk average — rather than the target weight/milk
+    // frozen into the ration when it was created. A saved ration and
+    // `GET /feed/requirements?cattleId=` for the same animal therefore agree, which they did not
+    // before. Callers pass it in pre-resolved so the list path resolves the whole page in one
+    // batch instead of once per row.
+    const req: Requirements | null =
+      requirement !== undefined
+        ? requirement
+        : ((
+            await this.feedRequirements.resolveForConcentrations(farmId, [row])
+          ).get(row.id) ?? null);
+    const balance = req ? balanceScore(comp.totals, req) : null;
+
+    const base = {
+      id: row.id,
+      kind: row.kind,
+      name: row.name,
+      target_type: row.targetType,
+      cattle_id: row.cattleId,
+      duration_days: row.durationDays,
+      target_weight_kg: row.targetWeightKg,
+      target_milk_l: row.targetMilkL,
+      totals: comp.totals,
+      balance_score: balance,
+      requirements: req ? this.reqShape(req) : null,
+      is_finalized: finalizedIds?.has(row.id) ?? false,
+      created_at: row.createdAt,
+    };
+    if (!detailed) return base;
+
+    const lineNames = await this.lotResolver.lineNames(
+      farmId,
+      row.items.map(lineRef),
+    );
+    // RAKHAL-422: batch link lives on the raw `FeedConcentrationItem` row, not on
+    // `computeTotals`'s output — keyed by `lineKey` (not index: `computeTotals` silently
+    // skips a line whose ingredient has no resolvable nutrition, so the two arrays can differ in
+    // length; last-write-wins is fine here since two lines sharing one key is already an
+    // edge case the formula math itself doesn't disambiguate).
+    const rowByKey = new Map(row.items.map((i) => [lineKey(lineRef(i)), i]));
+    return {
+      ...base,
+      ingredients: comp.items.map((it) => ({
+        // Null for a line that names only an inventory product (RAKHAL-447).
+        ingredient_id: rowByKey.get(it.ingredientId)?.ingredientId ?? null,
+        name: lineNames.get(it.ingredientId) ?? null,
+        amount_kg: it.amount_kg,
+        dm_kg: it.dm_kg,
+        cp_kg: it.cp_kg,
+        me_mj: it.me_mj,
+        ndf_kg: it.ndf_kg,
+        fat_kg: it.fat_kg,
+        rdp_kg: it.rdp_kg,
+        rup_kg: it.rup_kg,
+        starch_kg: it.starch_kg,
+        adf_kg: it.adf_kg,
+        calcium_kg: it.calcium_kg,
+        phosphorus_kg: it.phosphorus_kg,
+        tdn_kg: it.tdn_kg,
+        cost_tk: it.cost_tk,
+        feed_item_id: rowByKey.get(it.ingredientId)?.feedItemId ?? null,
+        feed_item_batch_id:
+          rowByKey.get(it.ingredientId)?.feedItemBatchId ?? null,
+        feed_stock_id: rowByKey.get(it.ingredientId)?.feedStockId ?? null,
+      })),
+    };
+  }
+
+  /** RAKHAL-447: nutrition + price per recipe line, keyed by `lineKey` — lot-backed lines resolve from
+   * their linked lot, the rest from the catalogue. */
+  private effectiveLineMap(
+    farmId: string,
+    items: LineLike[],
+  ): Promise<Map<string, EffectiveIngredient>> {
+    return this.lotResolver.effectiveLines(farmId, items.map(lineRef));
+  }
+
+  /** The formula-math view of saved/draft lines: keyed by `lineKey`. */
+  private formulaLines(items: LineLike[]): FormulaLine[] {
+    return items.map((i) => ({
+      ingredientId: lineKey(lineRef(i)),
+      amountKg: i.amountKg,
+    }));
+  }
+
+  /** Effective (override-merged) ingredient nutrition/price by id, farm-scoped. */
+  private effectiveMap(
+    farmId: string,
+    ingredientIds: string[],
+  ): Promise<Map<string, EffectiveIngredient>> {
+    // Shared `FeedLotResolver` (RAKHAL-443); no `deletedAt` filter (RAKHAL-310) so saved formulas
+    // keep resolving after an ingredient is archived.
+    return this.lotResolver.effectiveIngredients(farmId, ingredientIds);
+  }
+
+  /** Back-derives per-DM/per-CP nutrient rates from a formula's computed totals onto the shape
+   * `FeedIngredient` needs — shared by `finalize()` (first promotion / refresh-on-reFinalize) and
+   * `refreshPromotedIngredientIfExists()` (live-sync on plain edit-save), so the two call sites
+   * can never drift from each other. */
+  private buildIngredientNutrition(
+    name: string,
+    totals: FormulaTotals,
+    totalAsFedKg: number,
+  ) {
+    const pctOfDm = (kg: number) =>
+      totals.dm_kg > 0 ? (kg / totals.dm_kg) * 100 : 0;
+    const pctOfCp = (kg: number) =>
+      totals.cp_kg > 0 ? (kg / totals.cp_kg) * 100 : 0;
+    return {
+      nameEn: name,
+      feedClass: 'CONCENTRATE' as const,
+      feedSubType: 'COMPOUND_PELLET' as const,
+      dmPct: (totalAsFedKg > 0 ? totals.dm_kg / totalAsFedKg : 0) * 100,
+      cpPct: pctOfDm(totals.cp_kg),
+      meMjPerKgDm: totals.dm_kg > 0 ? totals.me_mj / totals.dm_kg : 0,
+      fatPct: pctOfDm(totals.fat_kg),
+      ndfPct: pctOfDm(totals.ndf_kg),
+      rdpPct: pctOfCp(totals.rdp_kg),
+      rupPct: pctOfCp(totals.rup_kg),
+      starchPct: pctOfDm(totals.starch_kg),
+      adfPct: pctOfDm(totals.adf_kg),
+      calciumPct: pctOfDm(totals.calcium_kg),
+      phosphorusPct: pctOfDm(totals.phosphorus_kg),
+      tdnPct: pctOfDm(totals.tdn_kg),
+      currentPricePerKg: totals.total_cost_tk / totalAsFedKg,
+    };
+  }
+
+  /** RAKHAL-327: the same DM/CP back-derivation `buildIngredientNutrition` uses, trimmed to just
+   * the nutrient fields `FeedStock`'s batch snapshot needs (no name/class/price). Kept as its own
+   * method rather than reusing `buildIngredientNutrition`'s output directly so the two call sites
+   * (promoted-ingredient vs. produced-stock) can diverge later without coupling. */
+  private buildStockNutritionSnapshot(
+    totals: FormulaTotals,
+    totalAsFedKg: number,
+  ): StockNutritionSnapshot {
+    const pctOfDm = (kg: number) =>
+      totals.dm_kg > 0 ? (kg / totals.dm_kg) * 100 : 0;
+    const pctOfCp = (kg: number) =>
+      totals.cp_kg > 0 ? (kg / totals.cp_kg) * 100 : 0;
+    return {
+      dmPct: (totalAsFedKg > 0 ? totals.dm_kg / totalAsFedKg : 0) * 100,
+      cpPct: pctOfDm(totals.cp_kg),
+      meMjPerKgDm: totals.dm_kg > 0 ? totals.me_mj / totals.dm_kg : 0,
+      fatPct: pctOfDm(totals.fat_kg),
+      ndfPct: pctOfDm(totals.ndf_kg),
+      rdpPct: pctOfCp(totals.rdp_kg),
+      rupPct: pctOfCp(totals.rup_kg),
+      starchPct: pctOfDm(totals.starch_kg),
+      adfPct: pctOfDm(totals.adf_kg),
+      calciumPct: pctOfDm(totals.calcium_kg),
+      phosphorusPct: pctOfDm(totals.phosphorus_kg),
+      tdnPct: pctOfDm(totals.tdn_kg),
+    };
+  }
+
+  private mapIngredient(ing: FeedIngredient) {
+    return {
+      id: ing.id,
+      name_en: ing.nameEn,
+      is_custom: true,
+      is_latest_version: ing.isLatestVersion,
+      source_concentration_id: ing.sourceConcentrationId,
+      source_concentration_version: ing.sourceConcentrationVersion,
+      effective_price_per_kg: ing.currentPricePerKg,
+      nutrition: {
+        dm_pct: ing.dmPct,
+        cp_pct: ing.cpPct,
+        me_mj_per_kg_dm: ing.meMjPerKgDm,
+        fat_pct: ing.fatPct,
+        ndf_pct: ing.ndfPct,
+        rdp_pct: ing.rdpPct,
+        rup_pct: ing.rupPct,
+        starch_pct: ing.starchPct,
+        adf_pct: ing.adfPct,
+        calcium_pct: ing.calciumPct,
+        phosphorus_pct: ing.phosphorusPct,
+        tdn_pct: ing.tdnPct,
+      },
+    };
+  }
+
+  /** Live-sync half of the 2026-07-18 rework (see `update()`'s doc comment) — if this template has
+   * already been finalized at least once (a `FeedIngredient` with matching `sourceConcentrationId`
+   * exists), refresh its nutrition/price to match the just-saved formula. **Never creates one** —
+   * a template that hasn't been finalized yet stays un-promoted until the farmer deliberately
+   * clicks Finalize; a plain edit must not silently start affecting other formulas' ingredient
+   * pickers or any TMR. No-ops (leaves the promoted ingredient as it was) if the edit left the
+   * formula with no measurable dry matter — same guard `finalize()` itself uses — rather than
+   * writing nonsensical zeroed-out nutrition onto a row that's still actively referenced. */
+  private async refreshPromotedIngredientIfExists(
+    farmId: string,
+    row: ConcentrationWithItems,
+  ) {
+    // No `deletedAt` filter (RAKHAL-310) — mirrors `finalize()`'s own upsert,
+    // which resurrects (`deletedAt: null`) a previously-archived promoted
+    // ingredient on refinalize, so the lookup here must find it either way.
+    const promoted = await this.prisma.feedIngredient.findFirst({
+      where: { sourceConcentrationId: row.id },
+    });
+    if (!promoted) return;
+
+    const effById = await this.effectiveLineMap(farmId, row.items);
+    const lines = this.formulaLines(row.items);
+    const { totals } = computeTotals(lines, effById);
+    const totalAsFedKg = row.items.reduce((sum, i) => sum + i.amountKg, 0);
+    if (totalAsFedKg <= 0 || totals.dm_kg <= 0) return;
+
+    const nutrition = this.buildIngredientNutrition(
+      row.name,
+      totals,
+      totalAsFedKg,
+    );
+    await this.prisma.feedIngredient.update({
+      where: { id: promoted.id },
+      data: nutrition,
+    });
+  }
+
+  // No `deletedAt` filter (RAKHAL-310): resolves display names for an
+  // existing formula's line items, which must still show a name even for an
+  // ingredient archived after the formula was built.
+  private async ingredientNames(ids: string[]) {
+    const rows = await this.prisma.feedIngredient.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, nameEn: true },
+    });
+    return new Map(rows.map((r) => [r.id, r.nameEn]));
+  }
+
+  /** RAKHAL-447: a line must name an ingredient, or an inventory product to take its nutrition from. */
+  private assertLineIdentity(
+    items: { ingredientId?: string; feedItemId?: string }[],
+  ) {
+    for (const item of items) {
+      if (!item.ingredientId && !item.feedItemId) {
+        throw new BadRequestException(
+          'Each line needs an ingredientId, or a feedItemId to take its nutrition from',
+        );
+      }
+    }
+  }
+
+  private async assertIngredients(ingredientIds: (string | undefined)[]) {
+    const ids = [
+      ...new Set(ingredientIds.filter((id): id is string => Boolean(id))),
+    ];
+    if (ids.length === 0) return;
+    const count = await this.prisma.feedIngredient.count({
+      where: { id: { in: ids }, deletedAt: null },
+    });
+    if (count !== ids.length) {
+      throw new BadRequestException('One or more ingredients are invalid');
+    }
+  }
+
+  /** RAKHAL-425: a Total Mixed Ration must build on at least one finalized Concentrate Mixer —
+   * one line whose ingredient was promoted from a concentrate (`FeedIngredient.sourceConcentrationId
+   * != null`), not purely catalogue ingredients. A concentrate only becomes referenceable once
+   * finalized at least once (promotion happens in `finalize()`), which is why the error names that
+   * path explicitly rather than just saying "invalid ingredient". */
+  private async assertHasConcentrateDerivedLine(
+    items: { ingredientId?: string }[],
+  ) {
+    const ids = [
+      ...new Set(
+        items.map((i) => i.ingredientId).filter((id): id is string => !!id),
+      ),
+    ];
+    const count = await this.prisma.feedIngredient.count({
+      where: { id: { in: ids }, sourceConcentrationId: { not: null } },
+    });
+    if (count === 0) {
+      throw new BadRequestException(
+        'A Total Mixed Ration requires at least one line using a finalized Concentrate Mixer — build and finalize a Concentrate Mixer first, then reference its promoted ingredient here',
+      );
+    }
+  }
+
+  /** RAKHAL-422: validates each line's optional batch link — at most one of
+   * `feedItemId`/`feedStockId`, the referenced batch is farm-owned and not soft-deleted, and its
+   * own ingredient matches the line's `ingredientId` (a line cannot claim to be maize while
+   * consuming bran). Batched (not per-line) to avoid N+1 on a multi-line recipe. */
+  private async assertBatchLinks(
+    farmId: string,
+    items: {
+      ingredientId?: string;
+      feedItemId?: string;
+      feedItemBatchId?: string;
+      feedStockId?: string;
+    }[],
+  ) {
+    for (const item of items) {
+      if (item.feedItemId && item.feedStockId) {
+        throw new BadRequestException(
+          `Line for ingredient ${item.ingredientId ?? item.feedItemId} cannot link both a purchased batch and a prepared batch — pick one`,
+        );
+      }
+      if (item.feedItemBatchId && !item.feedItemId) {
+        throw new BadRequestException(
+          'feedItemBatchId needs the feedItemId it belongs to',
+        );
+      }
+    }
+
+    // RAKHAL-447: a pinned lot must be a live lot of that very product, on this farm.
+    const pins = items.filter((i) => i.feedItemBatchId);
+    if (pins.length > 0) {
+      const lots = await this.prisma.feedItemBatch.findMany({
+        where: {
+          farmId,
+          deletedAt: null,
+          id: { in: pins.map((i) => i.feedItemBatchId!) },
+        },
+        select: { id: true, feedItemId: true },
+      });
+      const lotById = new Map(lots.map((l) => [l.id, l]));
+      for (const item of pins) {
+        if (
+          lotById.get(item.feedItemBatchId!)?.feedItemId !== item.feedItemId
+        ) {
+          throw new BadRequestException(
+            `Batch ${item.feedItemBatchId} is not a live batch of feed item ${item.feedItemId}`,
+          );
+        }
+      }
+    }
+
+    const feedItemIds = [
+      ...new Set(items.filter((i) => i.feedItemId).map((i) => i.feedItemId!)),
+    ];
+    const feedStockIds = [
+      ...new Set(items.filter((i) => i.feedStockId).map((i) => i.feedStockId!)),
+    ];
+    if (feedItemIds.length === 0 && feedStockIds.length === 0) return;
+
+    const [feedItems, feedStocks]: [
+      { id: string; ingredientId: string | null }[],
+      { id: string; sourceConcentrationId: string }[],
+    ] = await Promise.all([
+      feedItemIds.length
+        ? this.prisma.feedItem.findMany({
+            where: { id: { in: feedItemIds }, farmId, deletedAt: null },
+            select: { id: true, ingredientId: true },
+          })
+        : [],
+      feedStockIds.length
+        ? this.prisma.feedStock.findMany({
+            where: { id: { in: feedStockIds }, farmId, deletedAt: null },
+            select: { id: true, sourceConcentrationId: true },
+          })
+        : [],
+    ]);
+    const feedItemById = new Map(feedItems.map((f) => [f.id, f]));
+    const stockById = new Map(feedStocks.map((s) => [s.id, s]));
+
+    // A FeedStock has no direct ingredientId — the batch's composition is the concentration's
+    // own promoted FeedIngredient (upserted by sourceConcentrationId, see `finalize()`).
+    const sourceConcIds = [
+      ...new Set(feedStocks.map((s) => s.sourceConcentrationId)),
+    ];
+    const promotedIngredients = sourceConcIds.length
+      ? await this.prisma.feedIngredient.findMany({
+          where: { sourceConcentrationId: { in: sourceConcIds } },
+          select: { id: true, sourceConcentrationId: true },
+        })
+      : [];
+    const ingredientIdBySourceConc = new Map(
+      promotedIngredients.map((i) => [i.sourceConcentrationId as string, i.id]),
+    );
+
+    for (const item of items) {
+      if (item.feedItemId) {
+        const linked = feedItemById.get(item.feedItemId);
+        if (!linked) {
+          throw new BadRequestException(
+            `Linked feed item ${item.feedItemId} not found`,
+          );
+        }
+        // Only a line that also names an ingredient can contradict the product (RAKHAL-447).
+        if (item.ingredientId && linked.ingredientId !== item.ingredientId) {
+          throw new BadRequestException(
+            `Linked feed item ${item.feedItemId} does not match this line's ingredient`,
+          );
+        }
+      }
+      if (item.feedStockId) {
+        const linked = stockById.get(item.feedStockId);
+        if (!linked) {
+          throw new BadRequestException(
+            `Linked feed stock ${item.feedStockId} not found`,
+          );
+        }
+        const promotedIngredientId = ingredientIdBySourceConc.get(
+          linked.sourceConcentrationId,
+        );
+        if (promotedIngredientId !== item.ingredientId) {
+          throw new BadRequestException(
+            `Linked feed stock ${item.feedStockId} does not match this line's ingredient`,
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * RAKHAL-423/424: resolves what a finalize must deduct and how much it actually costs, given
+   * each line's optional batch link (already validated by `assertBatchLinks` at create/update
+   * time — this re-checks sufficiency against current stock, which can only be known now).
+   * Applies to both kinds identically — a Concentrate Mixer with linked lines deducts them
+   * exactly as a TMR does; there is no kind-specific branch here.
+   *
+   * 1. Sums each batch's total draw across every line that references it (two lines may share
+   *    one batch).
+   * 2. Self-consumption guard: a `feedStockId` produced by this same concentration is rejected —
+   *    a recipe must not eat its own output.
+   * 3. Validates sufficiency per batch — `FeedStockService.assertSufficientStock` (FeedStock) and
+   *    `FeedDistributionService.computeFeedItemUsage` (FeedItem, which also resolves its real
+   *    per-kg price) — before anything is written, same fail-fast-before-transaction convention
+   *    `feed-distribution.service.ts`'s own `computeFeedItemUsage` doc comment describes.
+   * 4. Splits the recipe's real cost: a linked line prices from the batch's own real cost (what
+   *    was actually consumed), an unlinked line keeps the catalogue price — this is `producedCostTk`
+   *    accuracy for RAKHAL-423, and the RAKHAL-424 purchase/transfer split for the caller to journal.
+   */
+  private async resolveBatchDeductions(
+    farmId: string,
+    userId: string,
+    concentrationId: string,
+    items: {
+      ingredientId: string | null;
+      amountKg: number;
+      feedItemId: string | null;
+      feedItemBatchId: string | null;
+      feedStockId: string | null;
+    }[],
+    effById: Map<string, EffectiveIngredient>,
+  ): Promise<{
+    linkedCostTk: number;
+    unlinkedCostTk: number;
+    feedItemDeductions: { feedItemId: string; plan: FeedDrawPlan }[];
+    feedStockDeductions: { feedStockId: string; quantity: number }[];
+  }> {
+    // A line pinned to one lot draws only from it, so pinned and unpinned draws of the same product
+    // are separate groups (RAKHAL-447).
+    const groupKey = (feedItemId: string, pin: string | null) =>
+      `${feedItemId}|${pin ?? ''}`;
+    const feedItemQty = new Map<
+      string,
+      { feedItemId: string; pin: string | null; qty: number }
+    >();
+    const feedStockQty = new Map<string, number>();
+    for (const item of items) {
+      if (item.feedItemId) {
+        const key = groupKey(item.feedItemId, item.feedItemBatchId);
+        const prev = feedItemQty.get(key);
+        feedItemQty.set(key, {
+          feedItemId: item.feedItemId,
+          pin: item.feedItemBatchId,
+          qty: (prev?.qty ?? 0) + item.amountKg,
+        });
+      } else if (item.feedStockId) {
+        feedStockQty.set(
+          item.feedStockId,
+          (feedStockQty.get(item.feedStockId) ?? 0) + item.amountKg,
+        );
+      }
+    }
+
+    const feedItemPricePerKg = new Map<string, number>();
+    const feedItemDeductions: { feedItemId: string; plan: FeedDrawPlan }[] = [];
+    for (const [key, { feedItemId, pin, qty }] of feedItemQty) {
+      const usage = await this.feedDistribution.computeFeedItemUsage(
+        farmId,
+        feedItemId,
+        qty,
+        undefined,
+        pin ?? undefined,
+      );
+      feedItemPricePerKg.set(key, usage.pricePerKg);
+      feedItemDeductions.push({ feedItemId, plan: usage.plan });
+    }
+
+    const feedStockPricePerKg = new Map<string, number>();
+    const feedStockDeductions: { feedStockId: string; quantity: number }[] = [];
+    if (feedStockQty.size > 0) {
+      const stocks = await this.prisma.feedStock.findMany({
+        where: { id: { in: [...feedStockQty.keys()] } },
+        select: {
+          id: true,
+          sourceConcentrationId: true,
+          producedCostTk: true,
+          producedQtyKg: true,
+        },
+      });
+      for (const s of stocks) {
+        if (s.sourceConcentrationId === concentrationId) {
+          throw new BadRequestException(
+            `Line links FeedStock ${s.id}, which this same concentration itself produced — a recipe cannot consume its own output`,
+          );
+        }
+        feedStockPricePerKg.set(
+          s.id,
+          s.producedQtyKg > 0 ? s.producedCostTk / s.producedQtyKg : 0,
+        );
+      }
+      await this.feedStock.assertSufficientStock(
+        farmId,
+        [...feedStockQty.entries()].map(([feedStockId, quantity]) => ({
+          stockId: feedStockId,
+          quantity,
+        })),
+      );
+      for (const [feedStockId, quantity] of feedStockQty) {
+        feedStockDeductions.push({ feedStockId, quantity });
+      }
+    }
+
+    let linkedCostTk = 0;
+    let unlinkedCostTk = 0;
+    for (const item of items) {
+      if (item.feedItemId) {
+        linkedCostTk +=
+          item.amountKg *
+          (feedItemPricePerKg.get(
+            groupKey(item.feedItemId, item.feedItemBatchId),
+          ) ?? 0);
+      } else if (item.feedStockId) {
+        linkedCostTk +=
+          item.amountKg * (feedStockPricePerKg.get(item.feedStockId) ?? 0);
+      } else {
+        const eff = effById.get(lineKey(lineRef(item)));
+        unlinkedCostTk += item.amountKg * (eff?.pricePerKg ?? 0);
+      }
+    }
+
+    return {
+      linkedCostTk: round2(linkedCostTk),
+      unlinkedCostTk: round2(unlinkedCostTk),
+      feedItemDeductions,
+      feedStockDeductions,
+    };
+  }
+
+  /** Applies the deductions `resolveBatchDeductions` resolved, inside the caller's transaction
+   * so a decrement and the `FeedStock` it produces commit or roll back together. */
+  private async applyBatchDeductions(
+    farmId: string,
+    userId: string,
+    tx: Prisma.TransactionClient,
+    deductions: {
+      feedItemDeductions: { feedItemId: string; plan: FeedDrawPlan }[];
+      feedStockDeductions: { feedStockId: string; quantity: number }[];
+    },
+  ) {
+    for (const d of deductions.feedItemDeductions) {
+      for (const piece of d.plan.pieces) {
+        await this.feedItems.applyFeedDraw(
+          farmId,
+          userId,
+          d.feedItemId,
+          {
+            batchId: piece.batchId,
+            quantityUnits: piece.quantityUnits,
+            notes: 'Consumed by a concentrate/TMR batch',
+          },
+          tx,
+        );
+      }
+    }
+    for (const d of deductions.feedStockDeductions) {
+      await this.feedStock.decrementForDistribution(
+        farmId,
+        userId,
+        { stockId: d.feedStockId, quantity: d.quantity },
+        tx,
+      );
+    }
+  }
+
+  private async validateTargets(farmId: string, cattleId?: string) {
+    if (cattleId) {
+      const cattle = await this.prisma.cattle.findFirst({
+        where: { id: cattleId, ...activeHerd(farmId) },
+        select: { id: true },
+      });
+      if (!cattle)
+        throw new BadRequestException('Cattle must belong to the farm');
+    }
+  }
+
+  private async getOrThrow(
+    farmId: string,
+    id: string,
+  ): Promise<ConcentrationWithItems> {
+    const row = await this.prisma.feedConcentration.findFirst({
+      where: { id, farmId, deletedAt: null },
+      include: { items: true },
+    });
+    if (!row) throw new NotFoundException('Concentration template not found');
+    return row;
+  }
+
+  private reqShape(req: Requirements) {
+    return {
+      dm_kg: req.dmKg,
+      cp_kg: req.cpKg,
+      me_mj: req.meMj,
+      ndf_kg: req.ndfKg,
+      fat_kg: req.fatKg,
+    };
+  }
+}

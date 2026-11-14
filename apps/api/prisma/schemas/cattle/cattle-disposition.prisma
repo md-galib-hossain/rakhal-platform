@@ -1,0 +1,66 @@
+/// Cattle-owned lifecycle-exit event (RAKHAL-344, `FINANCE_V2_DESIGN.md` §1.1,
+/// §5.1) — the one model that replaces three divergent SOLD paths
+/// (`finance.service.ts:164-182`, `cattle.service.ts:750-772`, `:893-919`).
+///
+/// **This ticket does not delete any of those three paths** — it only adds the
+/// new consolidated `CattleService.recordDisposition()` entry point that
+/// RAKHAL-345 (`SellAnimal` use case) will switch the real sell-animal flow
+/// onto, and only then does deleting `finance.service.ts`'s mutation become
+/// that ticket's job. `archiveWithReason()`'s `sold`/`deceased`/`culled`
+/// reasons and the bulk `mark_sold` action are untouched here.
+///
+/// A `CattleDisposition` row is an immutable audit fact: an animal left the
+/// active herd for one of four reasons. `saleId` is nullable because only
+/// `SALE` has a commercial `Sale` document behind it — `DEATH`/`CULL`/
+/// `TRANSFER` never do. The animal row itself is **never deleted** — this
+/// model only ever gets created, never updated or removed; `Cattle.status`/
+/// `isActive`/`soldAt`/`dispositionId` are what change.
+model CattleDisposition {
+  id     String @id @default(cuid())
+  farmId String
+
+  cattleId String
+
+  type CattleDispositionType
+
+  /// Set only when `type == SALE` — the commercial `Sale` document (RAKHAL-339)
+  /// this disposition came from. Not a Prisma `@relation` toward `Sale` (mirrors
+  /// `Sale.customerId`'s own placeholder-column reasoning): `sales/**` is a
+  /// different ticket's lane and this ticket only needs to record the id, not
+  /// join through it. RAKHAL-345 populates this when it wires the real
+  /// `SellAnimal` use case; DEATH/CULL/TRANSFER leave it null.
+  saleId String?
+
+  date DateTime
+
+  /// Sale price for this animal, when known. Null for DEATH/CULL/TRANSFER, and
+  /// may be null for a SALE recorded without a captured price.
+  price Decimal? @db.Decimal(18, 2)
+
+  reason String?
+
+  createdById String
+  createdAt   DateTime @default(now())
+
+  farm   Farm   @relation("FarmToCattleDisposition", fields: [farmId], references: [id])
+  cattle Cattle @relation("CattleToCattleDisposition", fields: [cattleId], references: [id])
+
+  /// Back-relation for `Cattle.dispositionId` — the one `Cattle` row (if any)
+  /// whose `dispositionId` points at this disposition (the disposition that
+  /// actually sold/disposed it, as opposed to `cattle` above which is "which
+  /// animal this event describes" and is set on every row regardless).
+  disposedCattle Cattle? @relation("CattleDispositionRecord")
+
+  @@index([farmId])
+  @@index([cattleId])
+  @@index([cattleId, type])
+  /// RAKHAL-479: header row in AnimalEvent (set by DB trigger / back-fill). No FK by design.
+  animalEventId String? @unique
+}
+
+enum CattleDispositionType {
+  SALE
+  DEATH
+  CULL
+  TRANSFER
+}

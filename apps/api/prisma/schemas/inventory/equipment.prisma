@@ -1,0 +1,74 @@
+/// Equipment / other assets (Inventory module — Others tab, PRD §15.6).
+/// Tracks farm equipment, machinery, tools and supplies with a simple count and
+/// low-stock threshold. (Maintenance scheduling is V1.5 — RAKHAL-210.)
+model Equipment {
+  id String @id @default(cuid())
+
+  farmId String
+
+  name    String
+  assetId String?
+  type    EquipmentType @default(EQUIPMENT)
+
+  /// Unit catalog (RAKHAL-326) — replaces the old free-text `unit` string. Stays optional
+  /// (mirrors the old `unit String?` behavior — some equipment is just counted in pieces).
+  unitId            String?
+  unit              Unit?   @relation(fields: [unitId], references: [id])
+  currentStock      Float   @default(0)
+  costPerUnit       Float
+  lowStockThreshold Float   @default(0)
+
+  purchaseDate DateTime
+  notes        String?
+
+  deletedAt DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm    Farm @relation("FarmToEquipment", fields: [farmId], references: [id])
+  creator User @relation("EquipmentCreator", fields: [createdBy], references: [id])
+
+  stockMovements     EquipmentStockMovement[]
+  inventorySaleLines InventorySaleLine[]      @relation("EquipmentToInventorySaleLine")
+  /// Back-relation for `PurchaseLine.equipmentId` (RAKHAL-348, `purchasing/**`) —
+  /// every purchase line that restocked this equipment row.
+  purchaseLines      PurchaseLine[]           @relation("EquipmentToPurchaseLine")
+
+  @@index([farmId])
+  @@index([type])
+  @@index([createdBy])
+  @@index([unitId])
+}
+
+/// Append-only audit of every stock change on an Equipment row (purchase,
+/// manual adjustment, disposal) — mirrors `MedicineStockMovement`. `balanceAfter`
+/// snapshots the running stock so history is reconstructable without replaying.
+model EquipmentStockMovement {
+  id String @id @default(cuid())
+
+  equipmentId String
+  farmId      String
+
+  reason       EquipmentStockMovementReason
+  delta        Float // signed: +purchase / -disposal
+  balanceAfter Float
+  notes        String?
+
+  /// Names the `SaleLine` that caused this movement, set only when
+  /// `reason == SALE` (RAKHAL-346, `SellInventoryUseCase`). Plain scalar, not
+  /// a `@relation` — same judgment call `CattleDisposition.saleId`/
+  /// `Sale.customerId` already document: `sales/**` is a different ticket's
+  /// lane, this column only needs to persist the id.
+  saleLineId String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id])
+
+  @@index([equipmentId])
+  @@index([farmId])
+  @@index([createdAt])
+  @@index([saleLineId])
+}

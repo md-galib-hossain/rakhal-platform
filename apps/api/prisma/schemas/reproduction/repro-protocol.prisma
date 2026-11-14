@@ -1,0 +1,113 @@
+/// Reproductive (Synchronization) Protocols — RAKHAL-214, PRD §9.8 / ADR-013.
+/// A protocol is a timed hormone+AI schedule (Ovsynch, CIDR-Synch, …) — a sibling
+/// of the Health Plan engine. `ReproProtocol` = template (system-default or
+/// farm-cloned), `ReproProtocolStep` = day-by-day steps (GnRH/PGF₂α/AI/PD).
+/// Applying a protocol creates one `ReproProtocolInstance` per cow + Task-Hub
+/// tasks per step. **Two separate status tracks (ADR-013):** the *protocol status*
+/// (the treatment process) and the *pregnancy outcome* (the biological result).
+/// `cattleId` is a plain validated FK (resolved in the service), matching the feed
+/// module — keeps the model decoupled from Cattle.
+
+model ReproProtocol {
+  id     String  @id @default(cuid())
+  farmId String? /// null = global system-default template (any farm can apply or clone it)
+
+  name         String
+  code         String?
+  description  String?
+  durationDays Int     @default(0)
+
+  isSystemDefault Boolean   @default(false)
+  deletedAt       DateTime?
+  createdBy       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm      Farm?                   @relation("FarmToReproProtocol", fields: [farmId], references: [id])
+  steps     ReproProtocolStep[]
+  instances ReproProtocolInstance[]
+
+  @@index([farmId])
+  @@index([isSystemDefault])
+}
+
+model ReproProtocolStep {
+  id         String @id @default(cuid())
+  protocolId String
+
+  dayNumber   Int
+  title       String
+  stepType    ReproStepType
+  instruction String?
+  isRequired  Boolean       @default(true)
+
+  protocol ReproProtocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+
+  @@index([protocolId])
+  @@index([protocolId, dayNumber])
+}
+
+/// One application of a protocol to one cow. Tracks the protocol status + the AI
+/// milestone, kept distinct from the pregnancy outcome recorded at the PD check.
+model ReproProtocolInstance {
+  id     String @id @default(cuid())
+  farmId String
+
+  protocolId String
+  cattleId   String /// plain validated FK
+
+  startDate DateTime
+  status    ReproProtocolStatus @default(IN_PROGRESS)
+
+  currentStepDay  Int?
+  aiCompletedAt   DateTime?
+  breedingEventId String? /// optional link to the AI BreedingEvent
+
+  pregnancyOutcome  ReproPregnancyOutcome?
+  outcomeRecordedAt DateTime?
+
+  completedAt DateTime?
+  endReason   String? /// cancellation / failure reason
+  notes       String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm     Farm          @relation("FarmToReproProtocolInstance", fields: [farmId], references: [id])
+  protocol ReproProtocol @relation(fields: [protocolId], references: [id])
+
+  @@index([farmId])
+  @@index([farmId, protocolId])
+  @@index([cattleId])
+  @@index([farmId, status])
+}
+
+enum ReproStepType {
+  GNRH
+  PGF2ALPHA
+  CIDR_INSERT
+  CIDR_REMOVE
+  AI
+  PREGNANCY_CHECK
+  OTHER
+}
+
+/// The treatment process (NOT the pregnancy result — ADR-013).
+enum ReproProtocolStatus {
+  DRAFT
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+/// The biological result, recorded at the pregnancy check (independent of status).
+enum ReproPregnancyOutcome {
+  WAITING_PD
+  PREGNANT
+  OPEN
+  PREGNANCY_LOSS
+}

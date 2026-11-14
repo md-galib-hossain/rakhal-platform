@@ -1,0 +1,20 @@
+[
+  { "id": "sd_medmove_001", "medicineId": "sd_med_penstrep", "farmId": "@farm", "reason": "PURCHASE", "delta": 500, "balanceAfter": 500, "notes": "Initial purchase (SEED-D-006)", "createdBy": "@user:owner", "createdAt": "@daysAgo:30" },
+  { "id": "sd_medmove_002", "medicineId": "sd_med_penstrep", "farmId": "@farm", "reason": "TREATMENT", "delta": -230, "balanceAfter": 270, "notes": "Accumulated treatment use over the month", "createdBy": "@user:manager", "createdAt": "@daysAgo:5" },
+  { "id": "sd_medmove_003", "medicineId": "sd_med_penstrep", "farmId": "@farm", "reason": "TREATMENT", "delta": -20, "balanceAfter": 250, "notes": "HC-00001 day 1 dose", "createdBy": "@user:manager", "createdAt": "@daysAgo:2" },
+  { "id": "sd_medmove_004", "medicineId": "sd_med_penstrep", "farmId": "@farm", "reason": "TREATMENT", "delta": -20, "balanceAfter": 230, "notes": "HC-00001 day 2 dose", "createdBy": "@user:worker", "createdAt": "@daysAgo:1" },
+  { "id": "sd_medmove_005", "medicineId": "sd_med_oxytet", "farmId": "@farm", "reason": "PURCHASE", "delta": 200, "balanceAfter": 200, "createdBy": "@user:owner", "createdAt": "@daysAgo:60" },
+  { "id": "sd_medmove_006", "medicineId": "sd_med_oxytet", "farmId": "@farm", "reason": "TREATMENT", "delta": -120, "balanceAfter": 80, "notes": "Foot rot round + FMD supportive care", "createdBy": "@user:manager", "createdAt": "@daysAgo:20" },
+  { "id": "sd_medmove_007", "medicineId": "sd_med_fmdvax", "farmId": "@farm", "reason": "PURCHASE", "delta": 50, "balanceAfter": 50, "createdBy": "@user:manager", "createdAt": "@daysAgo:40" },
+  { "id": "sd_medmove_008", "medicineId": "sd_med_fmdvax", "farmId": "@farm", "reason": "TREATMENT", "delta": -20, "balanceAfter": 30, "notes": "Herd vaccination round after HC-00002", "createdBy": "@user:manager", "createdAt": "@daysAgo:38" },
+  { "id": "sd_medmove_009", "medicineId": "sd_med_ad3e", "farmId": "@farm", "reason": "PURCHASE", "delta": 500, "balanceAfter": 500, "createdBy": "@user:owner", "createdAt": "@daysAgo:90" },
+  { "id": "sd_medmove_010", "medicineId": "sd_med_ad3e", "farmId": "@farm", "reason": "TREATMENT", "delta": -10, "balanceAfter": 490, "notes": "FMD supportive care (HC-00002)", "createdBy": "@user:manager", "createdAt": "@daysAgo:58" },
+  { "id": "sd_medmove_011", "medicineId": "sd_med_ad3e", "farmId": "@farm", "reason": "EXPIRED_DISPOSED", "delta": -50, "balanceAfter": 440, "notes": "Old opened bottle disposed", "createdBy": "@user:owner", "createdAt": "@daysAgo:10" },
+  { "id": "sd_medmove_012", "medicineId": "sd_med_oxytocin", "farmId": "@farm", "reason": "PURCHASE", "delta": 60, "balanceAfter": 60, "createdBy": "@user:manager", "createdAt": "@daysAgo:70" },
+  { "id": "sd_medmove_013", "medicineId": "sd_med_oxytocin", "farmId": "@farm", "reason": "TREATMENT", "delta": -5, "balanceAfter": 55, "notes": "Retained placenta (HC-00004)", "createdBy": "@user:manager", "createdAt": "@daysAgo:9" },
+  { "id": "sd_medmove_014", "medicineId": "sd_med_meloxicam", "farmId": "@farm", "reason": "PURCHASE", "delta": 150, "balanceAfter": 150, "createdBy": "@user:owner", "createdAt": "@daysAgo:30" },
+  { "id": "sd_medmove_015", "medicineId": "sd_med_meloxicam", "farmId": "@farm", "reason": "TREATMENT", "delta": -15, "balanceAfter": 135, "notes": "HC-00001 anti-inflammatory", "createdBy": "@user:manager", "createdAt": "@daysAgo:2" },
+  { "id": "sd_medmove_016", "medicineId": "sd_med_ivermectin", "farmId": "@farm", "reason": "PURCHASE", "delta": 200, "balanceAfter": 200, "createdBy": "@user:owner", "createdAt": "@daysAgo:50" },
+  { "id": "sd_medmove_017", "medicineId": "sd_med_ivermectin", "farmId": "@farm", "reason": "TREATMENT", "delta": -20, "balanceAfter": 180, "notes": "Calf deworming round", "createdBy": "@user:worker", "createdAt": "@daysAgo:15" },
+  { "id": "sd_medmove_018", "medicineId": "sd_med_calcium", "farmId": "@farm", "reason": "PURCHASE", "delta": 12, "balanceAfter": 12, "createdBy": "@user:owner", "createdAt": "@daysAgo:45" }
+]

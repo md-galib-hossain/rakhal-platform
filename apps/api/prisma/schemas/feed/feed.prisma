@@ -1,0 +1,530 @@
+/// Feed Formulator (PRD §12 / API §8). Farms price ingredients, compute a
+/// cow/group's nutritional requirements, and build concentration formulas.
+///
+/// The ingredient catalogue is **Rakhal-Admin-managed** but the Admin panel is
+/// not built yet, so `FeedIngredient` is a seeded global catalogue (no `farmId`,
+/// `isSystemDefault`) — the same pattern as `DiseaseCatalog` / the AQR config
+/// seam. RAKHAL-110 will later sync it from the real Admin. Farms layer
+/// per-org price/nutrition overrides on top via `FeedIngredientOverride`.
+
+model FeedIngredient {
+  id String @id @default(cuid())
+
+  nameEn      String
+  nameBn      String?
+  feedClass   FeedClass
+  feedSubType FeedSubType?
+
+  /// Standard nutritional values per kg (§4.1 / §24.11). Unless noted, every
+  /// `xPct` is a rate on **dry matter** (% of DM) — `rdpPct`/`rupPct` are the one
+  /// exception, conventionally expressed as **% of CP** (NRC/INRA: RDP%+RUP% ≈
+  /// 100% of crude protein, partitioning CP into rumen-degradable/undegradable
+  /// fractions), never confuse the two bases when computing a kg contribution
+  /// (`formula-math.ts` derives `rdp_kg`/`rup_kg` off `cp_kg`, not `dm_kg`).
+  dmPct         Float // Dry Matter %
+  cpPct         Float // Crude Protein % of DM
+  rdpPct        Float? // Rumen-Degradable Protein, % of CP
+  rupPct        Float? // Rumen-Undegradable Protein, % of CP
+  meMjPerKgDm   Float // Metabolizable Energy (MJ/kg DM)
+  fatPct        Float? // Ether Extract, % of DM
+  starchPct     Float? // % of DM
+  ndfPct        Float? // Neutral Detergent Fiber, % of DM
+  adfPct        Float? // Acid Detergent Fiber, % of DM
+  calciumPct    Float? // % of DM
+  phosphorusPct Float? // % of DM
+  tdnPct        Float? // Total Digestible Nutrients, % of DM
+  sugarsPct     Float?
+
+  /// Structured provenance (RAKHAL-329, additive — replaces the old free-text field, renamed
+  /// below to `nutritionSourceNote` and kept for existing citations like "INRA 2018/NRC 2001").
+  /// Ranked LAB > MANUFACTURER > FARM_ESTIMATE > REFERENCE by `resolveEffective()` when a farm
+  /// override also carries a source — see `ingredient-resolver.ts`.
+  nutritionSource     NutritionSource @default(REFERENCE)
+  nutritionSourceNote String? // e.g. INRA 2018 / NRC 2001 / BAU
+  sourceRef           String? // lab report id/date, manufacturer spec sheet ref, etc.
+  currentPricePerKg   Float // Tk/kg, Admin-updated weekly
+  priceUpdatedAt      DateTime?
+
+  isAvailableBd   Boolean   @default(true)
+  isSystemDefault Boolean   @default(false)
+  deletedAt       DateTime?
+
+  /// Farm-added "quick" ingredient (frontend "Add Custom Ingredient", RAKHAL-feed-custom): `null`
+  /// = the global Rakhal-Admin catalogue (unchanged, `farmId` never set on those rows), non-null =
+  /// this one farm's own row, invisible to every other farm (`feed-ingredient.service.ts#listMerged`
+  /// scopes the query). A farm quick-add has **no known nutrition breakdown** (the user only
+  /// supplies a name/nutrientGroup/price, not lab values) — `dmPct` defaults to 100 (the whole
+  /// entered weight counts as dry matter, the simplest honest assumption when moisture is unknown)
+  /// and every other nutrient stays 0, so it contributes real ৳ cost to a formula without a
+  /// fabricated nutrient contribution. `nutrientGroup` is a **display-only** tag (which of the
+  /// table's Protein/Energy/Fiber column groups to color it under) — it does not feed any formula
+  /// math, unlike `cpPct`/`meMjPerKgDm`/`ndfPct` which do.
+  farmId        String?
+  nutrientGroup FeedNutrientGroup?
+
+  /// Set only for an ingredient row **promoted from a finalized concentration**
+  /// (`FeedConcentrationService.finalize`, "concentrate as reusable ingredient" —
+  /// user request 2026-07-17). As of 2026-07-18 (user request: editing a Concentrate
+  /// Mixer must live-propagate to every TMR using it) this row is **kept in sync
+  /// with the source concentration on every save** rather than frozen — `finalize()`
+  /// upserts by `sourceConcentrationId` (update in place if one already exists, only
+  /// creates a new row the first time), and a plain `update()` on an already-finalized
+  /// template refreshes this row's nutrition/price too, with no extra click needed.
+  /// `sourceConcentrationVersion`/`isLatestVersion` are now vestigial sentinels (always
+  /// `1`/`true` on the one promoted row per concentration) — the version-history
+  /// mechanic they used to drive was retired along with the frozen-snapshot behavior;
+  /// kept only because `FeedStock.sourceConcentrationVersion` still references the
+  /// column shape.
+  sourceConcentrationId      String?
+  sourceConcentrationVersion Int?
+  isLatestVersion            Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm                Farm?                    @relation("FarmToCustomFeedIngredient", fields: [farmId], references: [id])
+  overrides           FeedIngredientOverride[]
+  concentrationItems  FeedConcentrationItem[]
+  sourceConcentration FeedConcentration?       @relation(fields: [sourceConcentrationId], references: [id])
+  feedItems           FeedItem[]
+
+  @@index([feedClass])
+  @@index([deletedAt])
+  @@index([farmId])
+  @@index([sourceConcentrationId])
+}
+
+model FeedIngredientOverride {
+  id           String @id @default(cuid())
+  farmId       String
+  ingredientId String
+
+  /// null on any field = fall through to the Admin/standard value. Basis matches
+  /// `FeedIngredient`'s doc comment (rdp/rup = % of CP, everything else = % of DM).
+  customPricePerKg    Float?
+  customDmPct         Float?
+  customCpPct         Float?
+  customMeMjPerKgDm   Float?
+  customFatPct        Float?
+  customNdfPct        Float?
+  customRdpPct        Float?
+  customRupPct        Float?
+  customStarchPct     Float?
+  customAdfPct        Float?
+  customCalciumPct    Float?
+  customPhosphorusPct Float?
+  customTdnPct        Float?
+  /// RAKHAL-329: this override's own provenance, ranked against the catalogue row's
+  /// `nutritionSource` by `resolveEffective()`. Null = not specified (treated as absent,
+  /// not as REFERENCE — an override with no stated source shouldn't outrank a catalogue
+  /// row that explicitly says LAB).
+  nutritionSource     NutritionSource?
+  sourceRef           String?
+  notes               String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm       Farm           @relation("FarmToFeedIngredientOverride", fields: [farmId], references: [id])
+  ingredient FeedIngredient @relation(fields: [ingredientId], references: [id])
+
+  @@unique([farmId, ingredientId])
+  @@index([farmId])
+}
+
+/// A concentration template = a feed formula targeted at a single cow or the
+/// whole herd. `cattleId` is a plain validated FK (resolved in the service) to
+/// avoid coupling to `Cattle`.
+model FeedConcentration {
+  id     String @id @default(cuid())
+  farmId String
+
+  /// Explicit discriminator (user request 2026-07-18 — "why does creating a concentrate add to my
+  /// feeds"): previously the only signal separating a reusable concentrate recipe from a cow-targeted
+  /// feed mixture was whether `targetWeightKg`/`targetMilkL` happened to be set, but the frontend's
+  /// create form required both fields unconditionally for every concentration, so everything always
+  /// landed as a mixture regardless of intent. `kind` is now set explicitly at creation and is
+  /// immutable afterwards — a `CONCENTRATE_TEMPLATE` never carries a target (enforced in
+  /// `FeedConcentrationService.create`, not just DTO validation) and can be promoted into a reusable
+  /// ingredient via `finalize()`; a `FEED_MIXTURE` always carries a target and is the thing actually
+  /// fed to a cow/group.
+  kind FeedConcentrationKind
+
+  name           String
+  durationDays   Int?
+  targetType     FeedTargetType @default(HERD)
+  cattleId       String?
+  targetWeightKg Float?
+  targetMilkL    Float?
+
+  /// Was vestigial 2026-07-18→2026-08-13 (version-history retired in favor of live-sync,
+  /// see `FeedIngredient.sourceConcentrationVersion`'s doc comment). Un-retired 2026-08-13
+  /// (user request) as an **explicit-checkpoint** counter, `FEED_MIXTURE` kind only: bumped
+  /// only by `FeedConcentrationService.saveAsVersion()`, never on a plain edit — day-to-day
+  /// tweaks stay live-sync (matches Concentrate Mixer behavior, which never versions). See
+  /// `FeedConcentrationVersion` below.
+  versionNumber Int @default(1)
+
+  deletedAt DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  farm                Farm                       @relation("FarmToFeedConcentration", fields: [farmId], references: [id])
+  items               FeedConcentrationItem[]
+  promotedIngredients FeedIngredient[]
+  stocks              FeedStock[]
+  versions            FeedConcentrationVersion[]
+
+  @@index([farmId])
+}
+
+/// Explicit checkpoint snapshot of a `FEED_MIXTURE` concentration, taken only on
+/// `saveAsVersion()` (user names it, e.g. "v3 — added soybean meal") or on first
+/// `finalize()` if no version exists yet — never on a plain edit (see
+/// `FeedConcentration.versionNumber`'s doc comment). `snapshotItems` freezes the
+/// ingredient lines + nutrient totals at save time so history survives later edits
+/// to the live concentration or catalogue price changes.
+model FeedConcentrationVersion {
+  id              String @id @default(cuid())
+  farmId          String
+  concentrationId String
+
+  versionNumber   Int
+  name            String?
+  snapshotItems   Json /// frozen [{ ingredientId, ingredientName, amountKg, pricePerKg }]
+  totalCostPerDay Float
+
+  effectiveFrom DateTime @default(now())
+  createdBy     String
+  createdAt     DateTime @default(now())
+
+  farm          Farm              @relation("FarmToFeedConcentrationVersion", fields: [farmId], references: [id])
+  concentration FeedConcentration @relation(fields: [concentrationId], references: [id], onDelete: Cascade)
+
+  @@unique([concentrationId, versionNumber])
+  @@index([farmId])
+  @@index([concentrationId])
+}
+
+model FeedConcentrationItem {
+  id              String  @id @default(cuid())
+  concentrationId String
+  /// RAKHAL-447 (MILESTONE 26): optional when `feedItemId` is set — a purchased product carries its own
+  /// nutrition (the lot's `NutritionProfile`), so a line no longer needs a catalogue ingredient. Required
+  /// otherwise (a virtual catalogue line, or a prepared `feedStockId` line), enforced in the service.
+  ingredientId    String?
+
+  amountKg Float
+
+  /// RAKHAL-422: optional link to a real inventory batch this line actually consumes on
+  /// finalize — at most one of the two. Absent = virtual catalogue line, present = real
+  /// stock deducted by RAKHAL-423. A `feedItemId` line takes its nutrition and price from the
+  /// linked lot (RAKHAL-447 / ADR-026 D7), not from `ingredientId`.
+  feedItemId      String? // consume this purchased product (Inventory FeedItem)
+  feedStockId     String? // consume this prepared batch (Feed Formulator FeedStock)
+  /// RAKHAL-447: pin the line to one lot of `feedItemId`; null = the FIFO head at the time of use.
+  feedItemBatchId String?
+
+  concentration FeedConcentration @relation(fields: [concentrationId], references: [id], onDelete: Cascade)
+  ingredient    FeedIngredient?   @relation(fields: [ingredientId], references: [id])
+
+  @@index([concentrationId])
+  @@index([ingredientId])
+}
+
+/// Daily feed distribution log (PRD §12.5, V1.5). After a concentration formula
+/// is applied to a group, the actual quantities distributed are logged per
+/// ingredient (pre-filled from the formula's planned amounts, editable), with any
+/// refusal/leftover. Total cost is computed from actual quantities at the farm's
+/// effective ingredient prices (snapshotted on each line). Matching `FeedItem`
+/// stock decrements best-effort (§15.3) by `ingredientId` FK, any unit.
+model FeedDistribution {
+  id String @id @default(cuid())
+
+  farmId                 String
+  /// Nullable as of 2026-08-13 (user request — "quick-feed" a raw single item without wrapping
+  /// it in a fake 1-ingredient Concentration). Null iff `sourceType=QUICK_FEED`.
+  concentrationId        String?
+  /// Which snapshot of the concentration was live when this was logged (see
+  /// `FeedConcentrationVersion`). Null = either no version has ever been saved for this
+  /// concentration (matches current live state) or this is a `QUICK_FEED` row.
+  concentrationVersionId String?
+  /// CONCENTRATION = normal TMR "Feed Today" flow; QUICK_FEED = single raw item fed directly,
+  /// no Concentration involved (2026-08-13).
+  sourceType             FeedDistributionSourceType @default(CONCENTRATION)
+  /// Denormalized from the concentration at log time — set when the source TMR's `targetType` is
+  /// INDIVIDUAL (`cattleId`); null for HERD. For `QUICK_FEED` rows it is set directly from the
+  /// quick-feed target choice, not denormalized from any concentration.
+  cattleId               String?
+
+  distributedAt DateTime /// the day the feed was distributed
+
+  totalPlannedKg   Float @default(0)
+  totalActualKg    Float @default(0)
+  totalRefusalKg   Float @default(0)
+  totalPlannedCost Float @default(0)
+  totalActualCost  Float @default(0)
+
+  notes String?
+
+  /// RAKHAL-441 — set once every `cattleItems` row under this distribution has been individually
+  /// voided (see `FeedDistributionCattleItem.voidedAt`'s own doc comment). Never set directly by a
+  /// caller; `FeedFeedingGridService.voidCattleItem` sets it as a side effect when the last cow's
+  /// row is voided. A cheap single check for anything reading distributions without wanting
+  /// cow-level detail (dashboards/reports) — mirrors `Expense.voidedAt` elsewhere in this codebase.
+  voidedAt DateTime?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm        Farm                         @relation("FarmToFeedDistribution", fields: [farmId], references: [id])
+  items       FeedDistributionItem[]
+  cattleItems FeedDistributionCattleItem[]
+
+  @@index([farmId])
+  @@index([farmId, cattleId])
+  @@index([farmId, distributedAt])
+}
+
+model FeedDistributionItem {
+  id             String @id @default(cuid())
+  distributionId String
+
+  /// Plain snapshot of the catalogue ingredient (no relation — the line keeps its
+  /// own name + price so history survives later catalogue edits).
+  ingredientId   String
+  ingredientName String
+
+  plannedKg  Float
+  actualKg   Float
+  refusalKg  Float @default(0)
+  pricePerKg Float
+  lineCost   Float /// actualKg * pricePerKg
+
+  /// MILESTONE 26 (RAKHAL-442, written from RAKHAL-446): provenance of the frozen nutrient columns
+  /// below and the exact lot this line drew from. Plain scalars (no relation) — same "snapshot, not
+  /// a relation" convention as `ingredientId`/`ingredientName` above. Null on every pre-446 row and
+  /// on catalogue-ingredient / `FeedStock` lines.
+  nutritionProfileId String?
+  feedItemBatchId    String?
+
+  /// Nutrient snapshot at logging time (RAKHAL-327/328 follow-up, 2026-08-15), frozen from the SAME
+  /// live `effectiveMap()`/`resolveEffective()` lookup already made to price this line — same field
+  /// set/names as `FeedStock`'s own snapshot (`feed-stock.prisma`) for consistency. Nullable because
+  /// existing rows predate this column and are never backfilled (a null here means "nutrient data not
+  /// available for this historical entry", not zero). Once populated, `getDmiComparison()` reads these
+  /// frozen values directly instead of re-resolving the live catalogue for a historical distribution —
+  /// so a farmer editing an ingredient's nutrients later can never silently rewrite a past DMI report.
+  dmPct         Float?
+  cpPct         Float?
+  meMjPerKgDm   Float?
+  fatPct        Float?
+  ndfPct        Float?
+  rdpPct        Float?
+  rupPct        Float?
+  starchPct     Float?
+  adfPct        Float?
+  calciumPct    Float?
+  phosphorusPct Float?
+  tdnPct        Float?
+
+  distribution FeedDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+
+  @@index([distributionId])
+  @@index([ingredientId])
+}
+
+/// Per-cow breakdown of an aggregate `FeedDistribution` (Feeding Grid, 2026-08-15). A grid confirm
+/// sums every cow's per-head quantity into one `FeedDistribution` + one aggregate
+/// `FeedDistributionItem` line (matching the old `quickFeed()`'s single-line shape) — this table is
+/// what lets that aggregate be broken back down per cow for the grid's "yesterday's per-head value"
+/// default and any future per-cow reporting. `cattleId` is a plain validated FK (no Prisma relation),
+/// matching `FeedDistribution.cattleId`'s own "no cross-module coupling" convention in this file.
+model FeedDistributionCattleItem {
+  id             String @id @default(cuid())
+  distributionId String
+
+  cattleId  String
+  /// What was **offered** to this cow, not what she actually ate — a real farm can't reliably
+  /// measure per-cow intake, only what was put in front of her (2026-08-15 rename from
+  /// `quantityKg`, user request — the field/API/UI must never imply "consumed").
+  offeredKg Float
+
+  /// User request 2026-09-23: farms here feed from individual per-cow containers (not a shared
+  /// bunk), so unlike `FeedDistributionItem.refusalKg` (aggregate, weighed back in bulk because a
+  /// shared trough can't be attributed per cow) this one IS reliably measurable per cow — leftover
+  /// weighed back from that specific cow's own container. Does not change `offeredKg`'s own
+  /// "never consumed" convention above; this is a separate, optional measurement of the same event.
+  refusalKg Float @default(0)
+
+  /// RAKHAL-429 (Feeding Favourites, `docs/EPIC_FEEDING_FAVOURITES.md`): this cow's own source for
+  /// this confirm — nullable because rows created before this ticket only ever had one source at
+  /// the parent `FeedDistribution` level (read that instead for those). RAKHAL-430 onward, every
+  /// row set here going forward, even on a single-source confirm — this is what "own last-used"
+  /// (RAKHAL-431) reads from.
+  sourceType  FeedGridSourceType?
+  feedItemId  String?
+  feedStockId String?
+
+  /// MILESTONE 26 (RAKHAL-442, written from RAKHAL-446): the exact lot + nutrition profile this
+  /// cow's kg came from. A cow whose kg straddles two FIFO batches gets two rows, one per lot. Plain
+  /// scalars, same convention as `feedItemId`/`feedStockId` above. Null on pre-446 rows.
+  feedItemBatchId    String?
+  nutritionProfileId String?
+
+  /// RAKHAL-457 (MILESTONE 27, ADR-027 D12): snapshot of the program this line was fed under, so plan-vs-
+  /// actual needs no plan versioning. Plain ids (no FK) — a plan edit replaces its lines, and a confirmed
+  /// row must never be rewritten or blocked by one. All null for an off-plan (extra) line.
+  feedPlanId     String?
+  feedPlanLineId String?
+  plannedKg      Float?
+
+  /// RAKHAL-441 — this cow's own exact cost for this line, frozen at confirm time from the same
+  /// `resolveGroupPlan()` result (`offeredKg * that group's pricePerKg`) already computed to price
+  /// the sibling `FeedDistributionItem` — not a proportional guess, the exact number. Null only for
+  /// rows written before this column existed (RD-064's own "no invented data" convention — read as
+  /// unknown, not zero, by `cattle-finance-aggregation.ts`'s `sumFeedCost`, which excludes them via
+  /// its own `costTk`-is-null handling rather than treating a historical gap as a real zero cost).
+  costTk Float?
+
+  /// RAKHAL-441 — frozen name + full nutrient snapshot for THIS cow's specific source, copied from
+  /// the same `nutritionSnapshot`/`ingredientName` `resolveGroupPlan()` already resolves for the
+  /// sibling `FeedDistributionItem`. Exists because that sibling row is keyed by `ingredientId`
+  /// (catalogue-level) with no `feedItemId`/`feedStockId` column of its own — two different specific
+  /// `FeedItem` rows sharing one catalogue ingredient in the same distribution would otherwise be
+  /// ambiguous to trace back to. Freezing it here means a per-cow historical read never needs that
+  /// join at all, and survives the underlying `FeedItem`/`FeedIngredient` being edited or
+  /// soft-deleted later — same principle `FeedDistributionItem`'s own doc comment states.
+  feedName      String?
+  dmPct         Float?
+  cpPct         Float?
+  meMjPerKgDm   Float?
+  fatPct        Float?
+  ndfPct        Float?
+  rdpPct        Float?
+  rupPct        Float?
+  starchPct     Float?
+  adfPct        Float?
+  calciumPct    Float?
+  phosphorusPct Float?
+  tdnPct        Float?
+
+  /// RAKHAL-441 — void (correction), never a hard delete. A voided row's `offeredKg`/`costTk` are
+  /// excluded from every downstream sum (cattle finance's `sumFeedCost`, the parent distribution's
+  /// own totals — both already reduced by the exact same amounts at void time, not re-derived from
+  /// this flag on every read) but the row itself survives forever for audit — same "the document
+  /// reads as it did when posted" principle as `Expense.voidedAt` elsewhere in this codebase.
+  voidedAt   DateTime?
+  voidedBy   String?
+  voidReason String?
+
+  distribution FeedDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+
+  @@index([distributionId])
+  @@index([cattleId])
+}
+
+/// Feeding Grid pre-confirm editable state (2026-08-15, replaces Quick Feed). One row per
+/// cow × feed source × day — a farmer opens the grid, edits per-cow quantities freely (auto-saved
+/// as drafts, zero inventory effect), then "Confirm" turns the day's drafts into one real
+/// `FeedDistribution`. `cattleId`/`feedItemId`/`feedStockId` are plain validated FKs (no Prisma
+/// relation), same "no cross-module coupling" convention as `FeedDistribution.cattleId` /
+/// `FeedConcentration.cattleId` elsewhere in this file.
+///
+/// No DB `@@unique` constraint: Postgres treats every NULL as distinct, so a composite unique across
+/// the two mutually-exclusive optional `feedItemId`/`feedStockId` columns can't actually enforce
+/// "one draft per cow per source per day" (two rows with the same `feedStockId` but both `feedItemId
+/// = NULL` would never collide). Uniqueness is enforced at the application layer instead
+/// (`FeedFeedingGridService#saveDraft` does a `findFirst` scoped on every one of these columns, then
+/// updates that row or creates a new one) — see that method's comment for the exact match shape.
+/// RD-089 (docs/TECH_DEBT.md): duplicate-prevention on `farmId/cattleId/logDate/sourceType` plus
+/// whichever of `feedItemId`/`feedStockId` this row uses lives as two PARTIAL unique indexes,
+/// hand-authored (`prisma/migrations/20260918130000_rd089_feed_draft_unique_partial_index`) since
+/// Prisma's schema DSL cannot express a filtered/partial index — Postgres can't enforce uniqueness
+/// across two mutually-exclusive nullable FK columns with one ordinary constraint. Expect
+/// `prisma db pull`/`migrate diff` to report drift for exactly these two indexes; that's expected.
+model FeedFeedingDraft {
+  id     String @id @default(cuid())
+  farmId String
+
+  cattleId String
+  logDate  DateTime
+
+  sourceType  FeedGridSourceType
+  feedItemId  String?
+  feedStockId String?
+
+  /// What was **offered** to this cow, not what she actually ate (2026-08-15 rename from
+  /// `quantityKg`, user request — see `FeedDistributionCattleItem.offeredKg`'s doc comment,
+  /// same rationale).
+  offeredKg Float
+
+  /// RAKHAL-453/RD-107: leftover weighed back before confirm. Was silently dropped (the column
+  /// didn't exist), so a refusal typed then auto-saved vanished on reload. Null = not weighed.
+  refusalKg Float?
+
+  /// RAKHAL-457: the plan line this draft row was pre-filled from (plain id, no FK — a plan edit replaces
+  /// its lines; an unmatched draft then simply renders as an extra line). Null = off-plan.
+  feedPlanLineId String?
+
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  farm Farm @relation("FarmToFeedFeedingDraft", fields: [farmId], references: [id])
+
+  @@index([farmId])
+  @@index([farmId, cattleId, logDate])
+  @@index([farmId, logDate])
+}
+
+enum FeedTargetType {
+  INDIVIDUAL
+  /// Whole-herd default ration — falls through to this when a cow has no INDIVIDUAL
+  /// override. Uses no `cattleId`.
+  HERD
+}
+
+/// See `FeedDistribution.sourceType`'s doc comment. `QUICK_FEED` is retired going forward (Feeding
+/// Grid, 2026-08-15, replaces the old Quick Feed route) but kept for historical rows already
+/// carrying it — never drop an enum value existing data references. `FEEDING_GRID` covers a grid
+/// confirm from either a `FEED_ITEM` or a `FEED_STOCK` source; which one is recoverable from the
+/// aggregate `FeedDistributionItem` line's `ingredientId` if ever needed.
+enum FeedDistributionSourceType {
+  CONCENTRATION
+  QUICK_FEED
+  FEEDING_GRID
+}
+
+/// See `FeedFeedingDraft.sourceType`'s doc comment.
+enum FeedGridSourceType {
+  FEED_ITEM
+  FEED_STOCK
+}
+
+/// See `FeedConcentration.kind`'s doc comment.
+enum FeedConcentrationKind {
+  CONCENTRATE_TEMPLATE
+  FEED_MIXTURE
+}
+
+/// Display-only classification for a farm's quick-add custom ingredient (see `FeedIngredient`'s
+/// doc comment) — which of the ingredient table's 3 column groups to tag/color it under.
+enum FeedNutrientGroup {
+  PROTEIN
+  ENERGY
+  FIBER
+}
+
+/// Nutrition-data provenance (RAKHAL-329). Ranked LAB > MANUFACTURER > FARM_ESTIMATE > REFERENCE
+/// by `resolveEffective()` (`ingredient-resolver.ts`) when both a catalogue row and its farm
+/// override carry a source.
+enum NutritionSource {
+  REFERENCE
+  MANUFACTURER
+  LAB
+  FARM_ESTIMATE
+}

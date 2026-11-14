@@ -1,0 +1,4 @@
+[
+  { "id": "sd_coupon_welcome10", "code": "WELCOME10", "type": "PERCENT", "value": 10, "maxRedemptions": 500, "redeemedCount": 1, "perFarmLimit": 1, "validFrom": "@daysAgo:365", "validUntil": "@daysFromNow:365", "applicablePlanIds": [], "status": "ACTIVE" },
+  { "id": "sd_coupon_expired20", "code": "OLDPROMO20", "type": "FIXED", "value": 200, "maxRedemptions": 100, "redeemedCount": 0, "perFarmLimit": 1, "validFrom": "@daysAgo:400", "validUntil": "@daysAgo:30", "applicablePlanIds": [], "status": "DISABLED" }
+]

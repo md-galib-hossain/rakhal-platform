@@ -1,0 +1,15 @@
+[
+  { "id": "sd_bcs_001a", "cattleId": "sd_cattle_001", "score": 3.5, "recordedDate": "@daysAgo:60", "recordedBy": "Demo Manager" },
+  { "id": "sd_bcs_001b", "cattleId": "sd_cattle_001", "score": 3.25, "recordedDate": "@daysAgo:10", "recordedBy": "Demo Manager", "notes": "Slight condition loss after calving — normal" },
+  { "id": "sd_bcs_002a", "cattleId": "sd_cattle_002", "score": 3.0, "recordedDate": "@daysAgo:20", "recordedBy": "Demo Manager" },
+  { "id": "sd_bcs_003a", "cattleId": "sd_cattle_003", "score": 3.5, "recordedDate": "@daysAgo:25", "recordedBy": "Demo Manager" },
+  { "id": "sd_bcs_004a", "cattleId": "sd_cattle_004", "score": 3.25, "recordedDate": "@daysAgo:10", "recordedBy": "Demo Worker" },
+  { "id": "sd_bcs_005a", "cattleId": "sd_cattle_005", "score": 3.25, "recordedDate": "@daysAgo:40", "recordedBy": "Demo Manager" },
+  { "id": "sd_bcs_005b", "cattleId": "sd_cattle_005", "score": 2.75, "recordedDate": "@daysAgo:2", "recordedBy": "Demo Manager", "notes": "Condition down during mastitis" },
+  { "id": "sd_bcs_006a", "cattleId": "sd_cattle_006", "score": 3.0, "recordedDate": "@daysAgo:12", "recordedBy": "Demo Manager" },
+  { "id": "sd_bcs_007a", "cattleId": "sd_cattle_007", "score": 3.5, "recordedDate": "@daysAgo:30", "recordedBy": "Demo Manager", "notes": "Good close-up condition" },
+  { "id": "sd_bcs_008a", "cattleId": "sd_cattle_008", "score": 3.25, "recordedDate": "@daysAgo:28", "recordedBy": "Demo Worker" },
+  { "id": "sd_bcs_009a", "cattleId": "sd_cattle_009", "score": 3.0, "recordedDate": "@daysAgo:35", "recordedBy": "Demo Worker" },
+  { "id": "sd_bcs_019a", "cattleId": "sd_cattle_019", "score": 2.75, "recordedDate": "@daysAgo:35", "recordedBy": "Demo Manager" },
+  { "id": "sd_bcs_020a", "cattleId": "sd_cattle_020", "score": 2.75, "recordedDate": "@daysAgo:8", "recordedBy": "Demo Worker", "notes": "Thin after difficult calving" }
+]

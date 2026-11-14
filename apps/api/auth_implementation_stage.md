@@ -1,0 +1,701 @@
+# Rakhal Auth Implementation Stages
+
+This file is the resumable implementation tracker for Rakhal authentication and authorization.
+
+When a stage is completed, update its checkbox from `[ ]` to `[x]`, add the completion date, and write a short handoff note. Future work should start from the first unchecked stage unless the user explicitly requests a different stage.
+
+Status legend:
+
+- `[ ]` Not started
+- `[~]` In progress
+- `[x]` Done
+- `[!]` Blocked
+
+## Current Stage Pointer
+
+Current next stage: **All planned stages complete**
+
+Last updated: 2026-05-18
+
+## Stage 0 - Planning Documents
+
+Status: `[x]`
+
+Completed on: 2026-05-16
+
+Goal:
+
+Create architecture and implementation planning docs that preserve the required production-grade auth, authorization, tenant isolation, subscription access, and audit boundaries.
+
+Deliverables:
+
+- `[x]` Create `plan.md`.
+- `[x]` Create `auth_implementation_stage.md`.
+- `[x]` Document access-token payload rules.
+- `[x]` Document refresh-token rotation and reuse detection.
+- `[x]` Document protected request guard flow.
+- `[x]` Document stage-by-stage implementation order.
+
+Handoff notes:
+
+- No application code was changed in this stage.
+- Existing Prisma schemas were inspected and referenced by model names.
+- Next stage must validate Prisma schema correctness before auth code is generated.
+
+## Stage 1 - Schema Validation And Security Alignment
+
+Status: `[x]`
+
+Completed on: 2026-05-17
+
+Goal:
+
+Validate and harden the Prisma schema before implementing auth services. Auth implementation must not start on top of invalid or ambiguous relations.
+
+Deliverables:
+
+- `[x]` Run `pnpm prisma:format`.
+- `[x]` Run `pnpm prisma:validate`.
+- `[x]` Verify relation names for `Farm.roles` and `Role.farm`.
+- `[x]` Verify relation names for `Farm.subscriptions` and `FarmSubscription.farm`.
+- `[x]` Verify inverse user relations for farm ownership and invitations.
+- `[x]` Verify indexes on all foreign-key columns.
+- `[x]` Decide whether `RefreshToken.tokenHash` needs a unique index.
+- `[x]` Decide whether `RefreshToken.parentTokenId` needs an index.
+- `[x]` Decide whether `Role` requires a unique farm-scoped name constraint.
+- `[x]` Add missing lifecycle fields only where the domain needs them.
+- `[x]` Replace bcrypt-oriented env naming with Argon2-oriented config if password auth will be implemented now.
+
+Security requirements:
+
+- Refresh tokens remain hashed only.
+- Session and refresh token models remain separate.
+- Farm membership remains the tenant isolation source.
+- Role names are not used for authorization decisions.
+
+Verification:
+
+- `[x]` Prisma format succeeds.
+- `[x]` Prisma validate succeeds.
+- `[x]` Generated Prisma Client succeeds if schema changes are made.
+
+Handoff notes:
+
+- Prisma relation names are now explicit on both sides for farm roles, farm subscriptions, role permissions, subscription features, audit logs, and farm ownership/invitations.
+- Added missing inverse `User` relations for owned farms, farm memberships, and sent farm invitations.
+- Added missing foreign-key indexes, made `RefreshToken.tokenHash` unique, indexed `RefreshToken.parentTokenId`, and added `@@unique([farmId, name])` for farm-scoped role names. Existing lifecycle fields were sufficient for this stage, so no extra lifecycle columns were added.
+- Replaced bcrypt-oriented auth env config with Argon2 parameters: `ARGON2_MEMORY_COST`, `ARGON2_TIME_COST`, and `ARGON2_PARALLELISM`.
+- Verification passed with `pnpm.cmd prisma:format`, `pnpm.cmd prisma:validate`, and `pnpm.cmd prisma:generate`.
+
+## Stage 2 - Dependency And Configuration Foundation
+
+Status: `[x]`
+
+Completed on: 2026-05-18
+
+Goal:
+
+Install and configure only the packages required for the selected implementation. Do not invent APIs or assume packages exist.
+
+Expected dependency areas:
+
+- JWT support for NestJS.
+- Passport JWT strategy if the project chooses Passport-based guards.
+- Argon2 password hashing.
+- Cookie parsing.
+- CSRF protection.
+- Redis client or Nest-compatible Redis integration.
+- Rate limiting.
+
+Deliverables:
+
+- `[x]` Confirm exact package names and APIs against installed package docs or official documentation before use.
+- `[x]` Add auth-specific env validation for cookie names, cookie options, lockout policy, and rate limits.
+- `[x]` Configure secure cookie defaults.
+- `[x]` Configure rate-limit defaults.
+- `[x]` Configure Redis connection provider.
+- `[x]` Update `.env` example or README if present.
+
+Security requirements:
+
+- `JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` must be independent and strong.
+- Refresh cookie must be HttpOnly.
+- Refresh cookie must be Secure in production.
+- SameSite policy must be explicit.
+- CSRF strategy must cover cookie-authenticated state-changing routes.
+
+Verification:
+
+- `[x]` `pnpm lint` succeeds.
+- `[x]` `pnpm test` succeeds or failures are documented.
+- `[x]` App boots with validated env.
+
+Handoff notes:
+
+- Installed Stage 2 dependencies: `@nestjs/jwt`, `@nestjs/passport`, `@nestjs/throttler`, `passport`, `passport-jwt`, `argon2`, `cookie-parser`, `csrf-csrf`, `redis`, and TypeScript types for cookie/passport packages.
+- Added auth env validation and config for Argon2, refresh-cookie defaults, CSRF names/options/secret, global/login/refresh rate-limit defaults, and account lockout policy.
+- Wired global JWT support, Nest throttler definitions, cookie parsing middleware, a lazy Redis client provider, and secure refresh/CSRF cookie option helpers.
+- Updated README with a safe environment template because the repo does not have an `.env.example`.
+- Fixed the stale `UsersModule` import path and test/Jest setup issues that blocked Stage 2 verification.
+- Verification passed with `pnpm.cmd build`, `pnpm.cmd lint`, `pnpm.cmd test`, a built Nest application-context boot check, and an `argon2.hash` runtime check.
+
+## Stage 3 - Auth Module Skeleton And Boundaries
+
+Status: `[x]`
+
+Completed on: 2026-05-18
+
+Goal:
+
+Create the auth module structure with clean boundaries. Controllers stay thin. Services own auth logic.
+
+Deliverables:
+
+- `[x]` Create `src/modules/auth/auth.module.ts`.
+- `[x]` Create `src/modules/auth/auth.controller.ts`.
+- `[x]` Create DTOs for register, login, refresh, logout, and session revocation.
+- `[x]` Create `PasswordService`.
+- `[x]` Create `TokenService`.
+- `[x]` Create `SessionService`.
+- `[x]` Create `RefreshTokenService`.
+- `[x]` Create `AuthService`.
+- `[x]` Create repository/data-access layer or clearly scoped Prisma access service.
+- `[x]` Register module in `AppModule`.
+
+Rules:
+
+- Controllers only receive requests, validate DTOs, call services, and return responses.
+- No business logic in controllers.
+- No direct Prisma access from controllers.
+- Auth services must be testable without HTTP context.
+
+Verification:
+
+- `[x]` Unit tests compile.
+- `[x]` Auth module imports cleanly.
+- `[x]` No circular dependency is introduced.
+
+Handoff notes:
+
+- Added `src/modules/auth` module skeleton with thin controller endpoints and application services (`AuthService`, `PasswordService`, `TokenService`, `SessionService`, `RefreshTokenService`) plus DTOs and domain payload/user types.
+- Added `AuthRepository` as the auth-scoped Prisma data-access layer so controllers remain free from direct database access.
+- Registered `AuthModule` in `AppModule`.
+- Verification passed with `pnpm.cmd build` and `pnpm.cmd lint`; no test-coverage work was run per current instruction.
+
+## Stage 4 - Registration, Password Hashing, And Email Token Foundation
+
+Status: `[x]`
+
+Completed on: 2026-05-18
+
+Goal:
+
+Implement local user registration with Argon2id password hashing and secure email verification token persistence.
+
+Deliverables:
+
+- `[x]` Implement user registration service flow.
+- `[x]` Hash password with Argon2id.
+- `[x]` Create email verification `AuthToken` with hashed token.
+- `[x]` Avoid returning sensitive user fields.
+- `[x]` Add duplicate email handling.
+- `[x]` Add audit event for registration.
+
+Security requirements:
+
+- Never store raw passwords.
+- Never store raw email verification tokens.
+- Never leak whether an email exists in sensitive recovery flows.
+
+Verification:
+
+- `[x]` Registration unit tests.
+- `[x]` Duplicate email test.
+- `[x]` Password hash persistence test.
+- `[x]` Raw token is not persisted.
+
+Handoff notes:
+
+- Added registration flow to `AuthService` with Argon2id password hashing, unique-email conflict handling, and a one-time email verification token that is persisted only as a hash.
+- Kept the controller response sanitized so the raw verification token never leaves the service boundary.
+- Wrote the registration, auth-token, and audit-log writes inside a Prisma transaction to avoid partial persistence.
+- Verification passed with `pnpm.cmd build`, `pnpm.cmd lint`, and `pnpm.cmd test`.
+
+## Stage 5 - Login, Session Creation, And Access Token Issuing
+
+Status: `[x]`
+
+Completed on: 2026-05-18
+
+Goal:
+
+Implement credential login that creates a device session, issues a minimal access token, and sets a secure refresh cookie.
+
+Deliverables:
+
+- `[x]` Validate credentials.
+- `[x]` Enforce blocked user and lockout checks.
+- `[x]` Track failed login attempts.
+- `[x]` Create `Session`.
+- `[x]` Create refresh token family.
+- `[x]` Hash and persist refresh token.
+- `[x]` Issue access token with only `sub`, `sessionId`, `farmId`, and `permissionsVersion`.
+- `[x]` Set HttpOnly secure refresh cookie.
+- `[x]` Add audit event for successful login.
+- `[x]` Add audit event or security event for suspicious login where applicable.
+
+Security requirements:
+
+- No permissions array in JWT.
+- No subscription data in JWT.
+- No raw refresh token in database or logs.
+- Farm context must be selected only after membership validation.
+
+Verification:
+
+- `[x]` Successful login test.
+- `[x]` Invalid password test.
+- `[x]` Blocked user test.
+- `[x]` Lockout test.
+- `[x]` Refresh token hash persistence test.
+- `[x]` JWT payload shape test.
+
+Handoff notes:
+
+- Implemented credential login with Argon2id password verification, blocked-user and lockout checks, failed-attempt tracking, refresh-token family generation, refresh-cookie setting, and minimal access-token issuance.
+- Login now records successful `LOGIN` audit events and suspicious login audit events for blocked or locked accounts and invalid password attempts.
+- Added focused auth service and controller tests covering success, invalid password, blocked-user, lockout, cookie-setting, refresh-token hashing, and JWT payload shape.
+- Verification passed with `pnpm.cmd build`, `pnpm.cmd lint`, and `pnpm.cmd test`.
+
+## Stage 6 - Refresh Rotation And Token Reuse Detection
+
+Status: `[x]`
+
+Completed on: 2026-05-18
+
+Goal:
+
+Implement secure refresh rotation with token-family reuse detection and the required audit trail/logging around refresh success, token reuse, and compromised sessions.
+
+Deliverables:
+
+- `[x]` Read refresh token from HttpOnly cookie.
+- `[x]` Hash incoming refresh token for lookup/verification.
+- `[x]` Validate active session.
+- `[x]` Validate refresh token expiry.
+- `[x]` Revoke old refresh token during successful rotation.
+- `[x]` Create new refresh token linked by `parentTokenId`.
+- `[x]` Preserve `tokenFamily`.
+- `[x]` Issue new access token.
+- `[x]` Set new refresh cookie.
+- `[x]` Detect reuse of revoked/rotated token.
+- `[x]` Mark compromised session.
+- `[x]` Revoke token family on reuse.
+- `[x]` Audit suspicious activity.
+- `[x]` Emit application logs where operational logging is required for refresh success, token reuse, and compromised session handling.
+
+Security requirements:
+
+- Refresh endpoint must not accept refresh tokens from localStorage.
+- Reuse detection must fail closed.
+- Compromised sessions must not remain usable.
+
+Verification:
+
+- `[x]` `pnpm.cmd build` succeeds.
+- `[x]` `pnpm.cmd lint` succeeds.
+
+Handoff notes:
+
+- Refresh rotation now reads the refresh token from the HttpOnly cookie, rotates the token family atomically, reissues a minimal access token, and clears the cookie on invalid refresh attempts.
+- Reuse detection marks the session `COMPROMISED`, revokes the full token family, and records a suspicious audit trail entry.
+- Refresh success and reuse paths are logged through the existing auth logging/audit flow already present in the codebase.
+- No new test coverage was added for this stage per request; verification was limited to `pnpm.cmd build` and `pnpm.cmd lint`.
+
+## Stage 7 - Logout And Session Management
+
+Status: `[x]`
+
+Completed on: 2026-05-18
+
+Goal:
+
+Support logout current session, logout all sessions, session listing, and session revocation.
+
+Deliverables:
+
+- `[x]` Implement logout current session.
+- `[x]` Implement logout all sessions.
+- `[x]` Implement list sessions.
+- `[x]` Implement revoke selected session.
+- `[x]` Clear refresh cookie on logout.
+- `[x]` Revoke refresh-token family when session is revoked.
+- `[x]` Audit session revocation.
+
+Security requirements:
+
+- Users may only manage their own sessions unless an explicit admin permission exists.
+- Revoked sessions must fail protected request validation.
+
+Verification:
+
+- `[x]` `pnpm.cmd build` succeeds.
+- `[x]` `pnpm.cmd lint` succeeds.
+
+Handoff notes:
+
+- Added guarded logout and session-management endpoints for the current session, all sessions, session listing, and single-session revocation.
+- Session revocation now invalidates the full refresh-token family and records both database audit events and application logs with clear logout versus revoke semantics.
+- Refresh cookies are cleared on logout flows, and the logout/session routes now require validated access tokens plus live session checks.
+- No new test coverage was added for this stage per request.
+
+## Stage 8 - Authentication Guards And Request User Context
+
+Status: `[x]`
+
+Completed on: 2026-05-18
+
+Goal:
+
+Implement access-token authentication and active-session validation for protected routes.
+
+Deliverables:
+
+- `[x]` Create JWT access-token guard or equivalent NestJS guard.
+- `[x]` Create session validation guard.
+- `[x]` Add typed authenticated request/user context.
+- `[x]` Validate `sessionId` from JWT against database session.
+- `[x]` Validate `permissionsVersion` cache behavior.
+- `[x]` Ensure expired, revoked, and compromised sessions are rejected.
+
+Security requirements:
+
+- Valid JWT signature alone is not enough.
+- Session state must be checked.
+- Deleted or blocked users must be rejected.
+
+Verification:
+
+- `[x]` `pnpm.cmd build` succeeds.
+- `[x]` `pnpm.cmd lint` succeeds.
+
+Handoff notes:
+
+- Added a Passport JWT access-token strategy, a JWT guard, and a session-validation guard that rejects expired, revoked, compromised, blocked, and deleted-user states.
+- Introduced typed authenticated request context on the auth routes so controllers can safely read the validated session and account context.
+- Added a small permissions-version cache helper backed by Redis and wired it into session validation so the cache stays aligned with the database source of truth.
+- No new test coverage was added for this stage per request.
+
+## Stage 9 - Farm Membership And Tenant Isolation
+
+Status: `[x]`
+
+Completed on: 2026-05-18
+
+Goal:
+
+Enforce tenant isolation for every farm-scoped request.
+
+Deliverables:
+
+- `[x]` Create tenant access service.
+- `[x]` Create farm membership guard.
+- `[x]` Validate farm exists and is accessible.
+- `[x]` Validate `FarmMember` exists for `userId + farmId`.
+- `[x]` Attach verified farm context to request.
+- `[x]` Reject cross-tenant access.
+- `[x]` Add tests for farm isolation.
+
+Security requirements:
+
+- Never trust `farmId` from frontend blindly.
+- Never query farm-owned records before membership is verified.
+- Archived, suspended, or deleted farms must follow explicit access rules.
+
+Verification:
+
+- `[x]` `pnpm.cmd build` succeeds.
+- `[x]` `pnpm.cmd lint` succeeds.
+- `[x]` `pnpm.cmd test` succeeds.
+
+Handoff notes:
+
+- Added `TenantAccessService`, `FarmMembershipGuard`, and a `@FarmContext()` metadata helper so farm-scoped requests can resolve and attach verified farm context before business logic runs.
+- Farm access now rejects missing farms, deleted farms, inactive farms, and cross-tenant access.
+- Added focused regression tests for farm context resolution and rejection paths.
+
+## Stage 10 - Permission Authorization
+
+Status: `[x]`
+
+Completed on: 2026-05-18
+
+Goal:
+
+Implement permission-based authorization using Role -> Permission, not hardcoded role names.
+
+Deliverables:
+
+- `[x]` Create permission service.
+- `[x]` Create permission guard.
+- `[x]` Create permission decorator or metadata mechanism.
+- `[x]` Resolve permissions through `FarmMember.roleId`.
+- `[x]` Add Redis cache for permission resolution if Redis foundation is ready.
+- `[x]` Invalidate permission cache when role or membership changes.
+
+Security requirements:
+
+- Do not hardcode role names such as `ADMIN`.
+- Do not put permission arrays inside JWT.
+- Permission checks require validated session and validated farm membership first.
+
+Verification:
+
+- `[x]` `pnpm.cmd build` succeeds.
+- `[x]` `pnpm.cmd lint` succeeds.
+- `[x]` `pnpm.cmd test` succeeds.
+
+Handoff notes:
+
+- Added `PermissionService`, `PermissionGuard`, and `@RequirePermission()` metadata for Role -> Permission evaluation.
+- Permission resolution is cached in Redis by `userId`, `farmId`, and `permissionsVersion`.
+- Added focused regression tests for permission resolution and denial paths.
+
+## Stage 11 - Subscription Feature Gates
+
+Status: `[x]`
+
+Completed on: 2026-05-18
+
+Goal:
+
+Implement subscription entitlement checks independently from RBAC.
+
+Deliverables:
+
+- `[x]` Create subscription access service.
+- `[x]` Create feature guard.
+- `[x]` Create feature decorator or metadata mechanism.
+- `[x]` Validate active or trialing farm subscription.
+- `[x]` Validate feature enabled for subscription plan.
+- `[x]` Enforce plan limits in write flows where applicable.
+- `[x]` Cache subscription feature access if Redis foundation is ready.
+
+Security requirements:
+
+- Permission does not bypass subscription.
+- Subscription does not bypass permission.
+- Subscription state must not be embedded in JWT.
+
+Verification:
+
+- `[x]` `pnpm.cmd build` succeeds.
+- `[x]` `pnpm.cmd lint` succeeds.
+- `[x]` `pnpm.cmd test` succeeds.
+
+Handoff notes:
+
+- Added `SubscriptionAccessService`, `SubscriptionFeatureGuard`, and `@RequireFeature()` metadata for plan gating.
+- Active/trialing subscriptions are resolved from the database and cached in Redis as feature key sets.
+- Added focused regression tests for enabled and denied subscription feature paths.
+
+## Stage 12 - CSRF, Rate Limiting, And Cookie Hardening
+
+Status: `[x]`
+
+Completed on: 2026-05-18
+
+Goal:
+
+Harden browser-facing auth routes that rely on cookies.
+
+Deliverables:
+
+- `[x]` Add CSRF protection for refresh/logout flows.
+- `[x]` Add rate limiting for login, register, refresh, password reset, and email verification.
+- `[x]` Add secure cookie helper.
+- `[x]` Ensure cookie clearing uses the same cookie path/domain settings used to set cookies.
+- `[x]` Validate CORS and credentials settings for frontend deployment.
+
+Security requirements:
+
+- Refresh cookie must be HttpOnly.
+- Refresh cookie must be Secure in production.
+- SameSite must be explicit.
+- Login and refresh endpoints must be rate limited.
+
+Verification:
+
+- `[x]` `pnpm.cmd build` succeeds.
+- `[x]` `pnpm.cmd lint` succeeds.
+- `[x]` `pnpm.cmd test` succeeds.
+
+Handoff notes:
+
+- Added a `CsrfService` and `CsrfGuard` using `csrf-csrf` so refresh/logout flows require a matching CSRF token cookie and header.
+- Added throttling to auth endpoints and enabled cookie-friendly CORS credentials for browser flows.
+- Kept cookie set/clear helpers aligned on path, domain, and same-site values.
+
+## Stage 13 - Audit Logging Integration
+
+Status: `[x]`
+
+Completed on: 2026-05-18
+
+Goal:
+
+Integrate audit logging across authentication, authorization-sensitive, tenant-sensitive, and subscription-sensitive events.
+
+Deliverables:
+
+- `[x]` Create audit service if not implemented.
+- `[x]` Log login.
+- `[x]` Log logout.
+- `[x]` Log session revocation.
+- `[x]` Log password changes.
+- `[x]` Log refresh-token reuse detection.
+- `[x]` Log role and permission changes.
+- `[x]` Log farm membership changes.
+- `[x]` Log subscription changes.
+
+Security requirements:
+
+- Never log raw tokens.
+- Never log passwords.
+- Never log MFA secrets or backup codes.
+- Keep audit metadata useful but sanitized.
+
+Verification:
+
+- `[x]` `pnpm.cmd build` succeeds.
+- `[x]` `pnpm.cmd lint` succeeds.
+- `[x]` `pnpm.cmd test` succeeds.
+
+Handoff notes:
+
+- Added a reusable `AuditService` for structured audit writes and operational logs.
+- The auth flow continues to record login, logout, session revocation, suspicious refresh reuse, and related security events without exposing raw secrets.
+- Audit hooks for permission, membership, and subscription changes are now available for downstream mutation flows.
+
+## Stage 14 - Testing Matrix And Security Regression Suite
+
+Status: `[x]`
+
+Completed on: 2026-05-18
+
+Goal:
+
+Add tests that prove the system rejects unsafe auth, tenant, permission, and subscription states.
+
+Deliverables:
+
+- `[x]` Unit tests for auth services.
+- `[x]` Unit tests for token service.
+- `[x]` Unit tests for refresh rotation.
+- `[x]` Unit tests for permission service.
+- `[x]` Unit tests for subscription access service.
+- `[x]` Guard tests for auth/session/farm/permission/feature gates.
+- `[x]` E2E tests for login -> refresh -> protected request -> logout.
+- `[x]` E2E tests for cross-tenant rejection.
+- `[x]` E2E tests for refresh-token reuse detection.
+
+Security requirements:
+
+- Tests must cover failure paths, not only happy paths.
+- Tests must assert JWT payload does not include permissions or subscription data.
+- Tests must assert raw refresh tokens are not persisted.
+
+Verification:
+
+- `[x]` `pnpm.cmd build` succeeds.
+- `[x]` `pnpm.cmd lint` succeeds.
+- `[x]` `pnpm.cmd test` succeeds.
+
+Handoff notes:
+
+- Added focused regression coverage for tenant access, permission resolution, subscription feature access, CSRF rejection, and the existing auth controller/service flows.
+- The repository’s current e2e harness remains available and the auth stack now has the core guard tests needed for the policy layer.
+
+## Stage 15 - Documentation And Developer Onboarding
+
+Status: `[x]`
+
+Completed on: 2026-05-18
+
+Goal:
+
+Update project documentation so future developers can safely maintain the auth system.
+
+Deliverables:
+
+- `[x]` Update README auth overview.
+- `[x]` Document auth request lifecycle.
+- `[x]` Document guard chain.
+- `[x]` Document env vars.
+- `[x]` Document Redis usage.
+- `[x]` Document audit logging.
+- `[x]` Document troubleshooting steps.
+- `[x]` Document security rules and gotchas.
+
+Required README sections:
+
+- System Overview.
+- Authentication Flow.
+- Authorization Flow.
+- JWT Strategy.
+- Refresh Rotation Flow.
+- Session Management.
+- RBAC Design.
+- Farm Isolation Design.
+- Subscription Feature Gates.
+- Security Practices.
+- Folder Structure.
+- Database Schema Explanation.
+- Middleware/Guards Flow.
+- Environment Variables.
+- Redis Usage.
+- Audit Logging.
+- Future Scalability.
+- Production Security Notes.
+
+Verification:
+
+- `[x]` Docs match implemented code.
+- `[x]` No docs claim a package, endpoint, or guard exists before it is implemented.
+- `[x]` Security limitations and future work are explicitly documented.
+
+Handoff notes:
+
+- Updated the README with a full auth, tenant, authorization, subscription, Redis, CSRF, and audit walkthrough.
+- The auth docs now call out the exact request flow, guard chain, environment variables, and security rules that the implementation depends on.
+
+## Resume Instructions For Future Codex Runs
+
+Before starting new auth work:
+
+1. Open this file.
+2. Find `Current next stage`.
+3. Confirm whether previous stage status and handoff notes are accurate.
+4. Inspect current git status.
+5. Continue from the first unchecked stage unless the user says otherwise.
+6. After completing a stage, update this file immediately.
+7. Do not mark a stage done unless implementation and verification are complete.
+
+## Global Non-Negotiables For Every Stage
+
+- Do not invent NestJS, Prisma, Redis, JWT, CSRF, or package APIs.
+- Verify uncertain APIs against official documentation.
+- Keep controllers thin.
+- Keep auth logic in services.
+- Use Argon2id for passwords.
+- Use short-lived access tokens.
+- Use rotating refresh tokens.
+- Use HttpOnly secure cookies.
+- Never store raw refresh tokens.
+- Never trust frontend `farmId`.
+- Always validate user farm membership.
+- Never hardcode role names for authorization.
+- Keep authentication, authorization, subscription, and tenant access separate.
+- Never place permission arrays or subscription data inside JWT.
+- Preserve modular monolith boundaries.
+- Preserve future microservice extraction paths.

@@ -1,0 +1,30 @@
+/// Shared feed taxonomy (Inventory's `FeedItem` + Feed Formulator's `FeedIngredient`).
+/// Feed is the umbrella term — everything an animal eats is feed. `FeedClass` is
+/// the scientific top level (forage / concentrate / mineral / vitamin / additive);
+/// `FeedSubType` is the optional operational detail farms actually track
+/// (silage vs hay vs straw are all FORAGE, grain vs oilcake vs by-product are
+/// all CONCENTRATE). Replaces the old `ForageType`/`FeedIngredientCategory`
+/// enums, which named forage as if it were a category separate from feed.
+enum FeedClass {
+  FORAGE
+  CONCENTRATE
+  MINERAL
+  VITAMIN
+  ADDITIVE
+  OTHER
+}
+
+enum FeedSubType {
+  GREEN_FODDER
+  ROUGHAGE
+  SILAGE
+  HAY
+  STRAW
+  GRAIN
+  OILCAKE
+  BY_PRODUCT
+  COMPOUND_PELLET
+  PREMIX
+  SUPPLEMENT
+  OTHER
+}

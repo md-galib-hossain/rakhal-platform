@@ -1,0 +1,194 @@
+import { Transform, Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsDateString,
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  ValidateNested,
+} from 'class-validator';
+import {
+  CattleGender,
+  CattleSourceType,
+  HerdStatus,
+  ProductionStatus,
+} from '@prisma/client';
+import { BCS_ALLOWED_SCORES } from '../../domain/cattle.constants';
+import { trimString } from './common.dto';
+import {
+  HistoryItemDto,
+  IntakeBreedingDto,
+  IntakeHealthConditionDto,
+  IntakeHeatDto,
+  IntakeLactationDto,
+  IntakePregnancyDto,
+} from './intake.dto';
+
+export class CreateCattleDto {
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  name?: string;
+
+  @Transform(trimString)
+  @IsString()
+  @IsNotEmpty()
+  tagNumber!: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  image?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  breedId?: string;
+
+  @IsEnum(CattleGender)
+  gender!: CattleGender;
+
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
+
+  @IsOptional()
+  @IsEnum(HerdStatus)
+  status?: HerdStatus;
+
+  @IsOptional()
+  @IsEnum(ProductionStatus)
+  productionStatus?: ProductionStatus;
+
+  /** RAKHAL-307: "she is already pregnant" at intake — creates a synthetic
+   * `PregnancyDiagnosis` (`method: PURCHASE_INTAKE`) + `Pregnancy` inline in
+   * `create()`'s transaction, so the reproductive status is derived from a
+   * real event row, not a raw enum the caller could set arbitrarily
+   * (superseding the old `reproductiveStatus` field, removed). */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => IntakePregnancyDto)
+  intakePregnancy?: IntakePregnancyDto;
+
+  /** RAKHAL-307: "she is already milking" at intake — reuses
+   * `createPurchasedLactation`'s exact start-date precedence (DIM > estimated
+   * calving date > now) to create an `isEstimated` `PURCHASED_LACTATING`
+   * `Lactation`. Preferred over the older bare `lactationStartDate` field
+   * below when both are supplied. */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => IntakeLactationDto)
+  intakeLactation?: IntakeLactationDto;
+
+  /** RAKHAL-307: "she has a current health condition" at intake — creates an
+   * open `HealthCase` inline so the derived health chip is correct from the
+   * very first read, not just after a separate Report Sickness call. */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => IntakeHealthConditionDto)
+  intakeHealthCondition?: IntakeHealthConditionDto;
+
+  /** RAKHAL-483: "her history" entries, recorded as HISTORICAL events in the
+   * create transaction. See `HistoryItemDto` for the shape. */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => HistoryItemDto)
+  history?: HistoryItemDto[];
+
+  /** RAKHAL-319: "she was AI'd/served but pregnancy result is unknown" at
+   * intake — creates a real `BreedingEvent` via `createBreedingEvent` itself
+   * (own pregnancy-check task, same guards as any other breeding). */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => IntakeBreedingDto)
+  intakeBreeding?: IntakeBreedingDto;
+
+  /** RAKHAL-319: "she's currently in heat" at intake — creates a real
+   * unresolved `HeatEvent` via `createHeatEvent` itself. */
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => IntakeHeatDto)
+  intakeHeat?: IntakeHeatDto;
+
+  /** RAKHAL-291: required when `productionStatus` is `MILKING` at intake and
+   * no active `Lactation` exists yet (a fresh cattle row never has one) —
+   * `CattleService.create()` uses it to create a `Lactation` row with
+   * `startReason: PURCHASED_LACTATING` (renamed from `PURCHASE_IMPORT` by
+   * RAKHAL-281), mirroring `updateStatus()`'s own rule. */
+  @IsOptional()
+  @IsDateString()
+  lactationStartDate?: string;
+
+  /** Lets intake record a cow's real prior calving history — e.g. a purchased
+   * already-calved cow — instead of always defaulting to 0 via
+   * `ReproductionProfile`'s Prisma schema default. Required (alongside
+   * `lactationStartDate`) to register a cow straight into `MILKING`: a
+   * heifer (0 calvings) can never be Milking. When supplied, `create()`
+   * seeds `ReproductionProfile.totalCalvings` with this value. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  priorCalvings?: number;
+
+  /** RD-048: required when `productionStatus` is `DRY` at intake — `CattleService.create()`
+   * uses it to create a real `DryPeriod` row (mirrors `lactationStartDate`'s role for MILKING),
+   * so `productionStatus` is always backed by a fact and derives correctly from then on instead
+   * of being a raw, never-reconciled write. */
+  @IsOptional()
+  @IsDateString()
+  dryOffStartDate?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(2000)
+  weightKg?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @IsIn(BCS_ALLOWED_SCORES)
+  bcs?: number;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  shedId?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  animalGroupId?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  motherId?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  fatherId?: string;
+
+  @IsOptional()
+  @IsEnum(CattleSourceType)
+  sourceType?: CattleSourceType;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  color?: string;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsString()
+  notes?: string;
+}

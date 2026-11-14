@@ -1,0 +1,54 @@
+/// In-app support feedback (RAKHAL-242, PRD §36.7 / SUP-01). A farm user submits
+/// a categorized message (+ optional screenshot via a `MediaAsset`); the Rakhal
+/// team triages it from the `admin-api` inbox. `farmId`/`userId` are plain scalar
+/// FKs (billing/media precedent) so the support migration stays isolated.
+model SupportFeedback {
+  id String @id @default(cuid())
+
+  farmId String
+  userId String
+
+  category SupportCategory
+  message  String
+
+  /// Optional screenshot — a READY `MediaAsset` id (scalar, no relation).
+  screenshotAssetId String?
+
+  status            FeedbackStatus @default(OPEN)
+  adminNote         String?
+  resolvedByAdminId String?
+  resolvedAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([farmId])
+}
+
+/// One free trial per owner identity (RAKHAL-242, SUP-02). A row is created the
+/// first time an owner bootstraps a farm; a second farm by the same owner finds
+/// the unique `userId` taken → no trial + a flagged/audited abuse event. Phone-
+/// identity matching is deferred (no phone-number field exists yet).
+model TrialGrant {
+  id String @id @default(cuid())
+
+  userId    String   @unique
+  farmId    String
+  grantedAt DateTime @default(now())
+}
+
+enum SupportCategory {
+  BUG
+  FEATURE_REQUEST
+  QUESTION
+  BILLING
+  OTHER
+}
+
+enum FeedbackStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  CLOSED
+}
