@@ -21,7 +21,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Label } from "@rakhal/ui/ui/label";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Input } from "@rakhal/ui/ui/input";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { ApiError } from "@/lib/api/errors";
 import {
   useNotificationPreferences,

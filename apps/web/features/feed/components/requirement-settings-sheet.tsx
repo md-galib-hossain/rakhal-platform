@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "@rakhal/ui/ui/dialog";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { cn } from "@/lib/utils";
 import {
   useRequirementSettings,

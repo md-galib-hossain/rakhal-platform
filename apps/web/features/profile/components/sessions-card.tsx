@@ -10,7 +10,7 @@ import { Badge } from "@rakhal/ui/ui/badge";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { useSessions } from "../hooks/use-sessions";
 import { useRevokeSession } from "../hooks/use-revoke-session";
 import { useLogoutAll } from "../hooks/use-logout-all";

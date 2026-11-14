@@ -9,7 +9,7 @@ import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@rakhal/ui/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { DateText } from "@/components/shared/date-text";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
 import { Can } from "@/lib/auth/permissions";
 import { inventoryApi } from "@/features/inventory/api";

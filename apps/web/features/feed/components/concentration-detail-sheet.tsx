@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { useConcentrationDetail, useFeedIngredients } from "../hooks/use-feed";
 import { FeedMixtureTable, toEffectiveMap } from "./feed-mixture-table";
 import { fromApiRequirements } from "../lib/formula-math";

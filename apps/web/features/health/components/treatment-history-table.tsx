@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@rakhal/ui/ui/avatar";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { Pagination } from "@/components/shared/pagination";

@@ -9,7 +9,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Can } from "@/lib/auth/permissions";
 import { PageCard } from "@/components/shared/page-card";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { useTaskInfiniteList } from "../hooks/use-tasks";
 import { useLastTrusted } from "../hooks/use-last-trusted";

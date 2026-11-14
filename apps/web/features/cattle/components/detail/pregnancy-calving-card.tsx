@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Card } from "@rakhal/ui/ui/card";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { DateText } from "@/components/shared/date-text";
 import { useActivePregnancy } from "@/features/reproduction/hooks/use-reproduction";
 

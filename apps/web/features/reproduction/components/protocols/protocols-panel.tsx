@@ -10,7 +10,7 @@ import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@rakhal/ui/ui/dropdown-menu";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { DateText } from "@/components/shared/date-text";

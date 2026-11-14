@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { useFeedCostSummary } from "@/features/feed/hooks/use-feed";
 import { DashboardCard } from "./dashboard-card";
 

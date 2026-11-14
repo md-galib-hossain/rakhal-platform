@@ -9,7 +9,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Switch } from "@rakhal/ui/ui/switch";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { useFollowUpRules, useUpdateFollowUpRules, type FollowUpRule, type FollowUpRuleUpdate } from "../hooks/use-follow-up-rules";
 
 const KNOWN_RULES = new Set(["BREEDING_TO_PREG_CHECK", "PREG_POSITIVE_TO_DRY_OFF", "PREG_POSITIVE_TO_CALVING_WATCH"]);

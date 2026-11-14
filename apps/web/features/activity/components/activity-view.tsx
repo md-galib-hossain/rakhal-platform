@@ -8,7 +8,7 @@ import { Input } from "@rakhal/ui/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";

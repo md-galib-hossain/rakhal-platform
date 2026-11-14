@@ -8,7 +8,7 @@ import { ArrowRightToLine, Check, Circle, AlertTriangle, X, Clock } from "lucide
 import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { Button } from "@rakhal/ui/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Timeline, type TimelineItem } from "@rakhal/ui/ui/timeline";
 import { formatDate, formatDateTime } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";

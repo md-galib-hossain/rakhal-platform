@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@rakhal/ui/ui/avatar";
 import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { SelectableCardOverlay } from "@/components/shared/selectable-card-overlay";
 import { avatarTint } from "../avatar-tint";
 import { formatCattleAge } from "../format";

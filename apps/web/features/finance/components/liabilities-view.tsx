@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { DataTable } from "@/components/shared/data-table";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { MoneyText } from "@/components/shared/money-text";
 import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
 import { Input } from "@rakhal/ui/ui/input";

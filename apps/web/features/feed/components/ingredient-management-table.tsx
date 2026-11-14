@@ -12,7 +12,7 @@ import { LabeledInput } from "@rakhal/ui/ui/labeled-field";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { RowActionsMenu } from "@/components/shared/row-actions-menu";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
 import { Can, useCan } from "@/lib/auth/permissions";

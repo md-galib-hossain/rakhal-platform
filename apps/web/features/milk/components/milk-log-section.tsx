@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { EntryStatusDatePicker } from "@/components/shared/entry-status-date-picker";
 import { Table, TableBody } from "@rakhal/ui/ui/table";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { TableSkeleton } from "@/components/shared/table-skeleton";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { useMilkLogCalendar, useMilkLogTable } from "../hooks/use-milk";

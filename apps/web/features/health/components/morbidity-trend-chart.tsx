@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { cn } from "@/lib/utils";

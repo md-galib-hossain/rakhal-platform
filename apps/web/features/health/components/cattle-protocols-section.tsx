@@ -14,7 +14,7 @@ import { Chip } from "@rakhal/ui/ui/chip";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { DateText } from "@/components/shared/date-text";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { useCancelAnimalProtocol, useCattleProtocols, useSkipTask, useStopCattleProtocol } from "../hooks/use-health";
 import { ProtocolRemoveDialog, type RemoveMode } from "./protocol-remove-dialog";
 import type { CattleProtocolRun } from "../types";

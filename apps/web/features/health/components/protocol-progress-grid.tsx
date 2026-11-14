@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { useCan } from "@/lib/auth/permissions";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Button } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { useProtocolTasks } from "../hooks/use-health";

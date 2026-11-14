@@ -1,7 +1,7 @@
 "use client"; // translators + retry mutation
 
 import { AlertTriangle, Check, FileQuestion, Loader2, Lock, RefreshCw } from "lucide-react";
-import { ErrorState } from "@/components/shared/error-state";
+import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
