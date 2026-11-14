@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { MobileRecordCard } from "@/components/shared/mobile-record-card";
+import { MobileRecordCard } from "@rakhal/ui/shared/mobile-record-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
 import type { ReportSummary } from "@/features/reports";
 import { ReportActions } from "./report-actions";
