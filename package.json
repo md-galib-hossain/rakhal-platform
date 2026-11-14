@@ -1,7 +1,7 @@
 {
   "name": "rakhal-platform",
   "private": true,
-  "packageManager": "pnpm@10.0.0",
+  "packageManager": "pnpm@11.9.0",
   "engines": {
     "node": ">=20.9"
   },
