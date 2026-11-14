@@ -85,10 +85,43 @@ possible and mechanical. The consumer app must not regress while it happens.
   must move with its import (select's wizard test); reconciling a component with no current consumer (tabs,
   labeled-field before their swap PRs) is a safe no-op PR, useful for isolating the behaviour change from the
   256-file import rewrite.
-- **Wave 3** (`shared/*`): analysis done (2026-11-14), proposal awaiting owner approval (3 decisions needed —
-  `page-card` and `stat-card` already have admin consumers on the *shared* behaviour, so reconciling toward web
-  changes admin's live rendering, not just adds a consumer; `pagination` has no shared copy and a blocking
-  `lib/*` import): `M3-wave3-diff-2026-11-14.md`. No component PRs started.
+- **Wave 3: done (2026-11-14)** except `pagination` (deferred — see below). All 11 `shared/*` components named
+  in the inventory row now come from `@rakhal/ui`; no local copy is left in `apps/web/components/shared`.
+  Mechanical swaps (identical apart from import paths): confirm-dialog
+  [#39](https://github.com/md-galib-hossain/rakhal-platform/pull/39),
+  error-state [#40](https://github.com/md-galib-hossain/rakhal-platform/pull/40),
+  row-actions-menu [#41](https://github.com/md-galib-hossain/rakhal-platform/pull/41),
+  truncated-text [#42](https://github.com/md-galib-hossain/rakhal-platform/pull/42) (also deleted web's
+  byte-identical `truncated-text.test.tsx`, dropping web's test count from 110/1008 to 109/1004 — the new
+  baseline for every PR after it),
+  mobile-record-card [#43](https://github.com/md-galib-hossain/rakhal-platform/pull/43),
+  table-skeleton [#44](https://github.com/md-galib-hossain/rakhal-platform/pull/44),
+  empty-state [#45](https://github.com/md-galib-hossain/rakhal-platform/pull/45),
+  page-header [#46](https://github.com/md-galib-hossain/rakhal-platform/pull/46).
+  Reconciled (web's behaviour ported into `packages/ui` first, then swapped — two PRs each, web wins per
+  owner decision "Merge, web wins both"):
+  card-skeleton [#47](https://github.com/md-galib-hossain/rakhal-platform/pull/47) (reconcile) +
+  [#48](https://github.com/md-galib-hossain/rakhal-platform/pull/48) (swap) — adds `h-full min-h-[220px]`,
+  no admin consumer so the reconcile was a safe no-op;
+  page-card [#49](https://github.com/md-galib-hossain/rakhal-platform/pull/49) (reconcile) +
+  [#50](https://github.com/md-galib-hossain/rakhal-platform/pull/50) (swap) — adds
+  `flex-1 min-h-[calc(100vh-6.75rem)]`, changing admin's 3 live pages (audit, farms, users) from short to
+  viewport-stretched, unverified by screenshot (no admin visual gate);
+  stat-card [#52](https://github.com/md-galib-hossain/rakhal-platform/pull/52) (reconcile) +
+  [#53](https://github.com/md-galib-hossain/rakhal-platform/pull/53) (swap) — adds
+  `tracking-tight tabular-nums`, changing admin's 1 live dashboard page's numeral rendering, also unverified
+  by screenshot. Docs/proposal: [#38](https://github.com/md-galib-hossain/rakhal-platform/pull/38). Details:
+  `M3-wave3-diff-2026-11-14.md`.
+- Wave 3 lessons: `page-card`/`stat-card`/`empty-state`/`page-header` were the first reconciliations where
+  admin already had live consumers on the pre-reconciliation (unreconciled) shared behaviour, unlike every
+  wave 1/2 case — reconciling toward web therefore changed admin's current rendering the moment the PR merged,
+  not just added a new consumer; flag this explicitly in the PR body when it applies. No admin-side visual
+  gate exists, so a pure-CSS admin change is unverified by anything beyond build/typecheck/test passing — this
+  is a known, accepted gap for this migration, not a blocker.
+- **`pagination` deferred**: no shared copy exists yet and it imports `PAGE_SIZE_OPTIONS` from a `lib/*` hook
+  (`@/lib/hooks/use-cursor-pager`), making it ineligible as-is per principle 5. Not gate-covered either way, so
+  there is no urgency; revisit alongside wave 5's `lib/format`/`nuqs`-coupled components, or sooner if an owner
+  decision says otherwise.
 
 The admin app has already diverged from the original copy in some places (shell, `detail-list`, list
 components). Those admin-specific components stay in `apps/admin` unless a second consumer appears.
