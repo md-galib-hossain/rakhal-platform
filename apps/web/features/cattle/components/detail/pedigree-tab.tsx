@@ -24,7 +24,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { FamilyCards } from "./family-cards";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { useCattleDetailModal } from "../../context/cattle-detail-modal-context";
 import { avatarTint } from "../../avatar-tint";
 import { useCattlePedigree } from "../../hooks/use-cattle-detail-tabs";

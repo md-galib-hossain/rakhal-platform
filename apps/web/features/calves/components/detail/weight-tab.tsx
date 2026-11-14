@@ -4,7 +4,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { Plus } from "lucide-react";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Button } from "@rakhal/ui/ui/button";
 import { Can } from "@/lib/auth/permissions";

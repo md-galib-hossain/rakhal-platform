@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@rakhal/ui/ui/select";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { useAnimalGroup, useAnimalGroups, useCattlePagedList } from "@/features/cattle/hooks/use-cattle";
 import { useRequirements } from "../hooks/use-feed";

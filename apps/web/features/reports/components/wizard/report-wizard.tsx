@@ -10,7 +10,7 @@ import { Lock } from "lucide-react";
 import { buttonVariants } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { Wizard, type WizardStep } from "@/components/shared/wizard";
 import { useSubscription } from "@/features/subscription/hooks/use-subscription";
 import {

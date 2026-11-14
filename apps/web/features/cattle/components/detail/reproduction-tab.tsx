@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { DrillBody, DrillCard, DrillStat, DrillStats } from "../workspace/drill/drill-template";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { useCattleReproductionSummary } from "../../hooks/use-cattle-detail-tabs";
 import { useReproductionTimeline } from "@/features/events/hooks/use-reproduction-timeline";
 import { TimelineRow } from "@/features/events/components/timeline/timeline-row";

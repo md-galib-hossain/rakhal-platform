@@ -14,7 +14,7 @@ import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
 import { TableSkeleton } from "@rakhal/ui/shared/table-skeleton";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { cn } from "@/lib/utils";
 

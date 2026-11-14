@@ -7,7 +7,7 @@ import { History, Search } from "lucide-react";
 import { Input } from "@rakhal/ui/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { formatDate } from "@/lib/format";

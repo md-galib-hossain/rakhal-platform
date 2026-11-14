@@ -9,7 +9,7 @@ import { useCan } from "@/lib/auth/permissions";
 import { ApiError } from "@/lib/api/errors";
 import { Avatar, AvatarFallback, AvatarImage } from "@rakhal/ui/ui/avatar";
 import { Button } from "@rakhal/ui/ui/button";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";

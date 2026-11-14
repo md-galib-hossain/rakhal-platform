@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Wallet } from "lucide-react";
 import { Card } from "@rakhal/ui/ui/card";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { cn } from "@/lib/utils";
 import { ChartCard } from "@/components/shared/chart-card";
 import { CardSkeleton } from "@/components/shared/card-skeleton";

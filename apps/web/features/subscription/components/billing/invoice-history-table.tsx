@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { Download } from "lucide-react";
 import { Badge, type BadgeProps } from "@rakhal/ui/ui/badge";
 import { Button } from "@rakhal/ui/ui/button";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";

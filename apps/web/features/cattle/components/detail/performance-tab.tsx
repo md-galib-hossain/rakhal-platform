@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { DrillBody, DrillCard, DrillStat, DrillStats } from "../workspace/drill/drill-template";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";

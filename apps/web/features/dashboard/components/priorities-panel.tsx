@@ -7,7 +7,7 @@ import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { cn } from "@/lib/utils";
 import { usePriorities } from "../hooks/use-dashboard-widgets";

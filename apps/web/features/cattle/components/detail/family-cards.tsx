@@ -6,7 +6,7 @@ import { Baby, Dna, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@rakhal/ui/ui/card";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { useCattleDetailModal } from "../../context/cattle-detail-modal-context";
 import type { CattlePedigree } from "../../detail-types";
 

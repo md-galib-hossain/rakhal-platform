@@ -14,7 +14,7 @@ import { Input } from "@rakhal/ui/ui/input";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
 import { MoneyText } from "@/components/shared/money-text";
 import { DateText } from "@/components/shared/date-text";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { cn } from "@/lib/utils";
 import { ApiError } from "@/lib/api/errors";

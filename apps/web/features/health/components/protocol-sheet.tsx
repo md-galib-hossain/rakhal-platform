@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
 import { Button } from "@rakhal/ui/ui/button";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { useHealthPlan, useHealthTasks } from "../hooks/use-health";
 import { groupScheduledTasks, type ScheduledTaskGroup } from "../task-grouping";

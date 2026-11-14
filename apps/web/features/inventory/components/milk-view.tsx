@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Plus, Warehouse } from "lucide-react";
 import { Button } from "@rakhal/ui/ui/button";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { useMilkTanks } from "../hooks/use-inventory";
 import { MilkTankCard } from "./milk-tank-card";

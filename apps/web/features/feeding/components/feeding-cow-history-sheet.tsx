@@ -22,7 +22,7 @@ import {
 } from "@rakhal/ui/ui/dialog";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { Can } from "@/lib/auth/permissions";
 import { useFeedCattleHistory, useVoidFeedCattleItem } from "../../feed/hooks/use-feed";
 import type {

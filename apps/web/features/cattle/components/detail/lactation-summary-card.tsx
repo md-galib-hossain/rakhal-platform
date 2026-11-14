@@ -8,7 +8,7 @@ import { Card } from "@rakhal/ui/ui/card";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { useLactationCompare } from "@/features/reproduction/hooks/use-lactation-compare";
 import { useLactationStats } from "@/features/reproduction/hooks/use-lactation-stats";

@@ -23,7 +23,7 @@ import {
 } from "@rakhal/ui/ui/dropdown-menu";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { SupplierFormDialog } from "@/features/suppliers/components/supplier-form-dialog";
 import { useSuppliers } from "../hooks/use-workspace";

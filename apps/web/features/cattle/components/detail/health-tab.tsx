@@ -9,7 +9,7 @@ import { Badge } from "@rakhal/ui/ui/badge";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
 import { useCattleHealthSummary } from "../../hooks/use-cattle-detail-tabs";

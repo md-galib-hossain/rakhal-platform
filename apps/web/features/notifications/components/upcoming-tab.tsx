@@ -8,7 +8,7 @@ import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { useCan } from "@/lib/auth/permissions";
 import { addDaysLocalIso, todayLocalIso } from "@/lib/local-date";

@@ -7,7 +7,7 @@ import { Droplet, Plus, Search, Warehouse } from "lucide-react";
 import { ApiError } from "@/lib/api/errors";
 import { Button } from "@rakhal/ui/ui/button";
 import { Input } from "@rakhal/ui/ui/input";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";

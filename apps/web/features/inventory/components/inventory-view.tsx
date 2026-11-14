@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { InventoryTabs, useActiveInventoryTab } from "./inventory-tabs";
 import { MedicineView } from "./medicine-view";
 import { FeedView } from "./feed-view";

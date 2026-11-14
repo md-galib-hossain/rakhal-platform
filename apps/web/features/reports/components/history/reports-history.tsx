@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { FileText, SearchX } from "lucide-react";
 import { Button } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { useReportsInfinite } from "@/features/reports";
