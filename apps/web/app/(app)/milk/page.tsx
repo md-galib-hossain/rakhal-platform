@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { PageCard } from "@/components/shared/page-card";
+import { PageCard } from "@rakhal/ui/shared/page-card";
 import { MilkKeyMetricsCard } from "@/features/milk/components/milk-key-metrics-card";
 import { MilkTrendChart } from "@/features/milk/components/milk-trend-chart";
 import { MilkLogSection } from "@/features/milk/components/milk-log-section";

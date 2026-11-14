@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { PageCard } from "@/components/shared/page-card";
+import { PageCard } from "@rakhal/ui/shared/page-card";
 import { DashboardWorkspace } from "@/features/dashboard/components/dashboard-workspace";
 
 export async function generateMetadata(): Promise<Metadata> {

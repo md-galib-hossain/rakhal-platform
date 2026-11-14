@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
-import { PageCard } from "@/components/shared/page-card";
+import { PageCard } from "@rakhal/ui/shared/page-card";
 import { InventoryView } from "@/features/inventory/components/inventory-view";
 
 export async function generateMetadata(): Promise<Metadata> {
