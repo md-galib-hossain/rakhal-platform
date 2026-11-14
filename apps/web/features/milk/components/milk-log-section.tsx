@@ -8,7 +8,7 @@ import { Input } from "@rakhal/ui/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { EntryStatusDatePicker } from "@/components/shared/entry-status-date-picker";
 import { Table, TableBody } from "@rakhal/ui/ui/table";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { TableSkeleton } from "@rakhal/ui/shared/table-skeleton";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";

@@ -11,7 +11,7 @@ import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@rakhal/ui/ui/button";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { Can } from "@/lib/auth/permissions";
 import { useConcentrations, useDmi, useFeedEfficiency, useResolvedRation } from "@/features/feed/hooks/use-feed";
 import { LogDistributionDialog } from "@/features/feed/components/log-distribution-dialog";

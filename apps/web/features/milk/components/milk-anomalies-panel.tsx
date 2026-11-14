@@ -7,7 +7,7 @@ import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@rakhal/ui/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
 import { AnimalLink } from "@/components/shared/animal-link";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { TableSkeleton } from "@rakhal/ui/shared/table-skeleton";
 import { Can } from "@/lib/auth/permissions";

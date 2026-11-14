@@ -13,7 +13,7 @@ import { Chip } from "@rakhal/ui/ui/chip";
 import { Progress } from "@rakhal/ui/ui/progress";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Pagination } from "@/components/shared/pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/hooks/use-cursor-pager";

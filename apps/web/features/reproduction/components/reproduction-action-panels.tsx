@@ -7,7 +7,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
 import { useIncrementalReveal } from "@/lib/hooks/use-incremental-reveal";

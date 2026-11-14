@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { parseAsStringEnum, useQueryState } from "nuqs";
 import { Bell, BellRing, Building2, CreditCard, KeySquare, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { BillingSettingsView } from "@/features/subscription/components/billing/billing-settings-view";
 import { FollowUpRulesView } from "./follow-up-rules-view";
 import { NotificationSettingsLink } from "./notification-settings-link";

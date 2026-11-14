@@ -13,7 +13,7 @@ import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { RowActionsMenu } from "@rakhal/ui/shared/row-actions-menu";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
 import { Can, useCan } from "@/lib/auth/permissions";
 import { cn } from "@/lib/utils";

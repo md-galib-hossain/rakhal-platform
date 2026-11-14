@@ -12,7 +12,7 @@ import { Chip } from "@rakhal/ui/ui/chip";
 import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { Pagination } from "@/components/shared/pagination";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { AnimalLink } from "@/components/shared/animal-link";

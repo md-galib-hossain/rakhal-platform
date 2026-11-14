@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { DateText } from "@/components/shared/date-text";
 import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 import { useUpcomingTasks } from "../hooks/use-dashboard-widgets";

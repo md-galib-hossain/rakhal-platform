@@ -7,7 +7,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Switch } from "@rakhal/ui/ui/switch";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { DateText } from "@/components/shared/date-text";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { todayLocalIso, addDaysLocalIso } from "@/lib/local-date";
 import { useAnimalTimeline } from "../../hooks/use-animal-timeline";

@@ -11,7 +11,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { ProtocolRemoveDialog, type RemoveMode } from "./protocol-remove-dialog";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Button } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";

@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/shared/page-header";
-import { EmptyState } from "@/components/shared/empty-state";
+import { EmptyState } from "@rakhal/ui/shared/empty-state";
 
 /** Placeholder body for module routes not yet built — swapped out ticket-by-ticket (RFE-020+). */
 export function RouteStub({ title, description }: { title: string; description?: string }) {
