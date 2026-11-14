@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Pill, Wheat } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { TruncatedText } from "@rakhal/ui/shared/truncated-text";

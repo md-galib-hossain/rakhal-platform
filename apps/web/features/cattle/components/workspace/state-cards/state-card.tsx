@@ -5,7 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import { WS_CARD } from "../workspace-grid";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 
 /**
  * Shell shared by the four workspace state cards (RFE-156). Each card owns its query, so one failing card shows its

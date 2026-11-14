@@ -5,7 +5,7 @@ import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@rakhal/ui/ui/button";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { useRequirementOverrideHistory } from "@/features/feed/hooks/use-requirement-override";
 import type { RequirementOverrideRow } from "@/features/feed/types";

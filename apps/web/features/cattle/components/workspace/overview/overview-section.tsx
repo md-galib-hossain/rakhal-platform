@@ -9,7 +9,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { ArrowUpRight, HeartPulse } from "lucide-react";
 import { Card } from "@rakhal/ui/ui/card";
 import { WS_CARD } from "../workspace-grid";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { todayLocalIso } from "@/lib/local-date";
 import { useAnimalTimeline } from "@/features/events/hooks/use-animal-timeline";
 import { TimelineRow } from "@/features/events/components/timeline/timeline-row";

@@ -9,7 +9,7 @@ import { Chip } from "@rakhal/ui/ui/chip";
 import { StatCard } from "@/components/shared/stat-card";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@/components/shared/money-text";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { cn } from "@/lib/utils";
 import { avatarTint } from "../avatar-tint";

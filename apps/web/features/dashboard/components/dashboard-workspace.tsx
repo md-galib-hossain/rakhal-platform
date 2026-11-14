@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { CardSkeleton } from "@/components/shared/card-skeleton";
+import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { PrioritiesPanel } from "./priorities-panel";
 import { KpiBar } from "./kpi-bar";
 import { ProductionSummaryCard } from "./production-summary-card";
