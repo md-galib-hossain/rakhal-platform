@@ -15,7 +15,7 @@ import { cattleApi } from "@/features/cattle/api";
 import { AnimalLink } from "@/components/shared/animal-link";
 import type { SemenBatch, SemenTank } from "../types";
 import { STRAW_COLOR_SWATCHES } from "./semen-batch-form-dialog";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 /** `bullId` now stores a `Cattle.id` (picked via `CattlePicker`), not a free-text bull name/tag —
  * resolve it to a tag/name for display instead of showing the raw cuid. */

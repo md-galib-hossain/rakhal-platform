@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";

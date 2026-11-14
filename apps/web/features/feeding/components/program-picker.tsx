@@ -8,7 +8,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { useConcentrations } from "../../feed/hooks/use-feed";
 import { useFeedPlansList } from "../../feed/hooks/use-feed-plans";
 import type { ApplyTarget } from "../../feed/components/plans/apply-plan-dialog";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 /**
  * "Which program?" — one search list over everything that can be applied to a cow: her feed plans (a plan is a group of

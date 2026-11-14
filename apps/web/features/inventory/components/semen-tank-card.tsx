@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { Button } from "@rakhal/ui/ui/button";
 import type { SemenTank } from "../types";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 /** Straw-stock-vs-capacity ratio below which a tank reads as needing a refill — see `types.ts`'s
  * `SemenTankStatus` doc comment for why this is a derived heuristic, not a stored field. */

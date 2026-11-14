@@ -15,7 +15,7 @@ import { nextFeedLot, stockedLotCount } from "@/features/inventory/feed-lots";
 import type { FeedItem } from "@/features/inventory/types";
 import type { FeedPlan } from "@/features/feed/plans-types";
 import { sourceKey, type RowLine, type RowSource } from "../grid-model";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 export interface PreparedOption {
   id: string;

@@ -12,7 +12,7 @@ import { SelectableCardOverlay } from "@/components/shared/selectable-card-overl
 import { avatarTint } from "../avatar-tint";
 import { MedicineRowActions } from "./medicine-row-actions";
 import type { Medicine } from "../types";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 const STOCK_COLOR: Record<Medicine["stockStatus"], string> = {
   adequate: "text-success",

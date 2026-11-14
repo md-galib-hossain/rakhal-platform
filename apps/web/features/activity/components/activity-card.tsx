@@ -11,7 +11,7 @@ import { avatarTint } from "../avatar-tint";
 import { ActionDetails } from "../action-details";
 import { MODULE_STYLE } from "../module-style";
 import type { ActivityLogEntry } from "../types";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 /** One timeline row: time gutter + card (Figma "Activity Log" component, 734:51037/41/45/55/59/63) —
  * icon+title, AQR-delta chip (if `aqrImpact` is non-null) + module chip, an entity-link button

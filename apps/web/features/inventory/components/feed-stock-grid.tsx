@@ -15,7 +15,7 @@ import { avatarTint } from "../avatar-tint";
 import type { FeedStock } from "@/features/feed/types";
 import type { FeedStockSource } from "./feed-stock-columns";
 import { costPerKg, consumedKg, remainingPct, remainingStatus, REMAINING_STOCK_COLOR } from "./feed-stock-metrics";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 /** Card matched to the same "Inventory Item Card" anatomy `FeedItemCard` (Purchased) uses, so the
  * Prepared segment's grid view reads as the same module: tinted icon slot (a produced batch has no

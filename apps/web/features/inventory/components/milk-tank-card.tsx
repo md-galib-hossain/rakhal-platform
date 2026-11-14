@@ -9,7 +9,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Button } from "@rakhal/ui/ui/button";
 import { useSetPrimaryMilkTank } from "../hooks/use-inventory";
 import type { MilkTank } from "../types";
-import { TruncatedText } from "@/components/shared/truncated-text";
+import { TruncatedText } from "@rakhal/ui/shared/truncated-text";
 
 /**
  * Milk bottle fill gauge — matches Figma's milk container design (734:27946/734:27947).
