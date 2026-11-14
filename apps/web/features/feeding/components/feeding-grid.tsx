@@ -29,7 +29,7 @@ import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { ErrorState } from "@/components/shared/error-state";
 import { EmptyState } from "@/components/shared/empty-state";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { Can } from "@/lib/auth/permissions";
 import { FeedItemFormDialog } from "@/features/inventory/components/feed-item-form-dialog";

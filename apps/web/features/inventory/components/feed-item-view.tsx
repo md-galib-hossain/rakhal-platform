@@ -8,7 +8,7 @@ import type { RowSelectionState } from "@tanstack/react-table";
 import { ApiError } from "@/lib/api/errors";
 import { useCan } from "@/lib/auth/permissions";
 import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { BulkActionDock } from "@/components/shared/bulk-action-dock";
 import { useTableBulkSelection, useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";
 import { useArchiveFeedItem, useBulkDeleteFeedItems, useFeedItemInfiniteList } from "../hooks/use-inventory";

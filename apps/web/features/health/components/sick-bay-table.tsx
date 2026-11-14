@@ -12,7 +12,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { ErrorState } from "@/components/shared/error-state";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { useDeleteHealthCase, useSafetyWithdrawals } from "../hooks/use-health";

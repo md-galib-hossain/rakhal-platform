@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { useArchiveFinancialAccount } from "../../hooks/use-finance-v2";
 import type { FinancialAccount } from "../../types-v2";
 

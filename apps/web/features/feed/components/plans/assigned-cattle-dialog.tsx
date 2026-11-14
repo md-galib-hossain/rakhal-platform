@@ -21,7 +21,7 @@ import {
 } from "@rakhal/ui/ui/dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@rakhal/ui/ui/avatar";
 import { AnimalLink } from "@/components/shared/animal-link";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { CardSkeleton } from "@/components/shared/card-skeleton";
 import { Can } from "@/lib/auth/permissions";
 import { avatarTint } from "@/features/cattle/avatar-tint";

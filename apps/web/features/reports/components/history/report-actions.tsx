@@ -7,7 +7,7 @@ import { Download, ExternalLink, Loader2, RotateCw, Trash2 } from "lucide-react"
 import { toast } from "sonner";
 import { Button } from "@rakhal/ui/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { cn } from "@/lib/utils";
 import {
   reportErrorKeyFor,

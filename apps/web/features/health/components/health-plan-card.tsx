@@ -8,7 +8,7 @@ import { Can } from "@/lib/auth/permissions";
 import { ApiError } from "@/lib/api/errors";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { Button } from "@rakhal/ui/ui/button";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { useDeletePlan } from "../hooks/use-health";
 import type { HealthPlanListItem } from "../types";
 

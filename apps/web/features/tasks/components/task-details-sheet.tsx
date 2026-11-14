@@ -11,7 +11,7 @@ import { TaskChip } from "./task-chip";
 import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { Button } from "@rakhal/ui/ui/button";
 import { Can } from "@/lib/auth/permissions";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
+import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { useCancelTask, useCompleteTask, useDeleteTask, useReopenTask, useUpdateTask } from "../hooks/use-tasks";
