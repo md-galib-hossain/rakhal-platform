@@ -44,6 +44,11 @@ export interface TextFieldProps {
   keyboardType?: TextInputProps['keyboardType'];
   inputMode?: TextInputProps['inputMode'];
   autoCapitalize?: TextInputProps['autoCapitalize'];
+  /** Credential fields (WP5d): hide the characters, and tell the OS keyboard/autofill what the field is. */
+  secureTextEntry?: boolean;
+  autoComplete?: TextInputProps['autoComplete'];
+  textContentType?: TextInputProps['textContentType'];
+  autoCorrect?: boolean;
   returnKeyType?: TextInputProps['returnKeyType'];
   onSubmitEditing?: TextInputProps['onSubmitEditing'];
   maxLength?: number;
@@ -74,6 +79,10 @@ export function TextField({
   keyboardType,
   inputMode,
   autoCapitalize,
+  secureTextEntry,
+  autoComplete,
+  textContentType,
+  autoCorrect,
   returnKeyType,
   onSubmitEditing,
   maxLength,
@@ -136,6 +145,10 @@ export function TextField({
           keyboardType={keyboardType}
           inputMode={inputMode}
           autoCapitalize={autoCapitalize}
+          secureTextEntry={secureTextEntry}
+          autoComplete={autoComplete}
+          textContentType={textContentType}
+          autoCorrect={autoCorrect}
           returnKeyType={returnKeyType}
           onSubmitEditing={onSubmitEditing}
           maxLength={maxLength}

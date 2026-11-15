@@ -14,7 +14,18 @@ jest.mock('expo-splash-screen', () => ({
   preventAutoHideAsync: jest.fn(() => Promise.resolve(true)),
   hideAsync: jest.fn(() => Promise.resolve(true)),
 }));
+// AuthProvider's default client reads SecureStore on mount; an empty store means signed out (no network).
+jest.mock('expo-secure-store', () => ({
+  AFTER_FIRST_UNLOCK: 1,
+  getItemAsync: () => Promise.resolve(null),
+  setItemAsync: () => Promise.resolve(),
+  deleteItemAsync: () => Promise.resolve(),
+}));
+jest.mock('expo-constants', () => ({ __esModule: true, default: { deviceName: 'jest-device' } }));
 jest.mock('expo-router', () => ({
+  router: { replace: jest.fn() },
+  useSegments: () => [],
+  useRootNavigationState: () => ({ key: 'root' }),
   Slot: () => {
     mockSlotRenders += 1;
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -85,8 +96,9 @@ describe('app/_layout', () => {
     await render(<RootLayout />);
     await waitFor(() => expect(screen.getByText('slot')).toBeTruthy());
 
-    // The slot's host parent is the themed root View (RootErrorBoundary adds no host node).
-    const root = screen.getByText('slot').parent;
+    // The slot's host parent is the AuthGate wrapper View; its parent is the themed root View
+    // (RootErrorBoundary adds no host node).
+    const root = screen.getByText('slot').parent?.parent;
     expect(StyleSheet.flatten(root?.props.style as object)).toMatchObject({ flex: 1, backgroundColor: background });
     expect(screen.getByText('statusbar:' + barStyle)).toBeTruthy();
   });

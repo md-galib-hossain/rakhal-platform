@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { render, screen, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { createApiClient, createMemoryTokenStore } from "@rakhal/api-client";
 import Index from "../app/index.tsx";
+import { AuthProvider } from "./auth/AuthProvider.tsx";
 import { AppProviders } from "./providers/AppProviders.tsx";
 import { memoryPrefs, PREF_KEYS } from "./storage/prefs.ts";
 import { colorsDark, colorsLight } from "./theme/tokens.ts";
@@ -21,6 +23,14 @@ const metrics = {
   insets: { top: 24, left: 0, right: 0, bottom: 0 },
 };
 
+// A client over an empty in-memory store: restore() finds no session and never touches the network.
+const createSignedOutClient = (hooks: { onSessionExpired: () => void }) =>
+  createApiClient({
+    baseUrl: "https://api.test/api/v1",
+    store: createMemoryTokenStore(null),
+    onSessionExpired: hooks.onSessionExpired,
+  });
+
 beforeEach(() => {
   jest.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -29,7 +39,9 @@ async function mountIndex(prefs: Record<string, string>) {
   await render(
     <SafeAreaProvider initialMetrics={metrics}>
       <AppProviders storage={memoryPrefs(prefs)}>
-        <Index />
+        <AuthProvider createClient={createSignedOutClient}>
+          <Index />
+        </AuthProvider>
       </AppProviders>
     </SafeAreaProvider>,
   );
