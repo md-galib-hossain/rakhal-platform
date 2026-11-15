@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { DateText } from "@/components/shared/date-text";
-import { DataTable } from "@/components/shared/data-table";
+import { DataTable } from "@rakhal/ui/shared/data-table";
 import { InfiniteScrollFooter } from "@rakhal/ui/shared/infinite-scroll-footer";
 import { avatarTint } from "../avatar-tint";
 import { useMilkTankAuditLogInfiniteList, useMilkTanks, useTeamMembersMap } from "../hooks/use-inventory";

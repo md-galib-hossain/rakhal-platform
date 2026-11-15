@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
-import { DataTable } from "@/components/shared/data-table";
+import { DataTable } from "@rakhal/ui/shared/data-table";
 import { MoneyText } from "@rakhal/ui/shared/money-text";
 import type { PeriodRange } from "@/lib/period/presets";
 import { useCashFlowReport } from "./hooks";

@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@rakhal/ui/ui/badge";
-import { DataTable } from "@/components/shared/data-table";
+import { DataTable } from "@rakhal/ui/shared/data-table";
 import { Pagination } from "@rakhal/ui/shared/pagination";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@rakhal/ui/shared/money-text";
