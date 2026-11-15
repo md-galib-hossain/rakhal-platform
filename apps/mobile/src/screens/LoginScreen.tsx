@@ -17,6 +17,7 @@ import { TextField } from '../components/forms/TextField.tsx';
 import { Heading, Text } from '../components/primitives/Text.tsx';
 import { authErrorMessageKey } from '../auth/auth-errors.ts';
 import { useAuth } from '../auth/AuthProvider.tsx';
+import type { MessageKey } from '../i18n/messages.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 
@@ -33,16 +34,17 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [identifierError, setIdentifierError] = useState<string | undefined>();
-  const [passwordError, setPasswordError] = useState<string | undefined>();
-  const [formError, setFormError] = useState<string | undefined>();
+  // Errors are kept as message KEYS and translated when rendered, so they follow a language switch on the same screen.
+  const [identifierError, setIdentifierError] = useState<MessageKey | undefined>();
+  const [passwordError, setPasswordError] = useState<MessageKey | undefined>();
+  const [formError, setFormError] = useState<MessageKey | undefined>();
   const passwordRef = useRef<TextInputInstance | null>(null);
 
   async function submit() {
     if (submitting) return;
     const trimmed = identifier.trim();
-    const idError = trimmed === '' ? t('auth.error.identifierRequired') : undefined;
-    const pwError = password.length < MIN_PASSWORD_LENGTH ? t('auth.error.passwordShort') : undefined;
+    const idError = trimmed === '' ? 'auth.error.identifierRequired' : undefined;
+    const pwError = password.length < MIN_PASSWORD_LENGTH ? 'auth.error.passwordShort' : undefined;
     setIdentifierError(idError);
     setPasswordError(pwError);
     setFormError(undefined);
@@ -52,7 +54,7 @@ export function LoginScreen() {
     try {
       await signIn(trimmed, password);
     } catch (error) {
-      setFormError(t(authErrorMessageKey(error)));
+      setFormError(authErrorMessageKey(error));
       setSubmitting(false);
     }
   }
@@ -101,7 +103,7 @@ export function LoginScreen() {
           label={t('auth.field.identifier')}
           value={identifier}
           onChangeText={setIdentifier}
-          error={identifierError}
+          error={identifierError ? t(identifierError) : undefined}
           autoCapitalize="none"
           autoCorrect={false}
           autoComplete="username"
@@ -117,7 +119,7 @@ export function LoginScreen() {
             label={t('auth.field.password')}
             value={password}
             onChangeText={setPassword}
-            error={passwordError}
+            error={passwordError ? t(passwordError) : undefined}
             secureTextEntry={!showPassword}
             autoCapitalize="none"
             autoCorrect={false}
@@ -141,7 +143,7 @@ export function LoginScreen() {
 
         {formError ? (
           <View accessibilityRole="alert" accessibilityLiveRegion="polite" testID="login-form-error">
-            <Text color="destructive">{formError}</Text>
+            <Text color="destructive">{t(formError)}</Text>
           </View>
         ) : null}
 

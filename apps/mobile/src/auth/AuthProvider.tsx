@@ -27,7 +27,7 @@ import {
   type FarmSummary,
   type SessionInfo,
 } from '@rakhal/api-client';
-import { getApiBaseUrl } from '../config/api-config.ts';
+import { resolveApiBaseUrl } from '../config/api-config.ts';
 import { secureTokenStore } from './secure-token-store.ts';
 
 export type AuthStatus = 'restoring' | 'signedOut' | 'signedIn';
@@ -63,7 +63,12 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 function defaultCreateClient(hooks: ClientHooks): ApiClient {
   return createApiClient({
-    baseUrl: getApiBaseUrl(),
+    baseUrl: resolveApiBaseUrl({
+      env: process.env.EXPO_PUBLIC_API_BASE_URL,
+      isDev: __DEV__,
+      hostUri: Constants.expoConfig?.hostUri,
+      port: process.env.EXPO_PUBLIC_API_PORT,
+    }),
     store: secureTokenStore,
     deviceName: Constants.deviceName ?? undefined,
     onSessionExpired: hooks.onSessionExpired,
