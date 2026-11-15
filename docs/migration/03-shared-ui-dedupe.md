@@ -124,13 +124,28 @@ possible and mechanical. The consumer app must not regress while it happens.
   No admin consumer; not gate-covered, same fallback as wave 2's `timeline`/`sonner` (full unit-test suite +
   byte-identical logic otherwise). This closes wave 3 completely — all 12 `shared/*` components now come from
   `@rakhal/ui`.
-- **Wave 5**: analysis done (2026-11-14), proposal awaiting owner approval (3 decisions needed — a locale
-  seam for `money-text`/`money-input`/the date pickers, a labels seam for `infinite-scroll-footer`, and
-  whether `filter-bar`/`data-table`'s `nuqs` coupling is worth resolving now or deferred): see
-  `M3-wave5-diff-2026-11-14.md`. 3 of 11 components (`bulk-action-dock`, `form-sheet`,
-  `drilldown-filter-bar`/`drilldown-filter-popover`) are already eligible with no seam needed. No admin
-  consumer exists for any of the 11 — zero admin-impact risk this wave, unlike wave 3. No component PRs
-  started.
+- **Wave 5: done (2026-11-15).** All 11 components in `M3-wave5-diff-2026-11-14.md`'s scope now come from
+  `@rakhal/ui`; no local copy is left in `apps/web/components/ui`/`components/shared` for any of them.
+  Proposal/analysis: [#56](https://github.com/md-galib-hossain/rakhal-platform/pull/56). Zero-seam swaps:
+  bulk-action-dock [#57](https://github.com/md-galib-hossain/rakhal-platform/pull/57),
+  form-sheet [#58](https://github.com/md-galib-hossain/rakhal-platform/pull/58),
+  drilldown-filter-bar + drilldown-filter-popover (adds `motion` as a `packages/ui` dependency)
+  [#59](https://github.com/md-galib-hossain/rakhal-platform/pull/59). New context providers in
+  `packages/ui`'s `lib/`, each wired once in `apps/web`'s own providers, adapting the app's real
+  next-intl/nuqs/next-navigation hooks — the pattern this wave introduces for framework-coupled shared
+  components (principle 5's "small context," applied for the first time):
+  `LocaleProvider`/`useLocale()` [#60](https://github.com/md-galib-hossain/rakhal-platform/pull/60) unblocks
+  money-text/money-input [#61](https://github.com/md-galib-hossain/rakhal-platform/pull/61) and the three
+  date pickers [#62](https://github.com/md-galib-hossain/rakhal-platform/pull/62);
+  `LabelsProvider`/`useLabels()` (added alongside #60, extended in #63) unblocks a handful of translated
+  strings `PickerFooter`/`DateTimePicker` need (#62) and `infinite-scroll-footer`
+  [#63](https://github.com/md-galib-hossain/rakhal-platform/pull/63);
+  `QueryStateProvider` (added in #64, expanded in #65) unblocks `data-table`'s sort param
+  [#64](https://github.com/md-galib-hossain/rakhal-platform/pull/64) and, once expanded to also cover
+  `next/navigation`'s router/search-params (a wider seam than the proposal scoped — `filter-bar` needed
+  more than just `nuqs`), `filter-bar` [#65](https://github.com/md-galib-hossain/rakhal-platform/pull/65).
+  `packages/ui` still has zero dependency on `next-intl`/`nuqs`/`next/navigation` themselves — only
+  `apps/web`'s adapters do.
 
 The admin app has already diverged from the original copy in some places (shell, `detail-list`, list
 components). Those admin-specific components stay in `apps/admin` unless a second consumer appears.
