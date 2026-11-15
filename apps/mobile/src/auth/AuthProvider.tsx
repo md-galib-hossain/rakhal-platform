@@ -28,6 +28,9 @@ import {
   type SessionInfo,
 } from '@rakhal/api-client';
 import { resolveApiBaseUrl } from '../config/api-config.ts';
+import { asyncStoragePrefs } from '../storage/async-storage-prefs.ts';
+import type { PrefStorage } from '../storage/prefs.ts';
+import { clearAccess, loadAccess, saveAccess } from './access-store.ts';
 import { secureTokenStore } from './secure-token-store.ts';
 
 export type AuthStatus = 'restoring' | 'signedOut' | 'signedIn';
@@ -42,6 +45,15 @@ export interface AuthContextValue {
   farms: FarmSummary[] | null;
   /** True when the last sign-out was forced by the server. Reset by the next successful sign-in. */
   expired: boolean;
+  /**
+   * The account's permissions for the active farm (`resource.action`, `*`, `resource.*`), or `null` while unknown
+   * (no farm yet, or first load with neither a cached nor a server answer). Use `can()` / `PermissionGate`.
+   */
+  permissions: string[] | null;
+  /** Active farm's display name; `null` until known. */
+  farmName: string | null;
+  /** Where `permissions` came from: nothing yet, the offline cache, or the server (fresh). */
+  accessSource: 'none' | 'cache' | 'server';
   /** Typed API access for screens and the sync engine. */
   client: ApiClient;
   signIn(identifier: string, password: string, farmId?: string): Promise<SessionInfo>;
@@ -57,6 +69,8 @@ export interface AuthProviderProps {
   children: ReactNode;
   /** Tests inject a client built over a fake fetch; production builds one over SecureStore. */
   createClient?: (hooks: ClientHooks) => ApiClient;
+  /** Where the offline access snapshot is cached (prefs store; not a credential). Tests inject memoryPrefs. */
+  accessStorage?: PrefStorage;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -93,8 +107,21 @@ const INITIAL: AuthState = {
   expired: false,
 };
 
-export function AuthProvider({ children, createClient = defaultCreateClient }: AuthProviderProps) {
+interface AccessState {
+  permissions: string[] | null;
+  farmName: string | null;
+  source: 'none' | 'cache' | 'server';
+}
+
+const NO_ACCESS: AccessState = { permissions: null, farmName: null, source: 'none' };
+
+export function AuthProvider({
+  children,
+  createClient = defaultCreateClient,
+  accessStorage = asyncStoragePrefs,
+}: AuthProviderProps) {
   const [state, setState] = useState<AuthState>(INITIAL);
+  const [access, setAccess] = useState<AccessState>(NO_ACCESS);
   const expireRef = useRef<() => void>(() => undefined);
 
   // Created once per provider mount; a new factory identity must not drop the session.
@@ -142,6 +169,42 @@ export function AuthProvider({ children, createClient = defaultCreateClient }: A
     };
   }, [client]);
 
+  // Permissions and farm name for the ACTIVE farm. Shown from the cache first (so the shell renders offline), then
+  // replaced by the server's answer. A failed fetch keeps the cache; a signed-out session clears it.
+  useEffect(() => {
+    if (state.status === 'signedOut') {
+      setAccess(NO_ACCESS);
+      void clearAccess(accessStorage);
+      return;
+    }
+    if (state.status !== 'signedIn' || state.farmId === '') {
+      setAccess(NO_ACCESS);
+      return;
+    }
+    const farmId = state.farmId;
+    let cancelled = false;
+    void (async () => {
+      const cached = await loadAccess(accessStorage, farmId);
+      if (cancelled) return;
+      if (cached) setAccess({ permissions: cached.permissions, farmName: cached.farmName, source: 'cache' });
+
+      const [me, farms] = await Promise.allSettled([
+        client.get<{ permissions?: unknown }>('/auth/me'),
+        client.get<FarmSummary[]>('/farms'),
+      ]);
+      if (cancelled || me.status !== 'fulfilled') return; // offline or server error: keep what we have
+      const raw = me.value.data.permissions;
+      const permissions = Array.isArray(raw) ? raw.filter((p): p is string => typeof p === 'string') : [];
+      const farmList = farms.status === 'fulfilled' && Array.isArray(farms.value.data) ? farms.value.data : [];
+      const farmName = farmList.find((f) => f.id === farmId)?.name ?? cached?.farmName ?? null;
+      setAccess({ permissions, farmName, source: 'server' });
+      await saveAccess(accessStorage, { farmId, farmName, permissions });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [state.status, state.farmId, client, accessStorage]);
+
   const signIn = useCallback<AuthContextValue['signIn']>(
     async (identifier, password, farmId) => {
       const info = await client.login({ identifier, password, farmId });
@@ -179,8 +242,17 @@ export function AuthProvider({ children, createClient = defaultCreateClient }: A
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, client, signIn, signOut, switchFarm }),
-    [state, client, signIn, signOut, switchFarm],
+    () => ({
+      ...state,
+      permissions: access.permissions,
+      farmName: access.farmName,
+      accessSource: access.source,
+      client,
+      signIn,
+      signOut,
+      switchFarm,
+    }),
+    [state, access, client, signIn, signOut, switchFarm],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

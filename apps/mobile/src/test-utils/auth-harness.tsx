@@ -11,6 +11,7 @@ import {
   type StoredSession,
 } from '@rakhal/api-client';
 import { AuthProvider } from '../auth/AuthProvider.tsx';
+import type { PrefStorage } from '../storage/prefs.ts';
 
 export type Reply = { status?: number; json?: unknown } | 'network';
 export type Handler = (url: string, body: Record<string, unknown> | undefined, method: string) => Reply;
@@ -26,7 +27,7 @@ const metrics = {
   insets: { top: 24, left: 0, right: 0, bottom: 0 },
 };
 
-export function fakeApi(handler: Handler, stored: StoredSession | null = null) {
+export function fakeApi(handler: Handler, stored: StoredSession | null = null, accessStorage?: PrefStorage) {
   const store = createMemoryTokenStore(stored);
   const requests: { url: string; method: string; body: Record<string, unknown> | undefined }[] = [];
   const fetchImpl = (async (url: string, init: RequestInit) => {
@@ -47,7 +48,9 @@ export function fakeApi(handler: Handler, stored: StoredSession | null = null) {
   function Wrapper({ children }: { children: ReactNode }) {
     return (
       <SafeAreaProvider initialMetrics={metrics}>
-        <AuthProvider createClient={createClient}>{children}</AuthProvider>
+        <AuthProvider createClient={createClient} accessStorage={accessStorage}>
+          {children}
+        </AuthProvider>
       </SafeAreaProvider>
     );
   }
