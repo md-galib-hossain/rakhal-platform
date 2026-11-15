@@ -245,3 +245,16 @@ test("a request timeout becomes a NetworkError", async () => {
     (e: unknown) => e instanceof NetworkError && /timed out/.test(e.message),
   );
 });
+
+test("request headers (Idempotency-Key) are sent, and can never override auth or client headers", async () => {
+  const { client, calls } = setup((call) => (call.url.endsWith("/auth/refresh") ? auth(1) : ok({ saved: 1 })));
+  await client.post(
+    "/milk/log",
+    { a: 1 },
+    { headers: { "Idempotency-Key": "key-1234567890", Authorization: "Bearer evil", "X-Client": "web" } },
+  );
+  const sent = calls[calls.length - 1]!;
+  assert.equal(sent.headers["Idempotency-Key"], "key-1234567890");
+  assert.equal(sent.headers.Authorization, "Bearer access-1");
+  assert.equal(sent.headers["X-Client"], "mobile");
+});

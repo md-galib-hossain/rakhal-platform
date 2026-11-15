@@ -27,7 +27,7 @@ import {
   type FarmSummary,
   type SessionInfo,
 } from '@rakhal/api-client';
-import { resolveApiBaseUrl } from '../config/api-config.ts';
+import { currentApiBaseUrl } from '../config/runtime-api-url.ts';
 import { asyncStoragePrefs } from '../storage/async-storage-prefs.ts';
 import type { PrefStorage } from '../storage/prefs.ts';
 import { clearAccess, loadAccess, saveAccess } from './access-store.ts';
@@ -77,12 +77,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 function defaultCreateClient(hooks: ClientHooks): ApiClient {
   return createApiClient({
-    baseUrl: resolveApiBaseUrl({
-      env: process.env.EXPO_PUBLIC_API_BASE_URL,
-      isDev: __DEV__,
-      hostUri: Constants.expoConfig?.hostUri,
-      port: process.env.EXPO_PUBLIC_API_PORT,
-    }),
+    baseUrl: currentApiBaseUrl(),
     store: secureTokenStore,
     deviceName: Constants.deviceName ?? undefined,
     onSessionExpired: hooks.onSessionExpired,

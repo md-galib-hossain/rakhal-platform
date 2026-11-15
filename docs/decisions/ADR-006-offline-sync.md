@@ -208,6 +208,30 @@ What shipped, where it differs from the text above, and what it deliberately lea
 - **Not changed:** the older per-service helpers in animal events and reproduction still work as before and can move to the shared helper
   later; `POST /health/cases/bulk` has no key (not queued offline in v1).
 
+## Implementation notes: WP8b (mobile foundation, built 2026-11-15)
+
+Code in `apps/mobile/src/offline/`; the core is plain TypeScript behind a small `SqlDb` seam (`expo-sqlite` in the app, Node's built-in
+`node:sqlite` in `node --test`), so the outbox, migrations, sender, pull and engine are tested without React Native.
+
+- **Outbox, migrations, order:** as sections 4 and 5. A cap of 500 open rows (`OutboxFullError`); done rows purged after 7 days; `sending`
+  rows found at start-up go back to `pending` and are resent with the same key. A dependent row (milk submit after its save) waits while its
+  parent is in conflict, and fails with a parent that failed or was discarded.
+- **Sender:** adds `Idempotency-Key` through a new `headers` option on `@rakhal/api-client` (auth and client headers cannot be overridden).
+  Errors: network, 5xx, 408/425/429 and 409 `IDEMPOTENCY_IN_PROGRESS` retry with backoff; 401 pauses the queue (rows kept); other 4xx fail the
+  row only. A milk save answered with `conflicts[]` becomes `conflict`.
+- **Connectivity:** the phone's own flag is only trusted when it says **offline** (`isConnected === false` skips the probe); reachability is one
+  `GET /health` (outside `/api/v1`, 5 s timeout). An offline pass re-checks after 30 s.
+- **Pull:** full snapshot per entity through the existing list routes (cattle and tasks by cursor, 100 per page): sheds, milk tanks, cattle, and
+  tasks due within +-30 days. Rows are projected to what screens read and stored in one transaction per entity; a failed page keeps the old cache.
+  Local search is a `LIKE` over a lower-cased tag + name column (500 animals well under 300 ms in the node test; not yet measured on the device).
+- **Ownership:** `start()` claims the database for the signed-in user and wipes another user's queue and cache. On an offline cold start the
+  profile has not loaded, so the provider falls back to the stored owner (the stored session belongs to the last user who signed in).
+- **UI:** `SyncStatusPill` in the header (always shown while sync runs; offline beats everything, then review, failed, syncing, pending, synced)
+  and `SyncSheet` ("Saved on this phone": Send again, Discard with a confirm, Keep the saved version for a conflict, Sync now). Sign-out always
+  clears the queue and the cache, and asks first when entries are unsent. A dev-only button on More queues a test milk entry.
+- **Not in WP8b:** any screen that queues real writes (WP10 milk log, the sickness report, WP12 task complete), "Use mine" for a milk conflict
+  (needs the edit screen), a delta pull, the cattle list (WP9), at-rest encryption of the database.
+
 ## Open points for WP8a / WP8b
 
 1. ~~Add `MilkLogEntry.updatedBy` and the conflict response shape~~: done in WP8a (see above).

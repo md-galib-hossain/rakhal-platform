@@ -9,7 +9,8 @@
     "plugins": [
       "expo-router",
       ["expo-splash-screen", { "backgroundColor": "#055640", "dark": { "backgroundColor": "#06301f" } }],
-      "expo-font"
+      "expo-font",
+      "expo-sqlite"
     ],
     "experiments": {}
   }

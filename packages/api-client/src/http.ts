@@ -79,6 +79,11 @@ export interface ApiClientOptions {
 export interface RequestOptions {
   body?: unknown;
   query?: Record<string, string | number | boolean | null | undefined>;
+  /**
+   * Extra request headers, e.g. `Idempotency-Key` for a write that may be retried (ADR-006). They are added first, so
+   * `Authorization`, `Content-Type`, `Accept`, `X-Client` and `X-Device-Name` always win.
+   */
+  headers?: Record<string, string>;
   /** Default true. Set false for public routes. */
   auth?: boolean;
   signal?: AbortSignal;
@@ -314,6 +319,7 @@ export class ApiClient {
     wantsAuth: boolean,
   ): Promise<ApiResult<T>> {
     const headers: Record<string, string> = {
+      ...options.headers,
       Accept: "application/json",
       "X-Client": "mobile",
     };
