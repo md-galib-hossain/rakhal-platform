@@ -9,7 +9,16 @@
 > **Design:** `Figma` = frame needed (per DESIGN_SYSTEM.md §1 protocol) · `PRD-spec` = no design exists,
 > PRD is the spec, build with established tokens/components.
 
-**Last updated:** 2026-07-09 · **Status legend:** `TODO` · `IN-PROGRESS` (must have an IN_FLIGHT row) · `DONE` · `BLOCKED`
+**Last updated:** 2026-11-15 · **Status legend:** `TODO` · `IN-PROGRESS` (must have an IN_FLIGHT row) · `DONE` · `BLOCKED`
+
+> **M3 (monorepo-numbered, no RFE assigned)** — Shared UI dedupe `DONE` (2026-11-15): every component
+> this app duplicated from `packages/ui` now imports from `@rakhal/ui` instead — no local copy left in
+> `apps/web/components/ui` or `apps/web/components/shared`. 60+ components across five waves (waves 1–3,
+> 5; wave 4 folded into wave 3), each a separate visual-regression-gated PR. Wave 5 introduced
+> `LocaleProvider`/`LabelsProvider`/`QueryStateProvider` in `packages/ui`'s `lib/` — small, framework-
+> independent contexts wired once in `providers/app-providers.tsx`/`app/layout.tsx`, adapting this app's
+> real next-intl/nuqs/next-navigation hooks, so `packages/ui` itself never depends on them. Full writeup
+> and per-component PR log: `D:\Projects\rakhal-platform\docs\migration\03-shared-ui-dedupe.md`.
 
 > **RAKHAL-326 (backend-numbered, no RFE assigned)** — Inventory Unit catalog, frontend half `DONE`
 > (2026-08-14): free-text `unit` on Medicine/Equipment/FeedItem replaced by a real `Unit` catalog picker
