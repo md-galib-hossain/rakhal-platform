@@ -1,4 +1,5 @@
 export * from "./envelope.ts";
+export * from "./http.ts";
 export type { paths, components, operations } from "./generated/customer-api.d.ts";
 import type { components } from "./generated/customer-api.d.ts";
 
