@@ -6,6 +6,7 @@
   "exports": {
     "./styles/tokens.css": "./src/styles/tokens.css",
     "./lib/utils": "./src/lib/utils.ts",
+    "./lib/locale": "./src/lib/locale.tsx",
     "./ui/*": "./src/components/ui/*.tsx",
     "./shared/*": "./src/components/shared/*.tsx"
   },

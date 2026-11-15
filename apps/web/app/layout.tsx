@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { Inter, Noto_Sans_Bengali } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { LocaleProvider } from "@rakhal/ui/lib/locale";
 import { AppProviders } from "@/providers/app-providers";
 import { env } from "@/lib/env";
+import type { Locale } from "@/lib/constants/i18n";
 import "./globals.css";
 
 const bengali = Noto_Sans_Bengali({
@@ -36,7 +38,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     >
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <AppProviders>{children}</AppProviders>
+          <LocaleProvider locale={locale as Locale}>
+            <AppProviders>{children}</AppProviders>
+          </LocaleProvider>
         </NextIntlClientProvider>
       </body>
     </html>
