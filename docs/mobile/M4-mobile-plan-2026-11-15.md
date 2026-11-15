@@ -27,12 +27,11 @@ inference; the work package that depends on it has a verify-first step.
    `apps/api/src`. Offline sync is a **backend build**, not a client-only task.
 5. **A direct-API mobile client cannot refresh tokens today.** [V] The refresh token only ever travels in an httpOnly cookie and refresh
    is CSRF-guarded (2.2). It needs a small backend change or a cookie workaround before WP5.
-6. **Login is email + password, not phone + PIN.** [V] `LoginDto` is `email` + `password` (min 8). PRD 5.2 / 23.4 want phone + password
-   for managers and phone + 4-digit PIN for workers. No PIN/phone login path is in `customer-api.json`, and the schema cannot hold one:
-   `User.email` is required and `@unique`, there is **no `phone` or `username` column** on `User` (only `phoneVerifiedAt`),
-   and `FarmInvitation` is email-bound (`acceptInvite` requires the account email to match).
-   **Owner decision D1 (resolved 2026-11-15):** "build phone and worker pin first because they rarely have email and optionally we can have also
-   login using username and password". Backend identity work in `apps/api` therefore **precedes** the mobile login screen (WP5b-WP5d, section 2.4).
+6. **Login identity (owner decision D1, revised 2026-11-15).** [V] Today `LoginDto` is `email` + `password` (min 8) and `User.email` is required and unique;
+   there is no `username` column. PRD 5.2 / 23.4 describe phone + password and a 4-digit worker PIN. **Owner decision (final for now):** everyone who uses
+   Rakhal has an email, and there is no SMS provider, so **no phone number and no PIN login for now**. Users sign in with **email or username + password**.
+   Phone numbers for all users are a later phase once an SMS provider is integrated. The phone/PIN design is kept in 2.4 as **deferred**, not deleted.
+   An earlier answer the same day asking for phone + PIN first is superseded.
 
 ---
 
@@ -107,7 +106,7 @@ Verified in `apps/api/src/modules/auth/presentation/controllers/auth.controller.
 
 | Aspect | Web today | Direct mobile client | Gap |
 |---|---|---|---|
-| Login | `POST /auth/login {email, password, farmId?}` via a Next route handler | primary: phone + PIN (workers); optional username + password; email + password unchanged for owners/managers (D1, section 2.4) | new backend login methods (WP5b-WP5d) |
+| Login | `POST /auth/login {email, password, farmId?}` via a Next route handler | same route; accepts email **or** username + password (D1, section 2.4). No phone/PIN yet | username lookup (WP5b) |
 | Response | `{accessToken, sessionId, user, farmId, needsFarm, farms}`; **refresh token only as httpOnly cookie** | must hold the refresh token | **blocker**: not in body |
 | Refresh | `POST /auth/refresh {farmId}`; controller reads the token **only from the cookie**; `RefreshTokenDto.refreshToken` exists but is ignored | needs body/header token | **blocker** |
 | CSRF | `CsrfGuard` on refresh, logout, logout-all, change-password. Double-submit cookie, session id = SHA-256 of the refresh cookie. Web BFF calls `GET /auth/csrf` with the refresh cookie before every refresh and never caches the token | CSRF protects ambient-cookie browsers; a bearer/body-token client has none | backend should skip it for non-cookie clients |
@@ -123,9 +122,26 @@ Verified in `apps/api/src/modules/auth/presentation/controllers/auth.controller.
 - **(b) Client-only workaround.** Read `Set-Cookie` on login, store `rakhal_refresh` in SecureStore, replay the web BFF dance (CSRF fetch with the cookie, both
   cookies on refresh). [A] RN `fetch` handles `Set-Cookie` inconsistently across platforms and its native cookie jar can inject stale cookies: brittle; spike fallback only.
 
-### 2.4 Phone + worker PIN (primary) and username + password (optional): backend design
+### 2.4 Login by email or username (now) and phone + worker PIN (deferred): backend design
 
-Plan only; nothing here is built. Every number marked **(proposal)** is a sub-decision (S1-S8, section 6). Existing mechanisms reused [V]: per-user
+**Current decision (supersedes the earlier phone-first answer):** sign in with **email or username + password**. Email stays required and unique, so there is **no nullable-email
+change**, no placeholder emails and no `FarmInvitation` rework: every worker has an email and is invited as today.
+
+**Username login (WP5b), proposal.**
+- Add `User.username String?` (unique, stored lowercase, 3-32 chars `[a-z0-9._-]`, no `@`). One additive nullable column; no backfill; existing email users unaffected.
+- `POST /auth/login` keeps its route and response; the body accepts `identifier` (email or username, told apart by `@`) alongside the legacy `email` field, plus `password` and optional `farmId`.
+  Same `ThrottleAuth`, same per-user lockout counters (`failedLoginAttempts`, `lockedUntil`), same argon2 verification. A username is only another lookup key, so no new secret type.
+- Enumeration-safe: unknown identifier and wrong password return the same status and body, and a dummy argon2 verify keeps timing alike.
+- Who sets a username (S4, S9): the user in profile or at invitation acceptance; uniqueness is **global, case-insensitive** (per-farm names would force a farm code onto the login form).
+  A manager can rename or clear a worker's username. Adds `PATCH /auth/me/username` (authenticated) and a username field on invite acceptance; reserved words rejected.
+- RBAC and farm context unchanged: the token carries `farmId`; role comes from `FarmMember`; no `farmId` or role in any body; multi-farm users still pick via `POST /auth/refresh {farmId}`.
+- Mobile login screen: one identifier field (email or username) + password; biometric unlock stays a local gate on the stored refresh token.
+
+**Deferred: phone + worker PIN (needs an SMS provider; MimSMS is deferred).** The design below is kept for when phone numbers are added for all users. It is **not part of WP5**;
+revisit S1, S2, S3, S5 and S7 then. Do not build `phone`, `pinHash`, `UserDevice` or `team.manage_pins` now.
+
+
+*(Deferred section: applies only when phone login is added.)* Plan only; nothing here is built. Every number marked **(proposal)** is a sub-decision (section 6). Existing mechanisms reused [V]: per-user
 lockout (`User.failedLoginAttempts`, `lastFailedLoginAt`, `lockedUntil`; env `AUTH_LOCKOUT_MAX_FAILED_ATTEMPTS`, `_WINDOW_SECONDS` default 900, `_DURATION_SECONDS`),
 `@ThrottleAuth()` rate limiting, argon2 password hashing (`PasswordService`), `Session` (has `deviceName`) + rotating `RefreshToken`, `permissionsVersion`, OTP challenge
 model (`otp-challenge.prisma`, email-delivered today; SMS provider MimSMS deferred), `FarmMember {farmId, userId, roleId}` with `@@unique([farmId, userId])`.
@@ -266,18 +282,16 @@ pure TS, hand-written Intl-free i18n (`bn` default, Latin digits default), Inter
 ## 5. Phased work packages (WP4 onward)
 
 One PR each. Backend packages are claimed in the backend `IN_FLIGHT.md` first and land in `apps/api` (source of truth; `Repos/rakhal-backend` is frozen).
-Mapping: WP1-WP3 = `ux-brand-plan.md` WP1-WP3 (done); X1 = WP2 (done); X2 = WP4-WP6 (auth backend WP5a-WP5d precedes the mobile login WP5f); X3 = WP7-WP9; X4 = WP10.
+Mapping: WP1-WP3 = `ux-brand-plan.md` WP1-WP3 (done); X1 = WP2 (done); X2 = WP4-WP6 (backend WP5a-WP5b precedes the mobile login WP5d); X3 = WP7-WP9; X4 = WP10.
 
 | # | Package | Depends | Scope | Acceptance criteria |
 |---|---|---|---|---|
-| **WP4** | `packages/api-client` + drift check | - | `openapi-typescript` over `apps/api/openapi/customer-api.json` into a source-exported `packages/api-client` (types + `ApiEnvelope`/`ApiError`); CI drift check; mobile adds `workspace:*`; `@rakhal/ui` boundary test; `mobile.yml` and the `ci.yml` carve-out (4.2) | `typecheck` green; changing a DTO in `apps/api` without regenerating fails CI; mobile imports a path type (`SaveMilkLogDto`); `apps/web`, `packages/ui` untouched; Android bundle smoke passes |
+| **WP4** (built, this PR: package, drift check, mobile dependency; `mobile.yml` and `ci.yml` carve-out left for a follow-up) | `packages/api-client` + drift check | - | `openapi-typescript` over `apps/api/openapi/customer-api.json` into a source-exported `packages/api-client` (types + `ApiEnvelope`/`ApiError`); CI drift check; mobile adds `workspace:*`; `@rakhal/ui` boundary test; `mobile.yml` and the `ci.yml` carve-out (4.2) | `typecheck` green; changing a DTO in `apps/api` without regenerating fails CI; mobile imports a path type (`SaveMilkLogDto`); `apps/web`, `packages/ui` untouched; Android bundle smoke passes |
 | **WP5a** (backend) | Mobile-safe refresh | - | `apps/api`: `X-Client: mobile` returns `refreshToken` in login/refresh bodies, accepted in the `/auth/refresh` body, `CsrfGuard` skipped without a refresh cookie; browser behaviour identical | new unit + e2e pass; existing web login/refresh e2e unchanged; reuse detection (`markReuse`) still fires; `gen:openapi:check` green |
-| **WP5b** (backend) | Identity schema: phone, username, PIN | WP5a | `apps/api` additive migration (2.4): `User.phone`, `username`, `pinHash` + PIN counters, `email` nullable, optional `UserDevice`; audit of every `email` non-null assumption; seeds updated | migration applies on a copy of the dev DB and rolls back (except the nullable-email step, own PR); existing email login e2e unchanged; unit tests for phone E.164 normalisation and username rules; no plaintext PIN anywhere |
-| **WP5c** (backend) | Phone + PIN login, worker create/reset, device binding | WP5b | `POST /auth/login/phone`, `/auth/pin/change`, `POST /team/members`, `pin-reset`, device approve/revoke (2.4); argon2id + pepper; per-user lockout (S2), per-phone/IP throttles, enumeration-safe errors; session + refresh via WP5a; audit events; new permission `team.manage_pins` | e2e: correct PIN logs in; 5 wrong PINs lock 15 min and a correct PIN is still refused; PIN lock does not lock email login; unknown phone and wrong PIN are indistinguishable (status, body, timing within tolerance); unknown device refused until approved; reset revokes all sessions; worker with a role lacking a permission gets 403; no `farmId` in any body; `gen:openapi:check` green |
-| **WP5d** (backend, optional) | Username + password login | WP5b | `POST /auth/login/username`, manager toggle per account, shared password hashing and lockout | e2e: login works only when enabled; username case-insensitive; enumeration-safe; ships only if S4 is decided; can slip after the first MVP without blocking WP5f |
-| **WP5e** | Auth client + token store | WP4, WP5a | `fetch` wrapper, SecureStore refresh token, in-memory access token, `AuthProvider`, forced logout on 401/revoked, device id in SecureStore, biometric unlock gate | 10 parallel 401s cause 1 refresh; reuse -> logout; cold start restores the shell offline; no token in AsyncStorage or logs; no `farmId` in any body |
-| **WP5f** | Login + farm switch screens | WP5c, WP5e | primary phone + PIN screen with first-login forced PIN change; email + password for owners/managers; username + password if WP5d shipped; `needsFarm` and multi-farm picker via `POST /auth/refresh {farmId}`; language sync | seeded owner, manager and PIN-only worker log in on an emulator; worker sees no manager-only action; wrong PIN, lockout, unknown device, offline each show a distinct plain message; large numeric PIN pad meets 48dp; Bangla + English complete |
-| **WP6** | Navigation shell | WP5f | `(tabs)` Home, Cattle, Milk, Tasks, More from one permission-gated config; header with farm name + language; `PermissionGate` | relaunch restores last tab; Android back never exits mid-form without draft prompt; shell renders offline; tab targets >= 48dp |
+| **WP5b** (backend) | Username login | WP5a | `apps/api`: `User.username` migration (additive, nullable, unique lowercase); `POST /auth/login` accepts `identifier` (email or username) + legacy `email`; `PATCH /auth/me/username`; username on invite acceptance; reuse lockout and throttles; seeds updated | migration applies and rolls back on a copy of the dev DB; existing email login e2e unchanged; e2e: username login works, case-insensitive, unknown identifier and wrong password indistinguishable, 5 failures lock like email login, duplicate username rejected, `@` in username rejected; no `farmId` in any body; `gen:openapi:check` green |
+| **WP5c** | Auth client + token store | WP4, WP5a | `fetch` wrapper, SecureStore refresh token, in-memory access token, `AuthProvider`, forced logout on 401/revoked, `X-Device-Name`, biometric unlock gate | 10 parallel 401s cause 1 refresh; reuse -> logout; cold start restores the shell offline; no token in AsyncStorage or logs; no `farmId` in any body |
+| **WP5d** | Login + farm switch screens | WP5b, WP5c | one identifier (email or username) + password screen; `needsFarm` and multi-farm picker via `POST /auth/refresh {farmId}`; language sync | seeded owner, manager and worker log in on an emulator with email and with username; worker sees no manager-only action; wrong password, lockout, offline each show a distinct plain message; Bangla + English complete |
+| **WP6** | Navigation shell | WP5d | `(tabs)` Home, Cattle, Milk, Tasks, More from one permission-gated config; header with farm name + language; `PermissionGate` | relaunch restores last tab; Android back never exits mid-form without draft prompt; shell renders offline; tab targets >= 48dp |
 | **WP7** | ADR-006 offline sync + backend ticket | - | Doc PR: outbox schema, ids, ordering, conflict rules (PRD 3.3, TECH_DEBT:182), 30-day scope, per-entity offline matrix, idempotency header vs `/sync/*`, verify milk-log upsert behaviour | owner accepts ADR; every queueable write names its server dedupe key; "online-only for now" list explicit |
 | **WP8a** (backend) | Sync / idempotency | WP7 | `apps/api`: `GET /sync/pull` (`since`, `scope`, `deleted_ids`) and `POST /sync/push`, or `Idempotency-Key` on milk-log save, sickness report, task complete (existing pattern: finance, reports); duplicate cow+session+date returned as flagged conflict | per-route e2e: replay returns the same result with one row; duplicate returns `conflicts[]`; no cross-farm key reuse; OpenAPI + client regenerated |
 | **WP8b** | Offline foundation | WP6, WP8a | `expo-sqlite` schema + migrations, outbox, NetInfo + `/health` probe, pull of cattle/sheds/tasks (30 days), `SyncStatusPill` + sheet ("3 pending"), backoff | queue survives kill and reboot; order preserved; backoff does not hammer 2G; v1->v2 migration test; failed writes never dropped silently |
@@ -297,8 +311,8 @@ MVP route inventory [V, `customer-api.json`]: `auth/{login,refresh,logout,me,me/
 
 ## 6. Open decisions for the owner
 
-1. **D1 Login identity: RESOLVED (2026-11-15).** Owner: "build phone and worker pin first because they rarely have email and optionally we can have also login using username and password". Primary = phone + worker PIN; optional = username + password; email + password stays for owners/managers. Spawns S1-S8 below.
-2. **D2 Refresh change (open; PIN login depends on it, see 2.4) and session length.** Approve WP5a (refresh token in the body for `X-Client: mobile`, no CSRF for non-cookie clients) and a 7-day or longer mobile session (PRD 23.4).
+1. **D1 Login identity: RESOLVED, revised (2026-11-15).** Owner: everyone has an email and there is no SMS provider yet, so no phone number for now; users log in with **email or username + password**. Phone numbers for all users come later with an SMS provider. (An earlier answer asking for phone + worker PIN first is superseded.)
+2. **D2 Refresh change (open; every mobile login depends on it, see 2.2) and session length.** Approve WP5a (refresh token in the body for `X-Client: mobile`, no CSRF for non-cookie clients) and a 7-day or longer mobile session (PRD 23.4).
 3. **D3 Platforms and identity.** Android only first, or iOS too? Bundle id/package name, EAS project, Play and Apple accounts. (Windows cannot run iOS locally.)
 4. **D4 EAS cost and scale.** Is the free tier enough for dev builds? Answer before WP12 (cost rule).
 5. **D5 Monitoring.** Sentry for mobile now or in WP13?
@@ -310,7 +324,9 @@ MVP route inventory [V, `customer-api.json`]: `auth/{login,refresh,logout,me,me/
 
 ---
 
-### New sub-decisions created by D1 (S1-S8)
+### Sub-decisions created by D1 (S1-S9)
+
+Active now: **S4** (username scope), **S6** (worker session length) and **S9** (username format and ownership). **S8** is settled for now: extend `POST /auth/login` with `identifier`. S1, S2, S3, S5 and S7 are **deferred** with phone/PIN.
 
 | # | Decision | Options | Recommendation |
 |---|---|---|---|
@@ -321,7 +337,8 @@ MVP route inventory [V, `customer-api.json`]: `auth/{login,refresh,logout,me,me/
 | S5 | Device binding | none / bind and approve unknown devices / bind always | bind; unknown device needs manager approval or a fresh one-time PIN |
 | S6 | Worker session length | 7 d / 30-90 d sliding / indefinite | 30-90 d sliding refresh, short access token, instant revoke on reset or role change |
 | S7 | Phone verification for workers | require OTP / manager-vouched | manager-vouched; phone stays unverified until an OTP is available (keeps `phoneVerifiedAt` coupon gate meaning intact) |
-| S8 | Route shape | extend `LoginDto` / separate routes per method | separate routes (clearer throttles and lockout per method) |
+| S8 | Route shape | extend `LoginDto` / separate routes per method | now: extend `POST /auth/login` with `identifier`; revisit when PIN is added |
+| S9 | Username format and ownership | self-chosen / manager-assigned / both | both: user sets it, manager can rename or clear; 3-32 chars `[a-z0-9._-]`, lowercase, no `@`, reserved words blocked |
 
 ## 7. Risks
 
@@ -329,8 +346,7 @@ MVP route inventory [V, `customer-api.json`]: `auth/{login,refresh,logout,me,me/
 |---|---|---|
 | 1 | Backend `/sync` does not exist; offline slice blocked | WP7/WP8a explicit; an online-only milk entry can ship behind a flag first (ux-brand-plan WP5 note) |
 | 2 | Refresh/CSRF design blocks every authenticated screen | WP5a first; fallback (b) spike is time-boxed |
-| 2b | A short PIN is brute-forceable (10,000 values at 4 digits) | peppered argon2id, per-user lockout, per-phone/IP throttles, device binding, manager-only reset (2.4); do not ship WP5c without the lockout e2e |
-| 2c | Nullable `email` breaks code that assumes it | WP5b audit + own migration PR; extra test pass on billing, mail, admin |
+| 2b | Username enumeration / credential stuffing | identical errors and timing for unknown identifier vs wrong password; existing throttles and per-user lockout; username never shown in public responses |
 | 3 | Lockfile and `packages/**` churn triggers web/visual CI and conflicts with m3 | 4.2 items 3-4; one dependency PR at a time; narrow workflow paths after m3 idles |
 | 4 | Sync conflicts corrupt farm data | ADR-006 before code; no silent last-write-wins; server is source of truth for finance and stock |
 | 5 | WP3 kit has never run on a device | WP13 device pass; WP6 and WP10 PRs must include an emulator run, not only Jest |
