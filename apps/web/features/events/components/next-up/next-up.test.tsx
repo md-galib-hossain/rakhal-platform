@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { LocaleProvider } from "@rakhal/ui/lib/locale";
+import { LabelsProvider } from "@rakhal/ui/lib/labels";
 import en from "@/i18n/messages/en.json";
 import bn from "@/i18n/messages/bn.json";
 import type { UpcomingEvent } from "@/features/cattle/types";
@@ -62,9 +64,26 @@ function renderStrip(events: UpcomingEvent[], opts: { canRecord?: boolean; local
   });
   const onRecord = vi.fn();
   const locale = opts.locale ?? "en";
+  const messages = locale === "en" ? en : bn;
   render(
-    <NextIntlClientProvider locale={locale} messages={locale === "en" ? en : bn} timeZone="Asia/Dhaka">
-      <NextUp cattleId="c1" animal={{ id: "c1", tagNumber: "A-12", name: "Lali" }} canRecord={opts.canRecord ?? true} onRecord={onRecord} />
+    <NextIntlClientProvider locale={locale} messages={messages} timeZone="Asia/Dhaka">
+      <LocaleProvider locale={locale}>
+        <LabelsProvider
+          labels={{
+            datePicker: { today: messages.common.today, clear: messages.common.clear },
+            dateTimePicker: {
+              time: messages.common.time,
+              hour: messages.common.hour,
+              minute: messages.common.minute,
+              now: messages.common.now,
+              clear: messages.common.clear,
+              done: messages.common.done,
+            },
+          }}
+        >
+          <NextUp cattleId="c1" animal={{ id: "c1", tagNumber: "A-12", name: "Lali" }} canRecord={opts.canRecord ?? true} onRecord={onRecord} />
+        </LabelsProvider>
+      </LocaleProvider>
     </NextIntlClientProvider>,
   );
   return onRecord;
@@ -230,7 +249,23 @@ describe("NextUp", () => {
     useUpcomingEvents.mockReturnValue({ isLoading: false, isError: false, isFetching: false, data: { events: five(), total: 9 }, refetch: vi.fn() });
     render(
       <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
-        <NextUp cattleId="c1" canRecord onRecord={vi.fn()} />
+        <LocaleProvider locale="en">
+          <LabelsProvider
+            labels={{
+              datePicker: { today: en.common.today, clear: en.common.clear },
+              dateTimePicker: {
+                time: en.common.time,
+                hour: en.common.hour,
+                minute: en.common.minute,
+                now: en.common.now,
+                clear: en.common.clear,
+                done: en.common.done,
+              },
+            }}
+          >
+            <NextUp cattleId="c1" canRecord onRecord={vi.fn()} />
+          </LabelsProvider>
+        </LocaleProvider>
       </NextIntlClientProvider>,
     );
     expect(screen.queryByText("+4 more")).not.toBeInTheDocument();

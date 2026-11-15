@@ -13,7 +13,7 @@ import { formatMoney, formatNumber } from "@/lib/format";
 import { todayLocalIso } from "@/lib/local-date";
 import type { Locale } from "@/lib/constants/i18n";
 import { Button } from "@rakhal/ui/ui/button";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 import { LabeledInput } from "@rakhal/ui/ui/labeled-field";
 import { Textarea } from "@rakhal/ui/ui/textarea";
 import { FormSheet } from "@rakhal/ui/shared/form-sheet";

@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 import { addDaysLocalIso } from "@/lib/local-date";
 
 const CHIP = "min-h-11 rounded-lg border px-4 text-sm transition-colors";

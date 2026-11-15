@@ -12,7 +12,7 @@ import { Input } from "@rakhal/ui/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useRecordColostrum } from "../../hooks/use-calves";
 import { recordColostrumSchema, type RecordColostrumInput } from "../../schemas";
-import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { DateTimePicker } from "@rakhal/ui/ui/date-time-picker";
 
 const QUALITY_VALUES = ["EXCELLENT", "GOOD", "POOR", "UNKNOWN"] as const;
 

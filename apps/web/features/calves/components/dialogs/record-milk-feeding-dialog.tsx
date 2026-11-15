@@ -12,7 +12,7 @@ import { Input } from "@rakhal/ui/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useRecordMilkFeeding } from "../../hooks/use-calves";
 import { recordMilkFeedingSchema, type RecordMilkFeedingInput } from "../../schemas";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 
 const MILK_TYPE_VALUES = ["DAM_MILK", "WHOLE_MILK", "MILK_REPLACER"] as const;
 

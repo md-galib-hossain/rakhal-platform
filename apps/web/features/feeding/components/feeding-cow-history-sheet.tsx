@@ -11,7 +11,7 @@ import { formatDate } from "@/lib/format";
 import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { Button } from "@rakhal/ui/ui/button";
 import { Textarea } from "@rakhal/ui/ui/textarea";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 import {
   Dialog,
   DialogContent,

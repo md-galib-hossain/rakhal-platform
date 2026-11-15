@@ -11,7 +11,7 @@ import { Label } from "@rakhal/ui/ui/label";
 import { Input } from "@rakhal/ui/ui/input";
 import { useRecordWeight } from "../../hooks/use-calves";
 import { recordWeightSchema, type RecordWeightInput } from "../../schemas";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 
 function defaults(): RecordWeightInput {
   return { weightKg: undefined as unknown as number, measuredDate: todayLocalIso(), notes: "" };

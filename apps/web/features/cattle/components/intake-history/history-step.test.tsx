@@ -2,6 +2,8 @@ import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { LocaleProvider } from "@rakhal/ui/lib/locale";
+import { LabelsProvider } from "@rakhal/ui/lib/labels";
 import en from "@/i18n/messages/en.json";
 import bn from "@/i18n/messages/bn.json";
 import { HistoryStep } from "./history-step";
@@ -20,9 +22,26 @@ function Harness({ gender, initial = {} }: { gender: string; initial?: HistoryVa
 }
 
 function renderStep(gender: string, initial?: HistoryValues, locale: "en" | "bn" = "en") {
+  const messages = locale === "en" ? en : bn;
   return render(
-    <NextIntlClientProvider locale={locale} messages={locale === "en" ? en : bn} timeZone="Asia/Dhaka">
-      <Harness gender={gender} initial={initial} />
+    <NextIntlClientProvider locale={locale} messages={messages} timeZone="Asia/Dhaka">
+      <LocaleProvider locale={locale}>
+        <LabelsProvider
+          labels={{
+            datePicker: { today: messages.common.today, clear: messages.common.clear },
+            dateTimePicker: {
+              time: messages.common.time,
+              hour: messages.common.hour,
+              minute: messages.common.minute,
+              now: messages.common.now,
+              clear: messages.common.clear,
+              done: messages.common.done,
+            },
+          }}
+        >
+          <Harness gender={gender} initial={initial} />
+        </LabelsProvider>
+      </LocaleProvider>
     </NextIntlClientProvider>,
   );
 }

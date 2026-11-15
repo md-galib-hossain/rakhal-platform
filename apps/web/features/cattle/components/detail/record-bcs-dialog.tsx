@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useRecordBcs } from "../../hooks/use-cattle-detail-tabs";
 import { recordBcsSchema, type RecordBcsInput } from "../../schemas";
 import { BCS_ALLOWED_SCORES } from "../../types";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 
 /** BCS event (`POST /cattle/:id/events`, type BCS; RAKHAL-038, PRD §8.6) — worker-permitted (`cattle.bcs`). Score is one of
  * 17 allowed 0.25-steps (1.0–5.0), rendered as a `Select` rather than a free-typed number input so an

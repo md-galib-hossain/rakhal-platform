@@ -21,7 +21,7 @@ import { Textarea } from "@rakhal/ui/ui/textarea";
 import { useDisposeCattle } from "../hooks/use-cattle";
 import type { CattleDisposeInput } from "../schemas";
 import type { CattleListItem } from "../types";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 
 type DisposeType = "SALE" | CattleDisposeInput["type"];
 const TYPES: DisposeType[] = ["SALE", "CULL", "DEATH"];

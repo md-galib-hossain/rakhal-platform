@@ -13,7 +13,7 @@ import { todayLocalIso } from "@/lib/local-date";
 import { cn } from "@/lib/utils";
 import { Button } from "@rakhal/ui/ui/button";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 import { LabeledInput } from "@rakhal/ui/ui/labeled-field";
 import { CattleMultiPicker } from "@/components/shared/cattle-picker";
 import { useTaskAssignees } from "@/features/tasks/hooks/use-tasks";

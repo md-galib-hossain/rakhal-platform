@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { Inter, Noto_Sans_Bengali } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { LocaleProvider } from "@rakhal/ui/lib/locale";
+import { LabelsProvider } from "@rakhal/ui/lib/labels";
 import { AppProviders } from "@/providers/app-providers";
 import { env } from "@/lib/env";
 import type { Locale } from "@/lib/constants/i18n";
@@ -29,6 +30,18 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const locale = await getLocale();
   const messages = await getMessages();
+  const t = await getTranslations("common");
+  const labels = {
+    datePicker: { today: t("today"), clear: t("clear") },
+    dateTimePicker: {
+      time: t("time"),
+      hour: t("hour"),
+      minute: t("minute"),
+      now: t("now"),
+      clear: t("clear"),
+      done: t("done"),
+    },
+  };
 
   return (
     <html
@@ -39,7 +52,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <LocaleProvider locale={locale as Locale}>
-            <AppProviders>{children}</AppProviders>
+            <LabelsProvider labels={labels}>
+              <AppProviders>{children}</AppProviders>
+            </LabelsProvider>
           </LocaleProvider>
         </NextIntlClientProvider>
       </body>

@@ -14,7 +14,7 @@ import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { AnimalLink } from "@/components/shared/animal-link";
 import { useCattleDetail } from "@/features/cattle/hooks/use-cattle";
 import { useConcentrationDetail, useLogDistribution } from "../hooks/use-feed";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 import { Label } from "@rakhal/ui/ui/label";
 import { IngredientPicker, type IngredientOption } from "./ingredient-picker";
 import { X } from "lucide-react";
