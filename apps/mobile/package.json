@@ -5,7 +5,9 @@
   "type": "module",
   "main": "expo-router/entry",
   "description": "Rakhal native app (React Native + Expo, ADR-005). WP2 scaffold: Expo Router entry, toolchain; no providers, navigation or API yet.",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -31,6 +33,7 @@
     "expo-font": "~58.0.11",
     "expo-linking": "~58.0.16",
     "expo-router": "~58.0.30",
+    "expo-secure-store": "~58.0.3",
     "expo-splash-screen": "~58.0.13",
     "expo-status-bar": "~58.0.4",
     "react": "19.3.0",
