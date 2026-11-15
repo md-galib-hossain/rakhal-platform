@@ -17,6 +17,12 @@ export class CsrfGuard implements CanActivate {
       .switchToHttp()
       .getRequest<Request>() as AuthenticatedHttpRequest;
 
+    // Native clients send no refresh cookie and authenticate explicitly (bearer
+    // or body token), so there is no ambient credential for CSRF to protect.
+    if (this.csrfService.isCookielessClient(request)) {
+      return true;
+    }
+
     if (!this.csrfService.validateRequest(request)) {
       throw new ForbiddenException('invalid csrf token');
     }

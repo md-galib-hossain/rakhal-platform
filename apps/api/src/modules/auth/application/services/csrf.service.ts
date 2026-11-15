@@ -42,6 +42,35 @@ export class CsrfService {
     return this.utilities.validateRequest(request);
   }
 
+  /**
+   * True when the request carries no ambient (cookie) credential and instead
+   * authenticates explicitly: a bearer `Authorization` header, or a refresh
+   * token in the JSON body with no refresh cookie sent. CSRF only exists
+   * because browsers attach cookies automatically; a request that never sent
+   * the refresh cookie cannot be forged that way, so native clients (WP5a,
+   * `X-Client: mobile`) can skip the double-submit dance. Any request that
+   * DOES carry the refresh cookie keeps full CSRF validation.
+   */
+  isCookielessClient(request: AuthenticatedHttpRequest): boolean {
+    const cookies = request.cookies as
+      | Record<string, string | undefined>
+      | undefined;
+    if (cookies?.[this.config.refreshCookie.name]) {
+      return false;
+    }
+
+    const authorization = request.headers?.authorization;
+    if (
+      typeof authorization === 'string' &&
+      /^Bearer\s+\S+/i.test(authorization)
+    ) {
+      return true;
+    }
+
+    const body = request.body as { refreshToken?: unknown } | undefined;
+    return typeof body?.refreshToken === 'string' && body.refreshToken !== '';
+  }
+
   private getSessionIdentifier(request: AuthenticatedHttpRequest): string {
     if (request.auth?.session.id) {
       return request.auth.session.id;

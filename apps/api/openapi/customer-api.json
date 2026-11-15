@@ -19574,6 +19574,7 @@
             "type": "string"
           },
           "refreshToken": {
+            "maxLength": 512,
             "type": "string"
           }
         },
