@@ -85,7 +85,7 @@ possible and mechanical. The consumer app must not regress while it happens.
   must move with its import (select's wizard test); reconciling a component with no current consumer (tabs,
   labeled-field before their swap PRs) is a safe no-op PR, useful for isolating the behaviour change from the
   256-file import rewrite.
-- **Wave 3: done (2026-11-14)** except `pagination` (deferred — see below). All 11 `shared/*` components named
+- **Wave 4: done (2026-11-14)** except `pagination` (deferred — see below). All 11 `shared/*` components named
   in the inventory row now come from `@rakhal/ui`; no local copy is left in `apps/web/components/shared`.
   Mechanical swaps (identical apart from import paths): confirm-dialog
   [#39](https://github.com/md-galib-hossain/rakhal-platform/pull/39),
@@ -111,8 +111,8 @@ possible and mechanical. The consumer app must not regress while it happens.
   [#53](https://github.com/md-galib-hossain/rakhal-platform/pull/53) (swap) — adds
   `tracking-tight tabular-nums`, changing admin's 1 live dashboard page's numeral rendering, also unverified
   by screenshot. Docs/proposal: [#38](https://github.com/md-galib-hossain/rakhal-platform/pull/38). Details:
-  `M3-wave3-diff-2026-11-14.md`.
-- Wave 3 lessons: `page-card`/`stat-card`/`empty-state`/`page-header` were the first reconciliations where
+  `M3-wave4-diff-2026-11-14.md`.
+- Wave 4 lessons: `page-card`/`stat-card`/`empty-state`/`page-header` were the first reconciliations where
   admin already had live consumers on the pre-reconciliation (unreconciled) shared behaviour, unlike every
   wave 1/2 case — reconciling toward web therefore changed admin's current rendering the moment the PR merged,
   not just added a new consumer; flag this explicitly in the PR body when it applies. No admin-side visual
@@ -122,7 +122,7 @@ possible and mechanical. The consumer app must not regress while it happens.
   `lib/*` blocker (it imported `PAGE_SIZE_OPTIONS` from `@/lib/hooks/use-cursor-pager`) by giving the shared
   copy its own default page-size array literal instead, keeping `pageSizeOptions` a caller-overridable prop.
   No admin consumer; not gate-covered, same fallback as wave 2's `timeline`/`sonner` (full unit-test suite +
-  byte-identical logic otherwise). This closes wave 3 completely — all 12 `shared/*` components now come from
+  byte-identical logic otherwise). This closes wave 4 completely — all 12 `shared/*` components now come from
   `@rakhal/ui`.
 - **Wave 5: done (2026-11-15).** All 11 components in `M3-wave5-diff-2026-11-14.md`'s scope now come from
   `@rakhal/ui`; no local copy is left in `apps/web/components/ui`/`components/shared` for any of them.
