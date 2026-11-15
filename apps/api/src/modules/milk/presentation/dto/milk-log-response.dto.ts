@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { MilkDisposition, MilkSession, MilkTankType } from '@prisma/client';
 import type { CursorPage } from 'src/common/pagination/cursor-page.type';
 import type { MilkImportService } from '../../application/services/milk-import.service';
@@ -107,10 +107,41 @@ export class MilkLogTableResponseDto {
   entries!: MilkLogTableRowDto[];
 }
 
+export class MilkSaveLogServerVersionDto {
+  @ApiProperty() yieldL!: number;
+  @ApiProperty({ format: 'date-time' }) updatedAt!: string;
+  @ApiPropertyOptional({
+    nullable: true,
+    description:
+      'User who last saved the entry; null on rows saved before this was recorded.',
+  })
+  updatedBy!: string | null;
+  @ApiPropertyOptional({ nullable: true }) updatedByName!: string | null;
+}
+
+export class MilkSaveLogYoursDto {
+  @ApiProperty() yieldL!: number;
+}
+
+/** An entry NOT saved because the row on the server is newer than the version the caller edited (ADR-006). */
+export class MilkSaveLogConflictDto {
+  @ApiProperty() cattleId!: string;
+  @ApiProperty({ type: () => MilkSaveLogServerVersionDto })
+  server!: MilkSaveLogServerVersionDto;
+  @ApiProperty({ type: () => MilkSaveLogYoursDto })
+  yours!: MilkSaveLogYoursDto;
+}
+
 export class MilkSaveLogResponseDto {
   @ApiProperty() saved!: number;
   @ApiProperty() anomaliesFlagged!: number;
   @ApiProperty() sessionTotalL!: number;
+  @ApiProperty({
+    type: () => [MilkSaveLogConflictDto],
+    description:
+      'Entries that were not saved because a newer version exists. Always empty unless the request sent `baseUpdatedAt`.',
+  })
+  conflicts!: MilkSaveLogConflictDto[];
 }
 
 export class MilkLogCalendarDayDto {
@@ -148,6 +179,11 @@ export class MilkSubmitResponseDto {
   @ApiProperty() activityLogCreated!: boolean;
   @ApiProperty({ type: () => [MilkSubmitAnomalyDto] })
   anomalies!: MilkSubmitAnomalyDto[];
+  @ApiProperty({
+    description:
+      'True only for a request with an `Idempotency-Key` whose session was already fully submitted: nothing ran and the totals are 0.',
+  })
+  alreadySubmitted!: boolean;
 }
 
 // ─── Anomalies ─────────────────────────────────────────────────────────────
@@ -190,6 +226,7 @@ export class MilkLogEntryRowDto {
   @ApiProperty({ ...DATE_TIME, nullable: true }) submittedAt!: Date | null;
   @ApiProperty(NULLABLE_STRING) editReason!: string | null;
   @ApiProperty() createdBy!: string;
+  @ApiProperty(NULLABLE_STRING) updatedBy!: string | null;
   @ApiProperty(DATE_TIME) createdAt!: Date;
   @ApiProperty(DATE_TIME) updatedAt!: Date;
 }

@@ -18,8 +18,17 @@ model IdempotencyKey {
   /// completes, so a replay returns the exact same response body.
   responseBody Json?
 
+  /// WP8a (mobile offline sync, ADR-006): SHA-256 of the canonical request body. The same key
+  /// with a different hash is a reused key (422), never a replay. Null on rows written by the
+  /// older per-service helpers, which compare nothing.
+  requestHash String?
+  /// Who sent the original request (audit only; the scope stays per farm).
+  userId      String?
+
   createdAt DateTime @default(now())
 
   @@unique([farmId, key, endpoint])
   @@index([farmId, endpoint])
+  /// Expiry sweep (`IdempotencyService.purgeExpired`).
+  @@index([createdAt])
 }

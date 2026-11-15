@@ -10221,6 +10221,8 @@ export interface components {
         MilkLogDayStatus: "complete" | "partial" | "missing" | "future" | "before_farm";
         MilkLogEntryDto: {
             anomalyNote?: string;
+            /** Format: date-time */
+            baseUpdatedAt?: string | null;
             cattleId: string;
             editReason?: string;
             tankId?: string;
@@ -10250,6 +10252,7 @@ export interface components {
             tankType: components["schemas"]["MilkTankType"];
             /** Format: date-time */
             updatedAt: string;
+            updatedBy: string | null;
             yieldL: number;
         };
         MilkLogEntrySessionsDto: {
@@ -10356,10 +10359,28 @@ export interface components {
          * @enum {string}
          */
         MilkRestrictionReason: "COLOSTRUM_PERIOD" | "MEDICINE_WITHDRAWAL" | "MASTITIS" | "VETERINARY_HOLD" | "ABNORMAL_MILK" | "OTHER";
+        MilkSaveLogConflictDto: {
+            cattleId: string;
+            server: components["schemas"]["MilkSaveLogServerVersionDto"];
+            yours: components["schemas"]["MilkSaveLogYoursDto"];
+        };
         MilkSaveLogResponseDto: {
             anomaliesFlagged: number;
+            /** @description Entries that were not saved because a newer version exists. Always empty unless the request sent `baseUpdatedAt`. */
+            conflicts: components["schemas"]["MilkSaveLogConflictDto"][];
             saved: number;
             sessionTotalL: number;
+        };
+        MilkSaveLogServerVersionDto: {
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description User who last saved the entry; null on rows saved before this was recorded. */
+            updatedBy?: string | null;
+            updatedByName?: string | null;
+            yieldL: number;
+        };
+        MilkSaveLogYoursDto: {
+            yieldL: number;
         };
         /**
          * @description Sessions this farm has configured.
@@ -10387,6 +10408,8 @@ export interface components {
         };
         MilkSubmitResponseDto: {
             activityLogCreated: boolean;
+            /** @description True only for a request with an `Idempotency-Key` whose session was already fully submitted: nothing ran and the totals are 0. */
+            alreadySubmitted: boolean;
             anomalies: components["schemas"]["MilkSubmitAnomalyDto"][];
             /** @description Calendar day, YYYY-MM-DD. */
             date: string;
@@ -17185,7 +17208,10 @@ export interface operations {
     HealthController_createCase: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated key (8-128 chars) for a write that may be retried, e.g. one queued offline. A repeat with the same key and body returns the first response (header `Idempotency-Replayed: true`); the same key with a different body is 422. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -20082,7 +20108,10 @@ export interface operations {
     MilkController_saveLog: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated key (8-128 chars) for a write that may be retried, e.g. one queued offline. A repeat with the same key and body returns the first response (header `Idempotency-Replayed: true`); the same key with a different body is 422. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -20243,7 +20272,10 @@ export interface operations {
     MilkController_submit: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated key (8-128 chars) for a write that may be retried, e.g. one queued offline. A repeat with the same key and body returns the first response (header `Idempotency-Replayed: true`); the same key with a different body is 422. */
+                "Idempotency-Key"?: string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -23551,7 +23583,10 @@ export interface operations {
     TaskController_complete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Client-generated key (8-128 chars) for a write that may be retried, e.g. one queued offline. A repeat with the same key and body returns the first response (header `Idempotency-Replayed: true`); the same key with a different body is 422. */
+                "Idempotency-Key"?: string;
+            };
             path: {
                 id: string;
             };
@@ -23567,7 +23602,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": Record<string, never>;
+                };
             };
         };
     };

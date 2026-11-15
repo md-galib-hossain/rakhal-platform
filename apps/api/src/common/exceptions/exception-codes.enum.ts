@@ -7,6 +7,10 @@ export enum ExceptionCode {
   FORBIDDEN = 'FORBIDDEN',
   CONFLICT = 'CONFLICT',
   RATE_LIMITED = 'RATE_LIMITED',
+  /** `Idempotency-Key` reused with a different request body (WP8a, ADR-006). HTTP 422. */
+  IDEMPOTENCY_KEY_REUSED = 'IDEMPOTENCY_KEY_REUSED',
+  /** An identical request with this `Idempotency-Key` is still running. HTTP 409; retry later. */
+  IDEMPOTENCY_IN_PROGRESS = 'IDEMPOTENCY_IN_PROGRESS',
 
   // Business
   USER_ALREADY_EXISTS = 'USER_ALREADY_EXISTS',

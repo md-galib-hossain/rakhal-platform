@@ -3,12 +3,20 @@
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { IdempotencyService } from 'src/common/idempotency/application/idempotency.service';
+import {
+  ApiIdempotencyKey,
+  unwrapIdempotent,
+} from 'src/common/idempotency/idempotency.http';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
@@ -39,7 +47,10 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
   SubscriptionGuard,
 )
 export class TaskController {
-  constructor(private readonly taskService: TaskService) {}
+  constructor(
+    private readonly taskService: TaskService,
+    private readonly idempotency: IdempotencyService,
+  ) {}
 
   @Get()
   @RequirePermission('task.read')
@@ -80,13 +91,29 @@ export class TaskController {
 
   @Post(':id/complete')
   @RequirePermission('task.complete')
-  complete(
+  @ApiIdempotencyKey()
+  async complete(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Res({ passthrough: true }) res: Response,
     @Param('id') id: string,
     @Body() dto: CompleteTaskDto,
   ) {
-    return this.taskService.complete(farmId, userId, id, dto);
+    const outcome = await this.idempotency.run(
+      {
+        farmId,
+        userId,
+        endpoint: 'task.complete',
+        key: idempotencyKey,
+        body: { id, ...dto },
+      },
+      () =>
+        this.taskService.complete(farmId, userId, id, dto, {
+          tolerateAlreadyCompleted: !!idempotencyKey,
+        }),
+    );
+    return unwrapIdempotent(res, outcome);
   }
 
   /** Undo a mistaken `complete()` — manager+ only (task.update), keeps the source-event link. */

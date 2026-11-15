@@ -7,6 +7,7 @@ import {
   ActivityLogModule,
   CattleGender,
   MilkDisposition,
+  MilkLogEntry,
   MilkSession,
   MilkTankActivity,
   MilkTankType,
@@ -54,7 +55,10 @@ import {
 } from '../../presentation/dto/milk-query.dto';
 import { getCursorArgs, toCursorPage } from 'src/common/pagination';
 import { ReviewAnomalyDto } from '../../presentation/dto/review-anomaly.dto';
-import { SaveMilkLogDto } from '../../presentation/dto/save-milk-log.dto';
+import {
+  MilkLogEntryDto,
+  SaveMilkLogDto,
+} from '../../presentation/dto/save-milk-log.dto';
 import { SubmitMilkDto } from '../../presentation/dto/submit-milk.dto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -323,6 +327,11 @@ export class MilkService {
     ]);
     const avgMap = new Map(avgRows.map((r) => [r.cattleId, r._avg.yieldL]));
     const existingByCow = new Map(existingEntries.map((e) => [e.cattleId, e]));
+    // WP8a (ADR-006): entries edited from an older version than the server holds are not overwritten.
+    const { toSave, conflicts } = await this.splitStaleEntries(
+      dto.entries,
+      existingByCow,
+    );
     const anomalyFraction = await this.farmSettings.milkAnomalyFraction(farmId);
     const lactationStartByCow = new Map(
       activeLactations.map((l) => [l.cattleId, l.startDate]),
@@ -357,7 +366,7 @@ export class MilkService {
     // A whole-session transaction: entry upserts and any submitted-entry tank
     // reconciliation below must commit together, same as submit()'s pattern.
     await this.prisma.$transaction(async (tx) => {
-      for (const entry of dto.entries) {
+      for (const entry of toSave) {
         const isWithheld = withholding.has(entry.cattleId);
         const tankType = isWithheld
           ? MilkTankType.WITHHOLDING
@@ -423,8 +432,10 @@ export class MilkService {
             anomalyNote: entry.anomalyNote,
             editReason: entry.editReason ?? null,
             createdBy: userId,
+            updatedBy: userId,
           },
           update: {
+            updatedBy: userId,
             yieldL: entry.yieldL,
             tankType,
             disposition,
@@ -473,7 +484,7 @@ export class MilkService {
       // stale peak. Deduped per cow (saveLog's dto is one session's worth of
       // entries across possibly many cows, not per-entry).
       const cowsToRecompute = new Set(
-        dto.entries
+        toSave
           .map((e) => activeLactationIdByCow.get(e.cattleId))
           .filter((id): id is string => !!id),
       );
@@ -485,16 +496,89 @@ export class MilkService {
     this.log.info('Milk log saved', {
       farmId,
       session: dto.session,
-      count: dto.entries.length,
+      count: toSave.length,
+      conflicts: conflicts.length,
     });
     return {
-      saved: dto.entries.length,
+      saved: toSave.length,
       anomaliesFlagged,
       sessionTotalL: Math.round(sessionTotal * 10) / 10,
+      conflicts,
     };
   }
 
-  async submit(farmId: string, userId: string, dto: SubmitMilkDto) {
+  /**
+   * Offline-sync version check (WP8a, ADR-006). An entry that carries `baseUpdatedAt` is saved only if the row
+   * for (cow, date, session) is not newer than the version the caller edited: a missing row always saves; an
+   * existing row saves when `baseUpdatedAt` is not older than its `updatedAt` or when it already holds exactly
+   * the yield and tank being sent (a no-op replay). Otherwise it is returned as a conflict and left untouched.
+   * An entry without `baseUpdatedAt` (the web app, imports) keeps the plain upsert. A race between two saves
+   * inside the same few milliseconds is not caught here; the check is a guard against stale offline writes.
+   */
+  private async splitStaleEntries(
+    entries: MilkLogEntryDto[],
+    existingByCow: Map<string, MilkLogEntry>,
+  ) {
+    const toSave: MilkLogEntryDto[] = [];
+    const stale: { entry: MilkLogEntryDto; existing: MilkLogEntry }[] = [];
+    for (const entry of entries) {
+      const existing = existingByCow.get(entry.cattleId);
+      if (entry.baseUpdatedAt === undefined || !existing) {
+        toSave.push(entry);
+        continue;
+      }
+      const base =
+        entry.baseUpdatedAt === null ? null : new Date(entry.baseUpdatedAt);
+      const newer =
+        base === null || existing.updatedAt.getTime() > base.getTime();
+      const identical =
+        existing.yieldL === entry.yieldL &&
+        existing.tankId === (entry.tankId ?? null);
+      if (newer && !identical) stale.push({ entry, existing });
+      else toSave.push(entry);
+    }
+
+    const authorIds = [
+      ...new Set(
+        stale
+          .map((s) => s.existing.updatedBy)
+          .filter((id): id is string => !!id),
+      ),
+    ];
+    const authors = authorIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: authorIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const nameById = new Map(authors.map((u) => [u.id, u.name]));
+
+    const conflicts = stale.map(({ entry, existing }) => ({
+      cattleId: entry.cattleId,
+      server: {
+        yieldL: existing.yieldL,
+        updatedAt: existing.updatedAt.toISOString(),
+        updatedBy: existing.updatedBy,
+        updatedByName: existing.updatedBy
+          ? (nameById.get(existing.updatedBy) ?? null)
+          : null,
+      },
+      yours: { yieldL: entry.yieldL },
+    }));
+    return { toSave, conflicts };
+  }
+
+  /**
+   * `opts.tolerateAlreadySubmitted` (set when the request carries an `Idempotency-Key`, WP8a): a second submit
+   * of a session whose entries are all already submitted answers 200 `alreadySubmitted` instead of 400, so a
+   * queued offline submit that raced another device resolves cleanly. The web app keeps the 400.
+   */
+  async submit(
+    farmId: string,
+    userId: string,
+    dto: SubmitMilkDto,
+    opts: { tolerateAlreadySubmitted?: boolean } = {},
+  ) {
     await this.assertSessionActive(farmId, dto.session);
     const logDate = this.normalizeDate(dto.date);
     // Only entries not yet submitted are finalized — so re-submitting a session
@@ -506,6 +590,25 @@ export class MilkService {
       },
     });
     if (pending.length === 0) {
+      if (opts.tolerateAlreadySubmitted) {
+        const already = await this.prisma.milkLogEntry.count({
+          where: { farmId, logDate, session: dto.session, submitted: true },
+        });
+        if (already > 0) {
+          return {
+            date: this.dateOnly(logDate),
+            session: dto.session,
+            totalCowsLogged: 0,
+            sellableTotalL: 0,
+            withholdingTotalL: 0,
+            mainTankUpdated: false,
+            withholdingTankUpdated: false,
+            activityLogCreated: false,
+            anomalies: [],
+            alreadySubmitted: true,
+          };
+        }
+      }
       throw new BadRequestException(
         'No new milk log entries to submit for this session',
       );
@@ -610,6 +713,7 @@ export class MilkService {
           name: e.cattle.name ?? e.cattle.tagNumber,
           yieldL: e.yieldL,
         })),
+      alreadySubmitted: false,
     };
   }
 

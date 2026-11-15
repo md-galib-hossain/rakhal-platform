@@ -184,9 +184,33 @@ expiry job deletes only rows older than 35 days.
 - **React Query persistence on AsyncStorage:** no ordered, transactional queue and no fast local search (plan section 4).
 - **Queue every write:** large blast radius (finance, sales, reproduction) without a conflict rule for each.
 
+## Implementation notes: WP8a (backend, built 2026-11-15)
+
+What shipped, where it differs from the text above, and what it deliberately leaves alone:
+
+- **Shared helper:** `IdempotencyService.run()` in `apps/api/src/common/idempotency/` (global module). Endpoint names: `milk.saveLog`,
+  `milk.submit`, `health.createCase`, `task.complete`. Unit-tested with a mocked Prisma; e2e in `apps/api/test/idempotency.e2e-spec.ts`.
+- **Errors:** malformed key 400 (8-128 chars of `A-Za-z0-9_.:-`); same key + different body **422 `IDEMPOTENCY_KEY_REUSED`**; identical
+  request still running **409 `IDEMPOTENCY_IN_PROGRESS`** (the client treats it like a network error: back off and retry). A reservation
+  with no stored response older than 2 minutes (the process died mid-request) is cleared once and the write runs.
+- **Replay:** the stored body is returned with `Idempotency-Replayed: true`. If the write committed but storing the response failed, the
+  request still succeeds (a retry then gets 409 until the stale window passes).
+- **Tolerant answers only with a key.** `alreadySubmitted` (milk submit) and `alreadyCompleted` (task complete) are returned as 200
+  **only when the request carries an `Idempotency-Key`**; without one the web app keeps its 400. `alreadySubmitted` is now always present
+  on the milk submit response (`false` normally).
+- **`baseUpdatedAt` semantics:** field **omitted** = the old upsert (web app, Excel import); **`null`** = "the device saw no row";
+  a value = the version the device edited. An entry whose yield and tank already equal the server's is never a conflict. `updatedBy` is set
+  on every save; a conflict carries `updatedBy` and `updatedByName`. All entries of one request are checked against the rows read at the start;
+  two saves racing inside the same few milliseconds are not detected (documented in `MilkService.splitStaleEntries`).
+- **Task complete:** now a conditional update, so two concurrent completes change the row once and create at most one recurrence. The response
+  gained `alreadyCompleted` and, for a repeat, `completedByName`.
+- **Expiry:** `idempotency_expiry` joins the existing 5 AM daily sweep (35 days); no new cron.
+- **Not changed:** the older per-service helpers in animal events and reproduction still work as before and can move to the shared helper
+  later; `POST /health/cases/bulk` has no key (not queued offline in v1).
+
 ## Open points for WP8a / WP8b
 
-1. Add `MilkLogEntry.updatedBy` (nullable) and fix the shape of the per-entry conflict response with the generated OpenAPI types.
+1. ~~Add `MilkLogEntry.updatedBy` and the conflict response shape~~: done in WP8a (see above).
 2. Measure a full pull on a seeded 500-animal farm over a throttled connection; add delta only if needed.
 3. Decide the retention for `done` outbox rows (7 days proposed) and a cap on the outbox size (proposed 500 rows, then block new queued
    writes with a message).

@@ -12,6 +12,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { MilkSession } from '@prisma/client';
 import { trimString } from 'src/common/dto';
 
@@ -47,6 +48,17 @@ export class MilkLogEntryDto {
   @Transform(trimString)
   @IsString()
   editReason?: string;
+
+  /**
+   * Offline-sync version check (WP8a, ADR-006). The `updatedAt` of the row this device last saw for
+   * (cow, date, session), or `null` when it saw none. When a row exists and is newer than this (or this is
+   * `null`), the entry is NOT overwritten and comes back in `conflicts`. Omit the field to keep the plain
+   * upsert the web app uses.
+   */
+  @ApiPropertyOptional({ type: String, format: 'date-time', nullable: true })
+  @IsOptional()
+  @IsDateString()
+  baseUpdatedAt?: string | null;
 }
 
 /** `POST /milk/log` — save/update draft entries for a session on a date. */
