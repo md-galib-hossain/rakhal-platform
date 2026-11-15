@@ -13,8 +13,8 @@
 
 > **M3 (monorepo-numbered, no RFE assigned)** — Shared UI dedupe `DONE` (2026-11-15): every component
 > this app duplicated from `packages/ui` now imports from `@rakhal/ui` instead — no local copy left in
-> `apps/web/components/ui` or `apps/web/components/shared`. 60+ components across five waves (waves 1–3,
-> 5; wave 4 folded into wave 3), each a separate visual-regression-gated PR. Wave 5 introduced
+> `apps/web/components/ui` or `apps/web/components/shared`. 60+ components across five waves (waves 1–5),
+> each a separate visual-regression-gated PR. Wave 5 introduced
 > `LocaleProvider`/`LabelsProvider`/`QueryStateProvider` in `packages/ui`'s `lib/` — small, framework-
 > independent contexts wired once in `providers/app-providers.tsx`/`app/layout.tsx`, adapting this app's
 > real next-intl/nuqs/next-navigation hooks, so `packages/ui` itself never depends on them. Full writeup

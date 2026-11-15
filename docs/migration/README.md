@@ -45,7 +45,7 @@ The aim is *one* place for web code and shared packages, with the deployable uni
 | M0 | Preflight: freeze list, clean trees, baselines recorded | yes | yes (start) |
 | M1 | Import consumer frontend into `apps/web` (history preserved), **not deployed from here** | yes (delete the folder) | no |
 | M2 | Make `apps/web` build in CI beside the original; compare outputs | yes | no |
-| M3 | Shared UI dedupe, one component per PR, visual-regression gated — **DONE 2026-11-15.** All five waves closed (waves 1–3, 5; wave 4 folded into wave 3's `shared/*` scope), 60+ components moved into `@rakhal/ui`, zero local copies left in `apps/web`. See [03-shared-ui-dedupe.md](03-shared-ui-dedupe.md) for the full per-component PR log. | yes (per PR) | no |
+| M3 | Shared UI dedupe, one component per PR, visual-regression gated — **DONE 2026-11-15.** All five waves closed (waves 1–5), 60+ components moved into `@rakhal/ui`, zero local copies left in `apps/web`. See [03-shared-ui-dedupe.md](03-shared-ui-dedupe.md) for the full per-component PR log. | yes (per PR) | no |
 | M4 | Generate API types from the backend's OpenAPI into `@rakhal/admin-api-client` and a consumer client | yes | no |
 | M5 | Cutover: production web deploys from the monorepo | rollback runbook, tested first | **yes** |
 | M6 | Backend import (`apps/api`) - **DONE 2026-11-14 (code on `main`, PR #51); owner pulled it ahead of M5. Deploy not moved yet.** See [M6 rehearsal](M6-rehearsal-2026-11-14.md) | yes until deploy moves | yes (given) |
