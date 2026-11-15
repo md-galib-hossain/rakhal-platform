@@ -89,6 +89,18 @@ export const en = {
   'home.signedIn': 'Signed in',
   'home.changeFarm': 'Change farm',
   'home.signOut': 'Sign out',
+  // WP6: navigation shell
+  'nav.home': 'Home',
+  'nav.cattle': 'Cattle',
+  'nav.milk': 'Milk',
+  'nav.tasks': 'Tasks',
+  'nav.more': 'More',
+  'nav.tabsLabel': 'Main menu',
+  'access.denied.title': 'No access',
+  'access.denied.message': 'Your account does not have access to this section. Ask the farm owner.',
+  'shell.comingSoon.title': 'Coming soon',
+  'shell.comingSoon.message': 'This section is being built.',
+  'more.account': 'Account',
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -162,6 +174,17 @@ export const bn: Record<MessageKey, string> = {
   'home.signedIn': 'সাইন ইন করা আছে',
   'home.changeFarm': 'খামার বদলান',
   'home.signOut': 'সাইন আউট',
+  'nav.home': 'হোম',
+  'nav.cattle': 'গরু',
+  'nav.milk': 'দুধ',
+  'nav.tasks': 'কাজ',
+  'nav.more': 'আরও',
+  'nav.tabsLabel': 'প্রধান মেনু',
+  'access.denied.title': 'প্রবেশাধিকার নেই',
+  'access.denied.message': 'আপনার অ্যাকাউন্টে এই অংশে প্রবেশের অনুমতি নেই। খামারের মালিককে জানান।',
+  'shell.comingSoon.title': 'শীঘ্রই আসছে',
+  'shell.comingSoon.message': 'এই অংশটি তৈরি করা হচ্ছে।',
+  'more.account': 'অ্যাকাউন্ট',
 };
 
 export const messages: Record<Locale, Record<MessageKey, string>> = { en, bn };

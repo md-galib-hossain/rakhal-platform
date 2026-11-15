@@ -9,6 +9,10 @@ import {
 } from '@rakhal/api-client';
 import { AuthProvider, useAuth, type AuthContextValue } from './AuthProvider.tsx';
 
+jest.mock('@react-native-async-storage/async-storage', () =>
+  jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
+
 const user = { id: 'u1', email: 'rahim@farm.test', name: 'Rahim', isEmailVerified: true };
 
 type Reply = { status?: number; json?: unknown } | 'network';

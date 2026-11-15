@@ -33,3 +33,7 @@ adb exec-out screencap -p > screen.png                # screenshot
 adb shell uiautomator dump /sdcard/ui.xml              # view bounds and text (check clipped labels)
 adb shell input tap X Y ; adb shell input text "..."   # drive the UI
 ```
+
+## 5. WP6 navigation shell, checked on the device (2026-11-15)
+Header with the farm name (tap opens the farm picker) and a language toggle; five bottom tabs (Home, Cattle, Milk, Tasks, More) with the selected tab marked; Milk shows the "coming soon" state; More shows the account section (name, farm, change farm, sign out); Bangla labels render in full in the shell; killing the app on More and relaunching returns to More (last tab restored); Android Back from a tab goes to Home first.
+Not covered on the device: a role without cattle/milk/task permission (the demo manager, worker and owner all hold them; hiding is covered by Jest), TalkBack, dark theme.
