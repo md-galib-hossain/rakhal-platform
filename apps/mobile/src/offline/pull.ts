@@ -201,6 +201,21 @@ export async function lastPulledAt(db: SqlDb, farmId: string): Promise<number | 
 }
 
 /** Read cached rows for an offline screen. `search` matches the lower-cased search text (tag number, name). */
+/** One cached row by id (the detail screen's offline fallback); null when it is not on this phone. */
+export async function readCacheRow(
+  db: SqlDb,
+  farmId: string,
+  entity: CacheEntity,
+  id: string,
+): Promise<Record<string, unknown> | null> {
+  const rows = await db.all<{ data: string }>('SELECT data FROM cache_rows WHERE farm_id = ? AND entity = ? AND id = ?', [
+    farmId,
+    entity,
+    id,
+  ]);
+  return rows[0] ? (JSON.parse(rows[0].data) as Record<string, unknown>) : null;
+}
+
 export async function readCache(
   db: SqlDb,
   farmId: string,
