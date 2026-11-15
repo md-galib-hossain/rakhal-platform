@@ -8,7 +8,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { DateText } from "@/components/shared/date-text";
 import { MobileRecordCard } from "@rakhal/ui/shared/mobile-record-card";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { Can } from "@/lib/auth/permissions";
 import { VoidDocumentDialog, type VoidDocumentVariant } from "@/features/finance/components/void-document-dialog";
 import { useCancelSale, useInvoicesList, useRefundSale } from "../../hooks/use-sales";

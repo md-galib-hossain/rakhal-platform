@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@rakhal/ui/ui/card";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import type { SalesSummary } from "../../types";
 
 /** RAKHAL-388 — "Top Buyers" list: name + amount (`BUSINESS_IA_PRD.md` §5.7), straight off

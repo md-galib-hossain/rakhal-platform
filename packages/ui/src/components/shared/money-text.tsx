@@ -1,9 +1,7 @@
-"use client"; // reads the active next-intl locale to format ৳ amounts
+"use client"; // reads the active locale (via @rakhal/ui's LocaleProvider) to format ৳ amounts
 
-import { useLocale } from "next-intl";
-import { cn } from "@/lib/utils";
-import { formatMoney } from "@/lib/format";
-import type { Locale } from "@/lib/constants/i18n";
+import { cn } from "../../lib/utils";
+import { formatMoney, useLocale } from "../../lib/locale";
 
 export interface MoneyTextProps extends React.HTMLAttributes<HTMLSpanElement> {
   amount: number;
@@ -11,9 +9,9 @@ export interface MoneyTextProps extends React.HTMLAttributes<HTMLSpanElement> {
   colorize?: boolean;
 }
 
-/** Locale-aware ৳ rendering (lakh grouping, Latin digits) — wraps `lib/format.ts#formatMoney`. */
+/** Locale-aware ৳ rendering (lakh grouping, Latin digits) — wraps `lib/locale.ts#formatMoney`. */
 export function MoneyText({ amount, colorize = false, className, ...props }: MoneyTextProps) {
-  const locale = useLocale() as Locale;
+  const locale = useLocale();
   return (
     <span
       className={cn(

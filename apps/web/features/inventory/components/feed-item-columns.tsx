@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { Wheat } from "lucide-react";
 import { DateText } from "@/components/shared/date-text";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { avatarTint } from "../avatar-tint";
 import { feedCategoryLabel } from "../feed-category";
 import { FeedItemRowActions } from "./feed-item-row-actions";

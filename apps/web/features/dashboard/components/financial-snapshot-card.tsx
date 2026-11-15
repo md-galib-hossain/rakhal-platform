@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { formatSignedPct } from "@/lib/format";
 import { useFinancialSnapshot } from "../hooks/use-dashboard-widgets";
 import { DashboardCard } from "./dashboard-card";

@@ -7,7 +7,7 @@ import { Badge } from "@rakhal/ui/ui/badge";
 import { DataTable } from "@/components/shared/data-table";
 import { Pagination } from "@rakhal/ui/shared/pagination";
 import { DateText } from "@/components/shared/date-text";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { useDispatchesPagedList } from "../../hooks/use-buyers";
 import type { Dispatch, DispatchStatus } from "../../types";
 

@@ -6,7 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@rakhal/ui/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { DateText } from "@/components/shared/date-text";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { Can } from "@/lib/auth/permissions";
 import { useExpensesLookup, usePurchasesLookup } from "../../hooks/use-finance-v2";
 import { useSuppliers } from "@/features/settings/hooks/use-workspace";

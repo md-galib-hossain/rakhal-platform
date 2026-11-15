@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Button } from "@rakhal/ui/ui/button";
 import { Input } from "@rakhal/ui/ui/input";
 import { Checkbox } from "@rakhal/ui/ui/checkbox";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";

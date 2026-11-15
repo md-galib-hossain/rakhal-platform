@@ -6,7 +6,7 @@ import { Search } from "lucide-react";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { DataTable } from "@/components/shared/data-table";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
 import { Input } from "@rakhal/ui/ui/input";
 import { useLiabilities } from "../hooks/use-finance";

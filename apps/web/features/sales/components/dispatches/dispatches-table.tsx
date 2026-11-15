@@ -9,7 +9,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { DateText } from "@/components/shared/date-text";
 import { MobileRecordCard } from "@rakhal/ui/shared/mobile-record-card";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@rakhal/ui/ui/dropdown-menu";
 import { Can } from "@/lib/auth/permissions";

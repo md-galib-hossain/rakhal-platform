@@ -7,7 +7,7 @@ import { Chip } from "@rakhal/ui/ui/chip";
 import { Can } from "@/lib/auth/permissions";
 import { Progress } from "@rakhal/ui/ui/progress";
 import { DateText } from "@/components/shared/date-text";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { SelectableCardOverlay } from "@/components/shared/selectable-card-overlay";

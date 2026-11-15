@@ -6,7 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/shared/data-table";
 import { Pagination } from "@rakhal/ui/shared/pagination";
 import { DateText } from "@/components/shared/date-text";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { PaymentStatusBadge } from "@/features/finance/components/payments/payment-status-badge";
 import { useBuyerInvoicesPagedList } from "../../hooks/use-buyers";
 import type { BuyerInvoiceRow } from "../../types";

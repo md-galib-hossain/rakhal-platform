@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { Card } from "@rakhal/ui/ui/card";
 import { useRakhalBalance } from "../../hooks/use-finance-v2";
 

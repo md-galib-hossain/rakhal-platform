@@ -8,7 +8,7 @@ import { Badge } from "@rakhal/ui/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@rakhal/ui/ui/card";
 import { DataTable } from "@/components/shared/data-table";
 import { DateText } from "@/components/shared/date-text";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { useRecentInvoices } from "../../hooks/use-sales";
 import type { InvoiceRow, InvoicePaymentStatus } from "../../types";
 

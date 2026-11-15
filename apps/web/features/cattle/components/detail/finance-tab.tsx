@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { ChartCard } from "@/components/shared/chart-card";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { Button } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import {

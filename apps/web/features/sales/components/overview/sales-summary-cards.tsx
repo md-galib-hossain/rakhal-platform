@@ -6,7 +6,7 @@ import { StatCard } from "@rakhal/ui/shared/stat-card";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Card } from "@rakhal/ui/ui/card";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import type { SalesSummary } from "../../types";
 
 /** RAKHAL-388 (MILESTONE 22) — Sales Overview's 4 KPIs: Total Sales / Total Invoices / Paid
