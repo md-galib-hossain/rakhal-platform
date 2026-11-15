@@ -1,7 +1,7 @@
 "use client"; // URL-synced filters via the shared FilterBar
 
 import { useTranslations } from "next-intl";
-import { FilterBar } from "@/components/shared/filter-bar";
+import { FilterBar } from "@rakhal/ui/shared/filter-bar";
 
 const TYPES = ["EQUIPMENT", "MACHINERY", "TOOL", "SUPPLY", "OTHER"] as const;
 

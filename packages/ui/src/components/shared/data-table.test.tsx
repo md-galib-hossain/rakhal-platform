@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ColumnDef } from "@tanstack/react-table";
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
 import { useQueryState as useNuqsQueryState, parseAsString } from "nuqs";
-import { QueryStateProvider, type QueryStateHook } from "../../lib/query-state";
+import { QueryStateProvider, type QueryStateApi } from "../../lib/query-state";
 import { LabelsProvider } from "../../lib/labels";
 import { DataTable } from "./data-table";
 
@@ -17,8 +17,13 @@ const columns: ColumnDef<Row, unknown>[] = [
   { accessorKey: "name", header: "Name" },
 ];
 
-const useTestQueryStateHook: QueryStateHook = (key, defaultValue) =>
-  useNuqsQueryState(key, defaultValue !== undefined ? parseAsString.withDefault(defaultValue) : parseAsString);
+// DataTable only ever calls useQueryState; the other two aren't exercised here.
+const queryStateApi: QueryStateApi = {
+  useQueryState: (key, defaultValue) =>
+    useNuqsQueryState(key, defaultValue !== undefined ? parseAsString.withDefault(defaultValue) : parseAsString),
+  useSearchParamsSnapshot: () => new URLSearchParams(),
+  useClearQueryParams: () => () => {},
+};
 
 const labels = {
   datePicker: { today: "Today", clear: "Clear" },
@@ -36,7 +41,7 @@ const NuqsWrapper = withNuqsTestingAdapter();
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
     <NuqsWrapper>
-      <QueryStateProvider useQueryState={useTestQueryStateHook}>
+      <QueryStateProvider api={queryStateApi}>
         <LabelsProvider labels={labels}>{children}</LabelsProvider>
       </QueryStateProvider>
     </NuqsWrapper>

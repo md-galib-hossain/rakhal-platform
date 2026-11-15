@@ -1,16 +1,15 @@
-"use client"; // syncs filters to the URL via nuqs
+"use client"; // syncs filters to the URL via the app's QueryStateProvider
 
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { parseAsString, useQueryState } from "nuqs";
 import { Filter as FilterIcon, Search, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Input } from "@rakhal/ui/ui/input";
-import { Button } from "@rakhal/ui/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
-import { Checkbox } from "@rakhal/ui/ui/checkbox";
-import { Chip } from "@rakhal/ui/ui/chip";
+import { cn } from "../../lib/utils";
+import { useSharedClearQueryParams, useSharedQueryState, useSharedSearchParamsSnapshot } from "../../lib/query-state";
+import { Input } from "../ui/input";
+import { Button } from "../ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Checkbox } from "../ui/checkbox";
+import { Chip } from "../ui/chip";
 
 export interface FilterBarSelectOption {
   value: string;
@@ -61,11 +60,12 @@ export interface FilterBarProps {
 }
 
 /** Debounced search (300ms) + a single "Filter" popover holding select + checklist filters, all
- * URL-synced via nuqs. Matches the Figma "Cattle" list's search+Filter-button row (a single icon
- * button, not N always-visible selects) — the selects themselves are unchanged, just behind one
- * click instead of spread across the row. Active checklist picks surface as removable chips below
- * the row (screenshot reference), since a multi-select's state isn't visible from a closed popover
- * the way a single select's placeholder text is. Resets DataTable's cursor by design. */
+ * URL-synced via the app's `QueryStateProvider`. Matches the Figma "Cattle" list's search+Filter-
+ * button row (a single icon button, not N always-visible selects) — the selects themselves are
+ * unchanged, just behind one click instead of spread across the row. Active checklist picks
+ * surface as removable chips below the row (screenshot reference), since a multi-select's state
+ * isn't visible from a closed popover the way a single select's placeholder text is. Resets
+ * DataTable's cursor by design. */
 export function FilterBar({
   searchKey,
   searchPlaceholder = "Search…",
@@ -112,7 +112,7 @@ export function FilterBar({
 
 /** Reads/writes a checklist filter's comma-joined URL value as a `string[]`. */
 function useChecklistValues(key: string): [string[], (next: string[]) => void] {
-  const [raw, setRaw] = useQueryState(key, parseAsString);
+  const [raw, setRaw] = useSharedQueryState(key);
   const values = raw ? raw.split(",").filter(Boolean) : [];
   const setValues = (next: string[]) => void setRaw(next.length > 0 ? next.join(",") : null);
   return [values, setValues];
@@ -122,7 +122,7 @@ function useChecklistValues(key: string): [string[], (next: string[]) => void] {
  * screenshot reference's "Zone 1 ✕ Zone 3 ✕" row. Only checklists have chips (selects already
  * show their one active value inside the closed Select trigger). */
 function FilterChips({ checklists }: { checklists: FilterBarChecklistConfig[] }) {
-  const searchParams = useSearchParams();
+  const searchParams = useSharedSearchParamsSnapshot();
   const active = checklists.flatMap((config) => {
     const raw = searchParams.get(config.key);
     const values = raw ? raw.split(",").filter(Boolean) : [];
@@ -162,23 +162,22 @@ function FilterChipPill({ chip }: { chip: { key: string; value: string; label: s
 }
 
 function SearchInput({ paramKey, placeholder }: { paramKey: string; placeholder: string }) {
-  const [value, setValue] = useQueryState(paramKey, parseAsString.withDefault(""));
-  const [draft, setDraft] = useState(value);
-  const [syncedValue, setSyncedValue] = useState(value);
+  const [value, setValue] = useSharedQueryState(paramKey, "");
+  const [draft, setDraft] = useState(value ?? "");
+  const [syncedValue, setSyncedValue] = useState(value ?? "");
 
   // Reset the draft when the URL value changes externally (e.g. the Clear button) — done during
   // render (not an effect) per https://react.dev/learn/you-might-not-need-an-effect.
-  if (value !== syncedValue) {
-    setSyncedValue(value);
-    setDraft(value);
+  if ((value ?? "") !== syncedValue) {
+    setSyncedValue(value ?? "");
+    setDraft(value ?? "");
   }
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (draft !== value) void setValue(draft || null);
+      if (draft !== (value ?? "")) void setValue(draft || null);
     }, 300);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft]);
 
   return (
@@ -216,8 +215,8 @@ function FilterPopover({
   searchKey?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSharedSearchParamsSnapshot();
+  const clearParams = useSharedClearQueryParams();
 
   const activeSelectKeys = selects.filter((s) => searchParams.has(s.key));
   const activeChecklistCount = checklists.reduce((sum, c) => {
@@ -234,9 +233,7 @@ function FilterPopover({
   ];
 
   function handleClearAll() {
-    const params = new URLSearchParams(searchParams.toString());
-    allFilterKeys.forEach((k) => params.delete(k));
-    router.replace(params.size > 0 ? `?${params.toString()}` : window.location.pathname);
+    clearParams(allFilterKeys);
   }
 
   return (
@@ -337,7 +334,7 @@ function FilterPopover({
 }
 
 function FilterSelect({ config }: { config: FilterBarSelectConfig }) {
-  const [value, setValue] = useQueryState(config.key, parseAsString);
+  const [value, setValue] = useSharedQueryState(config.key);
   const isActive = Boolean(value);
 
   return (

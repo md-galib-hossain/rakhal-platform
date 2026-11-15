@@ -9,7 +9,7 @@ vi.mock("./treatments-tab", () => ({ TreatmentsTab: () => <div data-testid="tab-
 vi.mock("./health-plan-tab", () => ({ HealthPlanTab: () => <div data-testid="tab-protocols" /> }));
 vi.mock("./health-insights-tab", () => ({ HealthInsightsTab: () => <div data-testid="tab-insights" /> }));
 vi.mock("./health-filter-bar", () => ({ HealthFilterBar: () => <div data-testid="health-filter-bar" /> }));
-vi.mock("@/components/shared/filter-bar", () => ({ FilterBar: () => <div data-testid="filter-bar" /> }));
+vi.mock("@rakhal/ui/shared/filter-bar", () => ({ FilterBar: () => <div data-testid="filter-bar" /> }));
 
 function renderCard(search = "") {
   const Adapter = withNuqsTestingAdapter({ searchParams: search });

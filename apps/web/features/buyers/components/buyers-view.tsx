@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
-import { FilterBar } from "@/components/shared/filter-bar";
+import { FilterBar } from "@rakhal/ui/shared/filter-bar";
 import { Pagination } from "@rakhal/ui/shared/pagination";
 import { Button } from "@rakhal/ui/ui/button";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
