@@ -1,15 +1,18 @@
 import { router } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../src/auth/AuthProvider.tsx';
+import { Button } from '../src/components/actions/Button.tsx';
 import { Heading, Text } from '../src/components/primitives/Text.tsx';
 import { useLocale } from '../src/providers/LocaleProvider.tsx';
 import { useTheme } from '../src/providers/ThemeProvider.tsx';
 
-// Placeholder screen: the real home arrives with its WP. It renders inside AppProviders (root layout), so it uses
-// the theme/locale primitives; expo-router supplies the SafeAreaProvider that the insets come from.
+// Signed-in placeholder: the real home (priorities, quick actions) arrives with the navigation shell (WP6). It renders
+// inside AppProviders > AuthProvider (root layout); the AuthGate guarantees a signed-in user with a farm lands here.
 export default function Index() {
   const { colors, tokens } = useTheme();
   const { t } = useLocale();
+  const { user, signOut } = useAuth();
   const insets = useSafeAreaInsets();
   return (
     <View
@@ -24,6 +27,11 @@ export default function Index() {
       }}
     >
       <Heading>{t('common.appName')}</Heading>
+      <Text color="mutedForeground">
+        {user ? t('home.signedInAs', { name: user.name }) : t('home.signedIn')}
+      </Text>
+      <Button label={t('home.changeFarm')} variant="secondary" onPress={() => router.push('/farm')} />
+      <Button label={t('home.signOut')} variant="ghost" size="md" onPress={() => void signOut()} />
       {__DEV__ ? (
         <Pressable
           accessibilityRole="link"

@@ -1,6 +1,8 @@
 import { Slot } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View } from 'react-native';
+import { AuthGate } from '../src/auth/AuthGate.tsx';
+import { AuthProvider } from '../src/auth/AuthProvider.tsx';
 import { RootErrorBoundary } from '../src/components/RootErrorBoundary.tsx';
 import { AppProviders } from '../src/providers/AppProviders.tsx';
 import { useTheme } from '../src/providers/ThemeProvider.tsx';
@@ -16,7 +18,9 @@ function Shell() {
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <RootErrorBoundary>
-        <Slot />
+        <AuthGate>
+          <Slot />
+        </AuthGate>
       </RootErrorBoundary>
     </View>
   );
@@ -25,7 +29,9 @@ function Shell() {
 export default function RootLayout() {
   return (
     <AppProviders>
-      <Shell />
+      <AuthProvider>
+        <Shell />
+      </AuthProvider>
     </AppProviders>
   );
 }
