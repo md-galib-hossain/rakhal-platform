@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { LabelsProvider } from "@rakhal/ui/lib/labels";
+import { buildSharedLabels } from "@/test/shared-ui-providers";
 import en from "@/i18n/messages/en.json";
 import type { Task, TaskListFilters } from "../types";
 
@@ -74,7 +76,7 @@ const task = (over: Partial<Task> = {}): Task =>
 function ui(node: React.ReactNode) {
   return (
     <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
-      {node}
+      <LabelsProvider labels={buildSharedLabels(en)}>{node}</LabelsProvider>
     </NextIntlClientProvider>
   );
 }

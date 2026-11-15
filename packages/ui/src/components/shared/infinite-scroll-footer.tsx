@@ -1,10 +1,10 @@
 "use client"; // IntersectionObserver sentinel + live-region status
 
 import { useEffect, useRef } from "react";
-import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
-import { Button } from "@rakhal/ui/ui/button";
-import { cn } from "@/lib/utils";
+import { Button } from "../ui/button";
+import { cn } from "../../lib/utils";
+import { useLabels } from "../../lib/labels";
 
 export interface InfiniteScrollFooterProps {
   hasNextPage: boolean;
@@ -40,7 +40,7 @@ export function InfiniteScrollFooter({
   rootMargin = "400px",
   className,
 }: InfiniteScrollFooterProps) {
-  const t = useTranslations("common.infiniteScroll");
+  const t = useLabels().infiniteScroll;
   const sentinelRef = useRef<HTMLDivElement>(null);
   const loadMoreRef = useRef(onLoadMore);
   useEffect(() => {
@@ -63,11 +63,11 @@ export function InfiniteScrollFooter({
   }, [armed, rootRef, rootMargin]);
 
   const status = isFetchingNextPage
-    ? t("loading")
+    ? t.loading
     : isError
-      ? t("error")
+      ? t.error
       : !hasNextPage && loadedCount > 0
-        ? t("end", { count: loadedCount })
+        ? t.end.replace("{count}", String(loadedCount))
         : "";
 
   return (
@@ -79,7 +79,7 @@ export function InfiniteScrollFooter({
       </p>
       {hasNextPage && !isFetchingNextPage ? (
         <Button variant="outline" size="sm" onClick={onLoadMore}>
-          {isError ? t("retry") : t("loadMore")}
+          {isError ? t.retry : t.loadMore}
         </Button>
       ) : null}
     </div>

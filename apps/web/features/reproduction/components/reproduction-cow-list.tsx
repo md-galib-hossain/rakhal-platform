@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@rakhal/ui/ui/tabs";
 import { DateText } from "@/components/shared/date-text";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
+import { InfiniteScrollFooter } from "@rakhal/ui/shared/infinite-scroll-footer";
 import { useInfiniteCursorList } from "@/lib/hooks/use-infinite-cursor-list";
 import { qk } from "@/lib/query/keys";
 import { cn } from "@/lib/utils";

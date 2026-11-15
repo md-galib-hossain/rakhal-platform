@@ -1,9 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { NextIntlClientProvider } from "next-intl";
-import en from "@/i18n/messages/en.json";
+import { LabelsProvider } from "../../lib/labels";
 import { InfiniteScrollFooter, type InfiniteScrollFooterProps } from "./infinite-scroll-footer";
+
+const labels = {
+  datePicker: { today: "Today", clear: "Clear" },
+  dateTimePicker: { time: "Time", hour: "Hour", minute: "Minute", now: "Now", clear: "Clear", done: "Done" },
+  infiniteScroll: {
+    loading: "Loading more…",
+    error: "Could not load more. Your list is safe.",
+    retry: "Retry",
+    loadMore: "Load more",
+    end: "All {count} loaded",
+  },
+};
 
 type IOCallback = (entries: Array<{ isIntersecting: boolean }>) => void;
 let observers: Array<{ cb: IOCallback; disconnect: ReturnType<typeof vi.fn> }> = [];
@@ -26,9 +37,9 @@ afterEach(() => vi.unstubAllGlobals());
 function setup(props: Partial<InfiniteScrollFooterProps> = {}) {
   const onLoadMore = vi.fn();
   const ui = (p: Partial<InfiniteScrollFooterProps>) => (
-    <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
+    <LabelsProvider labels={labels}>
       <InfiniteScrollFooter hasNextPage isFetchingNextPage={false} onLoadMore={onLoadMore} {...props} {...p} />
-    </NextIntlClientProvider>
+    </LabelsProvider>
   );
   const view = render(ui({}));
   return { onLoadMore, rerender: (p: Partial<InfiniteScrollFooterProps>) => view.rerender(ui(p)) };

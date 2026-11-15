@@ -14,7 +14,7 @@ import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
 import { DateText } from "@/components/shared/date-text";
-import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
+import { InfiniteScrollFooter } from "@rakhal/ui/shared/infinite-scroll-footer";
 import { useIncrementalReveal } from "@/lib/hooks/use-incremental-reveal";
 import { Can, useCan } from "@/lib/auth/permissions";
 import { ApiError } from "@/lib/api/errors";

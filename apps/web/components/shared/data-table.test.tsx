@@ -4,7 +4,9 @@ import userEvent from "@testing-library/user-event";
 import type { ColumnDef } from "@tanstack/react-table";
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
 import { NextIntlClientProvider } from "next-intl";
+import { LabelsProvider } from "@rakhal/ui/lib/labels";
 import en from "@/i18n/messages/en.json";
+import { buildSharedLabels } from "@/test/shared-ui-providers";
 import { DataTable } from "./data-table";
 
 interface Row {
@@ -48,7 +50,9 @@ describe("DataTable", () => {
     const onLoadMore = vi.fn();
     render(
       <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
-        <DataTable columns={columns} data={[{ id: "1", name: "Cow #1" }]} hasNextPage onLoadMore={onLoadMore} />
+        <LabelsProvider labels={buildSharedLabels(en)}>
+          <DataTable columns={columns} data={[{ id: "1", name: "Cow #1" }]} hasNextPage onLoadMore={onLoadMore} />
+        </LabelsProvider>
       </NextIntlClientProvider>,
       { wrapper: withNuqsTestingAdapter() },
     );
