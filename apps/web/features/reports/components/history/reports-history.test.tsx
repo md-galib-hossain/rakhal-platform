@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
+import { LabelsProvider } from "@rakhal/ui/lib/labels";
+import { buildSharedLabels } from "@/test/shared-ui-providers";
 import en from "@/i18n/messages/en.json";
 import { makeReport } from "./report-fixture";
 import { ReportsHistory } from "./reports-history";
@@ -42,7 +44,9 @@ function renderHistory(search = "") {
   render(
     <Adapter>
       <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
-        <ReportsHistory canRetry canDelete canStartNew />
+        <LabelsProvider labels={buildSharedLabels(en)}>
+          <ReportsHistory canRetry canDelete canStartNew />
+        </LabelsProvider>
       </NextIntlClientProvider>
     </Adapter>,
   );

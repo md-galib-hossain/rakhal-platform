@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@rakhal/ui/ui/date-picker";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
+import { InfiniteScrollFooter } from "@rakhal/ui/shared/infinite-scroll-footer";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { useActivityInfiniteList } from "../hooks/use-activity";

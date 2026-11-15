@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { LocaleProvider } from "@rakhal/ui/lib/locale";
 import { LabelsProvider } from "@rakhal/ui/lib/labels";
+import { buildSharedLabels } from "@/test/shared-ui-providers";
 import en from "@/i18n/messages/en.json";
 import bn from "@/i18n/messages/bn.json";
 import type { UpcomingEvent } from "@/features/cattle/types";
@@ -68,19 +69,7 @@ function renderStrip(events: UpcomingEvent[], opts: { canRecord?: boolean; local
   render(
     <NextIntlClientProvider locale={locale} messages={messages} timeZone="Asia/Dhaka">
       <LocaleProvider locale={locale}>
-        <LabelsProvider
-          labels={{
-            datePicker: { today: messages.common.today, clear: messages.common.clear },
-            dateTimePicker: {
-              time: messages.common.time,
-              hour: messages.common.hour,
-              minute: messages.common.minute,
-              now: messages.common.now,
-              clear: messages.common.clear,
-              done: messages.common.done,
-            },
-          }}
-        >
+        <LabelsProvider labels={buildSharedLabels(messages)}>
           <NextUp cattleId="c1" animal={{ id: "c1", tagNumber: "A-12", name: "Lali" }} canRecord={opts.canRecord ?? true} onRecord={onRecord} />
         </LabelsProvider>
       </LocaleProvider>
@@ -250,19 +239,7 @@ describe("NextUp", () => {
     render(
       <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
         <LocaleProvider locale="en">
-          <LabelsProvider
-            labels={{
-              datePicker: { today: en.common.today, clear: en.common.clear },
-              dateTimePicker: {
-                time: en.common.time,
-                hour: en.common.hour,
-                minute: en.common.minute,
-                now: en.common.now,
-                clear: en.common.clear,
-                done: en.common.done,
-              },
-            }}
-          >
+          <LabelsProvider labels={buildSharedLabels(en)}>
             <NextUp cattleId="c1" canRecord onRecord={vi.fn()} />
           </LabelsProvider>
         </LocaleProvider>

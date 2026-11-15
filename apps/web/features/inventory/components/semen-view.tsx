@@ -10,7 +10,7 @@ import { Input } from "@rakhal/ui/ui/input";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { ConfirmDialog } from "@rakhal/ui/shared/confirm-dialog";
-import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
+import { InfiniteScrollFooter } from "@rakhal/ui/shared/infinite-scroll-footer";
 import { useArchiveSemenBatch, useSemenBatchInfiniteList, useSemenTanks } from "../hooks/use-inventory";
 import { SemenTankCard } from "./semen-tank-card";
 import { SemenTankFormDialog } from "./semen-tank-form-dialog";

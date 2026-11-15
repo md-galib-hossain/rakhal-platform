@@ -4,6 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { LocaleProvider } from "@rakhal/ui/lib/locale";
 import { LabelsProvider } from "@rakhal/ui/lib/labels";
+import { buildSharedLabels } from "@/test/shared-ui-providers";
 import en from "@/i18n/messages/en.json";
 import bn from "@/i18n/messages/bn.json";
 import { HistoryStep } from "./history-step";
@@ -26,19 +27,7 @@ function renderStep(gender: string, initial?: HistoryValues, locale: "en" | "bn"
   return render(
     <NextIntlClientProvider locale={locale} messages={messages} timeZone="Asia/Dhaka">
       <LocaleProvider locale={locale}>
-        <LabelsProvider
-          labels={{
-            datePicker: { today: messages.common.today, clear: messages.common.clear },
-            dateTimePicker: {
-              time: messages.common.time,
-              hour: messages.common.hour,
-              minute: messages.common.minute,
-              now: messages.common.now,
-              clear: messages.common.clear,
-              done: messages.common.done,
-            },
-          }}
-        >
+        <LabelsProvider labels={buildSharedLabels(messages)}>
           <Harness gender={gender} initial={initial} />
         </LabelsProvider>
       </LocaleProvider>

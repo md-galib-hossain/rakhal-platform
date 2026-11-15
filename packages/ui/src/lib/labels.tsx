@@ -19,6 +19,17 @@ export interface SharedLabels {
     clear: string;
     done: string;
   };
+  infiniteScroll: {
+    loading: string;
+    error: string;
+    retry: string;
+    loadMore: string;
+    /** Raw template with a literal `{count}` placeholder (not pre-interpolated) — this object
+     * crosses a Server Component -> Client Component boundary in `apps/web`'s root layout, which
+     * can only pass plain serializable values, not a closure. The component substitutes the
+     * placeholder itself. */
+    end: string;
+  };
 }
 
 const LabelsContext = createContext<SharedLabels | null>(null);

@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { useCan } from "@/lib/auth/permissions";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { DataTable } from "@/components/shared/data-table";
-import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
+import { InfiniteScrollFooter } from "@rakhal/ui/shared/infinite-scroll-footer";
 import { BulkActionDock } from "@rakhal/ui/shared/bulk-action-dock";
 import { CreatableSelect } from "@/components/shared/creatable-select";
 import { useTableBulkSelection, useGridBulkSelection } from "@/lib/hooks/use-bulk-selection";

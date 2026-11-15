@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { LocaleProvider } from "@rakhal/ui/lib/locale";
 import { LabelsProvider } from "@rakhal/ui/lib/labels";
+import { buildSharedLabels } from "@/test/shared-ui-providers";
 import en from "@/i18n/messages/en.json";
 import type { CattleDetail } from "@/features/cattle/types";
 import { normaliseDryRun } from "../../api";
@@ -37,19 +38,7 @@ function renderForm() {
   render(
     <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
       <LocaleProvider locale="en">
-        <LabelsProvider
-          labels={{
-            datePicker: { today: en.common.today, clear: en.common.clear },
-            dateTimePicker: {
-              time: en.common.time,
-              hour: en.common.hour,
-              minute: en.common.minute,
-              now: en.common.now,
-              clear: en.common.clear,
-              done: en.common.done,
-            },
-          }}
-        >
+        <LabelsProvider labels={buildSharedLabels(en)}>
           <EventFormPanel eventKey="SERVICE" cattle={cow} onBack={vi.fn()} onDone={vi.fn()} />
         </LabelsProvider>
       </LocaleProvider>

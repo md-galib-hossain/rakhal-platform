@@ -31,6 +31,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const locale = await getLocale();
   const messages = await getMessages();
   const t = await getTranslations("common");
+  const tScroll = await getTranslations("common.infiniteScroll");
   const labels = {
     datePicker: { today: t("today"), clear: t("clear") },
     dateTimePicker: {
@@ -40,6 +41,15 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       now: t("now"),
       clear: t("clear"),
       done: t("done"),
+    },
+    infiniteScroll: {
+      loading: tScroll("loading"),
+      error: tScroll("error"),
+      retry: tScroll("retry"),
+      loadMore: tScroll("loadMore"),
+      // Raw template, not pre-interpolated — a function can't cross this Server -> Client
+      // Component boundary. See packages/ui/src/lib/labels.tsx's SharedLabels.infiniteScroll.end.
+      end: tScroll("end", { count: "{count}" }),
     },
   };
 

@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { LocaleProvider } from "@rakhal/ui/lib/locale";
 import { LabelsProvider } from "@rakhal/ui/lib/labels";
+import { buildSharedLabels } from "@/test/shared-ui-providers";
 import en from "@/i18n/messages/en.json";
 import bn from "@/i18n/messages/bn.json";
 import { ApiError } from "@/lib/api/errors";
@@ -51,19 +52,7 @@ function renderForm(eventKey: EventKey, animal = cow(), locale: "en" | "bn" = "e
   render(
     <NextIntlClientProvider locale={locale} messages={messages} timeZone="Asia/Dhaka">
       <LocaleProvider locale={locale}>
-        <LabelsProvider
-          labels={{
-            datePicker: { today: messages.common.today, clear: messages.common.clear },
-            dateTimePicker: {
-              time: messages.common.time,
-              hour: messages.common.hour,
-              minute: messages.common.minute,
-              now: messages.common.now,
-              clear: messages.common.clear,
-              done: messages.common.done,
-            },
-          }}
-        >
+        <LabelsProvider labels={buildSharedLabels(messages)}>
           <EventFormPanel eventKey={eventKey} cattle={animal} onBack={onBack} onDone={onDone} />
         </LabelsProvider>
       </LocaleProvider>

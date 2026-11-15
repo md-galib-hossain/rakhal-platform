@@ -7,7 +7,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Skeleton } from "@rakhal/ui/ui/skeleton";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { InfiniteScrollFooter } from "@/components/shared/infinite-scroll-footer";
+import { InfiniteScrollFooter } from "@rakhal/ui/shared/infinite-scroll-footer";
 import { useReportsInfinite } from "@/features/reports";
 import { ReportsHistoryFilters, useReportFilters } from "./reports-history-filters";
 import { ReportsHistoryList } from "./reports-history-list";
