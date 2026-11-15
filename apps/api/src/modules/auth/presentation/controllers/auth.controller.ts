@@ -78,14 +78,20 @@ export class AuthController {
           : undefined,
     });
 
-    response.cookie(
-      this.config.refreshCookie.name,
-      result.refreshToken,
-      getRefreshCookieOptions(this.config),
-    );
+    // Native clients (`X-Client: mobile`) have no cookie jar: hand the refresh
+    // token back in the body and set no cookie. Browsers are unchanged.
+    const nativeClient = this.isNativeClient(request);
+    if (!nativeClient) {
+      response.cookie(
+        this.config.refreshCookie.name,
+        result.refreshToken,
+        getRefreshCookieOptions(this.config),
+      );
+    }
 
     return {
       accessToken: result.accessToken,
+      ...(nativeClient ? { refreshToken: result.refreshToken } : {}),
       sessionId: result.sessionId,
       user: result.user,
       farmId: result.farmId,
@@ -144,19 +150,26 @@ export class AuthController {
     @Req() request: AuthenticatedHttpRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const refreshToken = this.getRefreshTokenFromRequest(request);
+    const cookieToken = this.getRefreshTokenFromRequest(request);
+    // The cookie always wins (browsers). The body token is honoured only when
+    // no cookie was sent, i.e. a native client; it is then rotated in the body.
+    const bodyToken = cookieToken ? undefined : dto.refreshToken;
+    const refreshToken = cookieToken ?? bodyToken;
 
     try {
       const result = await this.authService.refresh(dto, refreshToken);
 
-      response.cookie(
-        this.config.refreshCookie.name,
-        result.refreshToken,
-        getRefreshCookieOptions(this.config),
-      );
+      if (!bodyToken) {
+        response.cookie(
+          this.config.refreshCookie.name,
+          result.refreshToken,
+          getRefreshCookieOptions(this.config),
+        );
+      }
 
       return {
         accessToken: result.accessToken,
+        ...(bodyToken ? { refreshToken: result.refreshToken } : {}),
         sessionId: result.sessionId,
         user: result.user,
         farmId: result.farmId,
@@ -262,6 +275,13 @@ export class AuthController {
       auth.user.sub,
       dto.preferredLanguage,
     );
+  }
+
+  /** `X-Client: mobile` opts a native client into body-delivered refresh tokens. */
+  private isNativeClient(request: AuthenticatedHttpRequest): boolean {
+    const header = request.headers['x-client'];
+    const value = Array.isArray(header) ? header[0] : header;
+    return typeof value === 'string' && value.toLowerCase() === 'mobile';
   }
 
   private getRefreshTokenFromRequest(

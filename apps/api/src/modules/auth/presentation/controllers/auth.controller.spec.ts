@@ -124,4 +124,91 @@ describe('AuthController', () => {
       },
     });
   });
+
+  describe('native (X-Client: mobile) clients', () => {
+    const user = {
+      id: 'user-1',
+      email: 'alice@example.com',
+      name: 'Alice',
+      isEmailVerified: true,
+    };
+    const makeResponse = () => ({ cookie: jest.fn(), clearCookie: jest.fn() });
+
+    it('returns the refresh token in the login body and sets no cookie', async () => {
+      authService.loginWithContext.mockResolvedValue({
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        sessionId: 'session-1',
+        user,
+        farmId: 'farm-1',
+        needsFarm: false,
+        farms: [],
+      });
+      const response = makeResponse();
+
+      const result = await controller.login(
+        { email: 'alice@example.com', password: 'correct-password' },
+        { ip: '127.0.0.1', headers: { 'x-client': 'Mobile' } } as never,
+        response as never,
+      );
+
+      expect(response.cookie).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      });
+    });
+
+    it('rotates a body refresh token and returns the next one without a cookie', async () => {
+      authService.refresh.mockResolvedValue({
+        accessToken: 'next-access',
+        refreshToken: 'next-refresh',
+        sessionId: 'session-1',
+        user,
+        farmId: 'farm-1',
+      });
+      const response = makeResponse();
+
+      const result = await controller.refresh(
+        { farmId: 'farm-1', refreshToken: 'body-refresh' },
+        { cookies: {}, headers: {} } as never,
+        response as never,
+      );
+
+      expect(authService.refresh).toHaveBeenCalledWith(
+        { farmId: 'farm-1', refreshToken: 'body-refresh' },
+        'body-refresh',
+      );
+      expect(response.cookie).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ refreshToken: 'next-refresh' });
+    });
+
+    it('prefers the cookie over a body token and keeps the cookie contract (browsers)', async () => {
+      authService.refresh.mockResolvedValue({
+        accessToken: 'next-access',
+        refreshToken: 'next-refresh',
+        sessionId: 'session-1',
+        user,
+        farmId: 'farm-1',
+      });
+      const response = makeResponse();
+
+      const result = await controller.refresh(
+        { farmId: 'farm-1', refreshToken: 'ignored-body' },
+        { cookies: { rakhal_refresh: 'cookie-refresh' }, headers: {} } as never,
+        response as never,
+      );
+
+      expect(authService.refresh).toHaveBeenCalledWith(
+        { farmId: 'farm-1', refreshToken: 'ignored-body' },
+        'cookie-refresh',
+      );
+      expect(response.cookie).toHaveBeenCalledWith(
+        'rakhal_refresh',
+        'next-refresh',
+        expect.any(Object),
+      );
+      expect(result).not.toHaveProperty('refreshToken');
+    });
+  });
 });

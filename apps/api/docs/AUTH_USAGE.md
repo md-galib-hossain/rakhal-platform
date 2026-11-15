@@ -235,3 +235,13 @@ Suppose you add `POST /auth/change-password`.
   - Check `EMAIL_PASSWORD_RESET_BASE_URL` / `EMAIL_VERIFICATION_BASE_URL` config.
 - Reset password says invalid token:
   - Token may be expired, already used, or not found after hashing.
+
+## Scenario 6: Native clients (`X-Client: mobile`) - no cookie jar
+
+Browsers keep the refresh token in the httpOnly `rakhal_refresh` cookie and use the CSRF double-submit token. A native app (Expo mobile app, WP5a) has no cookie jar, so it opts in with the `X-Client: mobile` header.
+
+- `POST /auth/login` with `X-Client: mobile`: the response body also carries `refreshToken`; **no** `Set-Cookie` is sent. Without the header nothing changes (cookie only, no body token).
+- `POST /auth/refresh {farmId, refreshToken}` with no refresh cookie: the body token is rotated and the next `refreshToken` is returned in the body (no cookie). If the refresh cookie is present it always wins and the cookie contract applies.
+- CSRF: `CsrfGuard` is skipped only when the request has **no refresh cookie** and authenticates explicitly (a `Bearer` header, or a body `refreshToken`). Any request that sends the refresh cookie still needs a valid CSRF token, so browsers keep their protection.
+- The client stores the refresh token in secure storage (`expo-secure-store`) and keeps the access token in memory. Farm switching is unchanged: `POST /auth/refresh {farmId, refreshToken}`.
+- Reuse detection, rotation grace window and session revocation are the same code path as browsers.
