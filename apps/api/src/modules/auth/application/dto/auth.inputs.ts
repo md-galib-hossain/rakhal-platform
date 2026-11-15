@@ -1,5 +1,8 @@
 export interface LoginInput {
-  email: string;
+  /** Legacy email field; wins over `identifier` when both are given. */
+  email?: string;
+  /** Email or username (WP5b). */
+  identifier?: string;
   password: string;
   farmId?: string;
 }

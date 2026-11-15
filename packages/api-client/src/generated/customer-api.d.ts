@@ -291,6 +291,22 @@ export interface paths {
         patch: operations["AuthController_updateLanguage"];
         trace?: never;
     };
+    "/api/v1/auth/me/username": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["AuthController_updateUsername"];
+        trace?: never;
+    };
     "/api/v1/auth/otp/request": {
         parameters: {
             query?: never;
@@ -9953,8 +9969,9 @@ export interface components {
         };
         LoginDto: {
             /** Format: email */
-            email: string;
+            email?: string;
             farmId?: string;
+            identifier?: string;
             password: string;
         };
         LogoutDto: {
@@ -12170,6 +12187,9 @@ export interface components {
             /** @enum {string} */
             status?: "CANCELLED" | "PENDING" | "IN_PROGRESS" | "COMPLETED" | "BLOCKED";
         };
+        UpdateUsernameDto: {
+            username: string;
+        };
         VerifyEmailDto: {
             token: string;
         };
@@ -12683,6 +12703,27 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["UpdateLanguageDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_updateUsername: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUsernameDto"];
             };
         };
         responses: {

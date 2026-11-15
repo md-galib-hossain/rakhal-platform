@@ -15978,13 +15978,17 @@
           "farmId": {
             "type": "string"
           },
+          "identifier": {
+            "maxLength": 254,
+            "minLength": 1,
+            "type": "string"
+          },
           "password": {
             "minLength": 8,
             "type": "string"
           }
         },
         "required": [
-          "email",
           "password"
         ],
         "type": "object"
@@ -24563,6 +24567,18 @@
         },
         "type": "object"
       },
+      "UpdateUsernameDto": {
+        "properties": {
+          "username": {
+            "maxLength": 48,
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "type": "object"
+      },
       "VerifyEmailDto": {
         "properties": {
           "token": {
@@ -25442,6 +25458,35 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateLanguageDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/api/v1/auth/me/username": {
+      "patch": {
+        "operationId": "AuthController_updateUsername",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUsernameDto"
               }
             }
           },

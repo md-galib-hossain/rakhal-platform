@@ -4,6 +4,10 @@ model User {
   email String @unique
   name  String
 
+  /// WP5b (mobile): optional login handle. Stored lowercase, 3-32 chars [a-z0-9._-], never contains `@`, unique
+  /// across all farms. Another lookup key for password login; not a separate credential.
+  username String? @unique
+
   passwordHash String?
 
   isEmailVerified Boolean   @default(false)

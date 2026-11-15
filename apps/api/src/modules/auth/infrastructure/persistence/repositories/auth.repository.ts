@@ -30,6 +30,19 @@ export class AuthRepository implements EmailVerificationTokenPort {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
+  /** `username` must already be normalised (lowercase); the column is stored lowercase. */
+  findUserByUsername(username: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { username } });
+  }
+
+  updateUsername(userId: string, username: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { username },
+      select: { id: true, username: true },
+    });
+  }
+
   findUserById(userId: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { id: userId } });
   }
