@@ -29,10 +29,15 @@ const metrics = {
 
 export function fakeApi(handler: Handler, stored: StoredSession | null = null, accessStorage?: PrefStorage) {
   const store = createMemoryTokenStore(stored);
-  const requests: { url: string; method: string; body: Record<string, unknown> | undefined }[] = [];
+  const requests: {
+    url: string;
+    method: string;
+    body: Record<string, unknown> | undefined;
+    headers: Record<string, string>;
+  }[] = [];
   const fetchImpl = (async (url: string, init: RequestInit) => {
     const body = init.body ? (JSON.parse(String(init.body)) as Record<string, unknown>) : undefined;
-    requests.push({ url, method: String(init.method), body });
+    requests.push({ url, method: String(init.method), body, headers: (init.headers ?? {}) as Record<string, string> });
     const reply = handler(url, body, String(init.method));
     if (reply === 'network') throw new TypeError('Network request failed');
     return {

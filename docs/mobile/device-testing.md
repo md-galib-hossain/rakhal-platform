@@ -37,3 +37,13 @@ adb shell input tap X Y ; adb shell input text "..."   # drive the UI
 ## 5. WP6 navigation shell, checked on the device (2026-11-15)
 Header with the farm name (tap opens the farm picker) and a language toggle; five bottom tabs (Home, Cattle, Milk, Tasks, More) with the selected tab marked; Milk shows the "coming soon" state; More shows the account section (name, farm, change farm, sign out); Bangla labels render in full in the shell; killing the app on More and relaunching returns to More (last tab restored); Android Back from a tab goes to Home first.
 Not covered on the device: a role without cattle/milk/task permission (the demo manager, worker and owner all hold them; hiding is covered by Jest), TalkBack, dark theme.
+
+## 6. WP8b offline foundation, checked on the device (2026-11-15)
+Header pill and sheet; `expo-sqlite` outbox and cache in Expo Go; the sync loop. How it was checked on the Pixel 8:
+- Signed in as the demo owner: the pill reads **Synced** after the first pull (sheds, milk tanks, cattle, tasks).
+- Dev builds only: **More > "Queue a test milk entry (dev)"** queues one harmless milk save (a day 400 days ahead, the first cached cow, `baseUpdatedAt: null`).
+- **Offline:** `adb shell svc wifi disable` and `svc data disable`. The pill turns to **Offline** and, after queuing, **Offline, 1 pending**. Tapping it opens "Saved on this phone" with the entry and a "Waiting" badge.
+- **Kill and restart with the queue on disk:** Expo Go cannot load the bundle with the phone's Wi-Fi off (it needs Metro), so test it with the phone connected and the **API stopped**: the pill still reads "Offline, 1 pending" on a cold start even though the profile has not loaded (the queue is found under the database owner).
+- **Reconnect:** start the API again. The queued write is sent by itself (about 30 s retry), the pill returns to **Synced**, and the server holds exactly one milk row plus one `IdempotencyKey` row for the phone's UUID key (user and request hash recorded, response stored).
+- Clean up afterwards: delete the test row (`MilkLogEntry` for that far-future day) and its key.
+Not covered on the device: a conflict (needs two devices or a second login editing the same cow and day), a rejected entry, Bangla in the sheet, TalkBack, 200% font scale, dark theme, a physical device, iOS.
