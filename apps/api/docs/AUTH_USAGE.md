@@ -245,3 +245,12 @@ Browsers keep the refresh token in the httpOnly `rakhal_refresh` cookie and use 
 - CSRF: `CsrfGuard` is skipped only when the request has **no refresh cookie** and authenticates explicitly (a `Bearer` header, or a body `refreshToken`). Any request that sends the refresh cookie still needs a valid CSRF token, so browsers keep their protection.
 - The client stores the refresh token in secure storage (`expo-secure-store`) and keeps the access token in memory. Farm switching is unchanged: `POST /auth/refresh {farmId, refreshToken}`.
 - Reuse detection, rotation grace window and session revocation are the same code path as browsers.
+
+## Scenario 7: Login by email or username (WP5b)
+
+`POST /auth/login` accepts the legacy `email` field or a new `identifier` (an email or a username). An identifier containing `@` is an email; usernames can never contain `@`. If both are sent, `email` wins. Same password check, throttling and lockout counters for both. An unknown identifier and a wrong password return the same 401 and spend the same argon2 time.
+
+- `PATCH /auth/me/username {username}` (bearer): sets or changes your own username. Stored lowercase, 3-32 chars `[a-z0-9._-]`, starts and ends with a letter or digit, reserved words (`admin`, `rakhal`, ...) rejected with 400; a name held by anyone else is 409 (global, case-insensitive uniqueness).
+- `GET /auth/me` includes `username` (null until set).
+- Schema: `User.username` nullable, unique, lowercase CHECK (migration `20261115130000_user_username`). Email stays required and unique.
+- Not in this change: manager rename/clear of another user's username, and a username field on invite acceptance (the accepting user already exists and uses the endpoint above).

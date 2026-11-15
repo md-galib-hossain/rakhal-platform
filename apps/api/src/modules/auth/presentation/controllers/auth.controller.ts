@@ -37,6 +37,7 @@ import { ForgotPasswordDto } from '../dto/forgot-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
 import { ChangePasswordDto } from '../dto/change-password.dto';
 import { UpdateLanguageDto } from '../dto/update-language.dto';
+import { UpdateUsernameDto } from '../dto/update-username.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 /** Auth (§2). `/api/v1/auth`. Mostly public (login/register/refresh use a
@@ -282,6 +283,19 @@ export class AuthController {
     const header = request.headers['x-client'];
     const value = Array.isArray(header) ? header[0] : header;
     return typeof value === 'string' && value.toLowerCase() === 'mobile';
+  }
+
+  /** WP5b: set or change the caller's own login username (email or username + password login). */
+  @Patch('me/username')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, SessionGuard)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  updateUsername(
+    @Body() dto: UpdateUsernameDto,
+    @Req() request: AuthenticatedHttpRequest,
+  ) {
+    const auth = this.getAuthContext(request);
+    return this.authService.updateUsername(auth.user.sub, dto.username);
   }
 
   private getRefreshTokenFromRequest(

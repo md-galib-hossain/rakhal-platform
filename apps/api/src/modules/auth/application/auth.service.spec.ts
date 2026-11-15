@@ -1,4 +1,8 @@
-import { UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthService } from './services/auth.service';
 import { SessionService } from './services/session.service';
 
@@ -27,6 +31,8 @@ describe('AuthService', () => {
 
   let authRepository: {
     findUserByEmail: jest.Mock;
+    findUserByUsername: jest.Mock;
+    updateUsername: jest.Mock;
     findSafeUserById: jest.Mock;
     recordFailedLoginAttempt: jest.Mock;
     recordSuspiciousLogin: jest.Mock;
@@ -68,6 +74,8 @@ describe('AuthService', () => {
   beforeEach(() => {
     authRepository = {
       findUserByEmail: jest.fn(),
+      findUserByUsername: jest.fn(),
+      updateUsername: jest.fn(),
       findSafeUserById: jest.fn(),
       recordFailedLoginAttempt: jest.fn(),
       recordSuspiciousLogin: jest.fn(),
@@ -313,6 +321,175 @@ describe('AuthService', () => {
       .calls as FailedLoginCall[][];
     const failedLoginCall = failedLoginCalls[0]?.[0];
     expect(failedLoginCall.lockedUntil).toBeInstanceOf(Date);
+  });
+
+  describe('username login (WP5b)', () => {
+    const user = {
+      id: 'user-1',
+      email: 'alice@example.com',
+      name: 'Alice',
+      passwordHash: 'hashed-password',
+      isEmailVerified: true,
+      isBlocked: false,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      permissionsVersion: 3,
+      deletedAt: null,
+    };
+
+    function primeSuccessfulLogin() {
+      passwordService.verifyPassword.mockResolvedValue(true);
+      refreshTokenService.generateToken.mockReturnValue('raw-refresh-token');
+      refreshTokenService.hashToken.mockReturnValue('hashed-refresh-token');
+      authRepository.completeSuccessfulLogin.mockResolvedValue({
+        session: { id: 'session-1' },
+      });
+      tokenService.signAccessToken.mockResolvedValue('access-token');
+    }
+
+    it('logs in by username, looked up case-insensitively, and never queries by email', async () => {
+      authRepository.findUserByUsername.mockResolvedValue(user);
+      primeSuccessfulLogin();
+
+      const result = await service.loginWithContext({
+        identifier: '  Rahim.Uddin ',
+        password: 'correct-password',
+        farmId: 'farm-1',
+      });
+
+      expect(authRepository.findUserByUsername).toHaveBeenCalledWith(
+        'rahim.uddin',
+      );
+      expect(authRepository.findUserByEmail).not.toHaveBeenCalled();
+      expect(result.accessToken).toBe('access-token');
+    });
+
+    it('treats an identifier containing @ as an email', async () => {
+      authRepository.findUserByEmail.mockResolvedValue(user);
+      primeSuccessfulLogin();
+
+      await service.loginWithContext({
+        identifier: 'alice@example.com',
+        password: 'correct-password',
+        farmId: 'farm-1',
+      });
+
+      expect(authRepository.findUserByEmail).toHaveBeenCalledWith(
+        'alice@example.com',
+      );
+      expect(authRepository.findUserByUsername).not.toHaveBeenCalled();
+    });
+
+    it('the legacy email field wins over identifier', async () => {
+      authRepository.findUserByEmail.mockResolvedValue(user);
+      primeSuccessfulLogin();
+
+      await service.loginWithContext({
+        email: 'alice@example.com',
+        identifier: 'someone-else',
+        password: 'correct-password',
+        farmId: 'farm-1',
+      });
+
+      expect(authRepository.findUserByUsername).not.toHaveBeenCalled();
+    });
+
+    it('unknown username is rejected like a wrong password and still spends a hash verify', async () => {
+      authRepository.findUserByUsername.mockResolvedValue(null);
+      passwordService.hashPassword.mockResolvedValue('dummy-hash');
+      passwordService.verifyPassword.mockResolvedValue(false);
+
+      await expect(
+        service.loginWithContext({
+          identifier: 'nobody',
+          password: 'whatever-pass',
+        }),
+      ).rejects.toThrow('Invalid credentials');
+
+      expect(passwordService.verifyPassword).toHaveBeenCalledWith(
+        'dummy-hash',
+        'whatever-pass',
+      );
+      expect(authRepository.recordFailedLoginAttempt).not.toHaveBeenCalled();
+    });
+
+    it('a wrong password for a username counts toward the same lockout streak', async () => {
+      authRepository.findUserByUsername.mockResolvedValue({
+        ...user,
+        failedLoginAttempts: 1,
+      });
+      passwordService.verifyPassword.mockResolvedValue(false);
+      authRepository.recordFailedLoginAttempt.mockResolvedValue(undefined);
+
+      await expect(
+        service.loginWithContext({
+          identifier: 'rahim',
+          password: 'wrong-password',
+        }),
+      ).rejects.toThrow('Invalid credentials');
+
+      expect(authRepository.recordFailedLoginAttempt).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'user-1', failedLoginAttempts: 2 }),
+      );
+    });
+  });
+
+  describe('updateUsername (WP5b)', () => {
+    it('normalises and saves a valid username', async () => {
+      authRepository.findUserByUsername.mockResolvedValue(null);
+      authRepository.updateUsername.mockResolvedValue({
+        id: 'user-1',
+        username: 'rahim.uddin',
+      });
+
+      await service.updateUsername('user-1', ' Rahim.Uddin ');
+
+      expect(authRepository.updateUsername).toHaveBeenCalledWith(
+        'user-1',
+        'rahim.uddin',
+      );
+    });
+
+    it('rejects bad length, format and reserved names with 400', async () => {
+      for (const bad of [
+        'ab',
+        'a'.repeat(33),
+        'has space',
+        'a@b.com',
+        '.dot',
+        'admin',
+      ]) {
+        await expect(
+          service.updateUsername('user-1', bad),
+        ).rejects.toBeInstanceOf(BadRequestException);
+      }
+      expect(authRepository.updateUsername).not.toHaveBeenCalled();
+    });
+
+    it('is 409 when another user already holds the name, but idempotent for the owner', async () => {
+      authRepository.findUserByUsername.mockResolvedValue({ id: 'user-2' });
+      await expect(
+        service.updateUsername('user-1', 'rahim'),
+      ).rejects.toBeInstanceOf(ConflictException);
+
+      authRepository.findUserByUsername.mockResolvedValue({ id: 'user-1' });
+      authRepository.updateUsername.mockResolvedValue({
+        id: 'user-1',
+        username: 'rahim',
+      });
+      await expect(
+        service.updateUsername('user-1', 'rahim'),
+      ).resolves.toBeDefined();
+    });
+
+    it('maps a unique-constraint race (P2002) to 409', async () => {
+      authRepository.findUserByUsername.mockResolvedValue(null);
+      authRepository.updateUsername.mockRejectedValue({ code: 'P2002' });
+
+      await expect(
+        service.updateUsername('user-1', 'rahim'),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
   });
 
   describe('me', () => {

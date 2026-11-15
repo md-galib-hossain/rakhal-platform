@@ -15978,13 +15978,17 @@
           "farmId": {
             "type": "string"
           },
+          "identifier": {
+            "maxLength": 254,
+            "minLength": 1,
+            "type": "string"
+          },
           "password": {
             "minLength": 8,
             "type": "string"
           }
         },
         "required": [
-          "email",
           "password"
         ],
         "type": "object"
@@ -24561,6 +24565,18 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "UpdateUsernameDto": {
+        "properties": {
+          "username": {
+            "maxLength": 48,
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
         "type": "object"
       },
       "VerifyEmailDto": {

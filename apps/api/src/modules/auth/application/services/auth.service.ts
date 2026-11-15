@@ -1,9 +1,17 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import {
+  isEmailIdentifier,
+  normalizeUsername,
+  USERNAME_MAX_LENGTH,
+  USERNAME_MIN_LENGTH,
+  usernameProblem,
+} from '../../domain/username';
 import type { ConfigType } from '@nestjs/config';
 import { AuditAction, Language, SessionStatus } from '@prisma/client';
 import { AppLanguage } from 'src/common/i18n/language';
@@ -423,6 +431,57 @@ export class AuthService {
     }
   }
 
+  /**
+   * WP5b: set or change the caller's own login username. Normalised to lowercase; length, format and
+   * reserved words are rejected with 400; a name taken by anyone else is 409. Idempotent for the same name.
+   */
+  async updateUsername(userId: string, rawUsername: string) {
+    const username = normalizeUsername(rawUsername);
+    const problem = usernameProblem(username);
+    if (problem) {
+      throw new BadRequestException(
+        problem === 'length'
+          ? `Username must be ${USERNAME_MIN_LENGTH}-${USERNAME_MAX_LENGTH} characters`
+          : problem === 'reserved'
+            ? 'This username is reserved'
+            : 'Username may only contain letters, digits, dot, underscore and hyphen, and must start and end with a letter or digit',
+      );
+    }
+
+    const holder = await this.authRepository.findUserByUsername(username);
+    if (holder && holder.id !== userId) {
+      throw new ConflictException('Username is already taken');
+    }
+
+    try {
+      const updated = await this.authRepository.updateUsername(
+        userId,
+        username,
+      );
+      this.log.audit('auth.username_changed', { userId });
+      return updated;
+    } catch (error) {
+      // Lost a race to another user claiming the same name between the check and the write.
+      if ((error as { code?: string }).code === 'P2002') {
+        throw new ConflictException('Username is already taken');
+      }
+      throw error;
+    }
+  }
+
+  private dummyHash?: Promise<string>;
+
+  private async verifyAgainstDummyHash(password: string): Promise<void> {
+    this.dummyHash ??= this.passwordService.hashPassword(
+      'rakhal-timing-equaliser',
+    );
+    try {
+      await this.passwordService.verifyPassword(await this.dummyHash, password);
+    } catch {
+      // The result is irrelevant; only the elapsed time matters.
+    }
+  }
+
   /** Language toggle persists to the user's profile (RAKHAL-107). */
   updateLanguage(userId: string, preferredLanguage: AppLanguage) {
     return this.authRepository.updatePreferredLanguage(
@@ -579,11 +638,20 @@ export class AuthService {
     dto: LoginInput,
     context: LoginContext = {},
   ): Promise<LoginResult> {
-    const user = await this.authRepository.findUserByEmail(dto.email);
+    // WP5b: `email` (legacy) or `identifier` (email or username). An identifier is an email exactly when
+    // it contains `@`; usernames can never contain one.
+    const identifier = dto.email ?? dto.identifier ?? '';
+    const user = isEmailIdentifier(identifier)
+      ? await this.authRepository.findUserByEmail(identifier)
+      : await this.authRepository.findUserByUsername(
+          normalizeUsername(identifier),
+        );
 
     if (!user?.passwordHash || user.deletedAt) {
+      // Spend the same argon2 time as a real check so "unknown identifier" is not distinguishable by timing.
+      await this.verifyAgainstDummyHash(dto.password);
       this.log.warn('Rejected login for invalid credentials', {
-        email: dto.email,
+        identifierKind: isEmailIdentifier(identifier) ? 'email' : 'username',
       });
       throw new UnauthorizedException('Invalid credentials');
     }
