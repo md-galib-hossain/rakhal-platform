@@ -12,7 +12,7 @@ import { Input } from "@rakhal/ui/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useRecordStarterFeed } from "../../hooks/use-calves";
 import { recordStarterFeedSchema, type RecordStarterFeedInput } from "../../schemas";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 
 const EVENT_TYPE_VALUES = ["FIRST_OFFERED", "FIRST_INTAKE", "DAILY_INTAKE"] as const;
 

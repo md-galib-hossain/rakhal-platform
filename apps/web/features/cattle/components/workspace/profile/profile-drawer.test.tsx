@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { LocaleProvider } from "@rakhal/ui/lib/locale";
+import { LabelsProvider } from "@rakhal/ui/lib/labels";
 import en from "@/i18n/messages/en.json";
 import type { CattleDetail } from "../../../types";
 import { ProfileDrawer } from "./profile-drawer";
@@ -43,7 +45,23 @@ const onClose = vi.fn();
 function renderDrawer() {
   return render(
     <NextIntlClientProvider locale="en" messages={en}>
-      <ProfileDrawer cattle={cow} onClose={onClose} />
+      <LocaleProvider locale="en">
+        <LabelsProvider
+          labels={{
+            datePicker: { today: en.common.today, clear: en.common.clear },
+            dateTimePicker: {
+              time: en.common.time,
+              hour: en.common.hour,
+              minute: en.common.minute,
+              now: en.common.now,
+              clear: en.common.clear,
+              done: en.common.done,
+            },
+          }}
+        >
+          <ProfileDrawer cattle={cow} onClose={onClose} />
+        </LabelsProvider>
+      </LocaleProvider>
     </NextIntlClientProvider>,
   );
 }

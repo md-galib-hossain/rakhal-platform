@@ -29,7 +29,7 @@ import {
   type RecordProtocolOutcomeInput,
 } from "../../schemas";
 import type { ProtocolInstance } from "../../types";
-import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { DateTimePicker } from "@rakhal/ui/ui/date-time-picker";
 
 const ACTIVE_STATUSES = ["DRAFT", "SCHEDULED", "IN_PROGRESS"] as const;
 

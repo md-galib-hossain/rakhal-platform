@@ -22,7 +22,7 @@ import { useApplyPlanToAnimals, useProtocolStockCheck } from "../hooks/use-healt
 import { applyHealthPlanStep1Schema, type ApplyHealthPlanStep1Input } from "../schemas";
 import type { HealthPlanListItem } from "../types";
 import { ProtocolPreviewTimeline } from "./protocol-preview-timeline";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 import { Label } from "@rakhal/ui/ui/label";
 
 const ROUTES = ["IM", "IV", "SC", "ORAL"] as const;

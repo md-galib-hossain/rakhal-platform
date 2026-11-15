@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { ApiError } from "@/lib/api/errors";
 import { todayLocalIso } from "@/lib/local-date";
 import { Button } from "@rakhal/ui/ui/button";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
 import type { UpcomingEvent } from "@/features/cattle/types";
 import { useNextUpActions } from "../../hooks/use-next-up";

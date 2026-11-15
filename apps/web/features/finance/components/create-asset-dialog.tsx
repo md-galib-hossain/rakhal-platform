@@ -21,7 +21,7 @@ import { Textarea } from "@rakhal/ui/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { useCreateAsset } from "../hooks/use-finance";
 import { createAssetSchema, type CreateAssetInput } from "../schemas";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 
 const CATEGORIES = ["EQUIPMENT", "VEHICLE", "BUILDING", "OTHER"] as const;
 

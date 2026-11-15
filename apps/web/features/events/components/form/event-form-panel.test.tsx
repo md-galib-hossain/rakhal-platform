@@ -1,6 +1,8 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { LocaleProvider } from "@rakhal/ui/lib/locale";
+import { LabelsProvider } from "@rakhal/ui/lib/labels";
 import en from "@/i18n/messages/en.json";
 import bn from "@/i18n/messages/bn.json";
 import { ApiError } from "@/lib/api/errors";
@@ -45,9 +47,26 @@ const cow = (over: Partial<CattleDetail> = {}) =>
 function renderForm(eventKey: EventKey, animal = cow(), locale: "en" | "bn" = "en") {
   const onDone = vi.fn();
   const onBack = vi.fn();
+  const messages = locale === "en" ? en : bn;
   render(
-    <NextIntlClientProvider locale={locale} messages={locale === "en" ? en : bn} timeZone="Asia/Dhaka">
-      <EventFormPanel eventKey={eventKey} cattle={animal} onBack={onBack} onDone={onDone} />
+    <NextIntlClientProvider locale={locale} messages={messages} timeZone="Asia/Dhaka">
+      <LocaleProvider locale={locale}>
+        <LabelsProvider
+          labels={{
+            datePicker: { today: messages.common.today, clear: messages.common.clear },
+            dateTimePicker: {
+              time: messages.common.time,
+              hour: messages.common.hour,
+              minute: messages.common.minute,
+              now: messages.common.now,
+              clear: messages.common.clear,
+              done: messages.common.done,
+            },
+          }}
+        >
+          <EventFormPanel eventKey={eventKey} cattle={animal} onBack={onBack} onDone={onDone} />
+        </LabelsProvider>
+      </LocaleProvider>
     </NextIntlClientProvider>,
   );
   return { onDone, onBack };

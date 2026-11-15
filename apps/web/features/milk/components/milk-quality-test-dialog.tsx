@@ -18,7 +18,7 @@ import { reproductionApi } from "@/features/reproduction/api";
 import { useCreateMilkQualityTest } from "../hooks/use-milk-quality-tests";
 import { createMilkQualityTestSchema, type CreateMilkQualityTestFormInput } from "../schemas";
 import { MILK_QUALITY_TEST_SOURCES } from "../types";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 
 const DEFAULT_VALUES: CreateMilkQualityTestFormInput = {
   cattleId: "",

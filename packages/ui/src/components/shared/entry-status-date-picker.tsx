@@ -2,15 +2,13 @@
 
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
-import { useLocale } from "next-intl";
 import { CalendarDays } from "lucide-react";
 import type { Matcher } from "react-day-picker";
-import { cn } from "@/lib/utils";
-import { formatDate } from "@/lib/format";
-import type { Locale } from "@/lib/constants/i18n";
-import { Calendar } from "@rakhal/ui/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@rakhal/ui/ui/popover";
-import { PickerFooter } from "@/components/ui/date-picker";
+import { cn } from "../../lib/utils";
+import { formatDate, useLocale } from "../../lib/locale";
+import { Calendar } from "../ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { PickerFooter } from "../ui/date-picker";
 
 /** Same shape as `EntryCalendarDayStatus` in `features/milk/types.ts` and `features/feed/types.ts`
  * (duplicated per-feature per this repo's feature-isolation convention — kept in sync manually,
@@ -50,7 +48,7 @@ export function EntryStatusDatePicker({
   disabledDates,
   className,
 }: EntryStatusDatePickerProps) {
-  const locale = useLocale() as Locale;
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const selected = value ? parseISO(value) : undefined;
 

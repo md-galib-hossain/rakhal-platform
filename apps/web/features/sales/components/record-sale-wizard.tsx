@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { LabeledInput, LabeledSelectTrigger } from "@rakhal/ui/ui/labeled-field";
 import { Select, SelectContent, SelectItem } from "@rakhal/ui/ui/select";
 import { Textarea } from "@rakhal/ui/ui/textarea";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 import { CattlePicker } from "@/components/shared/cattle-picker";
 import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { MoneyInput } from "@rakhal/ui/shared/money-input";

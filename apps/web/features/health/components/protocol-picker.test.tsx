@@ -12,7 +12,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("sonner", () => ({ toast: { success: h.toastSuccess, error: h.toastError } }));
-vi.mock("@/components/ui/date-picker", () => ({ DatePicker: () => <div /> }));
+vi.mock("@rakhal/ui/ui/date-picker", () => ({ DatePicker: () => <div /> }));
 vi.mock("../hooks/use-health", () => ({
   useHealthPlans: () => ({
     isLoading: false,

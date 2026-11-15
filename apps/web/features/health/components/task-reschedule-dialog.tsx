@@ -10,7 +10,7 @@ import { Chip } from "@rakhal/ui/ui/chip";
 import { Button } from "@rakhal/ui/ui/button";
 import { useRescheduleTask } from "../hooks/use-health";
 import { groupIncompleteTasks, taskCategoryChip, type ScheduledTaskGroup } from "../task-grouping";
-import { DatePicker } from "@/components/ui/date-picker";
+import { DatePicker } from "@rakhal/ui/ui/date-picker";
 import { Label } from "@rakhal/ui/ui/label";
 
 /**

@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
+import { LocaleProvider } from "@rakhal/ui/lib/locale";
+import { LabelsProvider } from "@rakhal/ui/lib/labels";
 import en from "@/i18n/messages/en.json";
 import type { CattleDetail } from "@/features/cattle/types";
 import { normaliseDryRun } from "../../api";
@@ -34,7 +36,23 @@ const cow = { id: "c1", name: "Lali", tagNumber: "T-1", gender: "FEMALE", animal
 function renderForm() {
   render(
     <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
-      <EventFormPanel eventKey="SERVICE" cattle={cow} onBack={vi.fn()} onDone={vi.fn()} />
+      <LocaleProvider locale="en">
+        <LabelsProvider
+          labels={{
+            datePicker: { today: en.common.today, clear: en.common.clear },
+            dateTimePicker: {
+              time: en.common.time,
+              hour: en.common.hour,
+              minute: en.common.minute,
+              now: en.common.now,
+              clear: en.common.clear,
+              done: en.common.done,
+            },
+          }}
+        >
+          <EventFormPanel eventKey="SERVICE" cattle={cow} onBack={vi.fn()} onDone={vi.fn()} />
+        </LabelsProvider>
+      </LocaleProvider>
     </NextIntlClientProvider>,
   );
   // Inventory semen needs a batch (RFE-174); these tests are about follow-ups, so use technician-supplied semen.

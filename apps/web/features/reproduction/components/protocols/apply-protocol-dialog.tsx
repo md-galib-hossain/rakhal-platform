@@ -14,7 +14,7 @@ import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { Label } from "@rakhal/ui/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@rakhal/ui/ui/select";
 import { Button } from "@rakhal/ui/ui/button";
-import { DateTimePicker } from "@/components/ui/date-time-picker";
+import { DateTimePicker } from "@rakhal/ui/ui/date-time-picker";
 import { useApplyProtocol, useProtocol, useProtocolInstance, useProtocols } from "../../hooks/use-reproduction";
 import { applyProtocolSchema, type ApplyProtocolInput } from "../../schemas";
 import { ProtocolDetailSheet } from "./protocol-detail-sheet";
