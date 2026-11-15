@@ -1,0 +1,27 @@
+{
+  "name": "@rakhal/api-client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Customer API contract for non-web clients: types generated from apps/api/openapi/customer-api.json plus the response envelope. Types and tiny helpers only; no HTTP runtime.",
+  "sideEffects": false,
+  "engines": { "node": ">=24" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/generated/customer-api.d.ts"
+  },
+  "scripts": {
+    "gen": "node scripts/generate.mjs",
+    "gen:check": "node scripts/generate.mjs --check",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/generate.mjs --check && node --test \"test/*.test.ts\""
+  },
+  "devDependencies": {
+    "@rakhal/config": "workspace:*",
+    "@types/node": "^24",
+    "eslint": "^9",
+    "openapi-typescript": "7.13.0",
+    "typescript": "~5.9.3"
+  }
+}
