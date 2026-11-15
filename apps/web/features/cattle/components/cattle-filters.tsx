@@ -3,8 +3,8 @@
 import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
-import { DrilldownFilterBar } from "@/components/shared/drilldown-filter-bar";
-import type { FilterCategoryConfig } from "@/components/shared/drilldown-filter-popover";
+import { DrilldownFilterBar } from "@rakhal/ui/shared/drilldown-filter-bar";
+import type { FilterCategoryConfig } from "@rakhal/ui/shared/drilldown-filter-popover";
 import { useAnimalGroups, useBreeds, useSheds } from "../hooks/use-cattle";
 
 /**
