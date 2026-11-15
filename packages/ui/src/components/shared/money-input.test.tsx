@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
+import { LocaleProvider } from "../../lib/locale";
 import { MoneyInput, parseMoneyInput } from "./money-input";
 
-vi.mock("next-intl", () => ({ useLocale: () => "en" }));
+function renderWithLocale(children: React.ReactNode) {
+  return render(<LocaleProvider locale="en">{children}</LocaleProvider>);
+}
 
 describe("parseMoneyInput", () => {
   it("parses a plain integer string", () => {
@@ -43,10 +46,10 @@ describe("MoneyInput", () => {
       const [value, setValue] = useState<number | undefined>(125000);
       return <MoneyInput label="Amount" value={value} onChange={setValue} />;
     }
-    render(<Harness />);
+    renderWithLocale(<Harness />);
 
     const input = screen.getByRole("textbox") as HTMLInputElement;
-    // Blurred (initial): lakh-grouped formatted display, per `lib/format.ts#formatNumber`.
+    // Blurred (initial): lakh-grouped formatted display, per `lib/locale.ts#formatNumber`.
     expect(input.value).toBe("1,25,000");
 
     fireEvent.focus(input);
@@ -75,7 +78,7 @@ describe("MoneyInput", () => {
         />
       );
     }
-    render(<Harness />);
+    renderWithLocale(<Harness />);
     const input = screen.getByRole("textbox") as HTMLInputElement;
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: "12.5" } });
@@ -90,7 +93,7 @@ describe("MoneyInput", () => {
       const [value, setValue] = useState<number | undefined>(undefined);
       return <MoneyInput label="Amount" value={value} onChange={setValue} />;
     }
-    render(<Harness />);
+    renderWithLocale(<Harness />);
     const input = screen.getByRole("textbox") as HTMLInputElement;
     fireEvent.focus(input);
     fireEvent.change(input, { target: { value: "-50" } });
@@ -99,7 +102,7 @@ describe("MoneyInput", () => {
   });
 
   it("renders an error message when `error` is supplied", () => {
-    render(<MoneyInput label="Amount" value={undefined} onChange={vi.fn()} error="Amount is required" />);
+    renderWithLocale(<MoneyInput label="Amount" value={undefined} onChange={vi.fn()} error="Amount is required" />);
     expect(screen.getByText("Amount is required")).toBeInTheDocument();
   });
 });

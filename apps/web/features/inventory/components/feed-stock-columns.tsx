@@ -6,7 +6,7 @@ import { Package, Trash2 } from "lucide-react";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { Can } from "@/lib/auth/permissions";
 import { DateText } from "@/components/shared/date-text";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { avatarTint } from "../avatar-tint";
 import type { FeedConcentrationKind, FeedStock } from "@/features/feed/types";
 import { costPerKg, remainingStatus, REMAINING_STOCK_COLOR } from "./feed-stock-metrics";

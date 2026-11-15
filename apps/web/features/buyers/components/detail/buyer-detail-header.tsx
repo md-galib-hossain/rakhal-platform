@@ -8,7 +8,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Card } from "@rakhal/ui/ui/card";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { DateText } from "@/components/shared/date-text";
 import { Can } from "@/lib/auth/permissions";
 import { SellMilkSheet } from "@/features/sales/components/sell-milk-sheet";

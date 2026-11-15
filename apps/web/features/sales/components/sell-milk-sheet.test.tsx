@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
+import { LocaleProvider } from "@rakhal/ui/lib/locale";
 import en from "@/i18n/messages/en.json";
 
 const mocks = vi.hoisted(() => ({
@@ -34,7 +35,9 @@ import { SellMilkSheet } from "./sell-milk-sheet";
 function renderSheet() {
   return render(
     <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
-      <SellMilkSheet open onOpenChange={vi.fn()} />
+      <LocaleProvider locale="en">
+        <SellMilkSheet open onOpenChange={vi.fn()} />
+      </LocaleProvider>
     </NextIntlClientProvider>,
   );
 }

@@ -20,7 +20,7 @@ import {
 import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
-import { MoneyInput } from "@/components/shared/money-input";
+import { MoneyInput } from "@rakhal/ui/shared/money-input";
 import { PaymentMethodPicker } from "@/components/shared/payment-method-picker";
 import { PAYMENT_METHODS, type PaymentMethod } from "@/lib/types/payment";
 import { AccountPicker } from "../account-picker";

@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { formatBusinessDay } from "@/lib/format";
 import type { Locale } from "@/lib/constants/i18n";
 import { useRecentTransactions } from "./hooks";

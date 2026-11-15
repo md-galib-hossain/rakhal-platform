@@ -15,7 +15,7 @@ import { Label } from "@rakhal/ui/ui/label";
 import { Button } from "@rakhal/ui/ui/button";
 import { Select, SelectContent, SelectItem } from "@rakhal/ui/ui/select";
 import { Switch } from "@rakhal/ui/ui/switch";
-import { MoneyInput } from "@/components/shared/money-input";
+import { MoneyInput } from "@rakhal/ui/shared/money-input";
 import { AccountPicker } from "@/features/finance/components/account-picker";
 import { useCreateExpense } from "../hooks/use-purchasing";
 import { expenseFormSchema, type ExpenseFormInput } from "../schemas";

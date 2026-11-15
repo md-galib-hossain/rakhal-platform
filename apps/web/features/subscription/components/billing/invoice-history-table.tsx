@@ -7,7 +7,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { DateText } from "@/components/shared/date-text";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
 import { useInvoices } from "../../hooks/use-billing";
 import type { InvoiceStatus } from "../../types";

@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Input } from "@rakhal/ui/ui/input";
 import { Label } from "@rakhal/ui/ui/label";
 import { Card } from "@rakhal/ui/ui/card";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { DateText } from "@/components/shared/date-text";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";

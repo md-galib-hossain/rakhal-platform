@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@rakhal/ui/ui/card";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { DateText } from "@/components/shared/date-text";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { useBuyerOverview } from "../../hooks/use-buyers";
 
 /** RAKHAL-389 — buyer detail Overview tab (`BUSINESS_IA_PRD.md` §5.11): Recent Invoices panel

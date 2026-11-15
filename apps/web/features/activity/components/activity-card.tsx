@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback } from "@rakhal/ui/ui/avatar";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@rakhal/ui/ui/tooltip";
 import { DateText } from "@/components/shared/date-text";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { cn } from "@/lib/utils";
 import { avatarTint } from "../avatar-tint";
 import { ActionDetails } from "../action-details";

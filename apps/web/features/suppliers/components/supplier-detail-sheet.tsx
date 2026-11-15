@@ -8,7 +8,7 @@ import { Button } from "@rakhal/ui/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { DateText } from "@/components/shared/date-text";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { Can } from "@/lib/auth/permissions";
 import { PurchasePayDialog } from "@/features/purchasing/components/purchase-pay-dialog";
 import { useSupplierPurchases } from "@/features/purchasing/hooks/use-purchasing";

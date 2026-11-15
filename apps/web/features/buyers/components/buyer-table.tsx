@@ -9,7 +9,7 @@ import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@rakhal/ui/ui/button";
 import { DataTable } from "@/components/shared/data-table";
 import { MobileRecordCard } from "@rakhal/ui/shared/mobile-record-card";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { Can } from "@/lib/auth/permissions";
 import { buildBuyerColumns } from "./buyer-columns";
 import type { BuyerListRow } from "../types";

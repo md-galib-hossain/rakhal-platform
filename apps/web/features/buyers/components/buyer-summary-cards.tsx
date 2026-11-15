@@ -6,7 +6,7 @@ import { StatCard } from "@rakhal/ui/shared/stat-card";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { Card } from "@rakhal/ui/ui/card";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { useBuyersSummary } from "../hooks/use-buyers";
 
 /** RAKHAL-389 — the AC's 4-stat Buyer Summary: Total Buyers / Active Buyers / Total Sales / Total

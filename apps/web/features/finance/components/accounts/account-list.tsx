@@ -10,7 +10,7 @@ import { Badge } from "@rakhal/ui/ui/badge";
 import { Card } from "@rakhal/ui/ui/card";
 import { Button } from "@rakhal/ui/ui/button";
 import { DataTable } from "@/components/shared/data-table";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@rakhal/ui/ui/dropdown-menu";
 import { Can } from "@/lib/auth/permissions";
 import { useFinancialAccounts, useRakhalBalance, useSetPrimaryFinancialAccount } from "../../hooks/use-finance-v2";

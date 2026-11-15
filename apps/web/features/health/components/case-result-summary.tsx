@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Repeat2 } from "lucide-react";
 import { Chip } from "@rakhal/ui/ui/chip";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import type { CaseSummary } from "../types";
 
 function Tile({ label, children }: { label: string; children: React.ReactNode }) {

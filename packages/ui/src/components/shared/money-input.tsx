@@ -1,10 +1,8 @@
 "use client"; // local edit-buffer state (raw vs formatted display) + reads the active locale
 
 import { forwardRef, useEffect, useState } from "react";
-import { useLocale } from "next-intl";
-import { cn } from "@/lib/utils";
-import { formatNumber } from "@/lib/format";
-import type { Locale } from "@/lib/constants/i18n";
+import { cn } from "../../lib/utils";
+import { formatNumber, useLocale } from "../../lib/locale";
 
 /**
  * RAKHAL-355 — controlled ৳ amount input. No such shared component existed before this ticket;
@@ -21,7 +19,7 @@ import type { Locale } from "@/lib/constants/i18n";
  * fails cleanly on an untouched field instead of silently validating `0`.
  *
  * Display contract: while the field is **not** focused, the value renders through
- * `lib/format.ts#formatNumber` (lakh grouping, Latin digits in both locales — same convention
+ * `lib/locale.ts#formatNumber` (lakh grouping, Latin digits in both locales — same convention
  * `MoneyText`/`formatMoney` use for read-only amounts) so a farmer reviewing a filled form sees
  * "৳1,25,000" not "125000". While focused, it swaps to the raw digit string the farmer is actively
  * typing — grouping commas while mid-edit would fight cursor position on every keystroke, the same
@@ -81,7 +79,7 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
   { id, label, value, onChange, onBlur, placeholder, error, disabled, min = 0, className },
   ref,
 ) {
-  const locale = useLocale() as Locale;
+  const locale = useLocale();
   const [focused, setFocused] = useState(false);
   const [raw, setRaw] = useState(value != null ? String(value) : "");
 

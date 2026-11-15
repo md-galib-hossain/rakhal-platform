@@ -5,7 +5,7 @@ import { CalendarDays, Coins, Package, Wheat } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Chip } from "@rakhal/ui/ui/chip";
 import { DateText } from "@/components/shared/date-text";
-import { MoneyText } from "@/components/shared/money-text";
+import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { EmptyState } from "@rakhal/ui/shared/empty-state";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { SelectableCardOverlay } from "@/components/shared/selectable-card-overlay";

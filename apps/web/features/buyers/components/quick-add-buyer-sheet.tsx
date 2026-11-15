@@ -9,7 +9,7 @@ import { ApiError } from "@/lib/api/errors";
 import { Button } from "@rakhal/ui/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@rakhal/ui/ui/sheet";
 import { LabeledInput } from "@rakhal/ui/ui/labeled-field";
-import { MoneyInput } from "@/components/shared/money-input";
+import { MoneyInput } from "@rakhal/ui/shared/money-input";
 import { useCreateBuyer } from "../hooks/use-buyers";
 import { quickAddBuyerSchema, type QuickAddBuyerInput } from "../schemas";
 import type { Buyer } from "../types";
