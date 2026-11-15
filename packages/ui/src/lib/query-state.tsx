@@ -11,26 +11,50 @@ export type QueryStateHook = (
   defaultValue?: string,
 ) => [string | null, (value: string | null) => void];
 
-const QueryStateContext = createContext<QueryStateHook | null>(null);
+/** Read-only, reactive snapshot of the current URL's query string — re-renders when it changes.
+ * `URLSearchParams`'s own `.get`/`.has` cover every read `FilterBar` needs; the host app adapts
+ * its router's own hook (e.g. `next/navigation`'s `useSearchParams`) to this shape. */
+export type SearchParamsSnapshotHook = () => URLSearchParams;
 
-/** Wrap once near the app's root (inside whatever router adapter the real hook needs, e.g. nuqs's
- * `NuqsAdapter`), forwarding the app's own URL-synced-state hook. */
-export function QueryStateProvider({
-  useQueryState,
-  children,
-}: {
+/** Removes the given keys from the current URL's query string in one navigation (a "clear all
+ * filters" action) — returns a stable callback, not the clear itself, so it can be called from an
+ * event handler. The host app adapts its own router's replace/push to this shape. */
+export type ClearQueryParamsHook = () => (keys: string[]) => void;
+
+export interface QueryStateApi {
   useQueryState: QueryStateHook;
-  children: React.ReactNode;
-}) {
-  return <QueryStateContext.Provider value={useQueryState}>{children}</QueryStateContext.Provider>;
+  useSearchParamsSnapshot: SearchParamsSnapshotHook;
+  useClearQueryParams: ClearQueryParamsHook;
+}
+
+const QueryStateContext = createContext<QueryStateApi | null>(null);
+
+/** Wrap once near the app's root (inside whatever router adapter the real hooks need, e.g. nuqs's
+ * `NuqsAdapter`), forwarding the app's own URL-synced-state hooks. */
+export function QueryStateProvider({ api, children }: { api: QueryStateApi; children: React.ReactNode }) {
+  return <QueryStateContext.Provider value={api}>{children}</QueryStateContext.Provider>;
+}
+
+function useQueryStateApi(): QueryStateApi {
+  const api = useContext(QueryStateContext);
+  if (api === null) {
+    throw new Error("useSharedQueryState()/useSharedSearchParamsSnapshot()/useSharedClearQueryParams() must be called within a <QueryStateProvider>.");
+  }
+  return api;
 }
 
 /** Throws if used outside a `QueryStateProvider` — a shared component silently falling back to
  * plain `useState` (losing URL sync) is worse than a loud error during development. */
 export function useSharedQueryState(key: string, defaultValue?: string): [string | null, (value: string | null) => void] {
-  const useQueryState = useContext(QueryStateContext);
-  if (useQueryState === null) {
-    throw new Error("useSharedQueryState() must be called within a <QueryStateProvider>.");
-  }
-  return useQueryState(key, defaultValue);
+  return useQueryStateApi().useQueryState(key, defaultValue);
+}
+
+/** See `SearchParamsSnapshotHook`. */
+export function useSharedSearchParamsSnapshot(): URLSearchParams {
+  return useQueryStateApi().useSearchParamsSnapshot();
+}
+
+/** See `ClearQueryParamsHook`. */
+export function useSharedClearQueryParams(): (keys: string[]) => void {
+  return useQueryStateApi().useClearQueryParams();
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { parseAsString, useQueryState } from "nuqs";
-import { FilterBar } from "@/components/shared/filter-bar";
+import { FilterBar } from "@rakhal/ui/shared/filter-bar";
 import { Input } from "@rakhal/ui/ui/input";
 
 const CLASSES = ["FORAGE", "CONCENTRATE", "MINERAL", "VITAMIN", "ADDITIVE", "OTHER"] as const;
