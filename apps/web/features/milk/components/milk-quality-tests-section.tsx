@@ -6,7 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { FlaskConical } from "lucide-react";
 import { Button } from "@rakhal/ui/ui/button";
 import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";
-import { DataTable } from "@/components/shared/data-table";
+import { DataTable } from "@rakhal/ui/shared/data-table";
 import { DateText } from "@/components/shared/date-text";
 import { Can } from "@/lib/auth/permissions";
 import { useMilkQualityTests } from "../hooks/use-milk-quality-tests";

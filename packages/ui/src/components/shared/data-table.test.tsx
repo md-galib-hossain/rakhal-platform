@@ -3,10 +3,9 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ColumnDef } from "@tanstack/react-table";
 import { withNuqsTestingAdapter } from "nuqs/adapters/testing";
-import { NextIntlClientProvider } from "next-intl";
-import { LabelsProvider } from "@rakhal/ui/lib/labels";
-import en from "@/i18n/messages/en.json";
-import { buildSharedLabels } from "@/test/shared-ui-providers";
+import { useQueryState as useNuqsQueryState, parseAsString } from "nuqs";
+import { QueryStateProvider, type QueryStateHook } from "../../lib/query-state";
+import { LabelsProvider } from "../../lib/labels";
 import { DataTable } from "./data-table";
 
 interface Row {
@@ -18,18 +17,42 @@ const columns: ColumnDef<Row, unknown>[] = [
   { accessorKey: "name", header: "Name" },
 ];
 
+const useTestQueryStateHook: QueryStateHook = (key, defaultValue) =>
+  useNuqsQueryState(key, defaultValue !== undefined ? parseAsString.withDefault(defaultValue) : parseAsString);
+
+const labels = {
+  datePicker: { today: "Today", clear: "Clear" },
+  dateTimePicker: { time: "Time", hour: "Hour", minute: "Minute", now: "Now", clear: "Clear", done: "Done" },
+  infiniteScroll: {
+    loading: "Loading more…",
+    error: "Could not load more. Your list is safe.",
+    retry: "Retry",
+    loadMore: "Load more",
+    end: "All {count} loaded",
+  },
+};
+
+const NuqsWrapper = withNuqsTestingAdapter();
+function wrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <NuqsWrapper>
+      <QueryStateProvider useQueryState={useTestQueryStateHook}>
+        <LabelsProvider labels={labels}>{children}</LabelsProvider>
+      </QueryStateProvider>
+    </NuqsWrapper>
+  );
+}
+
 describe("DataTable", () => {
   it("renders rows", () => {
-    render(<DataTable columns={columns} data={[{ id: "1", name: "Cow #1" }]} getRowId={(r) => r.id} />, {
-      wrapper: withNuqsTestingAdapter(),
-    });
+    render(<DataTable columns={columns} data={[{ id: "1", name: "Cow #1" }]} getRowId={(r) => r.id} />, { wrapper });
     expect(screen.getByText("Cow #1")).toBeInTheDocument();
   });
 
   it("renders the empty state when there is no data and not loading", () => {
     render(
       <DataTable columns={columns} data={[]} emptyState={{ title: "No cattle yet", description: "Add your first animal" }} />,
-      { wrapper: withNuqsTestingAdapter() },
+      { wrapper },
     );
     expect(screen.getByText("No cattle yet")).toBeInTheDocument();
     expect(screen.getByText("Add your first animal")).toBeInTheDocument();
@@ -38,9 +61,7 @@ describe("DataTable", () => {
   it("renders the error state and wires the retry action", async () => {
     const user = userEvent.setup();
     const onRetry = vi.fn();
-    render(<DataTable columns={columns} data={[]} isError onRetry={onRetry} />, {
-      wrapper: withNuqsTestingAdapter(),
-    });
+    render(<DataTable columns={columns} data={[]} isError onRetry={onRetry} />, { wrapper });
     await user.click(screen.getByRole("button", { name: "Retry" }));
     expect(onRetry).toHaveBeenCalled();
   });
@@ -49,12 +70,8 @@ describe("DataTable", () => {
     const user = userEvent.setup();
     const onLoadMore = vi.fn();
     render(
-      <NextIntlClientProvider locale="en" messages={en} timeZone="Asia/Dhaka">
-        <LabelsProvider labels={buildSharedLabels(en)}>
-          <DataTable columns={columns} data={[{ id: "1", name: "Cow #1" }]} hasNextPage onLoadMore={onLoadMore} />
-        </LabelsProvider>
-      </NextIntlClientProvider>,
-      { wrapper: withNuqsTestingAdapter() },
+      <DataTable columns={columns} data={[{ id: "1", name: "Cow #1" }]} hasNextPage onLoadMore={onLoadMore} />,
+      { wrapper },
     );
     await user.click(screen.getByRole("button", { name: "Load more" }));
     expect(onLoadMore).toHaveBeenCalled();
@@ -72,7 +89,7 @@ describe("DataTable", () => {
         rowSelection={{}}
         onRowSelectionChange={onRowSelectionChange}
       />,
-      { wrapper: withNuqsTestingAdapter() },
+      { wrapper },
     );
     const checkboxes = screen.getAllByRole("checkbox");
     await user.click(checkboxes[1]);
@@ -93,7 +110,7 @@ describe("DataTable", () => {
         onRowSelectionChange={onRowSelectionChange}
         onRowClick={onRowClick}
       />,
-      { wrapper: withNuqsTestingAdapter() },
+      { wrapper },
     );
     // Click checkbox: should trigger onRowSelectionChange, not onRowClick
     const checkboxes = screen.getAllByRole("checkbox");
@@ -116,7 +133,7 @@ describe("DataTable", () => {
         getRowId={(r) => r.id}
         onRowClick={onRowClick}
       />,
-      { wrapper: withNuqsTestingAdapter() },
+      { wrapper },
     );
     const row = screen.getByText("Cow #1").closest("tr")!;
     row.focus();

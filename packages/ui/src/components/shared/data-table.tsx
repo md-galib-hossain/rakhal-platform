@@ -1,4 +1,4 @@
-"use client"; // TanStack Table + URL-synced sort via nuqs, cursor "load more" pagination
+"use client"; // TanStack Table + URL-synced sort via the app's QueryStateProvider, cursor "load more" pagination
 
 import { useMemo } from "react";
 import {
@@ -9,14 +9,14 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { parseAsString, useQueryState } from "nuqs";
-import { Checkbox } from "@rakhal/ui/ui/checkbox";
-import { InfiniteScrollFooter } from "@rakhal/ui/shared/infinite-scroll-footer";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@rakhal/ui/ui/table";
-import { TableSkeleton } from "@rakhal/ui/shared/table-skeleton";
-import { EmptyState } from "@rakhal/ui/shared/empty-state";
-import { ErrorState } from "@rakhal/ui/shared/error-state";
-import { cn } from "@/lib/utils";
+import { useSharedQueryState } from "../../lib/query-state";
+import { Checkbox } from "../ui/checkbox";
+import { InfiniteScrollFooter } from "./infinite-scroll-footer";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
+import { TableSkeleton } from "./table-skeleton";
+import { EmptyState } from "./empty-state";
+import { ErrorState } from "./error-state";
+import { cn } from "../../lib/utils";
 
 export interface DataTableEmptyState {
   title: string;
@@ -75,7 +75,7 @@ export function DataTable<TData>({
   className,
   onRowClick,
 }: DataTableProps<TData>) {
-  const [sort, setSort] = useQueryState(sortParamKey ?? "__sort_unused__", parseAsString);
+  const [sort, setSort] = useSharedQueryState(sortParamKey ?? "__sort_unused__");
 
   const tableColumns = useMemo<ColumnDef<TData, unknown>[]>(() => {
     if (!enableRowSelection) return columns;

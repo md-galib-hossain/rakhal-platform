@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import type { OnChangeFn, RowSelectionState } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
-import { DataTable } from "@/components/shared/data-table";
+import { DataTable } from "@rakhal/ui/shared/data-table";
 import { buildFeedStockColumns, type FeedStockSource } from "./feed-stock-columns";
 import type { FeedStock } from "@/features/feed/types";
 

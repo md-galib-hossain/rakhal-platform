@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { CardSkeleton } from "@rakhal/ui/shared/card-skeleton";
-import { DataTable } from "@/components/shared/data-table";
+import { DataTable } from "@rakhal/ui/shared/data-table";
 import { ErrorState } from "@rakhal/ui/shared/error-state";
 import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { Chip, type ChipProps } from "@rakhal/ui/ui/chip";

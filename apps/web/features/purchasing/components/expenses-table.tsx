@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Badge } from "@rakhal/ui/ui/badge";
 import { Button } from "@rakhal/ui/ui/button";
-import { DataTable } from "@/components/shared/data-table";
+import { DataTable } from "@rakhal/ui/shared/data-table";
 import { DateText } from "@/components/shared/date-text";
 import { MoneyText } from "@rakhal/ui/shared/money-text";
 import { Can } from "@/lib/auth/permissions";
