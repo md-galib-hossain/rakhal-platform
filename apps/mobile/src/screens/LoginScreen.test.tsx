@@ -107,6 +107,20 @@ describe('LoginScreen', () => {
     expect(await screen.findByText('ইমেইল বা ইউজারনেম', { includeHiddenElements: true })).toBeTruthy();
   });
 
+  it('keeps showing the error in the language the user switches to (errors are keys, not stored text)', async () => {
+    await open((url) => (url.endsWith('/auth/login') ? fail(401, 'Invalid credentials') : ok({})), null, 'en');
+    await type(identifier(), 'rahim');
+    await type(password(), 'pw-123456');
+    await act(async () => {
+      fireEvent.press(submit());
+    });
+    expect(await screen.findByTestId('login-form-error')).toHaveTextContent(/is not correct/);
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('login-language-bn'));
+    });
+    await waitFor(() => expect(screen.getByTestId('login-form-error')).toHaveTextContent(/সঠিক নয়/));
+  });
+
   it('opens in Bangla when that is the stored language', async () => {
     await open(() => ok({}), null, 'bn');
     expect(screen.getByText('পাসওয়ার্ড', { includeHiddenElements: true })).toBeTruthy();
