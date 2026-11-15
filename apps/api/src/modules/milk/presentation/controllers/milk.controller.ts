@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   Post,
   Query,
@@ -17,6 +18,11 @@ import {
   CurrentUserId,
   ThrottleUpload,
 } from 'src/common/decorators';
+import { IdempotencyService } from 'src/common/idempotency/application/idempotency.service';
+import {
+  ApiIdempotencyKey,
+  unwrapIdempotent,
+} from 'src/common/idempotency/idempotency.http';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
 import { FarmContextGuard } from 'src/modules/tenant-access/presentation/guards/farm-context.guard';
@@ -86,6 +92,7 @@ export class MilkController {
     private readonly exportService: MilkExportService,
     private readonly milkQualityService: MilkQualityService,
     private readonly milkAvailabilityService: MilkAvailabilityService,
+    private readonly idempotency: IdempotencyService,
   ) {}
 
   /** RAKHAL-343 — available-to-sell volume per SELLABLE tank. Unlocked
@@ -132,23 +139,52 @@ export class MilkController {
   @Post('log')
   @RequirePermission('milk.log')
   @ApiEnvelopeResponse(MilkSaveLogResponseDto, { status: 201 })
-  saveLog(
+  @ApiIdempotencyKey()
+  async saveLog(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Res({ passthrough: true }) res: Response,
     @Body() dto: SaveMilkLogDto,
   ) {
-    return this.milkService.saveLog(farmId, userId, dto);
+    const outcome = await this.idempotency.run(
+      {
+        farmId,
+        userId,
+        endpoint: 'milk.saveLog',
+        key: idempotencyKey,
+        body: dto,
+      },
+      () => this.milkService.saveLog(farmId, userId, dto),
+    );
+    return unwrapIdempotent(res, outcome);
   }
 
   @Post('submit')
   @RequirePermission('milk.log')
   @ApiEnvelopeResponse(MilkSubmitResponseDto, { status: 201 })
-  submit(
+  @ApiIdempotencyKey()
+  async submit(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Res({ passthrough: true }) res: Response,
     @Body() dto: SubmitMilkDto,
   ) {
-    return this.milkService.submit(farmId, userId, dto);
+    const outcome = await this.idempotency.run(
+      {
+        farmId,
+        userId,
+        endpoint: 'milk.submit',
+        key: idempotencyKey,
+        body: dto,
+      },
+      () =>
+        this.milkService.submit(farmId, userId, dto, {
+          tolerateAlreadySubmitted: !!idempotencyKey,
+        }),
+    );
+    return unwrapIdempotent(res, outcome);
   }
 
   @Get('cattle/:id/eligibility')

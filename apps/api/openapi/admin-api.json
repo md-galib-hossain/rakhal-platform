@@ -16825,6 +16825,11 @@
           "anomalyNote": {
             "type": "string"
           },
+          "baseUpdatedAt": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
           "cattleId": {
             "type": "string"
           },
@@ -16927,6 +16932,10 @@
             "format": "date-time",
             "type": "string"
           },
+          "updatedBy": {
+            "nullable": true,
+            "type": "string"
+          },
           "yieldL": {
             "type": "number"
           }
@@ -16950,6 +16959,7 @@
           "submittedAt",
           "editReason",
           "createdBy",
+          "updatedBy",
           "createdAt",
           "updatedAt"
         ],
@@ -17344,10 +17354,36 @@
         ],
         "type": "string"
       },
+      "MilkSaveLogConflictDto": {
+        "properties": {
+          "cattleId": {
+            "type": "string"
+          },
+          "server": {
+            "$ref": "#/components/schemas/MilkSaveLogServerVersionDto"
+          },
+          "yours": {
+            "$ref": "#/components/schemas/MilkSaveLogYoursDto"
+          }
+        },
+        "required": [
+          "cattleId",
+          "server",
+          "yours"
+        ],
+        "type": "object"
+      },
       "MilkSaveLogResponseDto": {
         "properties": {
           "anomaliesFlagged": {
             "type": "number"
+          },
+          "conflicts": {
+            "description": "Entries that were not saved because a newer version exists. Always empty unless the request sent `baseUpdatedAt`.",
+            "items": {
+              "$ref": "#/components/schemas/MilkSaveLogConflictDto"
+            },
+            "type": "array"
           },
           "saved": {
             "type": "number"
@@ -17359,7 +17395,44 @@
         "required": [
           "saved",
           "anomaliesFlagged",
-          "sessionTotalL"
+          "sessionTotalL",
+          "conflicts"
+        ],
+        "type": "object"
+      },
+      "MilkSaveLogServerVersionDto": {
+        "properties": {
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedBy": {
+            "description": "User who last saved the entry; null on rows saved before this was recorded.",
+            "nullable": true,
+            "type": "string"
+          },
+          "updatedByName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "yieldL": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "yieldL",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "MilkSaveLogYoursDto": {
+        "properties": {
+          "yieldL": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "yieldL"
         ],
         "type": "object"
       },
@@ -17455,6 +17528,10 @@
           "activityLogCreated": {
             "type": "boolean"
           },
+          "alreadySubmitted": {
+            "description": "True only for a request with an `Idempotency-Key` whose session was already fully submitted: nothing ran and the totals are 0.",
+            "type": "boolean"
+          },
           "anomalies": {
             "items": {
               "$ref": "#/components/schemas/MilkSubmitAnomalyDto"
@@ -17497,7 +17574,8 @@
           "mainTankUpdated",
           "withholdingTankUpdated",
           "activityLogCreated",
-          "anomalies"
+          "anomalies",
+          "alreadySubmitted"
         ],
         "type": "object"
       },

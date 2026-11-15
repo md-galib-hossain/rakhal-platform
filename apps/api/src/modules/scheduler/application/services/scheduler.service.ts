@@ -16,6 +16,7 @@ import { computeRunwaySnapshot } from 'src/common/finance/runway';
 import { NotificationService } from 'src/modules/notification/application/services/notification.service';
 import { NotificationScheduler } from 'src/modules/notification/application/services/notification-scheduler.service';
 import { OverdueNagService } from './overdue-nag.service';
+import { IdempotencyService } from 'src/common/idempotency/application/idempotency.service';
 import { SubscriptionLifecycleService } from 'src/modules/subscription/application/services/subscription-lifecycle.service';
 import { RenewalReminderService } from 'src/modules/renewal/application/services/renewal-reminder.service';
 import { ReconciliationService } from 'src/modules/billing/application/services/reconciliation.service';
@@ -92,6 +93,8 @@ export class SchedulerService {
     // RAKHAL-498 (Notifications v2): reconcile + overdue nag.
     private readonly notificationScheduler: NotificationScheduler,
     private readonly overdueNag: OverdueNagService,
+    // WP8a (ADR-006): drop `Idempotency-Key` rows past the retention window. Rides the existing daily run.
+    private readonly idempotency: IdempotencyService,
     logger: LoggerService,
   ) {
     this.log = logger.setContext(SchedulerService.name);
@@ -129,6 +132,8 @@ export class SchedulerService {
       ['health_cycle_repeat', () => this.healthCycles.sweepAll()],
       // RAKHAL-498: one `scheduled_overdue` per rule/round/case group per day, capped at 30 days. After the sweeps above.
       ['overdue_nag', () => this.overdueNag.sweepAll()],
+      // WP8a: bookkeeping rows for offline-queued writes expire after 35 days (ADR-006).
+      ['idempotency_expiry', () => this.idempotency.purgeExpired()],
     ] as const) {
       try {
         results[name] = await sweep();

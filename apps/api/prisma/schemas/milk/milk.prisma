@@ -38,6 +38,9 @@ model MilkLogEntry {
   editReason  String?
 
   createdBy String
+  /// WP8a (ADR-006): who last saved this entry, so an offline-sync conflict can say who changed it.
+  /// Null on rows saved before this column existed.
+  updatedBy String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

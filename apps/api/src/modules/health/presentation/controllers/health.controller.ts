@@ -3,13 +3,21 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   Param,
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { IdempotencyService } from 'src/common/idempotency/application/idempotency.service';
+import {
+  ApiIdempotencyKey,
+  unwrapIdempotent,
+} from 'src/common/idempotency/idempotency.http';
 import { CurrentFarmId, CurrentUserId } from 'src/common/decorators';
 import { JwtAuthGuard } from 'src/modules/auth/presentation/guards/jwt-auth.guard';
 import { SessionGuard } from 'src/modules/auth/presentation/guards/session.guard';
@@ -121,6 +129,7 @@ export class HealthController {
     private readonly outcomesService: HealthOutcomesService,
     private readonly planStatsService: HealthPlanStatsService,
     private readonly roundsService: HealthRoundsService,
+    private readonly idempotency: IdempotencyService,
   ) {}
 
   @Get('dashboard')
@@ -163,12 +172,26 @@ export class HealthController {
   @Post('cases')
   @ApiEnvelopeResponse(HealthCaseResponseDto, { status: 201 })
   @RequirePermission('healthcare.report-sickness')
-  createCase(
+  @ApiIdempotencyKey()
+  async createCase(
     @CurrentFarmId() farmId: string,
     @CurrentUserId() userId: string,
+    @Headers('idempotency-key') idempotencyKey: string | undefined,
+    @Res({ passthrough: true }) res: Response,
     @Body() dto: CreateHealthCaseDto,
   ) {
-    return this.healthService.createHealthCase(farmId, userId, dto);
+    // A case has no natural key, so the key is the only guard against a queued offline report being created twice.
+    const outcome = await this.idempotency.run(
+      {
+        farmId,
+        userId,
+        endpoint: 'health.createCase',
+        key: idempotencyKey,
+        body: dto,
+      },
+      () => this.healthService.createHealthCase(farmId, userId, dto),
+    );
+    return unwrapIdempotent(res, outcome);
   }
 
   /** RAKHAL-469 — one condition for several animals at once (an outbreak). Same permission as the single report. */

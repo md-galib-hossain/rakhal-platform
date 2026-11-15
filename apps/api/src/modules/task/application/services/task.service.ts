@@ -341,14 +341,17 @@ export class TaskService {
     userId: string,
     id: string,
     dto: CompleteTaskDto,
+    opts: { tolerateAlreadyCompleted?: boolean } = {},
   ) {
     const existing = await this.getOrThrow(farmId, id);
     if (existing.status === TaskStatus.COMPLETED) {
-      throw new BadRequestException('Task is already completed');
+      return this.alreadyCompleted(existing, opts);
     }
 
-    const task = await this.prisma.task.update({
-      where: { id },
+    // Conditional write: of two concurrent completes only one changes the row, so only one spawns the next
+    // recurrence (WP8a, ADR-006). The loser answers like a repeat.
+    const { count } = await this.prisma.task.updateMany({
+      where: { id, farmId, status: { not: TaskStatus.COMPLETED } },
       data: {
         status: TaskStatus.COMPLETED,
         completedAt: new Date(),
@@ -356,8 +359,11 @@ export class TaskService {
         completionPhotoUrl: dto.completionPhotoUrl,
         completionNote: dto.notes,
       },
-      include: this.assigneeInclude(),
     });
+    if (count === 0) {
+      return this.alreadyCompleted(await this.getOrThrow(farmId, id), opts);
+    }
+    const task = await this.getOrThrow(farmId, id);
     await this.recordAudit(
       id,
       TaskAuditAction.COMPLETED,
@@ -378,6 +384,34 @@ export class TaskService {
       ...presented,
       nextRecurrenceCreated: Boolean(next),
       nextTaskId: next?.id ?? null,
+      alreadyCompleted: false,
+    };
+  }
+
+  /**
+   * The task was already completed. The web app keeps its 400. A request that carries an `Idempotency-Key` (a
+   * queued offline completion that raced another device) gets 200 with the task and who completed it, so the
+   * client can show "already done by Karim" instead of an error.
+   */
+  private async alreadyCompleted(
+    task: TaskWithAssignee,
+    opts: { tolerateAlreadyCompleted?: boolean },
+  ) {
+    if (!opts.tolerateAlreadyCompleted) {
+      throw new BadRequestException('Task is already completed');
+    }
+    const completer = task.completedById
+      ? await this.prisma.user.findUnique({
+          where: { id: task.completedById },
+          select: { name: true },
+        })
+      : null;
+    return {
+      ...(await this.present(task)),
+      nextRecurrenceCreated: false,
+      nextTaskId: null,
+      alreadyCompleted: true,
+      completedByName: completer?.name ?? null,
     };
   }
 
