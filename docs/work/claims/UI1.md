@@ -1,7 +1,7 @@
 ---
 id: UI1
 title: Mobile: no drop shadows, separate surfaces by border and colour only
-status: active
+status: review
 agent: claude-sonnet-ui
 harness: claude-code
 branch: claude/mobile-no-shadows
@@ -41,3 +41,4 @@ Owner rule (2026-11-16): the mobile app has no drop shadows. Sections, cards, sh
 
 ## Notes
 
+2026-11-16 claude-sonnet-ui: removed `elevation` tokens and every shadow style (Card, Toast, SheetModal); the sheet got a 1px `inputBorder` outline (top and sides); `shadowColor` became `scrimColor` (backdrop only). New `apps/mobile/test/no-shadows.test.ts` fails on any shadow/elevation style in `src`/`app` and when card/popover/border stop differing from background. Rule written in `AGENTS.md` and ADR-007. tsc, eslint, node (318) and jest (508) green. NOT checked on a device: the Pixel 8 emulator was in use by another session (`hungry-mirzakhani`), so the owner or a later agent should look at Card, the confirm sheet and a toast in light and dark.

@@ -6,7 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { mount, restoreMount, type MountOptions } from '../../test-utils/mount.tsx';
 import { expectNoFixedTextHeight, expectTouchTarget, findNodes, flatStyle } from '../../test-utils/touch-target.ts';
 import { messages } from '../../i18n/messages.ts';
-import { allColors, elevation, radius, shadowColor } from '../../theme/tokens.ts';
+import { allColors, radius } from '../../theme/tokens.ts';
 import { SHEET_FOCUS_DELAY_MS, SheetModal, SheetTitle } from '../internal/SheetModal.tsx';
 import { ConfirmSheet, type ConfirmSheetProps } from './ConfirmSheet.tsx';
 
@@ -140,16 +140,21 @@ describe('ConfirmSheet dismiss paths', () => {
 });
 
 describe('SheetModal surface and safe area', () => {
-  it.each(['light', 'dark'] as const)('popover surface, rounded top corners, overlay elevation, backdrop shadowColor (%s)', async (scheme) => {
+  it.each(['light', 'dark'] as const)('popover surface, rounded top corners, 1px outline, no shadow (%s)', async (scheme) => {
     await mount(sheet(), { scheme });
     const surface = flatStyle(screen.getByTestId('sheet-surface'));
     expect(surface).toMatchObject({
       backgroundColor: allColors[scheme].popover,
       borderTopLeftRadius: radius.lg,
       borderTopRightRadius: radius.lg,
-      elevation: elevation.overlay.elevation,
-      shadowColor,
+      borderWidth: 1,
+      borderBottomWidth: 0,
+      borderColor: allColors[scheme].inputBorder,
     });
+    // ADR-007: no drop shadow, no elevation.
+    for (const key of ['shadowColor', 'shadowOpacity', 'shadowRadius', 'shadowOffset', 'elevation']) {
+      expect(surface).not.toHaveProperty(key);
+    }
     expect(screen.getByTestId('confirm-sheet').props).toMatchObject({ transparent: true, animationType: 'none' });
   });
 

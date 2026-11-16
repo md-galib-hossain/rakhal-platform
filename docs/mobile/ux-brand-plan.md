@@ -65,6 +65,8 @@ Mobile must pick one rule (see Q3). Recommendation: dark label on brand green fo
 
 ### 1.3 Radius, spacing, elevation [V]
 
+> **Mobile decision (2026-11-16, ADR-007): no shadows on mobile.** The elevation notes below describe the web app. On the phone, surfaces are separated by a 1px border and a fill that differs from the background only.
+
 - Radius tokens: sm 0.5rem (8), md 0.625rem (10), lg 1rem (16), full (globals.css:89-92). Card 16, button/input 10-12, tile 10, badge/pill
   full (UIA:1060-1061). Auth card is 20 (DESIGN_SYSTEM.md:148), auth input 52px high / 14 radius (:151).
 - Spacing: no token scale; documented values: page padding 24-28, section gap 24, card padding 20-24, field gap 16 (UIA:1057-1058).

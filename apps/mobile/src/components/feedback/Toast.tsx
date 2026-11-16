@@ -3,7 +3,7 @@
  * id. Callers pass already-formatted strings (undo: `{ message, action: { label: t('toast.undo'), onPress: revert } }`;
  * pressing the action runs `onPress` then dismisses).
  *
- * - Surface: `popover` fill, `inputBorder` outline, `radius.lg`, `elevation.overlay`, minHeight 56, `spacing.lg` side
+ * - Surface: `popover` fill, `inputBorder` outline, `radius.lg`, no shadow (ADR-007), minHeight 56, `spacing.lg` side
  *   margins, `insets.bottom + 16 + bottomOffset` above the bottom (`bottomOffset` per toast, else the provider default,
  *   so a screen with a sticky bar / the tab bar can clear it).
  * - Timing (toast-timing.ts): 4s plain, 5s with action, 6s error, 0 = persistent (shows a close IconButton). For
@@ -19,7 +19,7 @@ import { AccessibilityInfo, Animated, Easing, Platform, View } from 'react-nativ
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocale } from '../../providers/LocaleProvider.tsx';
 import { useTheme } from '../../providers/ThemeProvider.tsx';
-import { elevation, radius, shadowColor, spacing, type AnyColorName } from '../../theme/tokens.ts';
+import { radius, spacing, type AnyColorName } from '../../theme/tokens.ts';
 import { Button } from '../actions/Button.tsx';
 import { IconButton } from '../actions/IconButton.tsx';
 import { Glyph, type GlyphName } from '../internal/Glyph.tsx';
@@ -221,8 +221,6 @@ function ToastView({ toast, defaultBottomOffset, reduceMotion, onDismiss, onExit
           borderWidth: 1,
           borderColor: colors.inputBorder,
           borderRadius: radius.lg,
-          shadowColor,
-          ...elevation.overlay,
         }}
       >
         <Glyph name={look.glyph} size={20} color={look.color} testID="toast-glyph" />

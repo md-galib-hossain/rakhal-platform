@@ -1,5 +1,7 @@
 # WP3 - Core component kit: build-ready spec for `apps/mobile`
 
+> **Superseded in part (2026-11-16, ADR-007):** the mobile app has **no shadows**. Wherever this spec says `elevation.card`, `elevation.overlay` or `shadowColor`, read: no shadow; `Card` = `card` fill + 1px `border`; sheet = `popover` fill + 1px `inputBorder` outline (top and sides) over the scrim; toast = `popover` fill + `inputBorder` outline; the backdrop colour token is now `scrimColor`. The text below is kept as history.
+
 Status: spec for Codex. Author: Forma (Product Designer / UI/UX Engineer), 2026-11-11. Design-only: no code, no installs, no commits.
 Inputs read: `docs/mobile/ux-brand-plan.md` (WP3/5/6, owner decisions), `docs/mobile/wp2-scaffold-spec.md`, and the built foundation
 (`src/theme/tokens.ts`, `mobile-only.ts`, `components/primitives/{Text,text-style}`, `i18n/messages.ts`, `providers/*`, `app/dev/gallery.tsx`, `package.json`).

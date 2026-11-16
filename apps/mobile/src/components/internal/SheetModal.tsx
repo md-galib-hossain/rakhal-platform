@@ -3,8 +3,8 @@
  * Tranche B). RN core `Modal` (transparent, no native animation, translucent status + navigation bars); the
  * `onRequestClose` prop is the Android back button.
  *
- * - Backdrop: `shadowColor` at 50% (Pressable, hidden from a11y). Sheet: `popover` surface, top corners `radius.lg`,
- *   `elevation.overlay`, content padded `spacing.lg` with the bottom padded by the safe-area inset (see sheet-motion.ts).
+ * - Backdrop: `scrimColor` at 50% (Pressable, hidden from a11y). Sheet: `popover` surface, top corners `radius.lg`,
+ *   1px `inputBorder` outline (top and sides) and no shadow (ADR-007), content padded `spacing.lg` with the bottom padded by the safe-area inset (see sheet-motion.ts).
  * - Motion (Animated, native driver, opacity + translateY only): backdrop fade 150ms, sheet slides in 220ms, out 160ms;
  *   under reduce motion every duration is 0 (instant). The Modal stays mounted until the exit finishes.
  * - While `dismissable` is false (busy) the backdrop tap and Android back are ignored.
@@ -41,7 +41,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../providers/ThemeProvider.tsx';
-import { elevation, radius, shadowColor, spacing } from '../../theme/tokens.ts';
+import { radius, scrimColor, spacing } from '../../theme/tokens.ts';
 import { Text } from '../primitives/Text.tsx';
 import { useReduceMotion } from './useReduceMotion.ts';
 import {
@@ -165,7 +165,7 @@ export function SheetModal({ visible, onRequestClose, dismissable = true, childr
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Animated.View
           pointerEvents="none"
-          style={[StyleSheet.absoluteFill, { backgroundColor: shadowColor, opacity: backdrop }]}
+          style={[StyleSheet.absoluteFill, { backgroundColor: scrimColor, opacity: backdrop }]}
         />
         <Pressable
           testID="sheet-backdrop"
@@ -183,8 +183,10 @@ export function SheetModal({ visible, onRequestClose, dismissable = true, childr
             backgroundColor: colors.popover,
             borderTopLeftRadius: radius.lg,
             borderTopRightRadius: radius.lg,
-            shadowColor,
-            ...elevation.overlay,
+            // No shadow (ADR-007): a 1px outline on the top and sides, over the dimmed scrim, separates the sheet.
+            borderWidth: 1,
+            borderBottomWidth: 0,
+            borderColor: colors.inputBorder,
             transform: [{ translateY }],
           }}
         >
