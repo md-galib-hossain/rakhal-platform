@@ -1,7 +1,7 @@
 ---
 id: UI1
 title: Mobile: no drop shadows, separate surfaces by border and colour only
-status: review
+status: done
 agent: claude-sonnet-ui
 harness: claude-code
 branch: claude/mobile-no-shadows
