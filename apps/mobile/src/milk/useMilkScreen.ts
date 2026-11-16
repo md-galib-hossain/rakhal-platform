@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { useToast } from '../components/feedback/Toast.tsx';
 import type { PickerDayEntry } from '../components/picker/DateRangePicker.tsx';
-import { useFormat } from '../i18n/useFormat.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useSync } from '../offline/SyncProvider.tsx';
 import type { OutboxRow } from '../offline/outbox.ts';
@@ -25,17 +24,19 @@ export interface ShedFilterOption {
   name: string;
 }
 
+export type MilkStatusFilter = 'all' | 'milking' | 'withheld';
+
 export function useMilkScreen() {
   const sync = useSync();
   const { ready, snapshot } = sync;
   const { client } = useAuth();
   const { t } = useLocale();
-  const format = useFormat();
   const toast = useToast();
 
   const [date, setDate] = useState(() => toIsoDateString());
   const [session, setSession] = useState<MilkSession>(() => defaultSessionByClock());
   const [selectedShedId, setSelectedShedId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<MilkStatusFilter>('all');
   const [search, setSearch] = useState('');
   const [configuredSessions, setConfiguredSessions] = useState<MilkSession[]>(() => [...DEFAULT_SESSIONS]);
   const [sheds, setSheds] = useState<ShedFilterOption[]>([]);
@@ -264,6 +265,17 @@ export function useMilkScreen() {
       const baseUpdatedAt = updatedMap?.[session] ?? null;
 
       const withholding = Boolean(sLog?.withholding ?? cow.withholding);
+      if (statusFilter === 'milking' && withholding) continue;
+      if (statusFilter === 'withheld' && !withholding) continue;
+
+      if (selectedTankId) {
+        const selectedTank = tanks.find((t) => t.id === selectedTankId);
+        if (selectedTank) {
+          if (selectedTank.tankType === 'WITHHOLDING' && !withholding) continue;
+          if (selectedTank.tankType === 'SELLABLE' && withholding) continue;
+        }
+      }
+
       const withholdingReason =
         typeof sLog?.withholdingReason === 'string'
           ? (sLog.withholdingReason as string)
@@ -326,7 +338,7 @@ export function useMilkScreen() {
     }
 
     return result;
-  }, [rawCows, rawMilkLogs, outboxRows, session, date, selectedShedId, search, yieldOverrides]);
+  }, [rawCows, rawMilkLogs, outboxRows, session, date, selectedShedId, statusFilter, selectedTankId, tanks, search, yieldOverrides]);
 
   // Reactive Live Totals
   const liveTotals: MilkTotals = useMemo(() => {
@@ -391,8 +403,6 @@ export function useMilkScreen() {
       const cow = rows.find((r) => r.cattleId === cattleId);
       if (!cow) return;
 
-      const prevYieldL = cow.yieldL;
-
       // Optimistic local override for instant UI recalculation
       setYieldOverrides((prev) => ({ ...prev, [cattleId]: newYieldL }));
 
@@ -415,43 +425,11 @@ export function useMilkScreen() {
         });
         lastSaveLocalId.current = queued.localId;
         reloadData();
-
-        // 5s Undo Toast
-        const cowTitle = cow.tag || cow.name || cattleId;
-        toast.show({
-          message: t('milk.savedToast', {
-            tag: cowTitle,
-            yield: format.numberSafe(newYieldL ?? 0),
-          }),
-          tone: 'success',
-          action: {
-            label: t('milk.undo'),
-            onPress: () => {
-              setYieldOverrides((prev) => ({ ...prev, [cattleId]: prevYieldL }));
-              void sync.enqueue({
-                endpoint: 'milk.saveLog',
-                method: 'POST',
-                path: '/milk/log',
-                body: {
-                  date,
-                  session,
-                  entries: [
-                    {
-                      cattleId,
-                      yieldL: prevYieldL,
-                      baseUpdatedAt: cow.baseUpdatedAt,
-                    },
-                  ],
-                },
-              }).then(reloadData);
-            },
-          },
-        });
       } catch (err) {
         console.warn('Failed to queue milk save', err);
       }
     },
-    [rows, sync, date, session, reloadData, toast, t, format],
+    [rows, sync, date, session, reloadData],
   );
 
   // Save all entered drafts at once
@@ -526,6 +504,8 @@ export function useMilkScreen() {
     sheds,
     selectedShedId,
     setSelectedShedId,
+    statusFilter,
+    setStatusFilter,
     search,
     setSearch,
     rows,

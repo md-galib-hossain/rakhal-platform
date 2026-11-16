@@ -273,6 +273,18 @@ export const en = {
   'milk.quickAdd': '+{amount}',
   'milk.clearYield': 'Clear yield',
   'milk.withheldRoutingNote': 'Routes to withholding tank',
+  'milk.filterTitle': 'Filter your search',
+  'milk.filterSheds': 'Sheds',
+  'milk.filterStatus': 'Status',
+  'milk.statusAll': 'All',
+  'milk.statusMilking': 'Milking only',
+  'milk.statusWithheld': 'Withheld only',
+  'milk.filterTank': 'Tank Routing',
+  'milk.allTanks': 'All Tanks',
+  'milk.applyFilter': 'Apply Filter',
+  'milk.resetFilter': 'Reset',
+  'milk.loggedCowsCount': '{count} logged',
+  'milk.referenceValues': 'Yest: {prev} L · 7d: {avg} L',
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -529,6 +541,18 @@ export const bn: Record<MessageKey, string> = {
   'milk.quickAdd': '+{amount}',
   'milk.clearYield': 'দুধের পরিমাণ মুছুন',
   'milk.withheldRoutingNote': 'উইথহোল্ডিং ট্যাংকে সংরক্ষিত হয়',
+  'milk.filterTitle': 'ফিল্টার করুন',
+  'milk.filterSheds': 'শেড',
+  'milk.filterStatus': 'অবস্থা',
+  'milk.statusAll': 'সকল',
+  'milk.statusMilking': 'দুধ দিচ্ছে',
+  'milk.statusWithheld': 'সংগ্রহ বন্ধ',
+  'milk.filterTank': 'ট্যাংক নির্বাচন',
+  'milk.allTanks': 'সব ট্যাংক',
+  'milk.applyFilter': 'ফিল্টার প্রয়োগ করুন',
+  'milk.resetFilter': 'রিসেট',
+  'milk.loggedCowsCount': '{count}টি সম্পন্ন',
+  'milk.referenceValues': 'গতকাল: {prev} লি · ৭ দিন: {avg} লি',
 };
 
 export const messages: Record<Locale, Record<MessageKey, string>> = { en, bn };

@@ -1,28 +1,33 @@
 /**
- * Ergonomic Cow Milking Entry Card (WP10 UI/UX overhaul).
+ * Modern Cow Milking Entry Card (WP10, UI/UX overhaul).
  *
- * Replaces bulky steppers with a high-efficiency direct numeric input + quick increment chips (+0.5, +1.0, +5.0).
- * Displays yesterday's reference yield and 7-day average.
- * When a cow is under medication withholding (`withholding === true`), input is strictly blocked,
- * displays a prominent Withheld badge, and indicates routing to the Withholding Tank.
- *
- * Compliant with ADR-007 (zero drop shadows, 1px border and token fills only).
+ * Streamlined design per user direction:
+ * - Direct numeric input field with decimal keyboard.
+ * - Removed + / - steppers and quick-increment chips.
+ * - No "! Waiting" badges to eliminate visual clutter.
+ * - Top row: Cow Tag/Name (bold) + Shed name + Status badge (Milking / Withheld).
+ * - Middle/Bottom row:
+ *   - Reference yields (Yesterday & 7d avg).
+ *   - Destination Tank badge (Main Tank or Withholding Tank).
+ *   - Prominent numeric yield input box with decimal keyboard.
+ * - When under medication withholding: input disabled, warning notice, Withholding Tank routed.
+ * - ADR-007 compliant: strictly zero drop shadows, 1px border and token fills only.
  */
 import { memo, useEffect, useState } from 'react';
 import { TextInput, View } from 'react-native';
 import { StatusBadge } from '../components/display/StatusBadge.tsx';
 import { Glyph } from '../components/internal/Glyph.tsx';
-import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { Text } from '../components/primitives/Text.tsx';
 import { useFormat } from '../i18n/useFormat.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
-import { categoryKey, cattleTitle } from '../cattle/cattle-model.ts';
+import { cattleTitle } from '../cattle/cattle-model.ts';
 import { isMilkAnomaly, type MilkCowRow } from './milk-model.ts';
 
 export interface MilkCowCardProps {
   row: MilkCowRow;
   disabled?: boolean;
+  tankName?: string;
   onChangeYield: (cattleId: string, yieldL: number | null) => void;
   testID?: string;
 }
@@ -30,6 +35,7 @@ export interface MilkCowCardProps {
 export const MilkCowCard = memo(function MilkCowCard({
   row,
   disabled = false,
+  tankName,
   onChangeYield,
   testID,
 }: MilkCowCardProps) {
@@ -38,14 +44,6 @@ export const MilkCowCard = memo(function MilkCowCard({
   const format = useFormat();
 
   const title = cattleTitle({ tagNumber: row.tag, name: row.name });
-  const category = categoryKey(row.animalCategory);
-  const subtitleParts = [
-    category ? t(category) : row.animalCategory,
-    row.breedName,
-    row.shedName,
-  ].filter(Boolean);
-  const subtitle = subtitleParts.join(' · ');
-
   const hasAnomaly = isMilkAnomaly(row.yieldL, row.avgYield7d, row.anomalyFlag);
   const isInputDisabled = disabled || row.withholding || row.isSubmitted;
 
@@ -72,16 +70,11 @@ export const MilkCowCard = memo(function MilkCowCard({
     }
   };
 
-  const handleStep = (delta: number) => {
-    if (isInputDisabled) return;
-    const cur = row.yieldL ?? 0;
-    const next = Math.max(0, Math.round((cur + delta) * 10) / 10);
-    onChangeYield(row.cattleId, next === 0 && delta < 0 ? null : next);
-  };
+  const cardTestID = testID ?? `milk-cow-card-${row.cattleId}`;
 
   return (
     <View
-      testID={testID ?? `milk-cow-card-${row.cattleId}`}
+      testID={cardTestID}
       style={{
         backgroundColor: colors.card,
         borderWidth: 1,
@@ -91,7 +84,7 @@ export const MilkCowCard = memo(function MilkCowCard({
         gap: tokens.spacing.sm,
       }}
     >
-      {/* Header: Title, Subtitle, Status Badges */}
+      {/* Top Row: Cow Tag/Name + Shed Name + Status Badge */}
       <View
         style={{
           flexDirection: 'row',
@@ -100,17 +93,18 @@ export const MilkCowCard = memo(function MilkCowCard({
           gap: tokens.spacing.sm,
         }}
       >
-        <View style={{ flex: 1 }}>
-          <Text role="title" color="foreground">
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text role="title" color="foreground" style={{ fontWeight: '700' }}>
             {title || '—'}
           </Text>
-          {subtitle ? (
+          {row.shedName ? (
             <Text role="caption" color="mutedForeground">
-              {subtitle}
+              {row.shedName}
             </Text>
           ) : null}
         </View>
 
+        {/* Right Status Badges (Milking / Withheld / Anomaly / Error) - NO "Waiting" badge */}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.xs, justifyContent: 'flex-end' }}>
           {row.withholding ? (
             <StatusBadge
@@ -118,7 +112,13 @@ export const MilkCowCard = memo(function MilkCowCard({
               label={t('milk.withholdingBadge')}
               testID={`milk-withholding-${row.cattleId}`}
             />
-          ) : null}
+          ) : (
+            <StatusBadge
+              tone="info"
+              label={t('cattle.status.milking')}
+              testID={`milk-status-milking-${row.cattleId}`}
+            />
+          )}
 
           {hasAnomaly ? (
             <StatusBadge
@@ -128,19 +128,7 @@ export const MilkCowCard = memo(function MilkCowCard({
             />
           ) : null}
 
-          {row.status === 'saved' ? (
-            <StatusBadge
-              tone="success"
-              label={t('milk.status.saved')}
-              testID={`milk-status-${row.cattleId}`}
-            />
-          ) : row.status === 'waiting' ? (
-            <StatusBadge
-              tone="warning"
-              label={t('milk.status.waiting')}
-              testID={`milk-status-${row.cattleId}`}
-            />
-          ) : row.status === 'failed' ? (
+          {row.status === 'failed' ? (
             <StatusBadge
               tone="destructive"
               label={t('milk.status.failed')}
@@ -156,14 +144,14 @@ export const MilkCowCard = memo(function MilkCowCard({
         </View>
       </View>
 
-      {/* Reference Yields & Withholding Notice */}
+      {/* Withholding Alert Banner */}
       {row.withholding ? (
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             gap: tokens.spacing.xs,
-            paddingVertical: tokens.spacing.xs,
+            paddingVertical: 2,
           }}
         >
           <Glyph name="exclamation" size={16} color="destructive" />
@@ -174,42 +162,81 @@ export const MilkCowCard = memo(function MilkCowCard({
             · {t('milk.withheldRoutingNote')}
           </Text>
         </View>
-      ) : (
-        <View style={{ flexDirection: 'row', gap: tokens.spacing.md }}>
-          {row.prevDayYieldL !== undefined ? (
-            <Text role="caption" color="mutedForeground">
-              {t('milk.prevDay', { yield: format.numberSafe(row.prevDayYieldL, { fractionDigits: 1 }) })}
-            </Text>
-          ) : null}
-          {row.avgYield7d !== undefined ? (
-            <Text role="caption" color="mutedForeground">
-              {t('milk.avg7d', { yield: format.numberSafe(row.avgYield7d, { fractionDigits: 1 }) })}
-            </Text>
-          ) : null}
-        </View>
-      )}
+      ) : null}
 
-      {/* Ergonomic Milking Yield Controls */}
+      {/* Middle/Bottom Row: Reference Yields & Tank Badge on Left, Numeric Input on Right */}
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
+          justifyContent: 'space-between',
           gap: tokens.spacing.sm,
-          marginTop: tokens.spacing.xs,
+          paddingTop: tokens.spacing.xs,
         }}
       >
-        {/* Direct Numeric Input Box */}
+        {/* Left Column: Reference Yields & Tank Routing Badge */}
+        <View style={{ flex: 1, gap: 4 }}>
+          {/* Reference Yields */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: tokens.spacing.xs }}>
+            {row.prevDayYieldL !== undefined ? (
+              <Text role="caption" color="mutedForeground">
+                {t('milk.prevDay', { yield: format.numberSafe(row.prevDayYieldL, { fractionDigits: 1 }) })}
+              </Text>
+            ) : null}
+            {row.prevDayYieldL !== undefined && row.avgYield7d !== undefined ? (
+              <Text role="caption" color="mutedForeground">
+                ·
+              </Text>
+            ) : null}
+            {row.avgYield7d !== undefined ? (
+              <Text role="caption" color="mutedForeground">
+                {t('milk.avg7d', { yield: format.numberSafe(row.avgYield7d, { fractionDigits: 1 }) })}
+              </Text>
+            ) : null}
+          </View>
+
+          {/* Destination Tank Badge */}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View
+              testID={`milk-tank-badge-${row.cattleId}`}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: tokens.radius.full,
+                borderWidth: 1,
+                borderColor: row.withholding ? colors.destructive : colors.border,
+                backgroundColor: row.withholding ? colors.muted : colors.card,
+              }}
+            >
+              <Glyph name="dot" size={16} color={row.withholding ? 'destructive' : 'primary'} />
+              <Text
+                role="caption"
+                color={row.withholding ? 'destructive' : 'mutedForeground'}
+                style={{ fontSize: 11, fontWeight: '500' }}
+              >
+                {row.withholding ? t('milk.tankWithholding') : (tankName || t('milk.tankSellable'))}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Right: Clean, Prominent Numeric Input Field */}
         <View
           style={{
-            flex: 1,
             flexDirection: 'row',
             alignItems: 'center',
             height: tokens.touchTarget.min,
+            minWidth: 104,
+            maxWidth: 130,
             borderRadius: tokens.radius.md,
             borderWidth: 1,
             borderColor: isInputDisabled ? colors.border : colors.inputBorder,
-            backgroundColor: isInputDisabled ? colors.muted : colors.card,
+            backgroundColor: isInputDisabled ? colors.muted : colors.background,
             paddingHorizontal: tokens.spacing.sm,
+            gap: 4,
           }}
         >
           <TextInput
@@ -223,124 +250,16 @@ export const MilkCowCard = memo(function MilkCowCard({
             placeholderTextColor={colors.mutedForeground}
             style={{
               flex: 1,
-              fontSize: 16,
-              fontWeight: '600',
+              fontSize: 18,
+              fontWeight: '700',
+              textAlign: 'right',
               color: isInputDisabled ? colors.mutedForeground : colors.foreground,
               paddingVertical: 0,
             }}
           />
-          <Text role="caption" color="mutedForeground" style={{ fontWeight: '600', marginLeft: tokens.spacing.xs }}>
+          <Text role="caption" color="mutedForeground" style={{ fontWeight: '600' }}>
             {t('milk.unit')}
           </Text>
-        </View>
-
-        {/* Quick Increment Chips */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
-          {/* Minus 0.5 */}
-          <PressableSurface
-            accessibilityRole="button"
-            accessibilityLabel="Decrease 0.5 L"
-            accessibilityState={{ disabled: isInputDisabled }}
-            disabled={isInputDisabled}
-            pressedStyle="overlay"
-            onPress={() => handleStep(-0.5)}
-            testID={`milk-stepper-${row.cattleId}-minus`}
-            style={{
-              minWidth: tokens.touchTarget.min,
-              minHeight: tokens.touchTarget.min,
-              paddingHorizontal: tokens.spacing.xs,
-              borderRadius: tokens.radius.md,
-              borderWidth: 1,
-              borderColor: colors.border,
-              backgroundColor: colors.card,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: isInputDisabled ? 0.4 : 1,
-            }}
-          >
-            <Glyph name="minus" size={16} color="foreground" />
-          </PressableSurface>
-
-          {/* Plus 0.5 (meets testID milk-stepper-*-plus) */}
-          <PressableSurface
-            accessibilityRole="button"
-            accessibilityLabel={t('milk.quickAdd', { amount: '0.5' })}
-            accessibilityState={{ disabled: isInputDisabled }}
-            disabled={isInputDisabled}
-            pressedStyle="overlay"
-            onPress={() => handleStep(0.5)}
-            testID={`milk-stepper-${row.cattleId}-plus`}
-            style={{
-              minWidth: tokens.touchTarget.min,
-              minHeight: tokens.touchTarget.min,
-              paddingHorizontal: tokens.spacing.xs,
-              borderRadius: tokens.radius.md,
-              borderWidth: 1,
-              borderColor: colors.border,
-              backgroundColor: colors.card,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: isInputDisabled ? 0.4 : 1,
-            }}
-          >
-            <Text role="caption" color="foreground" style={{ fontWeight: '600' }}>
-              +0.5
-            </Text>
-          </PressableSurface>
-
-          {/* Plus 1.0 */}
-          <PressableSurface
-            accessibilityRole="button"
-            accessibilityLabel={t('milk.quickAdd', { amount: '1.0' })}
-            accessibilityState={{ disabled: isInputDisabled }}
-            disabled={isInputDisabled}
-            pressedStyle="overlay"
-            onPress={() => handleStep(1.0)}
-            testID={`milk-chip-plus-1-${row.cattleId}`}
-            style={{
-              minWidth: tokens.touchTarget.min,
-              minHeight: tokens.touchTarget.min,
-              paddingHorizontal: tokens.spacing.xs,
-              borderRadius: tokens.radius.md,
-              borderWidth: 1,
-              borderColor: colors.border,
-              backgroundColor: colors.card,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: isInputDisabled ? 0.4 : 1,
-            }}
-          >
-            <Text role="caption" color="foreground" style={{ fontWeight: '600' }}>
-              +1.0
-            </Text>
-          </PressableSurface>
-
-          {/* Plus 5.0 */}
-          <PressableSurface
-            accessibilityRole="button"
-            accessibilityLabel={t('milk.quickAdd', { amount: '5.0' })}
-            accessibilityState={{ disabled: isInputDisabled }}
-            disabled={isInputDisabled}
-            pressedStyle="overlay"
-            onPress={() => handleStep(5.0)}
-            testID={`milk-chip-plus-5-${row.cattleId}`}
-            style={{
-              minWidth: tokens.touchTarget.min,
-              minHeight: tokens.touchTarget.min,
-              paddingHorizontal: tokens.spacing.xs,
-              borderRadius: tokens.radius.md,
-              borderWidth: 1,
-              borderColor: colors.border,
-              backgroundColor: colors.card,
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: isInputDisabled ? 0.4 : 1,
-            }}
-          >
-            <Text role="caption" color="foreground" style={{ fontWeight: '600' }}>
-              +5.0
-            </Text>
-          </PressableSurface>
         </View>
       </View>
     </View>
