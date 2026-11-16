@@ -1,42 +1,56 @@
 /**
- * Modern Cow Milking Entry Card (WP10, UI/UX overhaul).
- *
- * Streamlined design per user direction:
- * - Direct numeric input field with decimal keyboard.
- * - Removed + / - steppers and quick-increment chips.
- * - No "! Waiting" badges to eliminate visual clutter.
- * - Top row: Cow Tag/Name (bold) + Shed name + Status badge (Milking / Withheld).
- * - Middle/Bottom row:
- *   - Reference yields (Yesterday & 7d avg).
- *   - Destination Tank badge (Main Tank or Withholding Tank).
- *   - Prominent numeric yield input box with decimal keyboard.
- * - When under medication withholding: input disabled, warning notice, Withholding Tank routed.
+ * Modern Cow Milking Entry Card (WP10, UI/UX Redesign).
+ * Matches user's reference mockup:
+ * - Left: Circular initial avatar in primary tint, e.g. 'B' for Bella, 'P' for Padma.
+ * - Middle: Cow Name, Status Badge (Milking / Withheld), Tag Number · Breed / Shed.
+ * - Right: Today's Total in bold teal + 'Today's total' subtitle.
+ * - Body: Multi-session grid (AM1, AM2, PM1, PM2 / configured sessions):
+ *   - Session label
+ *   - Numeric decimal input field
+ *   - Container chip button [ 🟦 Tank A 📦 ] opening container selection sheet
+ * - When medication-withheld: inputs disabled, Withholding Tank routed, warning reason shown.
  * - ADR-007 compliant: strictly zero drop shadows, 1px border and token fills only.
  */
 import { memo, useEffect, useState } from 'react';
 import { TextInput, View } from 'react-native';
 import { StatusBadge } from '../components/display/StatusBadge.tsx';
 import { Glyph } from '../components/internal/Glyph.tsx';
+import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { Text } from '../components/primitives/Text.tsx';
 import { useFormat } from '../i18n/useFormat.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 import { cattleTitle } from '../cattle/cattle-model.ts';
-import { isMilkAnomaly, type MilkCowRow } from './milk-model.ts';
+import {
+  DEFAULT_SESSIONS,
+  SESSION_COMPACT_LABELS,
+  type MilkCowRow,
+  type MilkSession,
+} from './milk-model.ts';
 
 export interface MilkCowCardProps {
   row: MilkCowRow;
   disabled?: boolean;
+  activeSession?: MilkSession;
+  configuredSessions?: readonly MilkSession[];
   tankName?: string;
-  onChangeYield: (cattleId: string, yieldL: number | null) => void;
+  onChangeYield: (
+    cattleId: string,
+    sessionOrYield: MilkSession | number | null,
+    maybeYield?: number | null,
+  ) => void;
+  onPressContainer?: (cattleId: string, session: MilkSession) => void;
   testID?: string;
 }
 
 export const MilkCowCard = memo(function MilkCowCard({
   row,
   disabled = false,
+  activeSession = 'MORNING',
+  configuredSessions = DEFAULT_SESSIONS,
   tankName,
   onChangeYield,
+  onPressContainer,
   testID,
 }: MilkCowCardProps) {
   const { colors, tokens } = useTheme();
@@ -44,33 +58,60 @@ export const MilkCowCard = memo(function MilkCowCard({
   const format = useFormat();
 
   const title = cattleTitle({ tagNumber: row.tag, name: row.name });
-  const hasAnomaly = isMilkAnomaly(row.yieldL, row.avgYield7d, row.anomalyFlag);
   const isInputDisabled = disabled || row.withholding || row.isSubmitted;
+  const initialLetter = (row.name?.trim() || row.tag || 'C').charAt(0).toUpperCase();
 
-  // Local text input state for fluid typing
-  const [textVal, setTextVal] = useState(() => (row.yieldL !== null ? String(row.yieldL) : ''));
+  // Local state for each session's text input to allow fluid decimal typing
+  const [sessionInputs, setSessionInputs] = useState<Record<MilkSession, string>>(() => {
+    const init: Record<MilkSession, string> = {
+      MORNING: '',
+      NOON: '',
+      EVENING: '',
+      NIGHT: '',
+    };
+    for (const s of DEFAULT_SESSIONS) {
+      const val = row.sessions?.[s]?.yieldL ?? (s === activeSession ? row.yieldL : null);
+      init[s] = val !== null && val !== undefined ? String(val) : '';
+    }
+    return init;
+  });
 
+  // Sync when row values update from outside
   useEffect(() => {
-    setTextVal(row.yieldL !== null ? String(row.yieldL) : '');
-  }, [row.yieldL]);
+    setSessionInputs((prev) => {
+      const updated = { ...prev };
+      for (const s of DEFAULT_SESSIONS) {
+        const val = row.sessions?.[s]?.yieldL ?? (s === activeSession ? row.yieldL : null);
+        const strVal = val !== null && val !== undefined ? String(val) : '';
+        if (parseFloat(prev[s] || '0') !== parseFloat(strVal || '0')) {
+          updated[s] = strVal;
+        }
+      }
+      return updated;
+    });
+  }, [row.sessions, row.yieldL, activeSession]);
 
-  const handleTextChange = (text: string) => {
+  const handleSessionChange = (targetSession: MilkSession, text: string) => {
     const clean = text.replace(/[^0-9.]/g, '');
     const parts = clean.split('.');
     const formatted = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join('')}` : clean;
-    setTextVal(formatted);
+
+    setSessionInputs((prev) => ({ ...prev, [targetSession]: formatted }));
 
     if (formatted === '' || formatted === '.') {
-      onChangeYield(row.cattleId, null);
+      onChangeYield(row.cattleId, targetSession, null);
     } else {
       const parsed = parseFloat(formatted);
       if (!Number.isNaN(parsed)) {
-        onChangeYield(row.cattleId, parsed);
+        onChangeYield(row.cattleId, targetSession, parsed);
       }
     }
   };
 
   const cardTestID = testID ?? `milk-cow-card-${row.cattleId}`;
+
+  // Today's total for this cow
+  const todayTotal = row.todayTotalL ?? (row.yieldL ?? 0);
 
   return (
     <View
@@ -84,183 +125,225 @@ export const MilkCowCard = memo(function MilkCowCard({
         gap: tokens.spacing.sm,
       }}
     >
-      {/* Top Row: Cow Tag/Name + Shed Name + Status Badge */}
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: tokens.spacing.sm,
-        }}
-      >
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text role="title" color="foreground" style={{ fontWeight: '700' }}>
-            {title || '—'}
-          </Text>
-          {row.shedName ? (
-            <Text role="caption" color="mutedForeground">
-              {row.shedName}
-            </Text>
-          ) : null}
-        </View>
-
-        {/* Right Status Badges (Milking / Withheld / Anomaly / Error) - NO "Waiting" badge */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: tokens.spacing.xs, justifyContent: 'flex-end' }}>
-          {row.withholding ? (
-            <StatusBadge
-              tone="destructive"
-              label={t('milk.withholdingBadge')}
-              testID={`milk-withholding-${row.cattleId}`}
-            />
-          ) : (
-            <StatusBadge
-              tone="info"
-              label={t('cattle.status.milking')}
-              testID={`milk-status-milking-${row.cattleId}`}
-            />
-          )}
-
-          {hasAnomaly ? (
-            <StatusBadge
-              tone="warning"
-              label={t('milk.anomalyBadge')}
-              testID={`milk-anomaly-${row.cattleId}`}
-            />
-          ) : null}
-
-          {row.status === 'failed' ? (
-            <StatusBadge
-              tone="destructive"
-              label={t('milk.status.failed')}
-              testID={`milk-status-${row.cattleId}`}
-            />
-          ) : row.status === 'conflict' ? (
-            <StatusBadge
-              tone="destructive"
-              label={t('milk.status.conflict')}
-              testID={`milk-status-${row.cattleId}`}
-            />
-          ) : null}
-        </View>
-      </View>
-
-      {/* Withholding Alert Banner */}
-      {row.withholding ? (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: tokens.spacing.xs,
-            paddingVertical: 2,
-          }}
-        >
-          <Glyph name="exclamation" size={16} color="destructive" />
-          <Text role="caption" color="destructive" style={{ fontWeight: '500' }}>
-            {row.withholdingReason || t('milk.withholdingReason')}
-          </Text>
-          <Text role="caption" color="destructive">
-            · {t('milk.withheldRoutingNote')}
-          </Text>
-        </View>
-      ) : null}
-
-      {/* Middle/Bottom Row: Reference Yields & Tank Badge on Left, Numeric Input on Right */}
+      {/* Header: Avatar + Cow Info + Today's Total */}
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: tokens.spacing.sm,
-          paddingTop: tokens.spacing.xs,
         }}
       >
-        {/* Left Column: Reference Yields & Tank Routing Badge */}
-        <View style={{ flex: 1, gap: 4 }}>
-          {/* Reference Yields */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: tokens.spacing.xs }}>
-            {row.prevDayYieldL !== undefined ? (
-              <Text role="caption" color="mutedForeground">
-                {t('milk.prevDay', { yield: format.numberSafe(row.prevDayYieldL, { fractionDigits: 1 }) })}
-              </Text>
-            ) : null}
-            {row.prevDayYieldL !== undefined && row.avgYield7d !== undefined ? (
-              <Text role="caption" color="mutedForeground">
-                ·
-              </Text>
-            ) : null}
-            {row.avgYield7d !== undefined ? (
-              <Text role="caption" color="mutedForeground">
-                {t('milk.avg7d', { yield: format.numberSafe(row.avgYield7d, { fractionDigits: 1 }) })}
-              </Text>
-            ) : null}
-          </View>
-
-          {/* Destination Tank Badge */}
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View
-              testID={`milk-tank-badge-${row.cattleId}`}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 4,
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-                borderRadius: tokens.radius.full,
-                borderWidth: 1,
-                borderColor: row.withholding ? colors.destructive : colors.border,
-                backgroundColor: row.withholding ? colors.muted : colors.card,
-              }}
-            >
-              <Glyph name="dot" size={16} color={row.withholding ? 'destructive' : 'primary'} />
-              <Text
-                role="caption"
-                color={row.withholding ? 'destructive' : 'mutedForeground'}
-                style={{ fontSize: 11, fontWeight: '500' }}
-              >
-                {row.withholding ? t('milk.tankWithholding') : (tankName || t('milk.tankSellable'))}
-              </Text>
-            </View>
-          </View>
+        {/* Left: Round Avatar Circle */}
+        <View
+          style={{
+            width: 42,
+            height: 42,
+            borderRadius: tokens.radius.full,
+            backgroundColor: colors.primary,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text role="title" style={{ color: colors.primaryForeground, fontWeight: '800', fontSize: 18 }}>
+            {initialLetter}
+          </Text>
         </View>
 
-        {/* Right: Clean, Prominent Numeric Input Field */}
+        {/* Middle: Name, Status Badge, Tag & Breed */}
+        <View style={{ flex: 1, gap: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs, flexWrap: 'wrap' }}>
+            <Text
+              role="label"
+              color="foreground"
+              style={{ fontWeight: '700', fontSize: 16 }}
+              accessibilityLabel={title}
+            >
+              {row.name || row.tag || '—'}
+            </Text>
+
+            {row.withholding ? (
+              <StatusBadge
+                tone="destructive"
+                label={t('milk.withholdingBadge')}
+                testID={`milk-withholding-${row.cattleId}`}
+              />
+            ) : (
+              <StatusBadge tone="success" label={t('milk.statusMilking')} />
+            )}
+          </View>
+
+          <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>
+            {row.tag}
+            {row.breedName ? ` · ${row.breedName}` : row.shedName ? ` · ${row.shedName}` : ''}
+          </Text>
+        </View>
+
+        {/* Right: Today's Total */}
+        <View style={{ alignItems: 'flex-end', gap: 1 }}>
+          <Text
+            role="title"
+            color="primary"
+            style={{ fontWeight: '800', fontSize: 18 }}
+            testID={`cow-today-total-${row.cattleId}`}
+          >
+            {format.numberSafe(todayTotal)}L
+          </Text>
+          <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
+            {t('milk.todayTotal')}
+          </Text>
+        </View>
+      </View>
+
+      {/* Medication Withholding Notice */}
+      {row.withholding ? (
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
-            height: tokens.touchTarget.min,
-            minWidth: 104,
-            maxWidth: 130,
+            gap: tokens.spacing.xs,
+            padding: tokens.spacing.xs + 2,
             borderRadius: tokens.radius.md,
-            borderWidth: 1,
-            borderColor: isInputDisabled ? colors.border : colors.inputBorder,
-            backgroundColor: isInputDisabled ? colors.muted : colors.background,
-            paddingHorizontal: tokens.spacing.sm,
-            gap: 4,
+            backgroundColor: colors.muted,
           }}
         >
-          <TextInput
-            testID={`milk-stepper-${row.cattleId}-input`}
-            value={textVal}
-            onChangeText={handleTextChange}
-            editable={!isInputDisabled}
-            keyboardType="decimal-pad"
-            returnKeyType="done"
-            placeholder={row.prevDayYieldL !== undefined ? String(row.prevDayYieldL) : '0.0'}
-            placeholderTextColor={colors.mutedForeground}
-            style={{
-              flex: 1,
-              fontSize: 18,
-              fontWeight: '700',
-              textAlign: 'right',
-              color: isInputDisabled ? colors.mutedForeground : colors.foreground,
-              paddingVertical: 0,
-            }}
-          />
-          <Text role="caption" color="mutedForeground" style={{ fontWeight: '600' }}>
-            {t('milk.unit')}
+          <Glyph name="exclamation" size={16} color="destructive" />
+          <Text role="caption" color="destructiveText" style={{ fontWeight: '600', fontSize: 12 }}>
+            {row.withholdingReason || t('milk.withholdingReason')}
           </Text>
         </View>
+      ) : null}
+
+      {/* Reference Historical Yields (Yesterday & 7d avg) */}
+      {(row.prevDayYieldL !== undefined && row.prevDayYieldL !== null) ||
+      (row.avgYield7d !== undefined && row.avgYield7d !== null) ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm }}>
+          {row.prevDayYieldL !== undefined && row.prevDayYieldL !== null ? (
+            <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
+              {t('milk.prevDay', { yield: String(row.prevDayYieldL) })}
+            </Text>
+          ) : null}
+          {row.avgYield7d !== undefined && row.avgYield7d !== null ? (
+            <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
+              {t('milk.avg7d', { yield: String(row.avgYield7d) })}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {/* Session Matrix Grid (AM1, AM2, PM1, PM2 or configured sessions) */}
+      <View
+        style={{
+          flexDirection: 'row',
+          gap: tokens.spacing.xs,
+          marginTop: tokens.spacing.xs,
+        }}
+      >
+        {configuredSessions.map((s) => {
+          const sLabel = SESSION_COMPACT_LABELS[s];
+          const isSelectedSession = s === activeSession;
+          const sEntry = row.sessions?.[s];
+          const assignedTankName = sEntry?.tankName ?? tankName ?? (row.withholding ? 'Withholding Tank' : 'Tank A');
+          const isCellDisabled = isInputDisabled || sEntry?.isSubmitted;
+          const textVal = sessionInputs[s] ?? '';
+
+          // Primary testID for the active session to satisfy existing tests
+          const inputTestID = isSelectedSession
+            ? `milk-stepper-${row.cattleId}-input`
+            : `milk-stepper-${row.cattleId}-input-${s.toLowerCase()}`;
+
+          return (
+            <View key={s} style={{ flex: 1, gap: 4 }}>
+              {/* Session Column Label (AM1, AM2, etc.) */}
+              <Text
+                role="caption"
+                color={isSelectedSession ? 'primary' : 'mutedForeground'}
+                style={{
+                  textAlign: 'center',
+                  fontWeight: isSelectedSession ? '700' : '600',
+                  fontSize: 11,
+                }}
+              >
+                {sLabel}
+              </Text>
+
+              {/* Decimal Yield Input Field */}
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderColor: isSelectedSession ? colors.primary : colors.inputBorder,
+                  borderRadius: tokens.radius.md,
+                  backgroundColor: colors.background,
+                  minHeight: 40,
+                  justifyContent: 'center',
+                  paddingHorizontal: 6,
+                  opacity: isCellDisabled ? 0.6 : 1,
+                }}
+              >
+                <TextInput
+                  testID={inputTestID}
+                  accessibilityLabel={`${sLabel} ${row.tag}`}
+                  value={textVal}
+                  onChangeText={(text) => handleSessionChange(s, text)}
+                  placeholder="0.0"
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="decimal-pad"
+                  editable={!isCellDisabled}
+                  style={{
+                    color: colors.foreground,
+                    fontSize: 14,
+                    fontWeight: '700',
+                    textAlign: 'center',
+                    paddingVertical: 4,
+                  }}
+                />
+              </View>
+
+              {/* Container Assignment Badge [ 🟦 Tank A 📦 ] */}
+              <PressableSurface
+                accessibilityRole="button"
+                accessibilityLabel={`${assignedTankName} for ${sLabel}`}
+                pressedStyle="overlay"
+                disabled={row.withholding}
+                onPress={() => onPressContainer?.(row.cattleId, s)}
+                testID={`tank-badge-${row.cattleId}-${s.toLowerCase()}`}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 3,
+                  paddingVertical: 3,
+                  paddingHorizontal: 4,
+                  borderRadius: tokens.radius.sm,
+                  borderWidth: 1,
+                  borderStyle: 'dashed',
+                  borderColor: colors.border,
+                  backgroundColor: colors.card,
+                  minHeight: 26,
+                }}
+              >
+                {/* Mini Box Indicator */}
+                <View
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: 1,
+                    backgroundColor: row.withholding ? colors.destructive : colors.info,
+                  }}
+                />
+                <Text
+                  role="caption"
+                  color={row.withholding ? 'destructiveText' : 'mutedForeground'}
+                  style={{ fontSize: 9, fontWeight: '600' }}
+                  numberOfLines={1}
+                >
+                  {assignedTankName}
+                </Text>
+                <Glyph name="chevronRight" size={16} color="mutedForeground" />
+              </PressableSurface>
+            </View>
+          );
+        })}
       </View>
     </View>
   );

@@ -1,7 +1,8 @@
 /**
- * Milk tank selector sheet (WP10 UI/UX overhaul).
- * Allows workers to view and select the active milk storage tank.
- * Withheld milk is automatically routed to the withholding tank.
+ * Milk container / tank selector sheet (WP10 UI/UX redesign).
+ * Matches reference design (Select Container bottom sheet).
+ * Allows workers to assign or switch destination containers for raw collected milk.
+ * ADR-007 compliant: strictly zero drop shadows, 1px/2px border and token fills only.
  */
 import { View } from 'react-native';
 import { Button } from '../components/actions/Button.tsx';
@@ -45,6 +46,13 @@ export function TankSelectorSheet({
   const { t } = useLocale();
   const format = useFormat();
 
+  const tankAvatarColors = [
+    colors.info,
+    colors.primary,
+    colors.warning,
+    colors.secondary,
+  ];
+
   const handleSelect = (id: string) => {
     onSelectTank(id);
     onClose();
@@ -52,16 +60,16 @@ export function TankSelectorSheet({
 
   return (
     <SheetModal visible={visible} onRequestClose={onClose} testID={testID}>
-      {/* Header */}
+      {/* Header: Title + Close Icon */}
       <View
         style={{
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: tokens.spacing.xs,
+          marginBottom: tokens.spacing.sm,
         }}
       >
-        <SheetTitle>{t('milk.selectTank')}</SheetTitle>
+        <SheetTitle>{t('milk.selectContainer')}</SheetTitle>
         <IconButton
           icon="close"
           accessibilityLabel={t('picker.close')}
@@ -91,7 +99,7 @@ export function TankSelectorSheet({
         </Text>
       </View>
 
-      {/* Tank List */}
+      {/* Tank Cards List */}
       <View style={{ gap: tokens.spacing.sm }}>
         {tanks.length === 0 ? (
           <View
@@ -108,23 +116,22 @@ export function TankSelectorSheet({
             </Text>
           </View>
         ) : (
-          tanks.map((tank) => {
+          tanks.map((tank, index) => {
             const isSelected = tank.id === selectedTankId;
             const isWithholding = tank.tankType === 'WITHHOLDING';
+            const avatarColor = tankAvatarColors[index % tankAvatarColors.length];
+            const initialLetter = tank.name.trim().charAt(tank.name.lastIndexOf(' ') + 1) || tank.name.charAt(0) || 'T';
 
-            const capacityText =
-              tank.totalCapacityL && tank.currentVolumeL !== undefined && tank.currentVolumeL !== null
-                ? t('milk.tankCapacity', {
-                    current: format.numberSafe(tank.currentVolumeL),
-                    capacity: format.numberSafe(tank.totalCapacityL),
-                  })
+            const capacityDisplay =
+              tank.totalCapacityL && tank.totalCapacityL > 0
+                ? t('milk.capacityLabel', { capacity: format.numberSafe(tank.totalCapacityL) })
                 : null;
 
             return (
               <PressableSurface
                 key={tank.id}
                 accessibilityRole="button"
-                accessibilityLabel={`${tank.name} ${tank.tankType}`}
+                accessibilityLabel={`${tank.name} ${capacityDisplay ?? ''}`}
                 accessibilityState={{ selected: isSelected }}
                 pressedStyle="overlay"
                 onPress={() => handleSelect(tank.id)}
@@ -133,18 +140,36 @@ export function TankSelectorSheet({
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  paddingVertical: tokens.spacing.md,
+                  paddingVertical: tokens.spacing.sm + 4,
                   paddingHorizontal: tokens.spacing.md,
                   borderRadius: tokens.radius.lg,
-                  borderWidth: 1,
-                  borderColor: isSelected ? colors.primaryEdge : colors.border,
+                  borderWidth: isSelected ? 2 : 1,
+                  borderColor: isSelected ? colors.primary : colors.border,
                   backgroundColor: colors.card,
                   minHeight: tokens.touchTarget.min,
+                  gap: tokens.spacing.md,
                 }}
               >
+                {/* Left: Colored Initial Avatar */}
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: tokens.radius.md,
+                    backgroundColor: avatarColor,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text role="title" style={{ color: colors.primaryForeground, fontWeight: '700', fontSize: 16 }}>
+                    {initialLetter}
+                  </Text>
+                </View>
+
+                {/* Middle: Tank Name & Badges */}
                 <View style={{ flex: 1, gap: 2 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
-                    <Text role="label" color="foreground">
+                    <Text role="label" color="foreground" style={{ fontWeight: '600' }}>
                       {tank.name}
                     </Text>
                     {tank.isPrimary ? (
@@ -154,35 +179,40 @@ export function TankSelectorSheet({
                       <StatusBadge tone="destructive" label={t('milk.withholdingBadge')} />
                     ) : null}
                   </View>
-
-                  {capacityText ? (
-                    <Text role="caption" color="mutedForeground">
-                      {capacityText}
-                    </Text>
-                  ) : null}
                 </View>
 
-                {isSelected ? (
-                  <View
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: tokens.radius.full,
-                      backgroundColor: colors.primary,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Glyph name="check" size={16} color="primaryForeground" />
-                  </View>
-                ) : null}
+                {/* Right: Capacity & Checkmark */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm }}>
+                  {capacityDisplay ? (
+                    <Text role="caption" color="mutedForeground" style={{ fontWeight: '500' }}>
+                      {capacityDisplay}
+                    </Text>
+                  ) : null}
+
+                  {isSelected ? (
+                    <View
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: tokens.radius.full,
+                        borderWidth: 2,
+                        borderColor: colors.primary,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: colors.card,
+                      }}
+                    >
+                      <Glyph name="check" size={16} color="primary" />
+                    </View>
+                  ) : null}
+                </View>
               </PressableSurface>
             );
           })
         )}
       </View>
 
-      {/* Close button */}
+      {/* Dismiss action */}
       <View style={{ marginTop: tokens.spacing.lg }}>
         <Button
           label={t('picker.close')}

@@ -1,5 +1,5 @@
 /**
- * Hook managing the milk logging screen state and queued writes (WP10, ADR-006).
+ * Hook managing the milk logging screen state and queued writes (WP10, ADR-006, UI/UX Redesign).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider.tsx';
@@ -13,6 +13,7 @@ import {
   defaultSessionByClock,
   toIsoDateString,
   type MilkCowRow,
+  type MilkCowSessionEntry,
   type MilkEntryStatus,
   type MilkSession,
   type MilkTotals,
@@ -25,6 +26,7 @@ export interface ShedFilterOption {
 }
 
 export type MilkStatusFilter = 'all' | 'milking' | 'withheld';
+export type MilkScreenTab = 'collection' | 'analytics';
 
 export function useMilkScreen() {
   const sync = useSync();
@@ -33,6 +35,7 @@ export function useMilkScreen() {
   const { t } = useLocale();
   const toast = useToast();
 
+  const [activeTab, setActiveTab] = useState<MilkScreenTab>('collection');
   const [date, setDate] = useState(() => toIsoDateString());
   const [session, setSession] = useState<MilkSession>(() => defaultSessionByClock());
   const [selectedShedId, setSelectedShedId] = useState<string | null>(null);
@@ -52,15 +55,25 @@ export function useMilkScreen() {
   // Calendar status days (e.g. missing entries)
   const [calendarDays, setCalendarDays] = useState<PickerDayEntry[]>([]);
 
-  // Optimistic local yield overrides for real-time reactivity
+  // Optimistic local yield overrides per cow & session
+  const [multiYieldOverrides, setMultiYieldOverrides] = useState<
+    Record<string, Partial<Record<MilkSession, number | null>>>
+  >({});
   const [yieldOverrides, setYieldOverrides] = useState<Record<string, number | null>>({});
+
+  // Container overrides per cow & session
+  const [tankOverrides, setTankOverrides] = useState<
+    Record<string, Partial<Record<MilkSession, string>>>
+  >({});
 
   const lastSaveLocalId = useRef<string | null>(null);
 
-  // Reset yieldOverrides when date or session changes
+  // Reset yieldOverrides when date changes
   useEffect(() => {
     setYieldOverrides({});
-  }, [date, session]);
+    setMultiYieldOverrides({});
+    setTankOverrides({});
+  }, [date]);
 
   // Query calendar days for the active month
   const currentMonth = date.slice(0, 7);
@@ -132,7 +145,6 @@ export function useMilkScreen() {
       if (cfg.night) active.push('NIGHT');
       if (active.length > 0) {
         setConfiguredSessions(active);
-        // If current session is not in active, switch to default
         if (!active.includes(session)) {
           setSession(defaultSessionByClock(new Date(), active));
         }
@@ -148,7 +160,6 @@ export function useMilkScreen() {
     void sync.readCache('milkLog').then(setRawMilkLogs);
     void sync.list().then((rows) => {
       setOutboxRows(rows);
-      // Find the last milk.saveLog id for dependencies
       const saves = rows.filter((r) => r.endpoint === 'milk.saveLog' && r.status !== 'done');
       if (saves.length > 0) {
         lastSaveLocalId.current = saves[saves.length - 1]!.localId;
@@ -161,11 +172,12 @@ export function useMilkScreen() {
     reloadData();
   }, [reloadData, snapshot.lastSyncedAt, snapshot.waiting, snapshot.conflict, snapshot.failed]);
 
+  // Primary tank & withholding tank lookup
+  const primaryTank = tanks.find((t) => t.isPrimary) ?? tanks.find((t) => t.tankType === 'SELLABLE') ?? tanks[0];
+  const withholdingTank = tanks.find((t) => t.tankType === 'WITHHOLDING');
+
   // Build the list of cow rows
   const rows: MilkCowRow[] = useMemo(() => {
-    // Session property name in server log (e.g. MORNING -> morningL)
-    const sessionKey = `${session.toLowerCase()}L` as 'morningL' | 'noonL' | 'eveningL' | 'nightL';
-
     // Index server milk logs by cattleId
     const serverLogByCow = new Map<string, Record<string, unknown>>();
     for (const log of rawMilkLogs) {
@@ -174,40 +186,40 @@ export function useMilkScreen() {
       }
     }
 
-    // Index outbox pending writes for this date and session
-    // Map: cattleId -> { yieldL, status, localId }
-    const outboxByCow = new Map<
+    // Index outbox pending writes per session
+    // Map: `${cattleId}:${session}` -> { yieldL, status, localId, tankId }
+    const outboxByCowSession = new Map<
       string,
-      { yieldL: number | null; status: MilkEntryStatus; localId: string }
+      { yieldL: number | null; status: MilkEntryStatus; localId: string; tankId?: string }
     >();
 
-    // Also check if submit is queued or done for this date and session
-    let isSessionSubmittedLocally = false;
+    const localSubmittedSessions = new Set<string>();
 
     for (const ob of outboxRows) {
       if (ob.status === 'done') continue;
       if (ob.endpoint === 'milk.submit') {
         const body = ob.body as { date?: string; session?: string } | null;
-        if (body && body.date === date && body.session === session) {
-          isSessionSubmittedLocally = true;
+        if (body && body.date === date && body.session) {
+          localSubmittedSessions.add(body.session);
         }
       } else if (ob.endpoint === 'milk.saveLog') {
         const body = ob.body as {
           date?: string;
           session?: string;
-          entries?: Array<{ cattleId: string; yieldL: number | null }>;
+          entries?: Array<{ cattleId: string; yieldL: number | null; tankId?: string }>;
         } | null;
-        if (body && body.date === date && body.session === session && Array.isArray(body.entries)) {
+        if (body && body.date === date && body.session && Array.isArray(body.entries)) {
           let entryStatus: MilkEntryStatus = 'waiting';
           if (ob.status === 'conflict') entryStatus = 'conflict';
           else if (ob.status === 'failed') entryStatus = 'failed';
 
           for (const entry of body.entries) {
             if (typeof entry.cattleId === 'string') {
-              outboxByCow.set(entry.cattleId, {
+              outboxByCowSession.set(`${entry.cattleId}:${body.session}`, {
                 yieldL: typeof entry.yieldL === 'number' ? entry.yieldL : null,
                 status: entryStatus,
                 localId: ob.localId,
+                tankId: entry.tankId,
               });
             }
           }
@@ -215,10 +227,7 @@ export function useMilkScreen() {
       }
     }
 
-    // Filter cows:
-    // Eligible milking cows: FEMALE, productionStatus not 'DRY' (or 'MILKING'/'HEIFER'/etc), not departed
     const term = search.trim().toLowerCase();
-
     const result: MilkCowRow[] = [];
 
     for (const cow of rawCows) {
@@ -246,23 +255,8 @@ export function useMilkScreen() {
         if (!matchesTag && !matchesName) continue;
       }
 
-      // Check server log
       const sLog = serverLogByCow.get(id);
       const logData = (sLog?.log as Record<string, unknown> | undefined) ?? undefined;
-
-      const serverYield = logData && typeof logData[sessionKey] === 'number' ? (logData[sessionKey] as number) : null;
-      const submittedSessions = Array.isArray(logData?.submittedSessions)
-        ? (logData.submittedSessions as string[])
-        : [];
-      const isServerSubmitted = submittedSessions.includes(session);
-      const isSubmitted = isServerSubmitted || isSessionSubmittedLocally;
-
-      // updatedAt dictionary per session from Step 1
-      const updatedMap =
-        logData && typeof logData.updatedAt === 'object' && logData.updatedAt !== null
-          ? (logData.updatedAt as Record<string, string>)
-          : undefined;
-      const baseUpdatedAt = updatedMap?.[session] ?? null;
 
       const withholding = Boolean(sLog?.withholding ?? cow.withholding);
       if (statusFilter === 'milking' && withholding) continue;
@@ -299,22 +293,73 @@ export function useMilkScreen() {
 
       const serverAnomaly = Boolean(logData?.anomalyFlag);
 
-      // Check if outbox has a write for this cow
-      const obEntry = outboxByCow.get(id);
+      const submittedSessions = Array.isArray(logData?.submittedSessions)
+        ? (logData.submittedSessions as string[])
+        : [];
 
-      let finalYieldL = serverYield;
-      let finalStatus: MilkEntryStatus | null = serverYield !== null ? 'saved' : null;
-      let outboxLocalId: string | undefined;
+      const updatedMap =
+        logData && typeof logData.updatedAt === 'object' && logData.updatedAt !== null
+          ? (logData.updatedAt as Record<string, string>)
+          : undefined;
+      const baseUpdatedAt = updatedMap?.[session] ?? null;
 
-      if (obEntry) {
-        finalYieldL = obEntry.yieldL;
-        finalStatus = obEntry.status;
-        outboxLocalId = obEntry.localId;
+      // Build session-wise entries
+      const sessionsRecord: Record<MilkSession, MilkCowSessionEntry> = {
+        MORNING: { yieldL: null },
+        NOON: { yieldL: null },
+        EVENING: { yieldL: null },
+        NIGHT: { yieldL: null },
+      };
+
+      let cowTodaySum = 0;
+
+      for (const s of DEFAULT_SESSIONS) {
+        const key = `${s.toLowerCase()}L` as 'morningL' | 'noonL' | 'eveningL' | 'nightL';
+        const serverSessionYield =
+          logData && typeof logData[key] === 'number' ? (logData[key] as number) : null;
+
+        const isSessSubmitted = submittedSessions.includes(s) || localSubmittedSessions.has(s);
+
+        const obSessionEntry = outboxByCowSession.get(`${id}:${s}`);
+
+        let finalSessionYield = serverSessionYield;
+        let finalSessionStatus: MilkEntryStatus | null = serverSessionYield !== null ? 'saved' : null;
+
+        if (obSessionEntry) {
+          finalSessionYield = obSessionEntry.yieldL;
+          finalSessionStatus = obSessionEntry.status;
+        }
+
+        // Multi-yield override check
+        if (multiYieldOverrides[id]?.[s] !== undefined) {
+          finalSessionYield = multiYieldOverrides[id]![s]!;
+        } else if (s === session && id in yieldOverrides) {
+          finalSessionYield = yieldOverrides[id]!;
+        }
+
+        // Container assignment
+        const assignedTankId =
+          tankOverrides[id]?.[s] ??
+          obSessionEntry?.tankId ??
+          (withholding ? withholdingTank?.id : selectedTankId ?? primaryTank?.id);
+
+        const assignedTank = tanks.find((t) => t.id === assignedTankId);
+
+        sessionsRecord[s] = {
+          yieldL: finalSessionYield,
+          tankId: assignedTankId,
+          tankName: assignedTank?.name ?? (withholding ? 'Withholding Tank' : 'Tank A'),
+          status: finalSessionStatus,
+          isSubmitted: isSessSubmitted,
+        };
+
+        if (typeof finalSessionYield === 'number' && finalSessionYield > 0) {
+          cowTodaySum += finalSessionYield;
+        }
       }
 
-      if (id in yieldOverrides) {
-        finalYieldL = yieldOverrides[id]!;
-      }
+      const activeSessionEntry = sessionsRecord[session];
+      const isCurrentSessionSubmitted = activeSessionEntry.isSubmitted ?? false;
 
       result.push({
         cattleId: id,
@@ -326,19 +371,37 @@ export function useMilkScreen() {
         shedName: typeof cow.shedName === 'string' ? cow.shedName : undefined,
         withholding,
         withholdingReason,
-        yieldL: finalYieldL,
+        sessions: sessionsRecord,
+        todayTotalL: Math.round(cowTodaySum * 10) / 10,
+        yieldL: activeSessionEntry.yieldL,
         prevDayYieldL,
         avgYield7d,
         anomalyFlag: serverAnomaly,
-        status: finalStatus,
+        status: activeSessionEntry.status ?? null,
         baseUpdatedAt,
-        outboxLocalId,
-        isSubmitted,
+        outboxLocalId: outboxByCowSession.get(`${id}:${session}`)?.localId,
+        isSubmitted: isCurrentSessionSubmitted,
       });
     }
 
     return result;
-  }, [rawCows, rawMilkLogs, outboxRows, session, date, selectedShedId, statusFilter, selectedTankId, tanks, search, yieldOverrides]);
+  }, [
+    rawCows,
+    rawMilkLogs,
+    outboxRows,
+    session,
+    date,
+    selectedShedId,
+    statusFilter,
+    selectedTankId,
+    tanks,
+    search,
+    yieldOverrides,
+    multiYieldOverrides,
+    tankOverrides,
+    primaryTank,
+    withholdingTank,
+  ]);
 
   // Reactive Live Totals
   const liveTotals: MilkTotals = useMemo(() => {
@@ -348,13 +411,14 @@ export function useMilkScreen() {
     let logged = 0;
 
     for (const r of rows) {
-      if (r.yieldL !== null && r.yieldL > 0) {
-        total += r.yieldL;
+      const cowTotal = r.todayTotalL ?? (r.yieldL ?? 0);
+      if (cowTotal > 0) {
+        total += cowTotal;
         logged += 1;
         if (r.withholding) {
-          withheld += r.yieldL;
+          withheld += cowTotal;
         } else {
-          sellable += r.yieldL;
+          sellable += cowTotal;
         }
       }
     }
@@ -388,7 +452,6 @@ export function useMilkScreen() {
     [session],
   );
 
-  // Update yield with 5-second undo toast
   const changeDay = useCallback((delta: number) => {
     setDate((cur) => {
       const parts = cur.split('-').map(Number);
@@ -398,13 +461,41 @@ export function useMilkScreen() {
     });
   }, []);
 
+  // Update yield: supports both (cattleId, yieldL) and (cattleId, session, yieldL, tankId)
   const updateYield = useCallback(
-    async (cattleId: string, newYieldL: number | null) => {
+    async (
+      cattleId: string,
+      sessionOrYield: MilkSession | number | null,
+      maybeYield?: number | null,
+      tankId?: string,
+    ) => {
+      let targetSession: MilkSession = session;
+      let newYieldL: number | null = null;
+
+      if (typeof sessionOrYield === 'string') {
+        targetSession = sessionOrYield;
+        newYieldL = maybeYield !== undefined ? maybeYield : null;
+      } else {
+        newYieldL = sessionOrYield;
+      }
+
       const cow = rows.find((r) => r.cattleId === cattleId);
       if (!cow) return;
 
-      // Optimistic local override for instant UI recalculation
-      setYieldOverrides((prev) => ({ ...prev, [cattleId]: newYieldL }));
+      // Optimistic override
+      setMultiYieldOverrides((prev) => ({
+        ...prev,
+        [cattleId]: {
+          ...(prev[cattleId] || {}),
+          [targetSession]: newYieldL,
+        },
+      }));
+
+      if (targetSession === session) {
+        setYieldOverrides((prev) => ({ ...prev, [cattleId]: newYieldL }));
+      }
+
+      const effectiveTankId = tankId ?? tankOverrides[cattleId]?.[targetSession] ?? selectedTankId;
 
       try {
         const queued = await sync.enqueue({
@@ -413,12 +504,13 @@ export function useMilkScreen() {
           path: '/milk/log',
           body: {
             date,
-            session,
+            session: targetSession,
             entries: [
               {
                 cattleId,
                 yieldL: newYieldL,
                 baseUpdatedAt: cow.baseUpdatedAt,
+                tankId: effectiveTankId,
               },
             ],
           },
@@ -429,42 +521,74 @@ export function useMilkScreen() {
         console.warn('Failed to queue milk save', err);
       }
     },
-    [rows, sync, date, session, reloadData],
+    [rows, sync, date, session, selectedTankId, tankOverrides, reloadData],
   );
 
-  // Save all entered drafts at once
+  // Update container for a cow & session
+  const updateContainer = useCallback((cattleId: string, targetSession: MilkSession, tankId: string) => {
+    setTankOverrides((prev) => ({
+      ...prev,
+      [cattleId]: {
+        ...(prev[cattleId] || {}),
+        [targetSession]: tankId,
+      },
+    }));
+  }, []);
+
+  // Save all entered drafts across sessions
   const saveAllDrafts = useCallback(async () => {
-    const entriesToSave = rows
-      .filter((r) => r.yieldL !== null && !r.withholding && !r.isSubmitted)
-      .map((r) => ({
-        cattleId: r.cattleId,
-        yieldL: r.yieldL,
-        baseUpdatedAt: r.baseUpdatedAt,
-      }));
+    let savedAny = false;
 
-    if (entriesToSave.length === 0) return;
+    for (const s of configuredSessions) {
+      const entriesToSave: Array<{
+        cattleId: string;
+        yieldL: number | null;
+        baseUpdatedAt: string | null;
+        tankId?: string | null;
+      }> = [];
 
-    try {
-      const queued = await sync.enqueue({
-        endpoint: 'milk.saveLog',
-        method: 'POST',
-        path: '/milk/log',
-        body: {
-          date,
-          session,
-          entries: entriesToSave,
-        },
-      });
-      lastSaveLocalId.current = queued.localId;
+      for (const r of rows) {
+        if (r.withholding || r.isSubmitted) continue;
+        const sEntry = r.sessions?.[s];
+        const yieldVal = sEntry?.yieldL ?? (s === session ? r.yieldL : null);
+        if (typeof yieldVal === 'number' && yieldVal > 0) {
+          entriesToSave.push({
+            cattleId: r.cattleId,
+            yieldL: yieldVal,
+            baseUpdatedAt: r.baseUpdatedAt,
+            tankId: sEntry?.tankId ?? tankOverrides[r.cattleId]?.[s] ?? selectedTankId,
+          });
+        }
+      }
+
+      if (entriesToSave.length > 0) {
+        try {
+          const queued = await sync.enqueue({
+            endpoint: 'milk.saveLog',
+            method: 'POST',
+            path: '/milk/log',
+            body: {
+              date,
+              session: s,
+              entries: entriesToSave,
+            },
+          });
+          lastSaveLocalId.current = queued.localId;
+          savedAny = true;
+        } catch (err) {
+          console.warn('Failed to queue milk draft save for session', s, err);
+        }
+      }
+    }
+
+    if (savedAny) {
       reloadData();
       toast.show({
         message: t('milk.draftSaved'),
         tone: 'success',
       });
-    } catch (err) {
-      console.warn('Failed to queue milk draft save', err);
     }
-  }, [rows, sync, date, session, reloadData, toast, t]);
+  }, [configuredSessions, rows, session, tankOverrides, selectedTankId, sync, date, reloadData, toast, t]);
 
   // Submit current session
   const submitSession = useCallback(async () => {
@@ -479,7 +603,6 @@ export function useMilkScreen() {
           date,
           session,
         },
-        dependsOn: lastSaveLocalId.current || undefined,
       });
       reloadData();
       toast.show({
@@ -494,6 +617,8 @@ export function useMilkScreen() {
   }, [isSubmitting, isSessionSubmitted, sync, date, session, reloadData, toast, t]);
 
   return {
+    activeTab,
+    setActiveTab,
     date,
     setDate,
     changeDay,
@@ -519,6 +644,7 @@ export function useMilkScreen() {
     isSessionSubmitted,
     isSubmitting,
     updateYield,
+    updateContainer,
     saveAllDrafts,
     submitSession,
     reloadData,
