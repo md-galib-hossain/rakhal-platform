@@ -19,14 +19,25 @@ Rakhal: a dairy-farm SaaS for Bangladesh (Bangla-first, currency BDT). One pnpm 
 The root `README.md` describes the admin app only and is out of date. Packages export TypeScript source (no `dist`).
 
 ## Read before you start
+- `docs/work/README.md` (claims, lifecycle, where knowledge goes) and `docs/work/LESSONS.md` (traps already hit).
 - `docs/mobile/M4-mobile-plan-2026-11-15.md`: the mobile plan: requirements, work packages (WP4..WP13), owner decisions (D1..D10), risks. **Source of truth for mobile.**
 - `docs/decisions/ADR-005-mobile-app-in-monorepo.md`, `ADR-006-offline-sync.md` (outbox, idempotency keys, conflict rules; read the "Implementation notes" sections).
 - `docs/mobile/device-testing.md`: how to run and check the app on the Android emulator.
 - `apps/api/docs/TEMPLATE_OVERVIEW.md`: backend conventions (layering, guard chain). Backend specs: `apps/api/openapi/customer-api.json`.
 - Product specs live outside the repo: `D:\Projects\Rakhal\docs\Rakhal_PRD_v3_Complete.md`, `Rakhal_API.md`. Ask the owner if you cannot reach them.
 
+## Claim protocol (every agent, every harness; details in `docs/work/README.md`)
+Tasks are tracked as one file each in `docs/work/claims/<id>.md` (status, agent, branch, `paths` it may edit). CI (`node scripts/work.mjs check`) compares your PR with them.
+1. **Before you edit anything:** `node scripts/work.mjs list`. Pick an `open` claim (or ask the owner to define one). Never take one that is `active` or `review`.
+2. **Claim it:** `node scripts/work.mjs claim <id> --agent <your name> --harness <claude-code|antigravity|human|other> --branch <branch>`.
+3. **Branch/worktree from `origin/main`**, and make the claim file the **first commit** of the branch (status `active`).
+4. **Work only inside your claim's `paths`.** Never edit files covered by another `active`/`review` claim. If you need a file outside your `paths`: extend `paths` in your own claim in the same PR (CI re-checks overlap), or ask the owner. Files listed under `shared` (i18n messages, pull entries) may be appended to by several tasks: append only, rebase carefully.
+5. **Keep it current:** bump `updated` when you push (`node scripts/work.mjs status <id> <status>` does it), append notes to the claim body. Open PR: status `review`. Last commit before merge: `done`, plus the plan row and `docs/mobile/HANDOVER.md` "What is built". Stop early: `abandoned` with a handover note.
+6. **Record knowledge where it belongs** (ADR notes, plan row, claim, `docs/work/LESSONS.md` for traps, HANDOVER): table in `docs/work/README.md`. A trap you hit goes into LESSONS in the same PR.
+7. Run `node scripts/work.mjs check --no-network` before you push. Exempt from a claim: branches `hotfix/*`, label `no-claim`, PRs touching only `docs/work/**`.
+
 ## Ground rules (violations are review blockers)
-1. **One task = one branch = one git worktree = one PR to `main`.** Branch from latest `origin/main`: `git worktree add ../<name> -b <branch> origin/main`. Never push to `main`. Never edit another agent's branch.
+1. **One task = one claim = one branch = one git worktree = one PR to `main`.** Claim first (see "Claim protocol"), then branch from latest `origin/main`: `git worktree add ../<name> -b <branch> origin/main`. Never push to `main`. Never edit another agent's branch.
 2. **Do not merge.** Open the PR and stop. The owner merges by saying "Merge when green"; only then wait for all checks and squash-merge. Never enable auto-merge.
 3. **Stay in your lane.** Touch only the files your task needs. Two agents must not edit the same files. If you need a change outside your task (backend, shared package, tokens), say so in the PR instead of doing it, unless the task says to.
 4. **Never decide an owner decision** (`D2, D3, D4, D5, D8, D9, D10` in the plan are open). If your task needs one, stop and report what is blocked.

@@ -1,0 +1,27 @@
+name: Work claims
+
+# Coordination check (docs/work/README.md): every PR needs exactly one active/review claim for its branch, every changed
+# file must be inside that claim's paths, and no two active claims may overlap (also against other open PRs).
+# Not a required check yet: add the job "claims" to branch protection once the owner trusts it.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  claims:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Checker tests
+        run: node --test scripts/work.test.mjs
+      - name: Check claims
+        run: node scripts/work.mjs check
+        env:
+          GH_TOKEN: ${{ github.token }}
