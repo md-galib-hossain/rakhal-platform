@@ -39,7 +39,7 @@ async function open(h: ReturnType<typeof syncHarness>, onSelect = jest.fn(), loc
 }
 
 describe('CattleList', () => {
-  it('shows the pulled animals with a word-and-mark status badge, a count and a last-updated line', async () => {
+  it('shows the pulled animals with a word-and-mark status badge and a count (no detailed sync banner)', async () => {
     const h = syncHarness({ handler: server(cows) });
     await open(h);
     await waitFor(() => expect(screen.getByTestId('cattle-row-c1')).toBeTruthy());
@@ -49,7 +49,7 @@ describe('CattleList', () => {
     expect(screen.getByText('Healthy')).toBeTruthy();
     expect(screen.getByText('Cow · Sahiwal')).toBeTruthy();
     expect(screen.getByTestId('cattle-count')).toHaveTextContent('Animals: 3');
-    expect(screen.getByTestId('cattle-note-updated')).toBeTruthy();
+    expect(screen.queryByTestId('cattle-note-updated')).toBeNull();
   });
 
   it('searches by tag number and by name, case-insensitively, and says so when nothing matches', async () => {

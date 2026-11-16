@@ -23,7 +23,6 @@ import {
   cattleTitle,
   categoryKey,
   humanize,
-  isStale,
   primaryBadge,
   type CattleListItem,
 } from './cattle-model.ts';
@@ -92,7 +91,7 @@ export function CattleList({ onSelect, isDisabled, renderTrailing, showSyncNotes
   const format = useFormat();
   const { colors } = useTheme();
   const [search, setSearch] = useState('');
-  const { items, status, hasSynced, lastSyncedAt, syncState, reload } = useCattleList({ search });
+  const { items, status, hasSynced, syncState, reload } = useCattleList({ search });
   const searching = search.trim() !== '';
 
   const renderItem = useCallback(
@@ -106,16 +105,8 @@ export function CattleList({ onSelect, isDisabled, renderTrailing, showSyncNotes
     if (!showSyncNotes) return [];
     const lines: { id: string; text: string }[] = [];
     if (syncState === 'offline') lines.push({ id: 'offline', text: t('cattle.offline') });
-    if (lastSyncedAt !== null) {
-      const time = format.dateTimeSafe(lastSyncedAt);
-      lines.push(
-        isStale(lastSyncedAt, Date.now())
-          ? { id: 'stale', text: t('cattle.stale', { time }) }
-          : { id: 'updated', text: t('cattle.updated', { time }) },
-      );
-    }
     return lines;
-  }, [showSyncNotes, syncState, lastSyncedAt, t, format]);
+  }, [showSyncNotes, syncState, t]);
 
   let body: ReactNode;
   if (status === 'error') {
