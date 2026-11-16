@@ -150,13 +150,13 @@ jobs:
             echo "EMAIL_VERIFICATION_BASE_URL=http://localhost:3005/verify-email"
             echo "EMAIL_PASSWORD_RESET_BASE_URL=http://localhost:3005/reset-password"
             echo "RESEND_API_KEY=re_ci_placeholder"
-          } > ci.env
+          } > .env.docker
 
       - uses: docker/setup-buildx-action@v3
 
       - name: Build and start the stack
         # Blocks until postgres/redis are healthy, migrate has exited 0 and api is healthy (depends_on chain).
-        run: docker compose --env-file ci.env up -d --build
+        run: docker compose --env-file .env.docker up -d --build
 
       - name: Check endpoints
         run: |
@@ -183,13 +183,14 @@ jobs:
             echo "API_DOMAIN=api.test"
             echo "AGE_PUBLIC_KEY=age1x"
             echo "R2_BACKUP_BUCKET=b"
-          } >> ci.env
-          docker compose --env-file ci.env -f docker-compose.yml -f docker-compose.prod.yml config -q
+          } >> .env.docker
+          # The prod override requires the API env file; reuse the throwaway one for this parse check.
+          API_ENV_FILE=.env.docker docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.prod.yml config -q
 
       - name: Logs on failure
         if: failure()
-        run: docker compose --env-file ci.env logs --no-color --tail 80
+        run: docker compose --env-file .env.docker logs --no-color --tail 80
 
       - name: Tear down
         if: always()
-        run: docker compose --env-file ci.env down -v
+        run: docker compose --env-file .env.docker down -v
