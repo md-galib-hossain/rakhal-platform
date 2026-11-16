@@ -184,6 +184,7 @@ export function MilkScreenContent() {
 
       {/* Cow Cards List */}
       <FlatList<MilkCowRow>
+        style={{ flex: 1 }}
         data={rows}
         keyExtractor={(item) => item.cattleId}
         renderItem={({ item }) => (
@@ -220,6 +221,7 @@ export function MilkScreenContent() {
           backgroundColor: colors.card,
           paddingHorizontal: spacing.md,
           paddingVertical: spacing.sm,
+          minHeight: tokens.touchTarget.min,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -239,6 +241,8 @@ export function MilkScreenContent() {
           <Button
             label={isSessionSubmitted ? t('milk.submitted') : t('milk.submit')}
             variant="primary"
+            size="md"
+            fullWidth={false}
             loading={isSubmitting}
             disabled={isSessionSubmitted || rows.length === 0}
             onPress={() => void submitSession()}

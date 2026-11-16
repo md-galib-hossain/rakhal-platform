@@ -6,7 +6,6 @@
  * without this provider keep working.
  */
 import NetInfo from '@react-native-community/netinfo';
-import * as Crypto from 'expo-crypto';
 import {
   createContext,
   useCallback,
@@ -99,12 +98,23 @@ export interface SyncProviderProps {
   newId?: () => string;
 }
 
+function defaultNewId(): string {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export function SyncProvider({
   children,
   openDb = () => openExpoSqliteDb(),
   subscribeNetwork = subscribeNetInfo,
   probe = () => probeHealth(healthUrl(currentApiBaseUrl())),
-  newId = () => Crypto.randomUUID(),
+  newId = defaultNewId,
 }: SyncProviderProps) {
   const { status, user, farmId, client } = useAuth();
   const userId = user?.id ?? null;
