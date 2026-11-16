@@ -95,7 +95,14 @@ export function SyncSheet({ visible, onClose }: SyncSheetProps) {
                   </View>
                 ) : null}
                 {row.status === 'conflict' ? (
-                  <Button label={t('sync.sheet.keepServer')} variant="secondary" size="md" onPress={() => void sync.keepServerVersion(row.localId)} testID={`sync-keep-${row.localId}`} />
+                  <View style={{ flexDirection: 'row', gap: tokens.spacing.sm }}>
+                    <View style={{ flex: 1 }}>
+                      <Button label={t('sync.sheet.keepServer')} variant="secondary" size="md" onPress={() => void sync.keepServerVersion(row.localId)} testID={`sync-keep-${row.localId}`} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Button label={t('sync.sheet.useMine')} variant="primary" size="md" onPress={() => void sync.useMine(row.localId)} testID={`sync-use-mine-${row.localId}`} />
+                    </View>
+                  </View>
                 ) : null}
                 {row.status === 'pending' ? (
                   <Button label={t('sync.sheet.discard')} variant="ghost" size="md" onPress={() => setDiscarding(row.localId)} testID={`sync-discard-${row.localId}`} />

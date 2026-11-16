@@ -270,6 +270,81 @@ export function createOutbox(db: SqlDb, options: OutboxOptions) {
       return changes > 0;
     },
 
+    /**
+     * The user chose "Use mine": creates a new outbox row with newLocalId, baseUpdatedAt set to the server
+     * version from the conflict, resolves the old row as done ('used-mine'), and repoints dependent rows.
+     */
+    async resolveUseMine(localId: string, newLocalId: string): Promise<OutboxRow | null> {
+      const row = await get(localId);
+      if (!row || row.status !== 'conflict') return null;
+
+      let newBody: unknown = row.body;
+      if (row.endpoint === 'milk.saveLog' && row.body && Array.isArray(row.conflict)) {
+        const parsedBody = JSON.parse(JSON.stringify(row.body)) as {
+          date: string;
+          session: string;
+          entries: Array<{
+            cattleId: string;
+            yieldL: number;
+            anomalyNote?: string;
+            tankId?: string | null;
+            baseUpdatedAt?: string | null;
+          }>;
+        };
+        const conflicts = row.conflict as Array<{
+          cattleId: string;
+          server?: { updatedAt?: string };
+        }>;
+        const serverVersionByCow = new Map(
+          conflicts
+            .filter((c) => c.cattleId && c.server?.updatedAt)
+            .map((c) => [c.cattleId, c.server!.updatedAt!]),
+        );
+        parsedBody.entries = (parsedBody.entries || []).map((entry) => {
+          const serverUpdated = serverVersionByCow.get(entry.cattleId);
+          if (serverUpdated) {
+            return { ...entry, baseUpdatedAt: serverUpdated };
+          }
+          return entry;
+        });
+        newBody = parsedBody;
+      }
+
+      let created: OutboxRow | null = null;
+      await db.transaction(async (tx) => {
+        await tx.run(
+          "UPDATE outbox SET status = 'done', done_at = ?, result = ?, conflict = NULL WHERE local_id = ?",
+          [now(), JSON.stringify({ resolved: 'used-mine', replacedBy: newLocalId }), localId],
+        );
+
+        await tx.run(
+          'UPDATE outbox SET depends_on = ? WHERE depends_on = ?',
+          [newLocalId, localId],
+        );
+
+        await tx.run(
+          'INSERT INTO outbox (local_id, farm_id, user_id, endpoint, method, path, body, depends_on, status, queued_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [
+            newLocalId,
+            row.farmId,
+            row.userId,
+            row.endpoint,
+            row.method,
+            row.path,
+            JSON.stringify(newBody ?? null),
+            row.dependsOn,
+            'pending',
+            now(),
+          ],
+        );
+
+        const fresh = await tx.get<RawRow>('SELECT * FROM outbox WHERE local_id = ?', [newLocalId]);
+        if (fresh) created = toRow(fresh);
+      });
+
+      return created;
+    },
+
     /** A failed row, and the rows that failed because of it, go back to pending with a fresh attempt count. */
     async retryNow(localId: string): Promise<boolean> {
       const { changes } = await db.run(
