@@ -261,8 +261,8 @@ export function textOnTint(_tint: TintName): 'foreground' {
   return 'foreground';
 }
 
-/** Native-only shadow colour (not shared with web, so not drift-checked). */
-export const shadowColor = '#000000';
+/** Native-only colour of the dimming layer behind a modal sheet (not a shadow; not shared with web, so not drift-checked). */
+export const scrimColor = '#000000';
 
 /** Radius in dp. Web: --radius-sm 0.5rem, --radius-md 0.625rem, --radius-lg 1rem (16px base). */
 export const radius = { sm: 8, md: 10, lg: 16, full: 9999 } as const;
@@ -331,16 +331,10 @@ export function textStyle(role: TextRole, script: Script): TextStyleSpec {
   };
 }
 
-/**
- * Elevation. Web is near-flat (shadow-card: 0 0 3px at 10% black); borders carry separation.
- * Re-expressed as RN shadow props (iOS) + elevation (Android). Overlay approximates the web
- * overlay shadow 0 24px 48px at 12% black.
- */
-export const elevation = {
-  none: { elevation: 0, shadowOpacity: 0, shadowRadius: 0, shadowOffset: { width: 0, height: 0 } },
-  card: { elevation: 1, shadowOpacity: 0.1, shadowRadius: 3, shadowOffset: { width: 0, height: 0 } },
-  overlay: { elevation: 8, shadowOpacity: 0.12, shadowRadius: 24, shadowOffset: { width: 0, height: 12 } },
-} as const;
+// There are no elevation or shadow tokens, on purpose (ADR-007, owner rule 2026-11-16): the app never draws a drop
+// shadow. A surface is told apart from the page by a 1px border and a fill that differs from the background, in both
+// themes (`background` / `card` / `popover` with `border` or `inputBorder`). `test/no-shadows.test.ts` fails the build
+// if a shadow* / elevation style, a boxShadow or a textShadow appears anywhere in `src` or `app`.
 
 export type PairKind = 'text' | 'ui' | 'decorative';
 

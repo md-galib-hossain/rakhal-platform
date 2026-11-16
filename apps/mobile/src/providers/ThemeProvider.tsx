@@ -12,9 +12,8 @@ import { asyncStoragePrefs } from '../storage/async-storage-prefs.ts';
 import { DEFAULT_PREFS, loadPrefs, savePref, type PrefStorage, type Prefs } from '../storage/prefs.ts';
 import {
   allColors,
-  elevation,
   radius,
-  shadowColor,
+  scrimColor,
   spacing,
   textStyle,
   touchTarget,
@@ -28,8 +27,7 @@ export const themeTokens = {
   radius,
   spacing,
   touchTarget,
-  elevation,
-  shadowColor,
+  scrimColor,
   type: { scale: typeScale, textStyle },
 } as const;
 

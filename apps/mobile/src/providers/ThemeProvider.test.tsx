@@ -5,7 +5,7 @@ import { Appearance, Text, useColorScheme } from 'react-native';
 import { Component, type ReactNode } from 'react';
 import { memoryPrefs, PREF_KEYS, type PrefStorage } from '../storage/prefs.ts';
 import { asyncStoragePrefs } from '../storage/async-storage-prefs.ts';
-import { allColors } from '../theme/tokens.ts';
+import { allColors, scrimColor } from '../theme/tokens.ts';
 import { ThemeProvider, themeTokens, useTheme, type ThemeValue } from './ThemeProvider.tsx';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -76,7 +76,10 @@ describe('ThemeProvider', () => {
     expect(result.current.tokens.radius.md).toBe(10);
     expect(result.current.tokens.spacing.lg).toBe(16);
     expect(result.current.tokens.touchTarget.min).toBe(48);
-    expect(result.current.tokens.elevation.card.elevation).toBe(1);
+    // ADR-007: there are no elevation or shadow tokens.
+    expect(result.current.tokens).not.toHaveProperty('elevation');
+    expect(result.current.tokens).not.toHaveProperty('shadowColor');
+    expect(result.current.tokens.scrimColor).toBe(scrimColor);
     expect(result.current.tokens.type.textStyle('body', 'latin').fontSize).toBeGreaterThan(0);
   });
 

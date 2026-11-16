@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react-native';
 import { Text } from 'react-native';
 import { mount, restoreMount } from '../../test-utils/mount.tsx';
 import { flatStyle } from '../../test-utils/touch-target.ts';
-import { allColors, elevation, radius, shadowColor } from '../../theme/tokens.ts';
+import { allColors, radius } from '../../theme/tokens.ts';
 import { Card } from './Card.tsx';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -15,16 +15,19 @@ afterEach(restoreMount);
 const card = () => screen.getByTestId('c');
 
 describe('Card', () => {
-  it.each(['light', 'dark'] as const)('resolves card / border tokens, radius.lg and elevation.card (%s)', async (scheme) => {
+  it.each(['light', 'dark'] as const)('resolves card / border tokens and radius.lg, with no shadow or elevation (%s)', async (scheme) => {
     await mount(<Card testID="c"><Text>x</Text></Card>, { scheme });
-    expect(flatStyle(card())).toMatchObject({
+    const style = flatStyle(card());
+    expect(style).toMatchObject({
       backgroundColor: allColors[scheme].card,
       borderColor: allColors[scheme].border,
       borderWidth: 1,
       borderRadius: radius.lg,
-      shadowColor,
-      ...elevation.card,
     });
+    // ADR-007: separation comes from the border and the fill, never from a shadow.
+    for (const key of ['shadowColor', 'shadowOpacity', 'shadowRadius', 'shadowOffset', 'elevation']) {
+      expect(style).not.toHaveProperty(key);
+    }
   });
 
   it.each([

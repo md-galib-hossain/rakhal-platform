@@ -6,7 +6,7 @@ import type { ReactElement } from 'react';
 import { mount, restoreMount, type MountOptions } from '../../test-utils/mount.tsx';
 import { expectTouchTarget, flatStyle } from '../../test-utils/touch-target.ts';
 import { messages } from '../../i18n/messages.ts';
-import { allColors, elevation, radius, shadowColor } from '../../theme/tokens.ts';
+import { allColors, radius } from '../../theme/tokens.ts';
 import { lightImpact } from './haptics.ts';
 import { ToastProvider, useToast, type ToastApi, type ToastProviderProps } from './Toast.tsx';
 
@@ -210,8 +210,10 @@ describe('Toast action (undo)', () => {
     expect(s.borderColor).toBe(view.colors.inputBorder);
     expect(s.borderRadius).toBe(radius.lg);
     expect(s.minHeight).toBe(56);
-    expect(s.elevation).toBe(elevation.overlay.elevation);
-    expect(s.shadowColor).toBe(shadowColor);
+    // ADR-007: the outline carries the separation; no drop shadow, no elevation.
+    for (const key of ['shadowColor', 'shadowOpacity', 'shadowRadius', 'shadowOffset', 'elevation']) {
+      expect(s).not.toHaveProperty(key);
+    }
   });
 });
 

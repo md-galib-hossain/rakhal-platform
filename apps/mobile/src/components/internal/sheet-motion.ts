@@ -3,7 +3,7 @@
  */
 import { spacing } from '../../theme/tokens.ts';
 
-/** Backdrop is `shadowColor` at this opacity. */
+/** Backdrop is `scrimColor` at this opacity. */
 export const SHEET_BACKDROP_OPACITY = 0.5;
 export const SHEET_BACKDROP_MS = 150;
 export const SHEET_ENTER_MS = 220;
