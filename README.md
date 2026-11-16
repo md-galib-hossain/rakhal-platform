@@ -1,5 +1,7 @@
 # Rakhal Platform (admin monorepo)
 
+> Working in this repo (people or coding agents)? Read [`AGENTS.md`](AGENTS.md) first. Mobile work: [`docs/mobile/HANDOVER.md`](docs/mobile/HANDOVER.md). The sections below describe the admin app only.
+
 Internal Rakhal admin panel. The admin API lives in `rakhal-backend` (`src/modules/admin`), not here.
 
 ## Layout
