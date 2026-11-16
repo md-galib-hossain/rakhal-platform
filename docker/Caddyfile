@@ -1,0 +1,37 @@
+# Caddy reverse proxy. Domains come from env (see .env.prod.example).
+# Cloudflare proxies the three hostnames; set its SSL mode to "Full (strict)".
+# Caddy gets its own Let's Encrypt certs automatically (ports 80/443 must be reachable).
+
+{
+	email {$ACME_EMAIL}
+}
+
+# ---- Customer web app ----
+{$FARM_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3005
+}
+
+# ---- Admin panel (highest-value target: keep it behind Cloudflare Access or an IP allowlist) ----
+{$ADMIN_DOMAIN} {
+	encode zstd gzip
+	# Uncomment to allow only your office/home IPs (comma list in ADMIN_ALLOW_CIDR):
+	# @blocked not remote_ip {$ADMIN_ALLOW_CIDR}
+	# respond @blocked 403
+	reverse_proxy admin:3010
+}
+
+# ---- API ----
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	# Prometheus metrics are internal only.
+	@metrics path /metrics /metrics/*
+	respond @metrics 404
+
+	# /health /ready /live are un-prefixed and pass straight through to the API.
+	reverse_proxy api:5005 {
+		health_uri /health
+		health_interval 15s
+	}
+}

@@ -1,0 +1,121 @@
+# Production override for a single VPS (Hostinger KVM 2: 2 vCPU / 8 GB / NVMe).
+# Postgres runs in a container; backups go off-box to R2.
+#
+#   docker compose --env-file .env.prod -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# NEVER run `docker compose down -v` here: it deletes the pg-data volume (your database).
+# Memory budget (~5 GB of 8): postgres 2G, api 1G, web 0.5G, admin 0.4G, redis 0.8G, caddy 0.2G, backup 0.3G.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL}
+      FARM_DOMAIN: ${FARM_DOMAIN:?set FARM_DOMAIN}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN:?set ADMIN_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN}
+      ADMIN_ALLOW_CIDR: ${ADMIN_ALLOW_CIDR:-0.0.0.0/0}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      api: { condition: service_healthy }
+      web: { condition: service_healthy }
+      admin: { condition: service_healthy }
+    mem_limit: 256m
+    logging: *logging
+    networks: [rakhal]
+
+  postgres:
+    ports: !reset [] # no host port in prod; use an SSH tunnel for admin work
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=4GB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_connections=50
+      - -c
+      - log_min_duration_statement=500
+      - -c
+      - log_timezone=Asia/Dhaka
+    mem_limit: 2g
+    shm_size: 256mb
+    logging: *logging
+
+  redis:
+    logging: *logging
+
+  api:
+    ports: !reset [] # Caddy is the only public entry
+    environment:
+      NODE_ENV: production
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-20} # keep <= postgres max_connections (50)
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-2} # Cloudflare + Caddy
+      ALLOWED_ORIGINS: https://${FARM_DOMAIN},https://${ADMIN_DOMAIN}
+      EMAIL_VERIFICATION_BASE_URL: https://${FARM_DOMAIN}/verify-email
+      EMAIL_PASSWORD_RESET_BASE_URL: https://${FARM_DOMAIN}/reset-password
+    mem_limit: 1g
+    logging: *logging
+
+  web:
+    ports: !reset []
+    mem_limit: 512m
+    logging: *logging
+
+  admin:
+    ports: !reset []
+    mem_limit: 400m
+    logging: *logging
+
+  migrate:
+    logging: *logging
+
+  backup:
+    build:
+      context: .
+      dockerfile: docker/backup.Dockerfile
+    image: rakhal-backup
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Dhaka
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rakhal}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rakhal}
+      # age PUBLIC key only: the server can encrypt backups but can never decrypt them.
+      AGE_PUBLIC_KEY: ${AGE_PUBLIC_KEY:?set AGE_PUBLIC_KEY}
+      # rclone remote path, e.g. r2:rakhal-backups . Tests use ":local:/data/backups".
+      BACKUP_REMOTE: ${BACKUP_REMOTE:-r2:${R2_BACKUP_BUCKET:?set R2_BACKUP_BUCKET}}
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${R2_BACKUP_ACCESS_KEY_ID:-}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${R2_BACKUP_SECRET_ACCESS_KEY:-}
+      RCLONE_CONFIG_R2_ENDPOINT: https://${R2_ACCOUNT_ID:-unset}.r2.cloudflarestorage.com
+      RCLONE_CONFIG_R2_NO_CHECK_BUCKET: "true"
+      HEALTHCHECK_URL: ${BACKUP_HEALTHCHECK_URL:-} # healthchecks.io-style ping URL
+      BACKUP_CRON: ${BACKUP_CRON:-0 2 * * *} # 02:00 Dhaka
+      KEEP_DAILY_DAYS: ${KEEP_DAILY_DAYS:-30}
+      KEEP_MONTHLY_DAYS: ${KEEP_MONTHLY_DAYS:-365}
+    depends_on:
+      postgres: { condition: service_healthy }
+    mem_limit: 300m
+    logging: *logging
+    networks: [rakhal]
+
+volumes:
+  caddy-data:
+  caddy-config:
