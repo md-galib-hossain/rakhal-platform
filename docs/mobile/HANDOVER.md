@@ -27,17 +27,19 @@ Open and **not yours to decide** (report if blocked): D2 session length, D3 plat
 
 ## 3. Tasks and who can run in parallel
 
-| # | Task | Depends on | Blocked by | Touches (keep other agents out) |
-|---|---|---|---|---|
-| T1 | WP10 offline milk log | WP8b, WP9 (done) | needs the backend change in T1 step 1 | `apps/mobile/app/(tabs)/milk.tsx`, new `src/milk/`, `src/offline/pull.ts` (milk day grid), `apps/api` milk DTO |
-| T2 | WP12 tasks, notifications, push | WP6, WP8b (done) | **D4, D8**; first EAS dev client | `apps/mobile/app/(tabs)/tasks.tsx`, new `src/tasks/`, `src/notifications/`, `app.json`/EAS config |
-| T3 | WP11 feed grid confirm (online-only) | WP9 (done) | none | new `src/feed/`, a route under `apps/mobile/app/` |
-| T4 | Sickness report (queued write) | WP8b, WP9 (done) | none; best after T1 so it reuses the same form pieces | new `src/health/`, `app/(tabs)/cattle` action |
-| T5 | Path-filtered mobile CI | none | none | `.github/workflows/` only |
-| T6 | Register `HealthGridCellDto` in the API | none | none | `apps/api` (a `@ApiExtraModels`), regenerate OpenAPI + client |
-| T7 | Tab icons | none | **owner picks the icon library** (D9) | `src/navigation/TabButton.tsx` |
+Task state (who holds what, branch, the `paths` each task may edit, dependencies, owner decisions blocking it) lives in one file per task: `docs/work/claims/T1.md` .. `T7.md`. Run `node scripts/work.mjs list`; claim and lifecycle rules are in `AGENTS.md` "Claim protocol" and `docs/work/README.md`. Do not copy that state back into this file. Update the "What is built" table in section 1 when a WP merges.
 
-Safe in parallel: T1 + T2 (different tabs; both may add messages to `src/i18n/messages.ts` and entries to `pull.ts`: rebase carefully, keep additions append-only), T3, T5, T6. Run T4 after T1 merges.
+| # | Task | Claim file |
+|---|---|---|
+| T1 | WP10 offline milk log (needs its backend step first) | `docs/work/claims/T1.md` |
+| T2 | WP12 tasks, notifications, push (blocked by D4, D8 for the push half) | `docs/work/claims/T2.md` |
+| T3 | WP11 feed grid confirm (online-only) | `docs/work/claims/T3.md` |
+| T4 | Sickness report (queued write), after T1 | `docs/work/claims/T4.md` |
+| T5 | Path-filtered mobile CI | `docs/work/claims/T5.md` |
+| T6 | Register `HealthGridCellDto` | `docs/work/claims/T6.md` |
+| T7 | Tab icons (blocked by D9) | `docs/work/claims/T7.md` |
+
+Safe in parallel: T1 + T2 (both append to `src/i18n/messages.ts` and `pull.ts`: those are `shared` in the claims, append-only, rebase carefully), T3, T5, T6. Run T4 after T1 merges.
 
 ## 4. Briefs
 
