@@ -1,7 +1,7 @@
 ---
 id: UI3
 title: Mobile Milk UI/UX Overhaul
-status: active
+status: review
 agent: forma
 harness: antigravity
 branch: feat/mobile-milk-ui-ux
