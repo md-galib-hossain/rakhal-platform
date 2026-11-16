@@ -1,5 +1,5 @@
-import { ComingSoonScreen } from '../../src/screens/ComingSoonScreen.tsx';
+import { CattleListScreen } from '../../src/cattle/CattleListScreen.tsx';
 
 export default function Cattle() {
-  return <ComingSoonScreen tabKey="cattle" />;
+  return <CattleListScreen />;
 }
