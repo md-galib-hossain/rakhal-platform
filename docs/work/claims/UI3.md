@@ -37,3 +37,11 @@ Mobile Milk page UI/UX overhaul:
 ## Notes
 
 - 2026-11-16: Claim created and approved by user.
+- 2026-11-16: Implemented full mobile milk UI/UX overhaul:
+  - DatePickerSheet & DateRangePicker: calendar status red dots for missing dates (`GET /milk/log/calendar`) & Today jump shortcut. Fixed infinite re-render loop on un-passed range default.
+  - SessionConfigSheet: farmers can lock/unlock milking sessions (e.g. 2 sessions for Morning & Evening).
+  - TankSelectorSheet: reads offline cached milkTanks, displays active destination tank chip with auto-routing notice for withheld milk.
+  - Reactive live total collected summary: real-time totals, sellable and withheld breakdowns, logged cow count.
+  - Ergonomic MilkCowCard: direct numeric input with decimal support, quick increment chips (+0.5, +1.0, +5.0), withheld medication locked state with tank routing indication.
+  - Docked footer bar: live totals, Save Draft batch save and Submit Session action buttons.
+  - All tests passing: node unit tests (326 passed), jest component tests (528 passed), tsc clean, eslint clean, work claims check clean.

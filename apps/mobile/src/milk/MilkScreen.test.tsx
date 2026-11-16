@@ -283,4 +283,86 @@ describe('MilkScreen', () => {
     await waitFor(() => expect(screen.queryByTestId('milk-cow-card-c2')).toBeNull());
     expect(screen.getByTestId('milk-cow-card-c1')).toBeTruthy();
   });
+
+  it('opens DatePickerSheet when date pill is tapped', async () => {
+    const h = syncHarness({
+      handler: serverHandler(),
+    });
+    await renderMilkScreen(h);
+
+    await waitFor(() => expect(screen.getByTestId('milk-date-pill')).toBeTruthy());
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('milk-date-pill'));
+    });
+
+    await waitFor(() => expect(screen.getByTestId('milk-date-picker-sheet')).toBeTruthy());
+  });
+
+  it('allows quick yield adjustment with +1.0 chip and updates totals', async () => {
+    const h = syncHarness({
+      handler: serverHandler(),
+    });
+    await renderMilkScreen(h);
+
+    await waitFor(() => expect(screen.getByTestId('milk-cow-card-c2')).toBeTruthy());
+    const plusOneBtn = screen.getByTestId('milk-chip-plus-1-c2');
+
+    await act(async () => {
+      fireEvent.press(plusOneBtn);
+    });
+
+    await waitFor(() => {
+      const writes = h.writes();
+      const lastWrite = writes[writes.length - 1];
+      expect(lastWrite?.body).toMatchObject({
+        entries: [
+          {
+            cattleId: 'c2',
+            yieldL: 1.0,
+          },
+        ],
+      });
+    });
+  });
+
+  it('opens SessionConfigSheet and TankSelectorSheet from controls', async () => {
+    const h = syncHarness({
+      handler: serverHandler(),
+    });
+    await renderMilkScreen(h);
+
+    // Open SessionConfigSheet
+    await waitFor(() => expect(screen.getByTestId('milk-manage-sessions')).toBeTruthy());
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('milk-manage-sessions'));
+    });
+    await waitFor(() => expect(screen.getByTestId('milk-session-config-sheet')).toBeTruthy());
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('session-config-close'));
+    });
+
+    // Open TankSelectorSheet
+    await waitFor(() => expect(screen.getByTestId('milk-tank-chip')).toBeTruthy());
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('milk-tank-chip'));
+    });
+    await waitFor(() => expect(screen.getByTestId('milk-tank-sheet')).toBeTruthy());
+  });
+
+  it('saves all drafts when Save Draft button is pressed', async () => {
+    const h = syncHarness({
+      handler: serverHandler(),
+    });
+    await renderMilkScreen(h);
+
+    await waitFor(() => expect(screen.getByTestId('milk-save-draft-btn')).toBeTruthy());
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('milk-save-draft-btn'));
+    });
+
+    await waitFor(() => {
+      const saves = h.writes().filter((w) => w.url.endsWith('/milk/log'));
+      expect(saves.length).toBeGreaterThan(0);
+    });
+  });
 });

@@ -10,6 +10,7 @@
  */
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
+import { farmDayKey } from '@rakhal/domain';
 import { Button } from '../actions/Button.tsx';
 import { IconButton } from '../actions/IconButton.tsx';
 import { SheetModal, SheetTitle } from '../internal/SheetModal.tsx';
@@ -17,7 +18,7 @@ import { Text } from '../primitives/Text.tsx';
 import { useFormat } from '../../i18n/useFormat.ts';
 import { useLocale } from '../../providers/LocaleProvider.tsx';
 import { useTheme } from '../../providers/ThemeProvider.tsx';
-import { DateRangePicker, type DateRange } from './DateRangePicker.tsx';
+import { DateRangePicker, type DateRange, type PickerDayEntry } from './DateRangePicker.tsx';
 
 export interface DatePickerSheetProps {
   visible: boolean;
@@ -32,20 +33,25 @@ export interface DatePickerSheetProps {
   minDate?: string;
   maxDate?: string;
   title?: string;
+  /** Optional entry status information per calendar day (e.g. missing entry red dots) */
+  days?: PickerDayEntry[];
   testID?: string;
 }
+
+const DEFAULT_RANGE: DateRange = Object.freeze({ startDate: null, endDate: null });
 
 export function DatePickerSheet({
   visible,
   onClose,
   mode = 'range',
   value: initialValue = null,
-  range: initialRange = { startDate: null, endDate: null },
+  range: initialRange = DEFAULT_RANGE,
   onConfirmSingle,
   onConfirmRange,
   minDate,
   maxDate,
   title,
+  days,
   testID,
 }: DatePickerSheetProps) {
   const { t } = useLocale();
@@ -60,7 +66,7 @@ export function DatePickerSheet({
       setSelectedSingle(initialValue);
       setSelectedRange(initialRange);
     }
-  }, [visible, initialValue, initialRange]);
+  }, [visible, initialValue, initialRange.startDate, initialRange.endDate]);
 
   const handleApply = () => {
     if (mode === 'single') {
@@ -76,6 +82,15 @@ export function DatePickerSheet({
       setSelectedSingle(null);
     } else {
       setSelectedRange({ startDate: null, endDate: null });
+    }
+  };
+
+  const handleToday = () => {
+    const today = farmDayKey(Date.now());
+    if (mode === 'single') {
+      setSelectedSingle(today);
+    } else {
+      setSelectedRange({ startDate: today, endDate: today });
     }
   };
 
@@ -145,19 +160,32 @@ export function DatePickerSheet({
         onChangeRange={setSelectedRange}
         minDate={minDate}
         maxDate={maxDate}
+        days={days}
         testID="sheet-calendar-grid"
       />
 
       {/* Action Footer */}
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: tokens.spacing.sm,
           marginTop: tokens.spacing.md,
+          gap: tokens.spacing.sm,
         }}
       >
-        <View style={{ flex: 1 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: tokens.spacing.sm,
+          }}
+        >
+          <Button
+            label={t('picker.today')}
+            variant="secondary"
+            size="md"
+            onPress={handleToday}
+            testID="picker-today"
+          />
           <Button
             label={t('picker.clear')}
             variant="ghost"
@@ -166,23 +194,32 @@ export function DatePickerSheet({
             testID="picker-clear"
           />
         </View>
-        <View style={{ flex: 1 }}>
-          <Button
-            label={t('picker.cancel')}
-            variant="secondary"
-            size="md"
-            onPress={onClose}
-            testID="picker-cancel"
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Button
-            label={t('picker.apply')}
-            variant="primary"
-            size="md"
-            onPress={handleApply}
-            testID="picker-apply"
-          />
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: tokens.spacing.sm,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Button
+              label={t('picker.cancel')}
+              variant="secondary"
+              size="md"
+              onPress={onClose}
+              testID="picker-cancel"
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Button
+              label={t('picker.apply')}
+              variant="primary"
+              size="md"
+              onPress={handleApply}
+              testID="picker-apply"
+            />
+          </View>
         </View>
       </View>
     </SheetModal>

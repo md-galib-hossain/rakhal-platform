@@ -65,6 +65,16 @@ export interface MilkCowRow {
   isSubmitted: boolean;
 }
 
+export interface MilkTotals {
+  totalL: number;
+  sellableL: number;
+  withheldL: number;
+  loggedCount: number;
+  totalCows: number;
+}
+
+export const QUICK_YIELD_PRESETS = [0.5, 1.0, 5.0] as const;
+
 /**
  * Check whether a yield reading represents an anomaly:
  * - Server already flagged it as anomaly (`anomalyFlag: true`)

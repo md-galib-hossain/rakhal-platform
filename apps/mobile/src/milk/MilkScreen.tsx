@@ -1,30 +1,45 @@
 /**
- * Milk log screen (WP10, ADR-006).
+ * Milk log screen (WP10, ADR-006, UI/UX overhaul).
  *
  * Screen access is gated by `milk.read`; logging milk and submitting sessions is gated by `milk.log`.
  * Offline writes are queued via `useSync().enqueue` and synchronized when connected.
+ *
+ * UI/UX Improvements:
+ * 1. Date header opening DatePickerSheet with missing-entry red dots and Today shortcut.
+ * 2. Session configuration allowing farms to lock unneeded milking sessions.
+ * 3. Tank routing indicator and selector reading from offline cached milkTanks.
+ * 4. Reactive live total collected summary with sellable/withholding breakdown.
+ * 5. Ergonomic quick-input cow cards with direct decimal entry and +0.5 / +1.0 / +5.0 chips.
+ * 6. Docked bottom bar with Save Draft and Submit actions.
+ * 7. ADR-007 compliant: strictly zero drop shadows.
  */
-import { FlatList, ScrollView, View } from 'react-native';
+import { useState } from 'react';
+import { FlatList, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Button } from '../components/actions/Button.tsx';
+import { IconButton } from '../components/actions/IconButton.tsx';
 import { EmptyState } from '../components/feedback/StateMessage.tsx';
 import { Chip, ChipGroup } from '../components/forms/Chip.tsx';
 import { TextField } from '../components/forms/TextField.tsx';
 import { Glyph } from '../components/internal/Glyph.tsx';
+import { PressableSurface } from '../components/internal/PressableSurface.tsx';
+import { DatePickerSheet } from '../components/picker/DatePickerSheet.tsx';
 import { Text } from '../components/primitives/Text.tsx';
 import { useFormat } from '../i18n/useFormat.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 import { can } from '../permissions/can.ts';
 import { PermissionGate } from '../permissions/PermissionGate.tsx';
-import { radius, spacing } from '../theme/tokens.ts';
 import { MilkCowCard } from './MilkCowCard.tsx';
 import {
+  DEFAULT_SESSIONS,
   SESSION_ACCENTS,
   SESSION_LABEL_KEYS,
   toIsoDateString,
   type MilkCowRow,
 } from './milk-model.ts';
+import { SessionConfigSheet } from './SessionConfigSheet.tsx';
+import { TankSelectorSheet } from './TankSelectorSheet.tsx';
 import { useMilkScreen } from './useMilkScreen.ts';
 
 export function MilkScreenContent() {
@@ -41,29 +56,45 @@ export function MilkScreenContent() {
     session,
     setSession,
     configuredSessions,
+    updateConfiguredSessions,
     sheds,
     selectedShedId,
     setSelectedShedId,
     search,
     setSearch,
     rows,
-    totalLitres,
-    loggedCowsCount,
+    liveTotals,
+    tanks,
+    selectedTankId,
+    setSelectedTankId,
+    calendarDays,
     isSessionSubmitted,
     isSubmitting,
     updateYield,
+    saveAllDrafts,
     submitSession,
   } = useMilkScreen();
 
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [sessionConfigVisible, setSessionConfigVisible] = useState(false);
+  const [tankPickerVisible, setTankPickerVisible] = useState(false);
+
   const isToday = date === toIsoDateString();
+  const activeTank = tanks.find((t) => t.id === selectedTankId) ?? tanks[0];
+  const lockedSessions = DEFAULT_SESSIONS.filter((s) => !configuredSessions.includes(s));
 
   return (
-    <View testID="screen-milk" style={{ flex: 1, backgroundColor: colors.background }}>
+    <KeyboardAvoidingView
+      testID="screen-milk"
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1, backgroundColor: colors.background }}
+    >
       {/* Top Controls Area */}
-      <View style={{ paddingHorizontal: spacing.md, paddingTop: spacing.md, gap: spacing.sm }}>
-        {/* Date Row */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+      <View style={{ paddingHorizontal: tokens.spacing.md, paddingTop: tokens.spacing.md, gap: tokens.spacing.sm }}>
+        {/* Date Row & Tank Routing Indicator */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: tokens.spacing.sm }}>
+          {/* Interactive Date Pill with Nav Arrows */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
             <Button
               label="<"
               variant="ghost"
@@ -71,9 +102,32 @@ export function MilkScreenContent() {
               onPress={() => changeDay(-1)}
               testID="milk-prev-day"
             />
-            <Text role="title" color="foreground" testID="milk-current-date">
-              {date}
-            </Text>
+
+            <PressableSurface
+              accessibilityRole="button"
+              accessibilityLabel={`${t('picker.singleDate')}: ${date}`}
+              pressedStyle="overlay"
+              onPress={() => setDatePickerVisible(true)}
+              testID="milk-date-pill"
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: tokens.spacing.xs,
+                paddingHorizontal: tokens.spacing.sm,
+                paddingVertical: tokens.spacing.xs,
+                borderRadius: tokens.radius.full,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+                minHeight: tokens.touchTarget.min,
+              }}
+            >
+              <Glyph name="dot" size={16} color="primary" />
+              <Text role="title" color="foreground" testID="milk-current-date">
+                {date}
+              </Text>
+            </PressableSurface>
+
             <Button
               label=">"
               variant="ghost"
@@ -83,34 +137,110 @@ export function MilkScreenContent() {
             />
           </View>
 
-          {!isToday ? (
-            <Button
-              label={t('common.ok')}
-              variant="secondary"
-              size="md"
-              onPress={() => setDate(toIsoDateString())}
-              testID="milk-today-btn"
-            />
-          ) : null}
+          {/* Quick Shortcuts: Today & Tank Selector */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
+            {!isToday ? (
+              <Button
+                label={t('picker.today')}
+                variant="secondary"
+                size="md"
+                onPress={() => setDate(toIsoDateString())}
+                testID="milk-today-btn"
+              />
+            ) : null}
+
+            {/* Destination Tank Chip */}
+            <PressableSurface
+              accessibilityRole="button"
+              accessibilityLabel={`${t('milk.tank')}: ${activeTank ? activeTank.name : t('milk.tankSellable')}`}
+              pressedStyle="overlay"
+              onPress={() => setTankPickerVisible(true)}
+              testID="milk-tank-chip"
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: tokens.spacing.xs,
+                paddingHorizontal: tokens.spacing.sm,
+                paddingVertical: tokens.spacing.xs,
+                borderRadius: tokens.radius.md,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+                minHeight: tokens.touchTarget.min,
+              }}
+            >
+              <Glyph name="check" size={16} color="primary" />
+              <Text role="caption" color="foreground" style={{ fontWeight: '600' }}>
+                {activeTank ? activeTank.name : t('milk.tankSellable')}
+              </Text>
+            </PressableSurface>
+          </View>
         </View>
 
-        {/* Session Chips */}
-        <ChipGroup accessibilityLabel={t('milk.session.selector')}>
-          {configuredSessions.map((s) => (
-            <Chip
-              key={s}
-              label={t(SESSION_LABEL_KEYS[s])}
-              selected={session === s}
-              accentColor={SESSION_ACCENTS[s]}
-              onPress={() => setSession(s)}
-              testID={`session-chip-${s.toLowerCase()}`}
-            />
-          ))}
-        </ChipGroup>
+        {/* Session Chips & Session Management */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: tokens.spacing.xs }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: tokens.spacing.xs, alignItems: 'center' }}
+          >
+            <ChipGroup accessibilityLabel={t('milk.session.selector')}>
+              {configuredSessions.map((s) => (
+                <Chip
+                  key={s}
+                  label={t(SESSION_LABEL_KEYS[s])}
+                  selected={session === s}
+                  accentColor={SESSION_ACCENTS[s]}
+                  onPress={() => setSession(s)}
+                  testID={`session-chip-${s.toLowerCase()}`}
+                />
+              ))}
+            </ChipGroup>
+
+            {/* Locked Sessions display as disabled/locked indicator */}
+            {lockedSessions.map((ls) => (
+              <PressableSurface
+                key={ls}
+                accessibilityRole="button"
+                accessibilityLabel={`${t(SESSION_LABEL_KEYS[ls])} ${t('milk.sessionLocked')}`}
+                pressedStyle="overlay"
+                onPress={() => setSessionConfigVisible(true)}
+                testID={`session-locked-${ls.toLowerCase()}`}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingHorizontal: tokens.spacing.sm,
+                  paddingVertical: tokens.spacing.xs,
+                  borderRadius: tokens.radius.full,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.muted,
+                  minHeight: tokens.touchTarget.min,
+                  opacity: 0.65,
+                }}
+              >
+                <Text role="caption" color="mutedForeground">
+                  {t(SESSION_LABEL_KEYS[ls])} 🔒
+                </Text>
+              </PressableSurface>
+            ))}
+          </ScrollView>
+
+          {/* Manage Sessions Button */}
+          <IconButton
+            icon="info"
+            accessibilityLabel={t('milk.manageSessions')}
+            variant="ghost"
+            size="md"
+            onPress={() => setSessionConfigVisible(true)}
+            testID="milk-manage-sessions"
+          />
+        </View>
 
         {/* Shed Filter Chips */}
         {sheds.length > 0 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.xs }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: tokens.spacing.xs }}>
             <Chip
               label={t('milk.allSheds')}
               selected={selectedShedId === null}
@@ -148,9 +278,9 @@ export function MilkScreenContent() {
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: spacing.xs,
-              padding: spacing.sm,
-              borderRadius: radius.md,
+              gap: tokens.spacing.xs,
+              padding: tokens.spacing.sm,
+              borderRadius: tokens.radius.md,
               backgroundColor: colors.muted,
             }}
           >
@@ -168,9 +298,9 @@ export function MilkScreenContent() {
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: spacing.xs,
-              padding: spacing.sm,
-              borderRadius: radius.md,
+              gap: tokens.spacing.xs,
+              padding: tokens.spacing.sm,
+              borderRadius: tokens.radius.md,
               backgroundColor: colors.muted,
             }}
           >
@@ -195,9 +325,9 @@ export function MilkScreenContent() {
             testID={`milk-cow-card-${item.cattleId}`}
           />
         )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+        ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.sm }} />}
         contentContainerStyle={{
-          padding: spacing.md,
+          padding: tokens.spacing.md,
           paddingBottom: tokens.spacing.xxxl * 2,
         }}
         ListEmptyComponent={
@@ -212,45 +342,103 @@ export function MilkScreenContent() {
         keyboardDismissMode="on-drag"
       />
 
-      {/* Sticky Bottom Summary & Submit Bar */}
+      {/* Sticky Bottom Summary & Action Bar */}
       <View
         testID="milk-footer-bar"
         style={{
           borderTopWidth: 1,
           borderColor: colors.border,
           backgroundColor: colors.card,
-          paddingHorizontal: spacing.md,
-          paddingVertical: spacing.sm,
-          minHeight: tokens.touchTarget.min,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: spacing.md,
+          paddingHorizontal: tokens.spacing.md,
+          paddingVertical: tokens.spacing.sm,
+          gap: tokens.spacing.xs,
         }}
       >
-        <View style={{ flex: 1 }}>
-          <Text role="label" color="foreground" testID="milk-total-summary">
-            {t('milk.summary', {
-              count: format.numberSafe(loggedCowsCount),
-              total: format.numberSafe(totalLitres),
-            })}
-          </Text>
-        </View>
+        {/* Live Total and Breakdown Counter */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ gap: 2 }}>
+            <Text role="label" color="foreground" testID="milk-total-summary">
+              {t('milk.summary', {
+                count: format.numberSafe(liveTotals.loggedCount),
+                total: format.numberSafe(liveTotals.totalL),
+              })}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
+              <Text role="caption" color="mutedForeground">
+                {t('milk.liveSellable', {
+                  litres: format.numberSafe(liveTotals.sellableL, { fractionDigits: 1 }),
+                })}
+              </Text>
+              {liveTotals.withheldL > 0 ? (
+                <>
+                  <Text role="caption" color="mutedForeground">·</Text>
+                  <Text role="caption" color="destructive">
+                    {t('milk.liveWithheld', {
+                      litres: format.numberSafe(liveTotals.withheldL, { fractionDigits: 1 }),
+                    })}
+                  </Text>
+                </>
+              ) : null}
+            </View>
+          </View>
 
-        {canLog ? (
-          <Button
-            label={isSessionSubmitted ? t('milk.submitted') : t('milk.submit')}
-            variant="primary"
-            size="md"
-            fullWidth={false}
-            loading={isSubmitting}
-            disabled={isSessionSubmitted || rows.length === 0}
-            onPress={() => void submitSession()}
-            testID="milk-submit-btn"
-          />
-        ) : null}
+          {/* Action Buttons: Save Draft & Submit */}
+          {canLog ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
+              <Button
+                label={t('milk.saveDraft')}
+                variant="secondary"
+                size="md"
+                disabled={isSessionSubmitted || liveTotals.loggedCount === 0}
+                onPress={() => void saveAllDrafts()}
+                testID="milk-save-draft-btn"
+              />
+              <Button
+                label={isSessionSubmitted ? t('milk.submitted') : t('milk.submit')}
+                variant="primary"
+                size="md"
+                loading={isSubmitting}
+                disabled={isSessionSubmitted || rows.length === 0}
+                onPress={() => void submitSession()}
+                testID="milk-submit-btn"
+              />
+            </View>
+          ) : null}
+        </View>
       </View>
-    </View>
+
+      {/* Date Picker Sheet with Missing Status Red Dots */}
+      <DatePickerSheet
+        visible={datePickerVisible}
+        onClose={() => setDatePickerVisible(false)}
+        mode="single"
+        value={date}
+        days={calendarDays}
+        onConfirmSingle={(d) => {
+          if (d) setDate(d);
+        }}
+        testID="milk-date-picker-sheet"
+      />
+
+      {/* Session Configuration Sheet */}
+      <SessionConfigSheet
+        visible={sessionConfigVisible}
+        onClose={() => setSessionConfigVisible(false)}
+        configuredSessions={configuredSessions}
+        onSave={updateConfiguredSessions}
+        testID="milk-session-config-sheet"
+      />
+
+      {/* Tank Selector Sheet */}
+      <TankSelectorSheet
+        visible={tankPickerVisible}
+        onClose={() => setTankPickerVisible(false)}
+        tanks={tanks}
+        selectedTankId={selectedTankId}
+        onSelectTank={setSelectedTankId}
+        testID="milk-tank-sheet"
+      />
+    </KeyboardAvoidingView>
   );
 }
 

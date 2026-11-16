@@ -2,7 +2,9 @@
  * Hook managing the milk logging screen state and queued writes (WP10, ADR-006).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '../auth/AuthProvider.tsx';
 import { useToast } from '../components/feedback/Toast.tsx';
+import type { PickerDayEntry } from '../components/picker/DateRangePicker.tsx';
 import { useFormat } from '../i18n/useFormat.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useSync } from '../offline/SyncProvider.tsx';
@@ -14,7 +16,9 @@ import {
   type MilkCowRow,
   type MilkEntryStatus,
   type MilkSession,
+  type MilkTotals,
 } from './milk-model.ts';
+import type { MilkTankOption } from './TankSelectorSheet.tsx';
 
 export interface ShedFilterOption {
   id: string;
@@ -24,6 +28,7 @@ export interface ShedFilterOption {
 export function useMilkScreen() {
   const sync = useSync();
   const { ready, snapshot } = sync;
+  const { client } = useAuth();
   const { t } = useLocale();
   const format = useFormat();
   const toast = useToast();
@@ -39,9 +44,52 @@ export function useMilkScreen() {
   const [outboxRows, setOutboxRows] = useState<OutboxRow[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Tanks state
+  const [tanks, setTanks] = useState<MilkTankOption[]>([]);
+  const [selectedTankId, setSelectedTankId] = useState<string | null>(null);
+
+  // Calendar status days (e.g. missing entries)
+  const [calendarDays, setCalendarDays] = useState<PickerDayEntry[]>([]);
+
+  // Optimistic local yield overrides for real-time reactivity
+  const [yieldOverrides, setYieldOverrides] = useState<Record<string, number | null>>({});
+
   const lastSaveLocalId = useRef<string | null>(null);
 
-  // Load sheds and session config from cache
+  // Reset yieldOverrides when date or session changes
+  useEffect(() => {
+    setYieldOverrides({});
+  }, [date, session]);
+
+  // Query calendar days for the active month
+  const currentMonth = date.slice(0, 7);
+  useEffect(() => {
+    let cancelled = false;
+    void client
+      .get<{ month?: string; days?: Array<{ date: string; status: string }> }>('/milk/log/calendar', {
+        query: { month: currentMonth },
+      })
+      .then((res) => {
+        if (cancelled) return;
+        const days = res.data?.days;
+        if (Array.isArray(days)) {
+          const mapped: PickerDayEntry[] = days.map((d) => ({
+            date: d.date,
+            status: d.status === 'missing' ? 'missing' : d.status === 'complete' ? 'complete' : 'none',
+          }));
+          setCalendarDays(mapped);
+        }
+      })
+      .catch(() => {
+        // Safe offline fallback: network errors do not disrupt the screen
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [client, currentMonth]);
+
+  // Load sheds, tanks, and session config from cache
   useEffect(() => {
     if (!ready) return;
 
@@ -50,6 +98,28 @@ export function useMilkScreen() {
         .filter((r) => typeof r.id === 'string' && typeof r.name === 'string')
         .map((r) => ({ id: r.id as string, name: r.name as string }));
       setSheds(parsedSheds);
+    });
+
+    void sync.readCache('milkTanks').then((rows) => {
+      const parsed: MilkTankOption[] = rows
+        .filter((r) => typeof r.id === 'string' && typeof r.name === 'string')
+        .map((r) => ({
+          id: r.id as string,
+          name: r.name as string,
+          tankType: typeof r.tankType === 'string' ? (r.tankType as 'SELLABLE' | 'WITHHOLDING') : 'SELLABLE',
+          totalCapacityL: typeof r.totalCapacityL === 'number' ? r.totalCapacityL : null,
+          currentVolumeL: typeof r.currentVolumeL === 'number' ? r.currentVolumeL : null,
+          isPrimary: r.isPrimary === true,
+        }));
+      setTanks(parsed);
+      if (parsed.length > 0) {
+        setSelectedTankId((prev) => {
+          if (prev && parsed.some((t) => t.id === prev)) return prev;
+          const primary =
+            parsed.find((t) => t.isPrimary) ?? parsed.find((t) => t.tankType === 'SELLABLE') ?? parsed[0];
+          return primary ? primary.id : null;
+        });
+      }
     });
 
     void sync.readSessionConfig().then((cfg) => {
@@ -230,6 +300,10 @@ export function useMilkScreen() {
         outboxLocalId = obEntry.localId;
       }
 
+      if (id in yieldOverrides) {
+        finalYieldL = yieldOverrides[id]!;
+      }
+
       result.push({
         cattleId: id,
         tag,
@@ -252,25 +326,55 @@ export function useMilkScreen() {
     }
 
     return result;
-  }, [rawCows, rawMilkLogs, outboxRows, session, date, selectedShedId, search]);
+  }, [rawCows, rawMilkLogs, outboxRows, session, date, selectedShedId, search, yieldOverrides]);
 
-  // Totals
-  const { totalLitres, loggedCowsCount } = useMemo(() => {
-    let litres = 0;
-    let count = 0;
+  // Reactive Live Totals
+  const liveTotals: MilkTotals = useMemo(() => {
+    let total = 0;
+    let sellable = 0;
+    let withheld = 0;
+    let logged = 0;
+
     for (const r of rows) {
       if (r.yieldL !== null && r.yieldL > 0) {
-        litres += r.yieldL;
-        count += 1;
+        total += r.yieldL;
+        logged += 1;
+        if (r.withholding) {
+          withheld += r.yieldL;
+        } else {
+          sellable += r.yieldL;
+        }
       }
     }
-    return { totalLitres: litres, loggedCowsCount: count };
+
+    return {
+      totalL: Math.round(total * 10) / 10,
+      sellableL: Math.round(sellable * 10) / 10,
+      withheldL: Math.round(withheld * 10) / 10,
+      loggedCount: logged,
+      totalCows: rows.length,
+    };
   }, [rows]);
+
+  const totalLitres = liveTotals.totalL;
+  const loggedCowsCount = liveTotals.loggedCount;
 
   // Is whole session already submitted?
   const isSessionSubmitted = useMemo(() => {
     return rows.length > 0 && rows.every((r) => r.isSubmitted);
   }, [rows]);
+
+  // Update configured sessions
+  const updateConfiguredSessions = useCallback(
+    (newSessions: MilkSession[]) => {
+      if (newSessions.length === 0) return;
+      setConfiguredSessions(newSessions);
+      if (!newSessions.includes(session)) {
+        setSession(newSessions[0]!);
+      }
+    },
+    [session],
+  );
 
   // Update yield with 5-second undo toast
   const changeDay = useCallback((delta: number) => {
@@ -288,6 +392,9 @@ export function useMilkScreen() {
       if (!cow) return;
 
       const prevYieldL = cow.yieldL;
+
+      // Optimistic local override for instant UI recalculation
+      setYieldOverrides((prev) => ({ ...prev, [cattleId]: newYieldL }));
 
       try {
         const queued = await sync.enqueue({
@@ -320,6 +427,7 @@ export function useMilkScreen() {
           action: {
             label: t('milk.undo'),
             onPress: () => {
+              setYieldOverrides((prev) => ({ ...prev, [cattleId]: prevYieldL }));
               void sync.enqueue({
                 endpoint: 'milk.saveLog',
                 method: 'POST',
@@ -345,6 +453,40 @@ export function useMilkScreen() {
     },
     [rows, sync, date, session, reloadData, toast, t, format],
   );
+
+  // Save all entered drafts at once
+  const saveAllDrafts = useCallback(async () => {
+    const entriesToSave = rows
+      .filter((r) => r.yieldL !== null && !r.withholding && !r.isSubmitted)
+      .map((r) => ({
+        cattleId: r.cattleId,
+        yieldL: r.yieldL,
+        baseUpdatedAt: r.baseUpdatedAt,
+      }));
+
+    if (entriesToSave.length === 0) return;
+
+    try {
+      const queued = await sync.enqueue({
+        endpoint: 'milk.saveLog',
+        method: 'POST',
+        path: '/milk/log',
+        body: {
+          date,
+          session,
+          entries: entriesToSave,
+        },
+      });
+      lastSaveLocalId.current = queued.localId;
+      reloadData();
+      toast.show({
+        message: t('milk.draftSaved'),
+        tone: 'success',
+      });
+    } catch (err) {
+      console.warn('Failed to queue milk draft save', err);
+    }
+  }, [rows, sync, date, session, reloadData, toast, t]);
 
   // Submit current session
   const submitSession = useCallback(async () => {
@@ -380,17 +522,24 @@ export function useMilkScreen() {
     session,
     setSession,
     configuredSessions,
+    updateConfiguredSessions,
     sheds,
     selectedShedId,
     setSelectedShedId,
     search,
     setSearch,
     rows,
+    liveTotals,
     totalLitres,
     loggedCowsCount,
+    tanks,
+    selectedTankId,
+    setSelectedTankId,
+    calendarDays,
     isSessionSubmitted,
     isSubmitting,
     updateYield,
+    saveAllDrafts,
     submitSession,
     reloadData,
   };
