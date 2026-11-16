@@ -79,6 +79,13 @@ export class MilkLogEntrySessionsDto {
     description: 'Disposition per session key (for example `morning`).',
   })
   dispositions!: Record<string, MilkDisposition>;
+  @ApiProperty({
+    type: 'object',
+    additionalProperties: { type: 'string', format: 'date-time' },
+    description:
+      'ISO-8601 update timestamp per session key (for example MORNING).',
+  })
+  updatedAt!: Record<string, string>;
 }
 
 export class MilkLogTableRowDto {

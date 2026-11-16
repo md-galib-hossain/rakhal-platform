@@ -223,6 +223,9 @@ export class MilkService {
           dispositions: Object.fromEntries(
             cowEntries.map((e) => [e.session, e.disposition]),
           ),
+          updatedAt: Object.fromEntries(
+            cowEntries.map((e) => [e.session, e.updatedAt.toISOString()]),
+          ),
         },
       };
     });
@@ -492,6 +495,26 @@ export class MilkService {
         await this.recomputeLactationPeak(farmId, lactationId, tx);
       }
     });
+
+    // ADR-006 section 6 / PRD 23.3: Record Activity Log line for conflict-resolved overwrites
+    const overwrites = toSave.filter((e) => {
+      const existing = existingByCow.get(e.cattleId);
+      return (
+        existing &&
+        e.baseUpdatedAt !== undefined &&
+        existing.yieldL !== e.yieldL
+      );
+    });
+    for (const entry of overwrites) {
+      const existing = existingByCow.get(entry.cattleId)!;
+      await this.activityLog.record({
+        farmId,
+        module: ActivityLogModule.MILK_PRODUCTION,
+        eventTitle: 'Milk Entry Updated',
+        actionDetails: `Milk entry for cow ${entry.cattleId} [${dto.session}] updated from ${existing.yieldL}L to ${entry.yieldL}L (offline version resolved).`,
+        actorId: userId,
+      });
+    }
 
     this.log.info('Milk log saved', {
       farmId,

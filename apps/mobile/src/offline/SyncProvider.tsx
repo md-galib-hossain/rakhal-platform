@@ -6,7 +6,6 @@
  * without this provider keep working.
  */
 import NetInfo from '@react-native-community/netinfo';
-import * as Crypto from 'expo-crypto';
 import {
   createContext,
   useCallback,
@@ -25,7 +24,7 @@ import { openExpoSqliteDb } from './expo-sqlite-db.ts';
 import { migrate } from './migrations.ts';
 import { readOwner } from './owner.ts';
 import type { EnqueueInput, OutboxRow } from './outbox.ts';
-import { readCache, readCacheRow, type CacheEntity } from './pull.ts';
+import { readCache, readCacheRow, readSessionConfig, type CacheEntity } from './pull.ts';
 import type { SqlDb } from './sql-db.ts';
 import { createSyncEngine, type SyncEngine, type SyncSnapshot } from './sync-engine.ts';
 
@@ -50,12 +49,15 @@ export interface SyncContextValue {
   retry(localId: string): Promise<void>;
   discard(localId: string): Promise<void>;
   keepServerVersion(localId: string): Promise<void>;
+  useMine(localId: string): Promise<OutboxRow | null>;
   /** Drop the queue and the offline cache (sign-out). */
   clearAll(): Promise<void>;
   /** Read the offline cache of the active farm (cattle, sheds, milk tanks, tasks). */
   readCache(entity: CacheEntity, options?: { search?: string; limit?: number }): Promise<Record<string, unknown>[]>;
   /** One cached row by id, or null when it is not on this phone. */
   readCacheRow(entity: CacheEntity, id: string): Promise<Record<string, unknown> | null>;
+  /** Read the farm's session configuration stored in meta, or null when not present. */
+  readSessionConfig(): Promise<Record<string, unknown> | null>;
 }
 
 const INERT: SyncContextValue = {
@@ -67,9 +69,11 @@ const INERT: SyncContextValue = {
   retry: () => Promise.resolve(),
   discard: () => Promise.resolve(),
   keepServerVersion: () => Promise.resolve(),
+  useMine: () => Promise.resolve(null),
   clearAll: () => Promise.resolve(),
   readCache: () => Promise.resolve([]),
   readCacheRow: () => Promise.resolve(null),
+  readSessionConfig: () => Promise.resolve(null),
 };
 
 const SyncContext = createContext<SyncContextValue>(INERT);
@@ -94,12 +98,23 @@ export interface SyncProviderProps {
   newId?: () => string;
 }
 
+function defaultNewId(): string {
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export function SyncProvider({
   children,
   openDb = () => openExpoSqliteDb(),
   subscribeNetwork = subscribeNetInfo,
   probe = () => probeHealth(healthUrl(currentApiBaseUrl())),
-  newId = () => Crypto.randomUUID(),
+  newId = defaultNewId,
 }: SyncProviderProps) {
   const { status, user, farmId, client } = useAuth();
   const userId = user?.id ?? null;
@@ -189,9 +204,11 @@ export function SyncProvider({
       retry: (localId) => engine.retry(localId),
       discard: (localId) => engine.discard(localId),
       keepServerVersion: (localId) => engine.keepServerVersion(localId),
+      useMine: (localId) => engine.useMine(localId),
       clearAll: () => engine.clearAll(),
       readCache: (entity, options) => readCache(db, farmId, entity, options),
       readCacheRow: (entity, id) => readCacheRow(db, farmId, entity, id),
+      readSessionConfig: () => readSessionConfig(db, farmId),
     };
   }, [engine, db, snapshot, syncNow, farmId]);
 

@@ -17023,6 +17023,14 @@
           },
           "totalL": {
             "type": "number"
+          },
+          "updatedAt": {
+            "additionalProperties": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "description": "ISO-8601 update timestamp per session key (for example MORNING).",
+            "type": "object"
           }
         },
         "required": [
@@ -17036,7 +17044,8 @@
           "tankId",
           "anomalyFlag",
           "submittedSessions",
-          "dispositions"
+          "dispositions",
+          "updatedAt"
         ],
         "type": "object"
       },

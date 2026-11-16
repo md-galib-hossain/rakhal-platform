@@ -1,5 +1,5 @@
-import { ComingSoonScreen } from '../../src/screens/ComingSoonScreen.tsx';
+import { MilkScreen } from '../../src/milk/MilkScreen.tsx';
 
 export default function Milk() {
-  return <ComingSoonScreen tabKey="milk" />;
+  return <MilkScreen />;
 }

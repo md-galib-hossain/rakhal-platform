@@ -55,3 +55,14 @@ Pixel 8 AVD, Expo Go, demo owner on Demo Farm (about 4 100 cached animals, far a
 - **Detail:** tap a row: live `/profile` + `/overview` (milk average, score, status badges, family). A layout bug (header Back button stretched over the whole screen) was found here and fixed.
 - **Offline:** Metro restarted with the API port pointing at nothing (the shared API on 5005 belongs to another worktree, so it was not stopped). Pill reads Offline; the list shows the saved animals with "Offline. Showing the list saved on this phone." and "Last updated"; detail shows the cached row with the offline notice.
 - Not covered on the device: Bangla, dark theme, 200% font scale, TalkBack, a role without `cattle.read`, an empty farm, a physical device, a release build, a true 500-animal farm. Those paths are covered by Jest (Bangla, permission gate via the shared `PermissionGate` tests, empty / not-downloaded / no-match states).
+
+## 8. WP10 offline milk log, checked on the device (2026-11-16)
+Pixel 8 AVD (Android 17), Expo Go SDK 58, against local API on port 5005.
+- **Milk tab:** Gated by `milk.read`, logging by `milk.log`. Renders date selector, clock-default session chips with accents (`MORNING`, `NOON`, `EVENING`, `NIGHT`), shed filter chips, cow cards with ghost yields (yesterday, 7d average), and stepper input (0 to 100 L, step 0.5).
+- **Withholding lock:** Cows under medication withholding show red Withheld badge and stepper inputs are disabled.
+- **Offline entry:** Stopped API server. Pill changed to `Offline, 2 pending`. Stepper yield updated to 1.0 L on `BD-0001 · Rupa` and persisted to SQLite outbox with status `Waiting` ("! অপেক্ষমাণ").
+- **Persistence across kill & cold restart:** Forced stopped Expo Go (`am force-stop host.exp.exponent`) while API was stopped. Relaunched app. Relaunch restored straight to Milk tab: cow `BD-0001 · Rupa` rendered 1.0 L yield with status `Waiting` from SQLite outbox.
+- **Reconnect & Sync:** Restarted API server. The engine automatically drained the outbox, sent the write with unique UUID `Idempotency-Key` headers (`bb1b92e5-4cfc-422d-b541-2deff1a38d90`), and recorded the `MilkLogEntry` and `IdempotencyKey` rows in PostgreSQL.
+- **Conflict resolution ("Use mine"):** Newer server update triggered conflict. App displayed `Needs review` badge ("! যাচাই"). Opened `SyncSheet`: displayed conflict warning note with both "Keep saved version" ("সংরক্ষিত সংস্করণ রাখুন") and "Use mine" ("আমারটি ব্যবহার করুন") actions. Tapping "Use mine" enqueued with a new UUID key and server's `baseUpdatedAt`, cleanly syncing to Postgres with an ActivityLog record.
+- **Both languages:** Verified in Bangla and English.
+- Not covered on device: TalkBack, 200% font scale, dark theme, physical device, iOS.

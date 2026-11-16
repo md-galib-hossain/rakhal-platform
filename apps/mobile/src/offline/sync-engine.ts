@@ -276,6 +276,13 @@ export function createSyncEngine(deps: EngineDeps) {
       void kick();
     },
 
+    async useMine(localId: string): Promise<OutboxRow | null> {
+      const created = await outbox.resolveUseMine(localId, deps.newId());
+      await publish();
+      void kick();
+      return created;
+    },
+
     /** Sign-out with the user's confirmation: drop the queue and the cache. */
     async clearAll(): Promise<void> {
       clearTimer();

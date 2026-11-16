@@ -1,6 +1,6 @@
 import type { SqlDb } from './sql-db.ts';
 
-export type CacheEntity = 'cattle' | 'sheds' | 'milkTanks' | 'tasks';
+export type CacheEntity = 'cattle' | 'sheds' | 'milkTanks' | 'tasks' | 'milkLog';
 
 export interface ProjectedRow {
   id: string;
@@ -17,6 +17,8 @@ export interface PullSpec {
   paged: boolean;
   /** Keep only what the offline screens read. Return null to skip a malformed or removed row. */
   project(row: Record<string, unknown>): ProjectedRow | null;
+  /** Extract rows if the response data is not an array directly. */
+  extractRows?(data: unknown): unknown[] | null;
 }
 
 /** The part of `ApiClient` the pull needs, so tests can pass a fake. */
@@ -147,6 +149,42 @@ export function buildPullSpecs(now: number): PullSpec[] {
         };
       },
     },
+    {
+      entity: 'milkLog',
+      path: '/milk/log',
+      query: {
+        date: new Date(now).toISOString().slice(0, 10),
+      },
+      paged: false,
+      extractRows(data: unknown) {
+        if (Array.isArray(data)) return data;
+        const rec = record(data);
+        if (rec && Array.isArray(rec.entries)) {
+          return rec.entries;
+        }
+        return null;
+      },
+      project(row) {
+        const id = str(row.cattleId);
+        if (!id) return null;
+        return {
+          id,
+          search: lower(row.cattleTag, row.cattleName, row.tag, row.name),
+          data: {
+            cattleId: id,
+            tag: row.cattleTag ?? row.tag ?? null,
+            name: row.cattleName ?? row.name ?? null,
+            shed: row.shed ?? null,
+            avgYield7d: num(row.avgYield7d),
+            prevDayYieldL: num(row.prevDayYieldL),
+            productionStatus: row.productionStatus ?? 'milking',
+            withholding: row.withholding === true,
+            withholdingReason: str(row.withholdingReason),
+            log: record(row.log) ?? {},
+          },
+        };
+      },
+    },
   ];
 }
 
@@ -159,10 +197,18 @@ export async function pullEntity(api: ApiGetter, db: SqlDb, farmId: string, spec
   const rows: ProjectedRow[] = [];
   let cursor: string | undefined;
   let pages = 0;
+  let sessionConfigToStore: string | null = null;
   do {
     const res = await api.get<unknown>(spec.path, { query: { ...spec.query, ...(cursor ? { cursor } : {}) } });
-    if (!Array.isArray(res.data)) throw new Error(`Unexpected ${spec.entity} response`);
-    for (const item of res.data as unknown[]) {
+    const items = spec.extractRows ? spec.extractRows(res.data) : res.data;
+    if (!Array.isArray(items)) throw new Error(`Unexpected ${spec.entity} response`);
+    if (spec.entity === 'milkLog') {
+      const rec = record(res.data);
+      if (rec?.sessionConfig) {
+        sessionConfigToStore = JSON.stringify(rec.sessionConfig);
+      }
+    }
+    for (const item of items) {
       const rec = record(item);
       const projected = rec ? spec.project(rec) : null;
       if (projected) rows.push(projected);
@@ -185,8 +231,23 @@ export async function pullEntity(api: ApiGetter, db: SqlDb, farmId: string, spec
       pulledAtKey(farmId, spec.entity),
       String(now),
     ]);
+    if (sessionConfigToStore) {
+      await tx.run('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value', [
+        sessionConfigKey(farmId),
+        sessionConfigToStore,
+      ]);
+    }
   });
   return rows.length;
+}
+
+export function sessionConfigKey(farmId: string): string {
+  return `session_config:${farmId}`;
+}
+
+export async function readSessionConfig(db: SqlDb, farmId: string): Promise<Record<string, unknown> | null> {
+  const rows = await db.all<{ value: string }>('SELECT value FROM meta WHERE key = ?', [sessionConfigKey(farmId)]);
+  return rows[0] ? (JSON.parse(rows[0].value) as Record<string, unknown>) : null;
 }
 
 export function pulledAtKey(farmId: string, entity: CacheEntity): string {
