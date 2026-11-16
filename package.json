@@ -8,6 +8,10 @@
   "scripts": {
     "dev": "turbo run dev --filter=@rakhal/admin",
     "dev:web": "turbo run dev --filter=@rakhal/web",
+    "dev:admin": "pnpm --filter @rakhal/admin dev",
+    "dev:api": "pnpm --filter @rakhal/api start:dev",
+    "dev:mobile": "pnpm --filter @rakhal/mobile start",
+    "dev:mobile:android": "pnpm --filter @rakhal/mobile android",
     "visual:gate": "node scripts/visual-gate.mjs --base origin/main",
     "routes:compare": "node scripts/compare-web-routes.mjs --monorepo apps/web --baseline docs/migration/baseline/web-routes-92e24e8.txt",
     "build": "turbo run build",
