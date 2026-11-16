@@ -65,8 +65,12 @@ services:
   api:
     build: !reset null # the VPS never builds; images come from GHCR (.github/workflows/images.yml)
     image: ${IMAGE_REGISTRY:-ghcr.io/md-galib-hossain}/rakhal-api:${IMAGE_TAG:-latest}
-    pull_policy: always
     ports: !reset [] # Caddy is the only public entry
+    # --env-file only fills ${...} placeholders; container runtime secrets must come from env_file.
+    # Separate from .env.prod so the api never receives the backup R2 keys.
+    env_file:
+      - path: ${API_ENV_FILE:-.env.api}
+        required: true
     environment:
       NODE_ENV: production
       DB_POOL_SIZE: ${DB_POOL_SIZE:-20} # keep <= postgres max_connections (50)
@@ -80,7 +84,6 @@ services:
   web:
     build: !reset null
     image: ${IMAGE_REGISTRY:-ghcr.io/md-galib-hossain}/rakhal-web:${IMAGE_TAG:-latest}
-    pull_policy: always
     ports: !reset []
     mem_limit: 512m
     logging: *logging
@@ -88,7 +91,6 @@ services:
   admin:
     build: !reset null
     image: ${IMAGE_REGISTRY:-ghcr.io/md-galib-hossain}/rakhal-admin:${IMAGE_TAG:-latest}
-    pull_policy: always
     ports: !reset []
     mem_limit: 400m
     logging: *logging
@@ -96,12 +98,10 @@ services:
   migrate:
     build: !reset null
     image: ${IMAGE_REGISTRY:-ghcr.io/md-galib-hossain}/rakhal-api-migrator:${IMAGE_TAG:-latest}
-    pull_policy: always
     logging: *logging
 
   backup:
     image: ${IMAGE_REGISTRY:-ghcr.io/md-galib-hossain}/rakhal-backup:${IMAGE_TAG:-latest}
-    pull_policy: always
     restart: unless-stopped
     environment:
       TZ: Asia/Dhaka

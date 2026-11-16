@@ -22,9 +22,10 @@ pg_dump --format=custom --no-owner --no-privileges "${DATABASE_URL}" \
   | age -r "${AGE_PUBLIC_KEY}" \
   | rclone rcat "${BACKUP_REMOTE}/${key}"
 
-# Verify: object exists and is not empty (a failed pipe would have tripped pipefail already).
+# Verify: object exists and is not empty (a failed pg_dump already tripped pipefail above). An EMPTY database
+# still dumps to ~1 KB (header + age envelope), so the floor must stay well below that.
 size="$(rclone size --json "${BACKUP_REMOTE}/${key}" | sed -n 's/.*"bytes":\([0-9]*\).*/\1/p')"
-[ "${size:-0}" -gt 1024 ] || { echo "[backup] uploaded object is suspiciously small (${size:-0} bytes)" >&2; exit 1; }
+[ "${size:-0}" -gt 100 ] || { echo "[backup] uploaded object is suspiciously small (${size:-0} bytes)" >&2; exit 1; }
 
 if [ "$(date -u +%d)" = "01" ]; then
   rclone copyto "${BACKUP_REMOTE}/${key}" "${BACKUP_REMOTE}/monthly/rakhal-${ts}.dump.age"

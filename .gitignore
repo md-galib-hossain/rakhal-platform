@@ -8,6 +8,9 @@ coverage
 !.env.example
 !.env.docker.example
 !.env.prod.example
+!.env.api.example
+# deploy state written by scripts/deploy.sh on the server
+.deploy/
 *.pem
 *.tsbuildinfo
 # service-account / credential files must never be committed
