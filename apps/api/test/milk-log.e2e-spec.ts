@@ -89,6 +89,22 @@ describe('Milk log → submit → tank collection is atomic (e2e)', () => {
       .send({ date: testDate, session, entries: [{ cattleId, yieldL }] })
       .expect(201);
 
+    const logAfterSave = await request(server())
+      .get(api(`/milk/log?date=${testDate}`))
+      .set(...auth(owner))
+      .expect(200);
+    const savedCow = (
+      logAfterSave.body.data.entries as Array<{
+        cattleId: string;
+        log: { updatedAt: Record<string, string> };
+      }>
+    ).find((e) => e.cattleId === cattleId);
+    expect(savedCow).toBeDefined();
+    expect(typeof savedCow?.log.updatedAt[session]).toBe('string');
+    expect(new Date(savedCow!.log.updatedAt[session]).toISOString()).toBe(
+      savedCow!.log.updatedAt[session],
+    );
+
     const tank = await sellableTank();
     const originalCapacity = tank.totalCapacityL;
 

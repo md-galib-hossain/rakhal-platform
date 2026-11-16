@@ -223,6 +223,9 @@ export class MilkService {
           dispositions: Object.fromEntries(
             cowEntries.map((e) => [e.session, e.disposition]),
           ),
+          updatedAt: Object.fromEntries(
+            cowEntries.map((e) => [e.session, e.updatedAt.toISOString()]),
+          ),
         },
       };
     });

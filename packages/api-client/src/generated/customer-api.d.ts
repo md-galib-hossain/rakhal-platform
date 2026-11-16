@@ -10271,6 +10271,10 @@ export interface components {
             tankId: string | null;
             tankLocked: boolean;
             totalL: number;
+            /** @description ISO-8601 update timestamp per session key (for example MORNING). */
+            updatedAt: {
+                [key: string]: string;
+            };
         };
         MilkLogTableResponseDto: {
             /** @description Calendar day, YYYY-MM-DD. */

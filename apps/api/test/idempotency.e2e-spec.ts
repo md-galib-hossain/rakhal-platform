@@ -202,6 +202,20 @@ describe('Idempotency-Key and offline conflict rules (e2e)', () => {
       const v1 = (await milkRow(date))!;
       expect(v1.updatedBy).toBe(ownerId);
 
+      const tableRes = await request(server())
+        .get(api(`/milk/log?date=${date}`))
+        .set(...auth(owner))
+        .expect(200);
+      const cowEntry = (
+        tableRes.body.data.entries as Array<{
+          cattleId: string;
+          log: { updatedAt: Record<string, string> };
+        }>
+      ).find((e) => e.cattleId === milkCowId);
+      expect(cowEntry?.log.updatedAt['MORNING']).toBe(
+        v1.updatedAt.toISOString(),
+      );
+
       const edit = await saveMilk(date, {
         yieldL: 4,
         baseUpdatedAt: v1.updatedAt.toISOString(),
