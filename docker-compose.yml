@@ -1,0 +1,144 @@
+# Rakhal platform — local / CI stack. Prod keeps Neon (set DATABASE_URL) and PM2 until the deploy ticket.
+#   cp .env.docker.example .env.docker      # then edit secrets
+#   docker compose --env-file .env.docker up -d --build
+#   docker compose --env-file .env.docker run --rm migrate     # re-run migrations
+#   docker compose --env-file .env.docker --profile tools run --rm seed   # demo data (dev only)
+# Dev with hot reload: add  -f docker-compose.dev.yml . Observability: add  -f docker-compose.obs.yml .
+
+name: rakhal
+
+x-api-env: &api-env
+  NODE_ENV: ${NODE_ENV:-production}
+  PORT: "5005"
+  API_PREFIX: api/v1
+  DATABASE_URL: postgresql://${POSTGRES_USER:-rakhal}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rakhal}?schema=public
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
+  ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3005,http://localhost:3010}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rakhal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-rakhal}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${POSTGRES_HOST_PORT:-5433}:5432" # 5433 so it never clashes with a local 5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [rakhal]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: [redis-server, --appendonly, "yes", --appendfsync, everysec, --maxmemory, 768mb, --maxmemory-policy, noeviction]
+    volumes:
+      - redis-data:/data
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks: [rakhal]
+
+  migrate:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      target: migrator
+    image: rakhal-api-migrator
+    restart: "no"
+    environment:
+      <<: *api-env
+    depends_on:
+      postgres: { condition: service_healthy }
+    networks: [rakhal]
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      target: runtime
+    image: rakhal-api
+    restart: unless-stopped
+    env_file:
+      - path: .env.docker
+        required: false
+    environment:
+      <<: *api-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-5005}:5005"
+    networks: [rakhal]
+    # Optional FCM push: mount the key read-only and set FIREBASE_CREDENTIALS_PATH=/run/secrets/firebase.json
+    # volumes:
+    #   - ./apps/api/secrets/firebase_credentials.json:/run/secrets/firebase.json:ro
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/next.Dockerfile
+      args:
+        APP: web
+        APP_PORT: "3005"
+        NEXT_PUBLIC_APP_URL: ${WEB_PUBLIC_URL:-http://localhost:3005}
+        NEXT_PUBLIC_FARM_URL: ${FARM_PUBLIC_URL:-http://localhost:3005}
+    image: rakhal-web
+    restart: unless-stopped
+    environment:
+      API_BASE_URL: http://api:5005/api/v1 # server-only (BFF bridge)
+    depends_on:
+      api: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:${WEB_HOST_PORT:-3005}:3005"
+    networks: [rakhal]
+
+  admin:
+    build:
+      context: .
+      dockerfile: docker/next.Dockerfile
+      args:
+        APP: admin
+        APP_PORT: "3010"
+    image: rakhal-admin
+    restart: unless-stopped
+    environment:
+      ADMIN_API_BASE_URL: http://api:5005/api/v1 # server-only
+    depends_on:
+      api: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:${ADMIN_HOST_PORT:-3010}:3010"
+    networks: [rakhal]
+
+  seed: # one-off, dev only: demo owner/manager/worker + finance data
+    profiles: [tools]
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+      target: migrator # has devDeps (ts-node) + sources
+    image: rakhal-api-migrator
+    command: ["pnpm", "seed"]
+    environment:
+      <<: *api-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    networks: [rakhal]
+
+volumes:
+  pg-data:
+  redis-data:
+
+networks:
+  rakhal:

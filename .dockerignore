@@ -1,0 +1,31 @@
+# Keep the build context small and secret-free.
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/coverage
+**/*.tsbuildinfo
+.git
+.github
+.claude
+.vscode
+docs
+
+# Secrets and local env never enter an image. Compose injects them at runtime.
+**/.env
+**/.env.*
+!**/.env.example
+**/secrets
+*.pem
+*adminsdk*.json
+
+# Test artifacts and scratch
+**/test-results*
+**/playwright-report*
+**/.tmp-*
+*.png
+
+# Mobile app is not containerised (EAS builds it). Its package.json is still
+# needed for a frozen-lockfile install, so only the sources are excluded.
+apps/mobile/*
+!apps/mobile/package.json

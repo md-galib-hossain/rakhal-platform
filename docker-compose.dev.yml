@@ -1,0 +1,20 @@
+# Dev override: hot reload for the API against the same postgres/redis.
+#   docker compose --env-file .env.docker -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+# Web/admin are best run on the host (`pnpm dev:web`, `pnpm dev`) pointing at http://localhost:5005/api/v1.
+services:
+  api:
+    build:
+      target: migrator # devDeps + sources
+    image: rakhal-api-dev
+    command: ["pnpm", "start:dev"]
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./apps/api/src:/repo/apps/api/src
+      - ./apps/api/prisma:/repo/apps/api/prisma
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5005/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 90s

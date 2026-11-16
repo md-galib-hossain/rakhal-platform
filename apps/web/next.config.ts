@@ -1,9 +1,14 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
+  // Docker image build only (docker/next.Dockerfile sets NEXT_STANDALONE=1). Normal builds are unchanged.
+  ...(process.env.NEXT_STANDALONE === "1"
+    ? { output: "standalone" as const, outputFileTracingRoot: path.resolve(process.cwd(), "../..") }
+    : {}),
   // Workspace package ships TypeScript source (no dist step).
   transpilePackages: ["@rakhal/ui"],
   allowedDevOrigins: [
