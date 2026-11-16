@@ -1,7 +1,7 @@
 ---
 id: COORD1
 title: Work-claim coordination system
-status: active
+status: review
 agent: claude-coordination
 harness: claude-code
 branch: claude/agent-coordination-e4b77c
