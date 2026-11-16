@@ -1,0 +1,7 @@
+# Files that run inside Linux containers must keep LF line endings even when checked out on Windows
+# (CRLF turns "#!/bin/bash" into "bash\r" and the script fails to start).
+*.sh text eol=lf
+Caddyfile text eol=lf
+Dockerfile text eol=lf
+*.Dockerfile text eol=lf
+docker-compose*.yml text eol=lf
