@@ -1,0 +1,195 @@
+name: Images
+
+# Builds the Docker images for the single-VPS deploy and pushes them to GHCR on merge to main.
+# The VPS never builds: deploy pulls these tags (sha-<commit>, plus `latest`). Rollback = redeploy an older sha tag.
+# PRs that touch the Docker setup only BUILD (no push) and run a compose smoke test.
+on:
+  pull_request:
+    paths:
+      - "docker/**"
+      - "docker-compose*.yml"
+      - "apps/api/**"
+      - "apps/web/**"
+      - "apps/admin/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".dockerignore"
+      - ".github/workflows/images.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docker/**"
+      - "docker-compose*.yml"
+      - "apps/api/**"
+      - "apps/web/**"
+      - "apps/admin/**"
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".dockerignore"
+      - ".github/workflows/images.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: images-${{ github.ref }}
+  # Never cancel a main build halfway through a push; PR builds are safe to supersede.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            file: docker/api.Dockerfile
+            build_args: ""
+            target: runtime
+          # One-shot `prisma migrate deploy` (needs the prisma CLI, a devDependency). Large; only used at deploy.
+          - name: api-migrator
+            file: docker/api.Dockerfile
+            build_args: ""
+            target: migrator
+          - name: web
+            file: docker/next.Dockerfile
+            target: ""
+            build_args: |
+              APP=web
+              APP_PORT=3005
+              NEXT_PUBLIC_APP_URL=${{ vars.WEB_PUBLIC_URL || 'https://farm.rakhal.app' }}
+              NEXT_PUBLIC_FARM_URL=${{ vars.FARM_PUBLIC_URL || 'https://farm.rakhal.app' }}
+          - name: admin
+            file: docker/next.Dockerfile
+            target: ""
+            build_args: |
+              APP=admin
+              APP_PORT=3010
+          - name: backup
+            file: docker/backup.Dockerfile
+            build_args: ""
+            target: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image name and tags
+        id: meta
+        run: |
+          owner="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          image="${REGISTRY}/${owner}/rakhal-${{ matrix.name }}"
+          tags="${image}:sha-${GITHUB_SHA::7}"
+          if [ "${{ github.event_name }}" != "pull_request" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            tags="${tags},${image}:latest"
+          fi
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          echo "tags=${tags}" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" != "pull_request" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "push=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: steps.meta.outputs.push == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
+          build-args: ${{ matrix.build_args }}
+          push: ${{ steps.meta.outputs.push == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          provenance: false
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  # Boots the real compose stack on a clean runner and checks every service answers. This is the test that
+  # proves the images work together (env validation, migrations, Prisma client, standalone Next output).
+  smoke:
+    name: Compose smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write throwaway env
+        run: |
+          rnd() { openssl rand -hex 32; }
+          {
+            echo "POSTGRES_PASSWORD=$(rnd)"
+            echo "JWT_ACCESS_SECRET=$(rnd)"
+            echo "JWT_REFRESH_SECRET=$(rnd)"
+            echo "JWT_ADMIN_SECRET=$(rnd)"
+            echo "AUTH_CSRF_SECRET=$(rnd)"
+            echo "SESSION_SECRET=$(rnd)"
+            echo "AUTH_REFRESH_COOKIE_SECURE=false"
+            echo "AUTH_CSRF_COOKIE_SECURE=false"
+            echo "STORAGE_PROVIDER=memory"
+            echo "EMAIL_FROM=ci@example.test"
+            echo "EMAIL_VERIFICATION_BASE_URL=http://localhost:3005/verify-email"
+            echo "EMAIL_PASSWORD_RESET_BASE_URL=http://localhost:3005/reset-password"
+            echo "RESEND_API_KEY=re_ci_placeholder"
+          } > ci.env
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and start the stack
+        # Blocks until postgres/redis are healthy, migrate has exited 0 and api is healthy (depends_on chain).
+        run: docker compose --env-file ci.env up -d --build
+
+      - name: Check endpoints
+        run: |
+          # web/admin start right after the api turns healthy, so give them up to ~2 minutes.
+          check() { # name url accepted-codes
+            for _ in $(seq 1 40); do
+              code="$(curl -s -o /dev/null -w '%{http_code}' "$2" || true)"
+              case " $3 " in *" $code "*) echo "ok   $1 -> $code"; return 0 ;; esac
+              sleep 3
+            done
+            echo "FAIL $1 -> last status $code"; return 1
+          }
+          check api-health http://127.0.0.1:5005/health "200"
+          check api-ready  http://127.0.0.1:5005/ready  "200"
+          check web        http://127.0.0.1:3005/       "200"
+          check admin      http://127.0.0.1:3010/       "200 307"
+
+      - name: Prod override still parses
+        run: |
+          {
+            echo "ACME_EMAIL=a@b.co"
+            echo "FARM_DOMAIN=f.test"
+            echo "ADMIN_DOMAIN=a.test"
+            echo "API_DOMAIN=api.test"
+            echo "AGE_PUBLIC_KEY=age1x"
+            echo "R2_BACKUP_BUCKET=b"
+          } >> ci.env
+          docker compose --env-file ci.env -f docker-compose.yml -f docker-compose.prod.yml config -q
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose --env-file ci.env logs --no-color --tail 80
+
+      - name: Tear down
+        if: always()
+        run: docker compose --env-file ci.env down -v
