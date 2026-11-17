@@ -249,7 +249,7 @@ export function MilkScreenContent() {
                   paddingHorizontal: tokens.spacing.sm,
                   backgroundColor: colors.background,
                   borderWidth: 1,
-                  borderColor: colors.inputBorder,
+                  borderColor: colors.border,
                   borderRadius: tokens.radius.md,
                   gap: tokens.spacing.xs,
                 }}

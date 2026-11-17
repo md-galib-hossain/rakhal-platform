@@ -13,7 +13,6 @@
  */
 import { memo, useEffect, useState } from 'react';
 import { TextInput, View } from 'react-native';
-import { StatusBadge } from '../components/display/StatusBadge.tsx';
 import { Glyph } from '../components/internal/Glyph.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { Text } from '../components/primitives/Text.tsx';
@@ -163,13 +162,32 @@ export const MilkCowCard = memo(function MilkCowCard({
             </Text>
 
             {row.withholding ? (
-              <StatusBadge
-                tone="destructive"
-                label={t('milk.withholdingBadge')}
+              <View
                 testID={`milk-withholding-${row.cattleId}`}
-              />
+                style={{
+                  paddingHorizontal: 6,
+                  paddingVertical: 1.5,
+                  borderRadius: tokens.radius.full,
+                  backgroundColor: colors.destructiveTint,
+                }}
+              >
+                <Text role="caption" color="destructiveText" style={{ fontSize: 10, fontWeight: '600' }}>
+                  {t('milk.withholdingBadge')}
+                </Text>
+              </View>
             ) : (
-              <StatusBadge tone="success" label={t('milk.statusMilking')} />
+              <View
+                style={{
+                  paddingHorizontal: 6,
+                  paddingVertical: 1.5,
+                  borderRadius: tokens.radius.full,
+                  backgroundColor: colors.successTint,
+                }}
+              >
+                <Text role="caption" color="primaryText" style={{ fontSize: 10, fontWeight: '600' }}>
+                  {t('milk.statusMilking')}
+                </Text>
+              </View>
             )}
           </View>
 
@@ -271,12 +289,12 @@ export const MilkCowCard = memo(function MilkCowCard({
               <View
                 style={{
                   borderWidth: 1,
-                  borderColor: isSelectedSession ? colors.primary : colors.inputBorder,
+                  borderColor: isSelectedSession ? colors.primary : colors.border,
                   borderRadius: tokens.radius.md,
-                  backgroundColor: colors.background,
-                  minHeight: 40,
+                  backgroundColor: isSelectedSession ? colors.background : colors.muted,
+                  minHeight: 38,
                   justifyContent: 'center',
-                  paddingHorizontal: 6,
+                  paddingHorizontal: 4,
                   opacity: isCellDisabled ? 0.6 : 1,
                 }}
               >
@@ -299,7 +317,7 @@ export const MilkCowCard = memo(function MilkCowCard({
                 />
               </View>
 
-              {/* Container Assignment Badge [ 🟦 Tank A 📦 ] */}
+              {/* Container Assignment Badge [ 🟦 Tank A ] */}
               <PressableSurface
                 accessibilityRole="button"
                 accessibilityLabel={`${assignedTankName} for ${sLabel}`}
@@ -312,21 +330,18 @@ export const MilkCowCard = memo(function MilkCowCard({
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 3,
-                  paddingVertical: 3,
-                  paddingHorizontal: 4,
+                  paddingVertical: 2,
+                  paddingHorizontal: 2,
                   borderRadius: tokens.radius.sm,
-                  borderWidth: 1,
-                  borderStyle: 'dashed',
-                  borderColor: colors.border,
-                  backgroundColor: colors.card,
-                  minHeight: 26,
+                  backgroundColor: 'transparent',
+                  minHeight: 22,
                 }}
               >
                 {/* Mini Box Indicator */}
                 <View
                   style={{
-                    width: 7,
-                    height: 7,
+                    width: 6,
+                    height: 6,
                     borderRadius: 1,
                     backgroundColor: row.withholding ? colors.destructive : colors.info,
                   }}
@@ -334,12 +349,11 @@ export const MilkCowCard = memo(function MilkCowCard({
                 <Text
                   role="caption"
                   color={row.withholding ? 'destructiveText' : 'mutedForeground'}
-                  style={{ fontSize: 9, fontWeight: '600' }}
+                  style={{ fontSize: 9, fontWeight: '500' }}
                   numberOfLines={1}
                 >
                   {assignedTankName}
                 </Text>
-                <Glyph name="chevronRight" size={16} color="mutedForeground" />
               </PressableSurface>
             </View>
           );
