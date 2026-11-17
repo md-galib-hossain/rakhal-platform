@@ -10,6 +10,7 @@ paths:
   - apps/mobile/src/milk/**
   - apps/mobile/test/milk-*.test.ts
   - apps/mobile/src/components/picker/**
+  - apps/mobile/src/assets/icons/**
 shared:
   - apps/mobile/src/i18n/messages.ts
 depends_on: []
