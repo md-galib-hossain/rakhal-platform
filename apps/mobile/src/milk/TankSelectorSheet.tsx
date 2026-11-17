@@ -15,6 +15,7 @@ import { StatusBadge } from '../components/display/StatusBadge.tsx';
 import { useFormat } from '../i18n/useFormat.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
+import { TankIcon } from './TankIcon.tsx';
 
 export interface MilkTankOption {
   id: string;
@@ -45,13 +46,6 @@ export function TankSelectorSheet({
   const { colors, tokens } = useTheme();
   const { t } = useLocale();
   const format = useFormat();
-
-  const tankAvatarColors = [
-    colors.info,
-    colors.primary,
-    colors.warning,
-    colors.secondary,
-  ];
 
   const handleSelect = (id: string) => {
     onSelectTank(id);
@@ -116,11 +110,9 @@ export function TankSelectorSheet({
             </Text>
           </View>
         ) : (
-          tanks.map((tank, index) => {
+          tanks.map((tank) => {
             const isSelected = tank.id === selectedTankId;
             const isWithholding = tank.tankType === 'WITHHOLDING';
-            const avatarColor = tankAvatarColors[index % tankAvatarColors.length];
-            const initialLetter = tank.name.trim().charAt(tank.name.lastIndexOf(' ') + 1) || tank.name.charAt(0) || 'T';
 
             const capacityDisplay =
               tank.totalCapacityL && tank.totalCapacityL > 0
@@ -150,20 +142,23 @@ export function TankSelectorSheet({
                   gap: tokens.spacing.md,
                 }}
               >
-                {/* Left: Colored Initial Avatar */}
+                {/* Left: Tank Icon Avatar */}
                 <View
                   style={{
                     width: 36,
                     height: 36,
                     borderRadius: tokens.radius.md,
-                    backgroundColor: avatarColor,
+                    backgroundColor: isWithholding ? colors.destructiveTint : colors.muted,
+                    borderWidth: 1,
+                    borderColor: isWithholding ? colors.destructiveTint : colors.border,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
-                  <Text role="title" style={{ color: colors.primaryForeground, fontWeight: '700', fontSize: 16 }}>
-                    {initialLetter}
-                  </Text>
+                  <TankIcon
+                    size={20}
+                    color={isWithholding ? colors.destructive : colors.primary}
+                  />
                 </View>
 
                 {/* Middle: Tank Name & Badges */}

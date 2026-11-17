@@ -13,6 +13,7 @@
  */
 import { memo, useEffect, useState } from 'react';
 import { TextInput, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { Glyph } from '../components/internal/Glyph.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { Text } from '../components/primitives/Text.tsx';
@@ -20,6 +21,7 @@ import { useFormat } from '../i18n/useFormat.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 import { cattleTitle } from '../cattle/cattle-model.ts';
+import { TankIcon } from './TankIcon.tsx';
 import {
   DEFAULT_SESSIONS,
   SESSION_LABEL_KEYS,
@@ -317,7 +319,7 @@ export const MilkCowCard = memo(function MilkCowCard({
                 />
               </View>
 
-              {/* Container Assignment Badge [ 🟦 Tank A ] */}
+              {/* Tank Switcher Chip [ 🛢️ Tank A ▾ ] */}
               <PressableSurface
                 accessibilityRole="button"
                 accessibilityLabel={`${assignedTankName} for ${sLabel}`}
@@ -331,29 +333,39 @@ export const MilkCowCard = memo(function MilkCowCard({
                   justifyContent: 'center',
                   gap: 3,
                   paddingVertical: 2,
-                  paddingHorizontal: 2,
+                  paddingHorizontal: 4,
                   borderRadius: tokens.radius.sm,
-                  backgroundColor: 'transparent',
-                  minHeight: 22,
+                  borderWidth: 1,
+                  borderColor: row.withholding ? colors.destructiveTint : colors.border,
+                  backgroundColor: row.withholding ? colors.destructiveTint : colors.muted,
+                  minHeight: 24,
+                  opacity: row.withholding ? 0.7 : 1,
                 }}
               >
-                {/* Mini Box Indicator */}
-                <View
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: 1,
-                    backgroundColor: row.withholding ? colors.destructive : colors.info,
-                  }}
+                {/* Relevant Bulk Milk Tank Icon */}
+                <TankIcon
+                  size={12}
+                  color={row.withholding ? colors.destructive : colors.primary}
                 />
                 <Text
                   role="caption"
-                  color={row.withholding ? 'destructiveText' : 'mutedForeground'}
-                  style={{ fontSize: 9, fontWeight: '500' }}
+                  color={row.withholding ? 'destructiveText' : 'foreground'}
+                  style={{ fontSize: 10, fontWeight: '600' }}
                   numberOfLines={1}
                 >
                   {assignedTankName}
                 </Text>
+                {!row.withholding ? (
+                  <Svg width={7} height={7} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M6 9L12 15L18 9"
+                      stroke={colors.mutedForeground}
+                      strokeWidth={3}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </Svg>
+                ) : null}
               </PressableSurface>
             </View>
           );
