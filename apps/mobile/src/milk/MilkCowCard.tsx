@@ -23,7 +23,7 @@ import { useTheme } from '../providers/ThemeProvider.tsx';
 import { cattleTitle } from '../cattle/cattle-model.ts';
 import {
   DEFAULT_SESSIONS,
-  SESSION_COMPACT_LABELS,
+  SESSION_LABEL_KEYS,
   type MilkCowRow,
   type MilkSession,
 } from './milk-model.ts';
@@ -240,7 +240,7 @@ export const MilkCowCard = memo(function MilkCowCard({
         }}
       >
         {configuredSessions.map((s) => {
-          const sLabel = SESSION_COMPACT_LABELS[s];
+          const sLabel = t(SESSION_LABEL_KEYS[s]);
           const isSelectedSession = s === activeSession;
           const sEntry = row.sessions?.[s];
           const assignedTankName = sEntry?.tankName ?? tankName ?? (row.withholding ? 'Withholding Tank' : 'Tank A');

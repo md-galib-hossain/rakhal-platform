@@ -22,10 +22,10 @@ export const SESSION_LABEL_KEYS: Record<MilkSession, MessageKey> = {
 };
 
 export const SESSION_COMPACT_LABELS: Record<MilkSession, string> = {
-  MORNING: 'AM1',
-  NOON: 'AM2',
-  EVENING: 'PM1',
-  NIGHT: 'PM2',
+  MORNING: 'Morning',
+  NOON: 'Noon',
+  EVENING: 'Evening',
+  NIGHT: 'Night',
 };
 
 /**

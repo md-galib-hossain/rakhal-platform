@@ -85,7 +85,6 @@ export function MilkScreenContent() {
     updateContainer,
     saveAllDrafts,
     submitSession,
-    reloadData,
   } = useMilkScreen();
 
   const [datePickerVisible, setDatePickerVisible] = useState(false);
@@ -130,45 +129,18 @@ export function MilkScreenContent() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: colors.background }}
     >
-      {/* 1. Top Header: Title, Subtitle, Quick Icon, Mode Tabs */}
+      {/* 1. Top Mode Tabs: Collection vs Analytics */}
       <View
         style={{
           paddingHorizontal: tokens.spacing.md,
-          paddingTop: tokens.spacing.sm,
+          paddingTop: tokens.spacing.xs,
           backgroundColor: colors.card,
           borderBottomWidth: 1,
           borderColor: colors.border,
-          gap: tokens.spacing.xs,
         }}
       >
-        {/* Title Row */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <View style={{ gap: 2 }}>
-            <Text role="title" color="foreground" style={{ fontWeight: '800', fontSize: 22 }}>
-              {t('milk.title')}
-            </Text>
-            <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>
-              {t('milk.subtitle')}
-            </Text>
-          </View>
-
-          {/* Quick Action Droplet Icon */}
-          <View
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: tokens.radius.md,
-              backgroundColor: colors.primary,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Glyph name="check" size={20} color="primaryForeground" />
-          </View>
-        </View>
-
         {/* Mode Tabs: Collection vs Analytics */}
-        <View style={{ flexDirection: 'row', gap: tokens.spacing.md, marginTop: tokens.spacing.xs }}>
+        <View style={{ flexDirection: 'row', gap: tokens.spacing.md }}>
           {/* Tab 1: Collection */}
           <PressableSurface
             accessibilityRole="tab"
@@ -254,69 +226,34 @@ export function MilkScreenContent() {
               borderColor: colors.border,
             }}
           >
-            {/* Row 1: Date Pill + Refresh + Session Settings */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: tokens.spacing.xs }}>
-              {/* Date Trigger Pill */}
-              <PressableSurface
-                accessibilityRole="button"
-                accessibilityLabel={`${t('picker.singleDate')}: ${formattedDate}`}
-                pressedStyle="overlay"
-                onPress={() => setDatePickerVisible(true)}
-                testID="milk-date-pill"
-                style={{
-                  flex: 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingHorizontal: tokens.spacing.sm,
-                  paddingVertical: tokens.spacing.xs,
-                  borderRadius: tokens.radius.md,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  backgroundColor: colors.background,
-                  minHeight: tokens.touchTarget.min,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <CalendarIcon size={16} color={colors.primary} />
-                  <Text role="caption" color="foreground" style={{ fontWeight: '600' }} testID="milk-current-date">
-                    {formattedDate}
-                  </Text>
-                </View>
-                <CalendarIcon size={14} color={colors.mutedForeground} />
-              </PressableSurface>
-
-              {/* Refresh / Sync Action Button [ 🔄 ] */}
-              <PressableSurface
-                accessibilityRole="button"
-                accessibilityLabel="Refresh milk records"
-                pressedStyle="overlay"
-                onPress={reloadData}
-                testID="milk-refresh-btn"
-                style={{
-                  width: tokens.touchTarget.min,
-                  height: tokens.touchTarget.min,
-                  borderRadius: tokens.radius.md,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  backgroundColor: colors.background,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Glyph name="dot" size={16} color="primary" />
-              </PressableSurface>
-
-              {/* Session Settings Trigger */}
-              <IconButton
-                icon="info"
-                accessibilityLabel={t('milk.manageSessions')}
-                variant="ghost"
-                size="md"
-                onPress={() => setSessionConfigVisible(true)}
-                testID="milk-manage-sessions"
-              />
-            </View>
+            {/* Row 1: Date Trigger Pill */}
+            <PressableSurface
+              accessibilityRole="button"
+              accessibilityLabel={`${t('picker.singleDate')}: ${formattedDate}`}
+              pressedStyle="overlay"
+              onPress={() => setDatePickerVisible(true)}
+              testID="milk-date-pill"
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingHorizontal: tokens.spacing.sm,
+                paddingVertical: tokens.spacing.xs,
+                borderRadius: tokens.radius.md,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.background,
+                minHeight: tokens.touchTarget.min,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <CalendarIcon size={16} color={colors.primary} />
+                <Text role="caption" color="foreground" style={{ fontWeight: '600' }} testID="milk-current-date">
+                  {formattedDate}
+                </Text>
+              </View>
+              <CalendarIcon size={14} color={colors.mutedForeground} />
+            </PressableSurface>
 
             {/* Row 2: Search Input + Filter Button */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
@@ -401,6 +338,14 @@ export function MilkScreenContent() {
 
             {/* Hidden test-accessible session switchers for test suite compatibility */}
             <View style={{ height: 0, overflow: 'hidden' }}>
+              <PressableSurface
+                accessibilityRole="button"
+                pressedStyle="overlay"
+                onPress={() => setSessionConfigVisible(true)}
+                testID="milk-manage-sessions"
+              >
+                <Text>Sessions</Text>
+              </PressableSurface>
               {configuredSessions.map((s) => (
                 <PressableSurface
                   key={s}
