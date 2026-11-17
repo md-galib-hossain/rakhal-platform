@@ -58,7 +58,7 @@ export const MilkCowCard = memo(function MilkCowCard({
   const format = useFormat();
 
   const title = cattleTitle({ tagNumber: row.tag, name: row.name });
-  const isInputDisabled = disabled || row.withholding || row.isSubmitted;
+  const isInputDisabled = disabled || row.withholding;
   const initialLetter = (row.name?.trim() || row.tag || 'C').charAt(0).toUpperCase();
 
   // Local state for each session's text input to allow fluid decimal typing
@@ -244,7 +244,7 @@ export const MilkCowCard = memo(function MilkCowCard({
           const isSelectedSession = s === activeSession;
           const sEntry = row.sessions?.[s];
           const assignedTankName = sEntry?.tankName ?? tankName ?? (row.withholding ? 'Withholding Tank' : 'Tank A');
-          const isCellDisabled = isInputDisabled || sEntry?.isSubmitted;
+          const isCellDisabled = isInputDisabled;
           const textVal = sessionInputs[s] ?? '';
 
           // Primary testID for the active session to satisfy existing tests

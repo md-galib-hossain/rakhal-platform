@@ -29,7 +29,6 @@ import { useAuth } from '../auth/AuthProvider.tsx';
 import { Button } from '../components/actions/Button.tsx';
 import { IconButton } from '../components/actions/IconButton.tsx';
 import { EmptyState } from '../components/feedback/StateMessage.tsx';
-import { Glyph } from '../components/internal/Glyph.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { DatePickerSheet } from '../components/picker/DatePickerSheet.tsx';
 import { Text } from '../components/primitives/Text.tsx';
@@ -149,19 +148,11 @@ export function MilkScreenContent() {
             onPress={() => setActiveTab('collection')}
             testID="milk-tab-collection"
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
               paddingVertical: tokens.spacing.xs + 2,
               borderBottomWidth: 2,
               borderColor: activeTab === 'collection' ? colors.primary : 'transparent',
             }}
           >
-            <Glyph
-              name="check"
-              size={16}
-              color={activeTab === 'collection' ? 'primary' : 'mutedForeground'}
-            />
             <Text
               role="label"
               color={activeTab === 'collection' ? 'primary' : 'mutedForeground'}
@@ -179,19 +170,11 @@ export function MilkScreenContent() {
             onPress={() => setActiveTab('analytics')}
             testID="milk-tab-analytics"
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
               paddingVertical: tokens.spacing.xs + 2,
               borderBottomWidth: 2,
               borderColor: activeTab === 'analytics' ? colors.primary : 'transparent',
             }}
           >
-            <Glyph
-              name="info"
-              size={16}
-              color={activeTab === 'analytics' ? 'primary' : 'mutedForeground'}
-            />
             <Text
               role="label"
               color={activeTab === 'analytics' ? 'primary' : 'mutedForeground'}

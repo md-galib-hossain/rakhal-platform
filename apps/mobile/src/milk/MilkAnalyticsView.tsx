@@ -230,38 +230,58 @@ export function MilkAnalyticsView({
           </Text>
         </View>
 
-        {/* Mini Bar Chart */}
+        {/* Production Trend Bar Chart (Fixed headroom, no title collision, increased height) */}
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'flex-end',
             justifyContent: 'space-between',
-            height: 100,
-            paddingTop: tokens.spacing.sm,
+            height: 160,
+            paddingTop: tokens.spacing.md,
           }}
         >
           {trendDays.map((item, index) => {
-            const heightPct = Math.max(12, Math.round((item.yieldL / maxTrendYield) * 80));
+            const CHART_TRACK_HEIGHT = 96;
+            const barHeight = Math.max(8, Math.round((item.yieldL / maxTrendYield) * CHART_TRACK_HEIGHT));
             return (
-              <View key={index} style={{ alignItems: 'center', gap: 6, flex: 1 }}>
-                <Text role="caption" color="mutedForeground" style={{ fontSize: 10 }}>
-                  {format.numberSafe(Math.round(item.yieldL))}
-                </Text>
+              <View key={index} style={{ alignItems: 'center', flex: 1 }}>
+                {/* Value Label (fixed height, stays strictly below title) */}
+                <View style={{ height: 18, justifyContent: 'center', alignItems: 'center' }}>
+                  <Text role="caption" color="mutedForeground" style={{ fontSize: 10 }}>
+                    {format.numberSafe(Math.round(item.yieldL))}
+                  </Text>
+                </View>
+
+                {/* Bar Track Container (strictly bounds vertical bar growth) */}
                 <View
                   style={{
-                    width: 20,
-                    height: `${heightPct}%`,
-                    backgroundColor: item.isCurrent ? colors.primary : colors.muted,
-                    borderRadius: tokens.radius.sm,
+                    height: CHART_TRACK_HEIGHT,
+                    width: '100%',
+                    justifyContent: 'flex-end',
+                    alignItems: 'center',
+                    paddingVertical: 2,
                   }}
-                />
-                <Text
-                  role="caption"
-                  color={item.isCurrent ? 'primary' : 'mutedForeground'}
-                  style={{ fontSize: 10, fontWeight: item.isCurrent ? '700' : '500' }}
                 >
-                  {item.dayLabel}
-                </Text>
+                  <View
+                    style={{
+                      width: 18,
+                      height: barHeight,
+                      backgroundColor: item.isCurrent ? colors.primary : colors.muted,
+                      borderRadius: tokens.radius.sm,
+                    }}
+                  />
+                </View>
+
+                {/* Day Label */}
+                <View style={{ height: 20, justifyContent: 'center', alignItems: 'center', marginTop: 4 }}>
+                  <Text
+                    role="caption"
+                    color={item.isCurrent ? 'primary' : 'mutedForeground'}
+                    style={{ fontSize: 11, fontWeight: item.isCurrent ? '700' : '500' }}
+                  >
+                    {item.dayLabel}
+                  </Text>
+                </View>
               </View>
             );
           })}

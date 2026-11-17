@@ -548,7 +548,7 @@ export function useMilkScreen() {
       }> = [];
 
       for (const r of rows) {
-        if (r.withholding || r.isSubmitted) continue;
+        if (r.withholding) continue;
         const sEntry = r.sessions?.[s];
         const yieldVal = sEntry?.yieldL ?? (s === session ? r.yieldL : null);
         if (typeof yieldVal === 'number' && yieldVal > 0) {
