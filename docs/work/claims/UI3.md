@@ -11,6 +11,7 @@ paths:
   - apps/mobile/test/milk-*.test.ts
   - apps/mobile/src/components/picker/**
   - apps/mobile/src/assets/icons/**
+  - apps/mobile/src/navigation/**
 shared:
   - apps/mobile/src/i18n/messages.ts
 depends_on: []
