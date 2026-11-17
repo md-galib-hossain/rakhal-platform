@@ -209,44 +209,41 @@ export function MilkScreenContent() {
               borderColor: colors.border,
             }}
           >
-            {/* Row 1: Date Trigger Pill */}
-            <PressableSurface
-              accessibilityRole="button"
-              accessibilityLabel={`${t('picker.singleDate')}: ${formattedDate}`}
-              pressedStyle="overlay"
-              onPress={() => setDatePickerVisible(true)}
-              testID="milk-date-pill"
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingHorizontal: tokens.spacing.sm,
-                paddingVertical: tokens.spacing.xs,
-                borderRadius: tokens.radius.md,
-                borderWidth: 1,
-                borderColor: colors.border,
-                backgroundColor: colors.background,
-                minHeight: tokens.touchTarget.min,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {/* Single Row: Date Trigger Pill + Search Input + Filter Button */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs + 2 }}>
+              {/* 1. Date Trigger Pill */}
+              <PressableSurface
+                accessibilityRole="button"
+                accessibilityLabel={`${t('picker.singleDate')}: ${formattedDate}`}
+                pressedStyle="overlay"
+                onPress={() => setDatePickerVisible(true)}
+                testID="milk-date-pill"
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: tokens.spacing.sm,
+                  borderRadius: tokens.radius.md,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.background,
+                  minHeight: tokens.touchTarget.min,
+                }}
+              >
                 <CalendarIcon size={16} color={colors.primary} />
-                <Text role="caption" color="foreground" style={{ fontWeight: '600' }} testID="milk-current-date">
+                <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 12 }} testID="milk-current-date">
                   {formattedDate}
                 </Text>
-              </View>
-              <CalendarIcon size={14} color={colors.mutedForeground} />
-            </PressableSurface>
+              </PressableSurface>
 
-            {/* Row 2: Search Input + Filter Button */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
+              {/* 2. Search Input */}
               <View
                 style={{
                   flex: 1,
                   flexDirection: 'row',
                   alignItems: 'center',
                   minHeight: tokens.touchTarget.min,
-                  paddingHorizontal: tokens.spacing.sm,
+                  paddingHorizontal: tokens.spacing.xs + 2,
                   backgroundColor: colors.background,
                   borderWidth: 1,
                   borderColor: colors.border,
@@ -254,7 +251,7 @@ export function MilkScreenContent() {
                   gap: tokens.spacing.xs,
                 }}
               >
-                <SearchIcon size={18} color={colors.mutedForeground} />
+                <SearchIcon size={16} color={colors.mutedForeground} />
                 <TextInput
                   testID="milk-search"
                   value={search}
@@ -264,7 +261,7 @@ export function MilkScreenContent() {
                   style={{
                     flex: 1,
                     color: colors.foreground,
-                    fontSize: 14,
+                    fontSize: 13,
                     paddingVertical: tokens.spacing.xs,
                   }}
                 />
@@ -279,7 +276,7 @@ export function MilkScreenContent() {
                 ) : null}
               </View>
 
-              {/* Dedicated Filter Button [ 🎚️ Filter ] */}
+              {/* 3. Dedicated Filter Button [ 🎚️ ] */}
               <PressableSurface
                 accessibilityRole="button"
                 accessibilityLabel={t('milk.filterTitle')}
@@ -289,26 +286,24 @@ export function MilkScreenContent() {
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: 6,
-                  paddingHorizontal: tokens.spacing.sm + 2,
+                  justifyContent: 'center',
+                  minWidth: tokens.touchTarget.min,
                   minHeight: tokens.touchTarget.min,
+                  paddingHorizontal: tokens.spacing.xs + 2,
                   borderRadius: tokens.radius.md,
                   borderWidth: 1,
                   borderColor: hasActiveFilters ? colors.primary : colors.border,
                   backgroundColor: hasActiveFilters ? colors.card : colors.background,
+                  position: 'relative',
                 }}
               >
-                <FilterIcon size={16} color={hasActiveFilters ? colors.primary : colors.foreground} />
-                <Text
-                  role="label"
-                  color={hasActiveFilters ? 'primary' : 'foreground'}
-                  style={{ fontWeight: '600' }}
-                >
-                  {t('common.filter')}
-                </Text>
+                <FilterIcon size={18} color={hasActiveFilters ? colors.primary : colors.mutedForeground} />
                 {hasActiveFilters ? (
                   <View
                     style={{
+                      position: 'absolute',
+                      top: 8,
+                      right: 8,
                       width: 6,
                       height: 6,
                       borderRadius: tokens.radius.full,
