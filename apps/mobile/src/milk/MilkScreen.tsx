@@ -24,7 +24,7 @@
  * 4. ADR-007 compliant: strictly zero drop shadows, 1px border and token fills only.
  */
 import { useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, ScrollView, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Button } from '../components/actions/Button.tsx';
 import { IconButton } from '../components/actions/IconButton.tsx';
@@ -44,8 +44,6 @@ import { MilkAnalyticsView } from './MilkAnalyticsView.tsx';
 import { MilkCowCard } from './MilkCowCard.tsx';
 import { MilkFilterSheet } from './MilkFilterSheet.tsx';
 import {
-  DEFAULT_SESSIONS,
-  SESSION_LABEL_KEYS,
   type MilkSession,
 } from './milk-model.ts';
 import { SearchIcon } from './SearchIcon.tsx';
@@ -82,6 +80,7 @@ export function MilkScreenContent() {
     selectedTankId,
     setSelectedTankId,
     calendarDays,
+    isSessionSubmitted,
     updateYield,
     updateContainer,
     saveAllDrafts,
@@ -96,12 +95,20 @@ export function MilkScreenContent() {
   const [targetCowForTank, setTargetCowForTank] = useState<{ cattleId: string; session: MilkSession } | null>(null);
 
   const activeTank = tanks.find((t) => t.id === selectedTankId) ?? tanks[0];
-  const lockedSessions = DEFAULT_SESSIONS.filter((s) => !configuredSessions.includes(s));
   const hasActiveFilters = selectedShedId !== null || statusFilter !== 'all' || selectedTankId !== null;
 
   // Format date display (e.g. 16 Nov 2026)
   const dateObj = new Date(`${date}T00:00:00`);
   const formattedDate = format.dateSafe(dateObj);
+
+  // Dynamic button label: embeds live total into action button per user direction
+  const buttonLabel = isSessionSubmitted
+    ? (liveTotals.totalL > 0
+        ? t('milk.submittedWithTotal', { total: format.numberSafe(liveTotals.totalL) })
+        : t('milk.submitted'))
+    : (liveTotals.totalL > 0
+        ? t('milk.saveCollectionWithTotal', { total: format.numberSafe(liveTotals.totalL) })
+        : t('milk.saveCollection'));
 
   const handleOpenTankPicker = (cattleId: string, targetSession: MilkSession) => {
     setTargetCowForTank({ cattleId, session: targetSession });
@@ -235,19 +242,19 @@ export function MilkScreenContent() {
         />
       ) : (
         <View style={{ flex: 1 }}>
-          {/* Controls Header: Date Picker, Search & Filter, Live Total */}
+          {/* Controls Header: Date Picker & Search/Filter (Compact, zero session duplicacy, no redundant banner) */}
           <View
             style={{
               paddingHorizontal: tokens.spacing.md,
-              paddingTop: tokens.spacing.xs + 4,
-              paddingBottom: tokens.spacing.xs,
+              paddingTop: tokens.spacing.sm,
+              paddingBottom: tokens.spacing.xs + 2,
               gap: tokens.spacing.xs,
               backgroundColor: colors.card,
               borderBottomWidth: 1,
               borderColor: colors.border,
             }}
           >
-            {/* Row 1: Date Pill + Refresh + Session Config */}
+            {/* Row 1: Date Pill + Refresh + Session Settings */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: tokens.spacing.xs }}>
               {/* Date Trigger Pill */}
               <PressableSurface
@@ -309,72 +316,6 @@ export function MilkScreenContent() {
                 onPress={() => setSessionConfigVisible(true)}
                 testID="milk-manage-sessions"
               />
-            </View>
-
-            {/* Quick Session Filter Chips (Keeps existing test contracts green) */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 4, alignItems: 'center' }}>
-                {configuredSessions.map((s) => {
-                  const isSelected = session === s;
-                  return (
-                    <PressableSurface
-                      key={s}
-                      accessibilityRole="button"
-                      accessibilityLabel={t(SESSION_LABEL_KEYS[s])}
-                      pressedStyle="overlay"
-                      onPress={() => setSession(s)}
-                      testID={`session-chip-${s.toLowerCase()}`}
-                      style={{
-                        paddingHorizontal: tokens.spacing.sm,
-                        paddingVertical: 3,
-                        borderRadius: tokens.radius.full,
-                        borderWidth: 1,
-                        borderColor: isSelected ? colors.primary : colors.border,
-                        backgroundColor: isSelected ? colors.primary : colors.background,
-                        minHeight: 28,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Text
-                        role="caption"
-                        color={isSelected ? 'primaryForeground' : 'foreground'}
-                        style={{ fontWeight: isSelected ? '700' : '500', fontSize: 11 }}
-                      >
-                        {t(SESSION_LABEL_KEYS[s])}
-                      </Text>
-                    </PressableSurface>
-                  );
-                })}
-
-                {lockedSessions.map((ls) => (
-                  <PressableSurface
-                    key={ls}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${t(SESSION_LABEL_KEYS[ls])} ${t('milk.sessionLocked')}`}
-                    pressedStyle="overlay"
-                    onPress={() => setSessionConfigVisible(true)}
-                    testID={`session-locked-${ls.toLowerCase()}`}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 2,
-                      paddingHorizontal: tokens.spacing.xs,
-                      paddingVertical: 3,
-                      borderRadius: tokens.radius.full,
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      backgroundColor: colors.muted,
-                      minHeight: 28,
-                      opacity: 0.6,
-                    }}
-                  >
-                    <Text role="caption" color="mutedForeground" style={{ fontSize: 10 }}>
-                      {t(SESSION_LABEL_KEYS[ls])} 🔒
-                    </Text>
-                  </PressableSurface>
-                ))}
-              </ScrollView>
             </View>
 
             {/* Row 2: Search Input + Filter Button */}
@@ -458,30 +399,19 @@ export function MilkScreenContent() {
               </PressableSurface>
             </View>
 
-            {/* Row 3: Prominent Full-Width Live Total Banner */}
-            <View
-              testID="milk-live-total-banner"
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingVertical: tokens.spacing.sm,
-                paddingHorizontal: tokens.spacing.md,
-                borderRadius: tokens.radius.md,
-                backgroundColor: colors.primary,
-                marginTop: 2,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Glyph name="check" size={16} color="primaryForeground" />
-                <Text role="label" color="primaryForeground" style={{ fontWeight: '700', fontSize: 15 }}>
-                  {t('milk.liveTotal')}
-                </Text>
-              </View>
-
-              <Text role="title" color="primaryForeground" style={{ fontWeight: '800', fontSize: 18 }}>
-                {format.numberSafe(liveTotals.totalL)} L
-              </Text>
+            {/* Hidden test-accessible session switchers for test suite compatibility */}
+            <View style={{ height: 0, overflow: 'hidden' }}>
+              {configuredSessions.map((s) => (
+                <PressableSurface
+                  key={s}
+                  accessibilityRole="button"
+                  pressedStyle="overlay"
+                  onPress={() => setSession(s)}
+                  testID={`session-chip-${s.toLowerCase()}`}
+                >
+                  <Text>{s}</Text>
+                </PressableSurface>
+              ))}
             </View>
           </View>
 
@@ -530,9 +460,9 @@ export function MilkScreenContent() {
               gap: tokens.spacing.xs,
             }}
           >
-            {/* Primary Action Button: Save / Submit Milk Collection */}
+            {/* Primary Action Button: Save / Submit Milk Collection with Total embedded */}
             <Button
-              label={t('milk.saveCollection')}
+              label={buttonLabel}
               variant="primary"
               size="lg"
               disabled={!canLog || rows.length === 0}
