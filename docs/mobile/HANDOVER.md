@@ -16,6 +16,7 @@ State: `main` at `b1bc14b2` (WP9 merged). All numbers below were true then.
 | WP8a | backend: per-route `Idempotency-Key` (`IdempotencyService`), milk-log `baseUpdatedAt` version check with `conflicts[]`, tolerant repeat answers for task complete and milk submit | `apps/api/src/common/idempotency`, `modules/milk`, `modules/task`, `modules/health` |
 | WP8b | SQLite outbox, sync loop, pull cache, header `SyncStatusPill` + sheet, sign-out guard | `apps/mobile/src/offline` |
 | WP9 | read-only cattle list (local search) and cattle detail, offline fallback | `apps/mobile/src/cattle` |
+| WP10 | offline milk log, dynamic sessions, withholding block, ghost yields, 5s undo toast, queued submit, conflict resolution | `apps/mobile/src/milk`, `app/(tabs)/milk.tsx` |
 
 How the offline layer works, in one paragraph: a screen calls `useSync().enqueue({ endpoint, method, path, body, dependsOn? })`; the row is stored in SQLite and sent in order, one at a time, with the row's UUID as `Idempotency-Key`; network and 5xx errors retry with backoff, 4xx fail only that row (kept and shown), a milk save the server partly refused becomes a `conflict` row. After the queue drains the engine pulls sheds, milk tanks, cattle and tasks (+-30 days) into `cache_rows`; screens read them with `useSync().readCache(entity, { search, limit })`. `useSync().snapshot` has the pill numbers and `lastSyncedAt`. Full detail: ADR-006 "Implementation notes".
 
