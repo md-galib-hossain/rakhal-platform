@@ -57,7 +57,7 @@ export function Button({
 }: ButtonProps) {
   const { colors } = useTheme();
   const metrics = BUTTON_METRICS[size ?? defaultButtonSize(variant)];
-  const look = buttonColors(variant, disabled);
+  const look = buttonColors(variant, disabled && !loading);
   const pressedFill = pressedFillName(variant);
 
   return (
@@ -83,6 +83,7 @@ export function Button({
         borderRadius: radius.md,
         backgroundColor: look.fill === 'transparent' ? 'transparent' : colors[look.fill],
         borderColor: look.border === 'transparent' ? 'transparent' : colors[look.border],
+        opacity: loading ? 0.65 : 1,
       }}
     >
       {loading ? (
@@ -97,7 +98,7 @@ export function Button({
       ) : leadingIcon ? (
         <Glyph name={leadingIcon} size={BUTTON_ICON_SIZE} color={look.label} />
       ) : null}
-      <Text role="button" color={look.label} script={script} style={{ flexGrow: 1, flexShrink: 1, textAlign: 'center' }}>
+      <Text role="button" color={look.label} script={script} style={{ flexShrink: 1, textAlign: 'center' }}>
         {label}
       </Text>
     </PressableSurface>

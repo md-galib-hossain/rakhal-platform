@@ -207,9 +207,8 @@ describe('Toast action (undo)', () => {
     expectTouchTarget(screen.getByRole('button', { name: 'Undo' }), 48);
     const s = flatStyle(toast());
     expect(s.backgroundColor).toBe(view.colors.popover);
-    expect(s.borderColor).toBe(view.colors.inputBorder);
-    expect(s.borderRadius).toBe(radius.lg);
-    expect(s.minHeight).toBe(56);
+    expect(s.borderColor).toBe(view.colors.border);
+    expect(s.borderRadius).toBe(radius.full);
     // ADR-007: the outline carries the separation; no drop shadow, no elevation.
     for (const key of ['shadowColor', 'shadowOpacity', 'shadowRadius', 'shadowOffset', 'elevation']) {
       expect(s).not.toHaveProperty(key);

@@ -118,7 +118,7 @@ describe('Button colours in both themes', () => {
     const c = allColors[scheme];
     const expected: Record<ButtonVariant, { bg: string; border: string; label: string }> = {
       primary: { bg: c.primary, border: c.primary, label: c.primaryForeground },
-      secondary: { bg: c.secondary, border: c.inputBorder, label: c.secondaryForeground },
+      secondary: { bg: c.secondary, border: c.border, label: c.secondaryForeground },
       destructive: { bg: c.destructive, border: c.destructive, label: c.destructiveForeground },
       ghost: { bg: 'transparent', border: 'transparent', label: c.foreground },
     };
@@ -142,9 +142,16 @@ describe('Button colours in both themes', () => {
     }
   });
 
-  it.each(['light', 'dark'] as const)('loading keeps the variant look, not the disabled look (%s)', async (scheme) => {
+  it.each(['light', 'dark'] as const)('loading keeps the variant look, not the disabled look, with 0.65 opacity (%s)', async (scheme) => {
     await mount(<Button testID="b" label="Go" loading onPress={() => {}} />, { scheme });
     expect(flatStyle(button()).backgroundColor).toBe(allColors[scheme].primary);
+    expect(flatStyle(button()).opacity).toBe(0.65);
+  });
+
+  it('loading keeps variant look and softened opacity even if disabled=true', async () => {
+    await mount(<Button testID="b" label="Go" loading disabled onPress={() => {}} />);
+    expect(flatStyle(button()).backgroundColor).toBe(allColors.light.primary);
+    expect(flatStyle(button()).opacity).toBe(0.65);
   });
 });
 

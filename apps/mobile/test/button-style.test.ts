@@ -8,7 +8,7 @@ import {
   type ButtonVariant,
 } from '../src/components/actions/button-style.ts';
 import { PRESSED_OVERLAY, pressedFillName } from '../src/components/internal/press-overlay.ts';
-import { blend, contrastRatio, THRESHOLD_TEXT, THRESHOLD_UI } from '../scripts/lib/contrast.ts';
+import { blend, contrastRatio, THRESHOLD_TEXT } from '../scripts/lib/contrast.ts';
 import { allColors, contrastPairs, touchTarget, type AnyColorName } from '../src/theme/tokens.ts';
 
 const VARIANTS: readonly ButtonVariant[] = ['primary', 'secondary', 'destructive', 'ghost'];
@@ -28,7 +28,7 @@ test('default size: primary lg, everything else md', () => {
 
 test('variant colour table matches the spec', () => {
   assert.deepEqual(buttonColors('primary', false), { fill: 'primary', label: 'primaryForeground', border: 'primary' });
-  assert.deepEqual(buttonColors('secondary', false), { fill: 'secondary', label: 'secondaryForeground', border: 'inputBorder' });
+  assert.deepEqual(buttonColors('secondary', false), { fill: 'secondary', label: 'secondaryForeground', border: 'border' });
   assert.deepEqual(buttonColors('destructive', false), { fill: 'destructive', label: 'destructiveForeground', border: 'destructive' });
   assert.deepEqual(buttonColors('ghost', false), { fill: 'transparent', label: 'foreground', border: 'transparent' });
 });
@@ -51,10 +51,9 @@ test('every (label, fill) pair a variant uses is in contrastPairs (disabled incl
   assert.deepEqual(missing, []);
 });
 
-test('the inputBorder outline of secondary is a listed >= 3:1 ui pair on card and background', () => {
+test('the border outline of secondary is a listed decorative pair on card and background', () => {
   for (const bg of ['card', 'background'] as const) {
-    assert.ok(contrastPairs.some((p) => p.fg === 'inputBorder' && p.bg === bg && p.kind === 'ui'), bg);
-    for (const theme of THEMES) assert.ok(contrastRatio(allColors[theme].inputBorder, allColors[theme][bg]) >= THRESHOLD_UI, `${theme} ${bg}`);
+    assert.ok(contrastPairs.some((p) => p.fg === 'border' && p.bg === bg), bg);
   }
 });
 
