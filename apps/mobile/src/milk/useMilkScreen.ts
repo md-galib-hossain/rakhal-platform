@@ -47,6 +47,7 @@ export function useMilkScreen() {
   const [rawMilkLogs, setRawMilkLogs] = useState<Record<string, unknown>[]>([]);
   const [outboxRows, setOutboxRows] = useState<OutboxRow[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Tanks state
   const [tanks, setTanks] = useState<MilkTankOption[]>([]);
@@ -537,32 +538,34 @@ export function useMilkScreen() {
 
   // Save all entered drafts across sessions
   const saveAllDrafts = useCallback(async () => {
+    if (isSaving || isSubmitting) return;
+    setIsSaving(true);
     let savedAny = false;
 
-    for (const s of configuredSessions) {
-      const entriesToSave: Array<{
-        cattleId: string;
-        yieldL: number | null;
-        baseUpdatedAt: string | null;
-        tankId?: string | null;
-      }> = [];
+    try {
+      for (const s of configuredSessions) {
+        const entriesToSave: Array<{
+          cattleId: string;
+          yieldL: number | null;
+          baseUpdatedAt: string | null;
+          tankId?: string | null;
+        }> = [];
 
-      for (const r of rows) {
-        if (r.withholding) continue;
-        const sEntry = r.sessions?.[s];
-        const yieldVal = sEntry?.yieldL ?? (s === session ? r.yieldL : null);
-        if (typeof yieldVal === 'number' && yieldVal > 0) {
-          entriesToSave.push({
-            cattleId: r.cattleId,
-            yieldL: yieldVal,
-            baseUpdatedAt: r.baseUpdatedAt,
-            tankId: sEntry?.tankId ?? tankOverrides[r.cattleId]?.[s] ?? selectedTankId,
-          });
+        for (const r of rows) {
+          if (r.withholding) continue;
+          const sEntry = r.sessions?.[s];
+          const yieldVal = sEntry?.yieldL ?? (s === session ? r.yieldL : null);
+          if (typeof yieldVal === 'number' && yieldVal > 0) {
+            entriesToSave.push({
+              cattleId: r.cattleId,
+              yieldL: yieldVal,
+              baseUpdatedAt: r.baseUpdatedAt,
+              tankId: sEntry?.tankId ?? tankOverrides[r.cattleId]?.[s] ?? selectedTankId,
+            });
+          }
         }
-      }
 
-      if (entriesToSave.length > 0) {
-        try {
+        if (entriesToSave.length > 0) {
           const queued = await sync.enqueue({
             endpoint: 'milk.saveLog',
             method: 'POST',
@@ -575,24 +578,104 @@ export function useMilkScreen() {
           });
           lastSaveLocalId.current = queued.localId;
           savedAny = true;
-        } catch (err) {
-          console.warn('Failed to queue milk draft save for session', s, err);
         }
       }
-    }
 
-    if (savedAny) {
+      if (savedAny) {
+        reloadData();
+        toast.show({
+          message: t('milk.saveSuccess'),
+          tone: 'success',
+          bottomOffset: 90,
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to queue milk draft save', err);
+      toast.show({
+        message: t('milk.saveFailed'),
+        tone: 'error',
+        bottomOffset: 90,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [configuredSessions, rows, session, tankOverrides, selectedTankId, sync, date, reloadData, toast, t, isSaving, isSubmitting]);
+
+  // Save collection (entries + submit session) with robust feedback
+  const saveCollection = useCallback(async () => {
+    if (isSaving || isSubmitting) return;
+    setIsSaving(true);
+
+    try {
+      for (const s of configuredSessions) {
+        const entriesToSave: Array<{
+          cattleId: string;
+          yieldL: number | null;
+          baseUpdatedAt: string | null;
+          tankId?: string | null;
+        }> = [];
+
+        for (const r of rows) {
+          if (r.withholding) continue;
+          const sEntry = r.sessions?.[s];
+          const yieldVal = sEntry?.yieldL ?? (s === session ? r.yieldL : null);
+          if (typeof yieldVal === 'number' && yieldVal > 0) {
+            entriesToSave.push({
+              cattleId: r.cattleId,
+              yieldL: yieldVal,
+              baseUpdatedAt: r.baseUpdatedAt,
+              tankId: sEntry?.tankId ?? tankOverrides[r.cattleId]?.[s] ?? selectedTankId,
+            });
+          }
+        }
+
+        if (entriesToSave.length > 0) {
+          const queued = await sync.enqueue({
+            endpoint: 'milk.saveLog',
+            method: 'POST',
+            path: '/milk/log',
+            body: {
+              date,
+              session: s,
+              entries: entriesToSave,
+            },
+          });
+          lastSaveLocalId.current = queued.localId;
+        }
+      }
+
+      // Also submit current session
+      await sync.enqueue({
+        endpoint: 'milk.submit',
+        method: 'POST',
+        path: '/milk/submit',
+        body: {
+          date,
+          session,
+        },
+      });
+
       reloadData();
       toast.show({
-        message: t('milk.draftSaved'),
+        message: t('milk.saveSuccess'),
         tone: 'success',
+        bottomOffset: 90,
       });
+    } catch (err) {
+      console.warn('Failed to save milk collection', err);
+      toast.show({
+        message: t('milk.saveFailed'),
+        tone: 'error',
+        bottomOffset: 90,
+      });
+    } finally {
+      setIsSaving(false);
     }
-  }, [configuredSessions, rows, session, tankOverrides, selectedTankId, sync, date, reloadData, toast, t]);
+  }, [configuredSessions, rows, session, tankOverrides, selectedTankId, sync, date, reloadData, toast, t, isSaving, isSubmitting]);
 
   // Submit current session
   const submitSession = useCallback(async () => {
-    if (isSubmitting || isSessionSubmitted) return;
+    if (isSubmitting || isSaving) return;
     setIsSubmitting(true);
     try {
       await sync.enqueue({
@@ -606,15 +689,21 @@ export function useMilkScreen() {
       });
       reloadData();
       toast.show({
-        message: t('milk.submitted'),
+        message: t('milk.saveSuccess'),
         tone: 'success',
+        bottomOffset: 90,
       });
     } catch (err) {
       console.warn('Failed to queue milk submit', err);
+      toast.show({
+        message: t('milk.saveFailed'),
+        tone: 'error',
+        bottomOffset: 90,
+      });
     } finally {
       setIsSubmitting(false);
     }
-  }, [isSubmitting, isSessionSubmitted, sync, date, session, reloadData, toast, t]);
+  }, [isSubmitting, isSaving, sync, date, session, reloadData, toast, t]);
 
   return {
     activeTab,
@@ -643,9 +732,11 @@ export function useMilkScreen() {
     calendarDays,
     isSessionSubmitted,
     isSubmitting,
+    isSaving,
     updateYield,
     updateContainer,
     saveAllDrafts,
+    saveCollection,
     submitSession,
     reloadData,
   };
