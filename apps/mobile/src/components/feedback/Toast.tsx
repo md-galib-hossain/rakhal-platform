@@ -3,9 +3,9 @@
  * id. Callers pass already-formatted strings (undo: `{ message, action: { label: t('toast.undo'), onPress: revert } }`;
  * pressing the action runs `onPress` then dismisses).
  *
- * - Surface: `popover` fill, `inputBorder` outline, `radius.lg`, no shadow (ADR-007), minHeight 56, `spacing.lg` side
- *   margins, `insets.bottom + 16 + bottomOffset` above the bottom (`bottomOffset` per toast, else the provider default,
- *   so a screen with a sticky bar / the tab bar can clear it).
+ * - Surface: `popover` fill, `border` outline, `radius.full` pill, no shadow (ADR-007), centered floating pill,
+ *   `spacing.lg` side margins, `insets.bottom + 16 + bottomOffset` above the bottom (`bottomOffset` per toast, else
+ *   the provider default, so a screen with a sticky bar / the tab bar can clear it).
  * - Timing (toast-timing.ts): 4s plain, 5s with action, 6s error, 0 = persistent (shows a close IconButton). For
  *   screen-reader users the window is extended (Android recommended timeout, else x3). Touches never cancel the timer.
  * - A11y: live region polite (assertive for error), `alert` role for error, plus one announceForAccessibility on show.
@@ -202,7 +202,17 @@ function ToastView({ toast, defaultBottomOffset, reduceMotion, onDismiss, onExit
   const bottom = toastBottom(insets.bottom, options.bottomOffset ?? defaultBottomOffset);
 
   return (
-    <View pointerEvents="box-none" style={{ position: 'absolute', left: spacing.lg, right: spacing.lg, bottom }} testID="toast-host">
+    <View
+      pointerEvents="box-none"
+      style={{
+        position: 'absolute',
+        left: spacing.lg,
+        right: spacing.lg,
+        bottom,
+        alignItems: 'center',
+      }}
+      testID="toast-host"
+    >
       <Animated.View
         testID="toast"
         accessible={false}
@@ -211,20 +221,22 @@ function ToastView({ toast, defaultBottomOffset, reduceMotion, onDismiss, onExit
         style={{
           opacity: progress,
           transform: [{ translateY }],
-          minHeight: 56,
+          alignSelf: 'center',
           flexDirection: 'row',
           alignItems: 'center',
-          gap: spacing.md,
-          paddingVertical: spacing.sm,
-          paddingHorizontal: spacing.md,
+          justifyContent: 'center',
+          gap: spacing.sm,
+          paddingVertical: spacing.sm + 2,
+          paddingHorizontal: spacing.lg,
           backgroundColor: colors.popover,
           borderWidth: 1,
-          borderColor: colors.inputBorder,
-          borderRadius: radius.lg,
+          borderColor: colors.border,
+          borderRadius: radius.full,
+          maxWidth: '100%',
         }}
       >
         <Glyph name={look.glyph} size={20} color={look.color} testID="toast-glyph" />
-        <View style={{ flex: 1 }}>
+        <View style={{ flexShrink: 1 }}>
           <Text role="body" color="popoverForeground">
             {message}
           </Text>

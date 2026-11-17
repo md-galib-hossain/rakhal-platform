@@ -156,7 +156,7 @@ export function MilkScreenContent() {
           >
             <Glyph name="info" size={16} color="infoText" />
             <Text role="caption" color="mutedForeground" style={{ flex: 1 }}>
-              {t('milk.submittedOfflineNote')}
+              {t('milk.savedOfflineNote')}
             </Text>
           </View>
         ) : null}
@@ -239,7 +239,7 @@ export function MilkScreenContent() {
 
         {canLog ? (
           <Button
-            label={isSessionSubmitted ? t('milk.submitted') : t('milk.submit')}
+            label={isSubmitting ? t('milk.saving') : isSessionSubmitted ? t('milk.saved') : t('milk.save')}
             variant="primary"
             size="md"
             fullWidth={false}

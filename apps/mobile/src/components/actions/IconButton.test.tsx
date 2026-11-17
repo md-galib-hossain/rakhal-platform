@@ -81,7 +81,7 @@ describe('IconButton', () => {
     const c = allColors[scheme];
     const cases = [
       ['primary', c.primary, c.primary],
-      ['secondary', c.secondary, c.inputBorder],
+      ['secondary', c.secondary, c.border],
       ['ghost', 'transparent', 'transparent'],
     ] as const;
     for (const [variant, bg, border] of cases) {

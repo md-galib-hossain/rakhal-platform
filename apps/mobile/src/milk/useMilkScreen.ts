@@ -363,7 +363,7 @@ export function useMilkScreen() {
       });
       reloadData();
       toast.show({
-        message: t('milk.submitted'),
+        message: t('milk.saved'),
         tone: 'success',
       });
     } catch (err) {

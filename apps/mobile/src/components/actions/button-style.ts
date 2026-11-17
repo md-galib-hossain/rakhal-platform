@@ -35,7 +35,7 @@ export interface ButtonColors {
 
 const ENABLED: Readonly<Record<ButtonVariant, ButtonColors>> = {
   primary: { fill: 'primary', label: 'primaryForeground', border: 'primary' },
-  secondary: { fill: 'secondary', label: 'secondaryForeground', border: 'inputBorder' },
+  secondary: { fill: 'secondary', label: 'secondaryForeground', border: 'border' },
   destructive: { fill: 'destructive', label: 'destructiveForeground', border: 'destructive' },
   ghost: { fill: 'transparent', label: 'foreground', border: 'transparent' },
 };
