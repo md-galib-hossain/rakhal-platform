@@ -21,6 +21,13 @@ export const SESSION_LABEL_KEYS: Record<MilkSession, MessageKey> = {
   NIGHT: 'milk.session.night',
 };
 
+export const SESSION_COMPACT_LABELS: Record<MilkSession, string> = {
+  MORNING: 'Morning',
+  NOON: 'Noon',
+  EVENING: 'Evening',
+  NIGHT: 'Night',
+};
+
 /**
  * Clock-based default session (HANDOVER.md section 4, WP10):
  * - 04:00 - 10:59: MORNING
@@ -45,6 +52,14 @@ export function defaultSessionByClock(now: Date = new Date(), configuredSessions
 
 export type MilkEntryStatus = 'saved' | 'waiting' | 'failed' | 'conflict';
 
+export interface MilkCowSessionEntry {
+  yieldL: number | null;
+  tankId?: string;
+  tankName?: string;
+  status?: MilkEntryStatus | null;
+  isSubmitted?: boolean;
+}
+
 export interface MilkCowRow {
   cattleId: string;
   tag: string;
@@ -55,6 +70,8 @@ export interface MilkCowRow {
   shedName?: string;
   withholding: boolean;
   withholdingReason?: string;
+  sessions?: Record<MilkSession, MilkCowSessionEntry>;
+  todayTotalL?: number;
   yieldL: number | null;
   prevDayYieldL?: number;
   avgYield7d?: number;
@@ -64,6 +81,16 @@ export interface MilkCowRow {
   outboxLocalId?: string;
   isSubmitted: boolean;
 }
+
+export interface MilkTotals {
+  totalL: number;
+  sellableL: number;
+  withheldL: number;
+  loggedCount: number;
+  totalCows: number;
+}
+
+export const QUICK_YIELD_PRESETS = [0.5, 1.0, 5.0] as const;
 
 /**
  * Check whether a yield reading represents an anomaly:

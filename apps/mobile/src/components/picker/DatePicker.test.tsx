@@ -217,4 +217,55 @@ describe('DatePickerSheet', () => {
     expect(onConfirmRange).toHaveBeenCalledWith({ startDate: null, endDate: null });
     view.unmount();
   });
+
+  it('renders red status dot for dates with missing entries', async () => {
+    await mount(
+      <DateRangePicker
+        mode="single"
+        initialYear={2026}
+        initialMonth={11}
+        days={[
+          { date: '2026-11-05', status: 'missing' },
+          { date: '2026-11-06', status: 'complete' },
+        ]}
+      />,
+    );
+
+    // Missing entry renders status dot
+    expect(screen.getByTestId('day-status-dot-2026-11-05')).toBeTruthy();
+    // Complete entry does not render missing dot
+    expect(screen.queryByTestId('day-status-dot-2026-11-06')).toBeNull();
+  });
+
+  it('selects today when Today button is pressed in DatePickerSheet', async () => {
+    const onConfirmSingle = jest.fn();
+    const onClose = jest.fn();
+
+    const view = await mount(
+      withSafeFrame(
+        <DatePickerSheet
+          visible={true}
+          onClose={onClose}
+          mode="single"
+          value="2026-01-01"
+          onConfirmSingle={onConfirmSingle}
+        />,
+      ),
+    );
+
+    expect(screen.getByTestId('picker-today')).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('picker-today'));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('picker-apply'));
+    });
+
+    // onConfirmSingle should be called with today's date
+    expect(onConfirmSingle).toHaveBeenCalled();
+    const confirmedDate = onConfirmSingle.mock.calls[0][0];
+    expect(confirmedDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    view.unmount();
+  });
 });

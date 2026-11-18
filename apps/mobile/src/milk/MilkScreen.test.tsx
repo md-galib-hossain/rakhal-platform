@@ -148,7 +148,7 @@ describe('MilkScreen', () => {
     await waitFor(() => expect(screen.getByTestId('permission-denied')).toBeTruthy());
   });
 
-  it('renders session chips, shed filters, cow cards, and summary when permitted', async () => {
+  it('renders session chips, cow cards, and summary when permitted', async () => {
     const h = syncHarness({
       handler: serverHandler(),
     });
@@ -158,8 +158,8 @@ describe('MilkScreen', () => {
     expect(screen.getByTestId('milk-current-date')).toBeTruthy();
     expect(screen.getByTestId('session-chip-morning')).toBeTruthy();
     expect(screen.getByTestId('session-chip-evening')).toBeTruthy();
-    expect(screen.getByTestId('shed-chip-all')).toBeTruthy();
     expect(screen.getByTestId('milk-search')).toBeTruthy();
+    expect(screen.getByTestId('milk-filter-button')).toBeTruthy();
 
     // Verify cows (dry cow c4_dry must be filtered out)
     await waitFor(() => expect(screen.getByTestId('milk-cow-card-c1')).toBeTruthy());
@@ -182,12 +182,12 @@ describe('MilkScreen', () => {
     expect(screen.getByTestId('milk-withholding-c3_withheld')).toBeTruthy();
     expect(screen.getByText('Mastitis treatment')).toBeTruthy();
 
-    // Stepper buttons for withheld cow should be disabled
-    const plusBtn = screen.getByTestId('milk-stepper-c3_withheld-plus');
-    expect(plusBtn.props.accessibilityState?.disabled).toBe(true);
+    // Input for withheld cow should be disabled
+    const input = screen.getByTestId('milk-stepper-c3_withheld-input');
+    expect(input.props.editable).toBe(false);
   });
 
-  it('queues a milk.saveLog write with baseUpdatedAt on yield change and shows 5s undo toast', async () => {
+  it('queues a milk.saveLog write with baseUpdatedAt on yield change and does NOT trigger undo toast on typing', async () => {
     const h = syncHarness({
       handler: serverHandler(),
     });
@@ -200,10 +200,10 @@ describe('MilkScreen', () => {
       fireEvent.press(screen.getByTestId('session-chip-morning'));
     });
 
-    // Step up yield on c2
-    const plusBtn = screen.getByTestId('milk-stepper-c2-plus');
+    // Enter yield via numeric input on c2
+    const input = screen.getByTestId('milk-stepper-c2-input');
     await act(async () => {
-      fireEvent.press(plusBtn);
+      fireEvent.changeText(input, '5.5');
     });
 
     // Check that write was queued
@@ -217,15 +217,15 @@ describe('MilkScreen', () => {
         entries: [
           {
             cattleId: 'c2',
-            yieldL: 0.5,
+            yieldL: 5.5,
             baseUpdatedAt: null,
           },
         ],
       });
     });
 
-    // Check undo toast is displayed
-    expect(screen.getByText('Undo')).toBeTruthy();
+    // Verify NO undo toast is shown on typing (requirement 1)
+    expect(screen.queryByText('Undo')).toBeNull();
   });
 
   it('submits session with milk.submit when submit button is pressed', async () => {
@@ -255,7 +255,7 @@ describe('MilkScreen', () => {
     });
   });
 
-  it('filters by shed and search query', async () => {
+  it('filters by shed and search query via filter sheet and search input', async () => {
     const h = syncHarness({
       handler: serverHandler(),
     });
@@ -263,16 +263,29 @@ describe('MilkScreen', () => {
 
     await waitFor(() => expect(screen.getByTestId('milk-cow-card-c1')).toBeTruthy());
 
+    // Open filter sheet
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('milk-filter-button'));
+    });
+    await waitFor(() => expect(screen.getByTestId('milk-filter-sheet')).toBeTruthy());
+
     // Select Shed 2 (Barn B)
     await act(async () => {
-      fireEvent.press(screen.getByTestId('shed-chip-shed-2'));
+      fireEvent.press(screen.getByTestId('filter-shed-shed-2'));
     });
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('filter-apply-btn'));
+    });
+
     await waitFor(() => expect(screen.queryByTestId('milk-cow-card-c1')).toBeNull());
     expect(screen.getByTestId('milk-cow-card-c2')).toBeTruthy();
 
-    // Select All sheds again
+    // Reset filters
     await act(async () => {
-      fireEvent.press(screen.getByTestId('shed-chip-all'));
+      fireEvent.press(screen.getByTestId('milk-filter-button'));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('filter-reset-btn'));
     });
     await waitFor(() => expect(screen.getByTestId('milk-cow-card-c1')).toBeTruthy());
 
@@ -282,5 +295,96 @@ describe('MilkScreen', () => {
     });
     await waitFor(() => expect(screen.queryByTestId('milk-cow-card-c2')).toBeNull());
     expect(screen.getByTestId('milk-cow-card-c1')).toBeTruthy();
+  });
+
+  it('opens DatePickerSheet when date pill is tapped', async () => {
+    const h = syncHarness({
+      handler: serverHandler(),
+    });
+    await renderMilkScreen(h);
+
+    await waitFor(() => expect(screen.getByTestId('milk-date-pill')).toBeTruthy());
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('milk-date-pill'));
+    });
+
+    await waitFor(() => expect(screen.getByTestId('milk-date-picker-sheet')).toBeTruthy());
+  });
+
+  it('updates yield from numeric input field and reactively updates totals', async () => {
+    const h = syncHarness({
+      handler: serverHandler(),
+    });
+    await renderMilkScreen(h);
+
+    await waitFor(() => expect(screen.getByTestId('milk-cow-card-c2')).toBeTruthy());
+    const input = screen.getByTestId('milk-stepper-c2-input');
+
+    await act(async () => {
+      fireEvent.changeText(input, '10.0');
+    });
+
+    await waitFor(() => {
+      const writes = h.writes();
+      const lastWrite = writes[writes.length - 1];
+      expect(lastWrite?.body).toMatchObject({
+        entries: [
+          {
+            cattleId: 'c2',
+            yieldL: 10.0,
+          },
+        ],
+      });
+    });
+  });
+
+  it('opens SessionConfigSheet and MilkFilterSheet from header controls', async () => {
+    const h = syncHarness({
+      handler: serverHandler(),
+    });
+    await renderMilkScreen(h);
+
+    // Open SessionConfigSheet
+    await waitFor(() => expect(screen.getByTestId('milk-manage-sessions')).toBeTruthy());
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('milk-manage-sessions'));
+    });
+    await waitFor(() => expect(screen.getByTestId('milk-session-config-sheet')).toBeTruthy());
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('session-config-close'));
+    });
+
+    // Open MilkFilterSheet
+    await waitFor(() => expect(screen.getByTestId('milk-filter-button')).toBeTruthy());
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('milk-filter-button'));
+    });
+    await waitFor(() => expect(screen.getByTestId('milk-filter-sheet')).toBeTruthy());
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('filter-sheet-close'));
+    });
+  });
+
+  it('saves all drafts when Save Draft button is pressed', async () => {
+    const h = syncHarness({
+      handler: serverHandler(),
+    });
+    await renderMilkScreen(h);
+
+    // Enter a yield so Save Draft appears
+    await waitFor(() => expect(screen.getByTestId('milk-cow-card-c2')).toBeTruthy());
+    await act(async () => {
+      fireEvent.changeText(screen.getByTestId('milk-stepper-c2-input'), '8.0');
+    });
+
+    await waitFor(() => expect(screen.getByTestId('milk-save-draft-btn')).toBeTruthy());
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('milk-save-draft-btn'));
+    });
+
+    await waitFor(() => {
+      const saves = h.writes().filter((w) => w.url.endsWith('/milk/log'));
+      expect(saves.length).toBeGreaterThan(0);
+    });
   });
 });

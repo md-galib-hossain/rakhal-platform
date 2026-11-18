@@ -8,7 +8,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { Text } from '../components/primitives/Text.tsx';
-import { SyncStatusPill } from '../offline/SyncStatusPill.tsx';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 
@@ -50,7 +49,6 @@ export function AppHeader() {
           {title}
         </Text>
       </PressableSurface>
-      <SyncStatusPill />
       <PressableSurface
         accessibilityRole="button"
         accessibilityLabel={t('common.language')}

@@ -11,7 +11,7 @@
  * - Light and dark theme tokens (teal theme)
  * - ADR-007 compliant (no drop shadows)
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { applyDigits, farmDayKey } from '@rakhal/domain';
 import { Glyph } from '../internal/Glyph.tsx';
@@ -36,6 +36,13 @@ export interface DateRange {
   endDate: string | null;
 }
 
+export type PickerDayStatus = 'complete' | 'missing' | 'none' | string;
+
+export interface PickerDayEntry {
+  date: string;
+  status: PickerDayStatus;
+}
+
 export interface DateRangePickerProps {
   mode?: 'single' | 'range';
   /** Value for single mode ("YYYY-MM-DD") */
@@ -48,6 +55,8 @@ export interface DateRangePickerProps {
   maxDate?: string;
   initialYear?: number;
   initialMonth?: number; // 1-12
+  /** Optional entry status information per calendar day (e.g. missing entry red dots) */
+  days?: PickerDayEntry[];
   testID?: string;
 }
 
@@ -61,6 +70,7 @@ export function DateRangePicker({
   maxDate,
   initialYear,
   initialMonth,
+  days,
   testID,
 }: DateRangePickerProps) {
   const { colors, tokens } = useTheme();
@@ -75,6 +85,30 @@ export function DateRangePicker({
 
   const [currentYear, setCurrentYear] = useState(initialYear ?? parsedStart.year);
   const [currentMonth, setCurrentMonth] = useState(initialMonth ?? parsedStart.month);
+
+  // Sync displayed month/year when selection jumps (e.g. via Today shortcut)
+  const prevTargetRef = useRef(startRef);
+  useEffect(() => {
+    const target = mode === 'single' ? value : range.startDate;
+    if (target && target !== prevTargetRef.current) {
+      prevTargetRef.current = target;
+      const parsed = parseDateKey(target);
+      if (parsed) {
+        setCurrentYear((prevY) => (prevY !== parsed.year ? parsed.year : prevY));
+        setCurrentMonth((prevM) => (prevM !== parsed.month ? parsed.month : prevM));
+      }
+    }
+  }, [value, range.startDate, mode]);
+
+  // Map of date string -> status for fast grid lookup
+  const statusByDate = useMemo(() => {
+    if (!days || days.length === 0) return null;
+    const map = new Map<string, PickerDayStatus>();
+    for (const d of days) {
+      map.set(d.date, d.status);
+    }
+    return map;
+  }, [days]);
 
   const prevMonth = () => {
     if (currentMonth === 1) {
@@ -210,6 +244,7 @@ export function DateRangePicker({
           const hasRangeConnected = Boolean(range.startDate && range.endDate && range.startDate !== range.endDate);
 
           const isSelected = isSingleSelected || isStart || isEnd;
+          const dayStatus = statusByDate?.get(dateKey);
 
           // Range background connector:
           // If start and range connected: right half filled
@@ -299,6 +334,19 @@ export function DateRangePicker({
                   >
                     {applyDigits(String(day), digits)}
                   </Text>
+                  {dayStatus === 'missing' ? (
+                    <View
+                      testID={`day-status-dot-${dateKey}`}
+                      style={{
+                        position: 'absolute',
+                        bottom: 2,
+                        width: 4,
+                        height: 4,
+                        borderRadius: 2,
+                        backgroundColor: colors.destructive,
+                      }}
+                    />
+                  ) : null}
                 </View>
               </PressableSurface>
             </View>
