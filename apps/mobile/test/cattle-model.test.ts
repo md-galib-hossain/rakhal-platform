@@ -4,9 +4,13 @@ import { ageFrom, fromCacheItem, parseProfile, withOverview } from '../src/cattl
 import {
   ageInMonths,
   cattleTitle,
+  computeCategoryCounts,
+  computeCattleHighlights,
   healthBadge,
   humanize,
   isStale,
+  lactationBadge,
+  matchesCategoryChip,
   primaryBadge,
   productionBadge,
   reproBadge,
@@ -145,4 +149,83 @@ test('the offline fallback keeps what the cache knows and leaves the rest null',
   assert.deepEqual(detail.age, { years: 2, months: 0 });
   assert.equal(detail.shedName, null);
   assert.equal(detail.avgDailyYield7d, null);
+});
+
+test('toCattleItem parses enriched metrics (aqrScore, lastWeightKg, shedName, lactationStage, nextEvent)', () => {
+  const item = toCattleItem({
+    id: 'c1',
+    tagNumber: 'T-100',
+    name: 'Padma',
+    gender: 'FEMALE',
+    aqrScore: 78,
+    lastWeightKg: 430,
+    shedName: 'Shed 1',
+    lactationStage: 'EARLY',
+    nextEvent: {
+      kind: 'CALVING',
+      urgency: 'OVERDUE',
+      actionable: true,
+      daysUntil: -2,
+      dueAt: '2026-11-13T00:00:00Z',
+      labelKey: 'cattle.upcoming.calving',
+    },
+  });
+  assert.ok(item);
+  assert.equal(item.aqrScore, 78);
+  assert.equal(item.lastWeightKg, 430);
+  assert.equal(item.shedName, 'Shed 1');
+  assert.equal(item.lactationStage, 'EARLY');
+  assert.deepEqual(item.nextEvent, {
+    kind: 'CALVING',
+    urgency: 'OVERDUE',
+    actionable: true,
+    daysUntil: -2,
+    dueAt: '2026-11-13T00:00:00Z',
+    labelKey: 'cattle.upcoming.calving',
+    labelParams: null,
+  });
+});
+
+test('computeCattleHighlights calculates active count, average AQR, breeding ready and milking cows', () => {
+  const items = [
+    toCattleItem({ id: 'c1', tagNumber: '1', gender: 'FEMALE', herdStatus: 'ACTIVE', aqrScore: 80, reproductiveStatus: 'OPEN', productionStatus: 'MILKING' })!,
+    toCattleItem({ id: 'c2', tagNumber: '2', gender: 'FEMALE', herdStatus: 'ACTIVE', aqrScore: 60, reproductiveStatus: 'PREGNANT', productionStatus: 'MILKING' })!,
+    toCattleItem({ id: 'c3', tagNumber: '3', gender: 'MALE', herdStatus: 'SOLD', aqrScore: 50, reproductiveStatus: 'NOT_ELIGIBLE', productionStatus: 'DRY' })!,
+  ];
+  const hl = computeCattleHighlights(items);
+  assert.equal(hl.totalActive, 2);
+  assert.equal(hl.avgHerdAqr, 63.3);
+  assert.equal(hl.breedingReadyCount, 1);
+  assert.equal(hl.milkingCount, 2);
+});
+
+test('category chips and counts filter correctly', () => {
+  const items = [
+    toCattleItem({ id: 'c1', tagNumber: '1', gender: 'FEMALE', animalCategory: 'COW', productionStatus: 'MILKING', reproductiveStatus: 'OPEN', healthStatus: 'HEALTHY' })!,
+    toCattleItem({ id: 'c2', tagNumber: '2', gender: 'FEMALE', animalCategory: 'HEIFER', productionStatus: 'DRY', reproductiveStatus: 'PREGNANT', healthStatus: 'SICK' })!,
+    toCattleItem({ id: 'c3', tagNumber: '3', gender: 'MALE', animalCategory: 'CALF', productionStatus: null, reproductiveStatus: null, healthStatus: 'HEALTHY' })!,
+  ];
+  const counts = computeCategoryCounts(items);
+  assert.equal(counts.ALL, 3);
+  assert.equal(counts.COW, 1);
+  assert.equal(counts.HEIFER, 1);
+  assert.equal(counts.CALF, 1);
+  assert.equal(counts.MALE, 1);
+  assert.equal(counts.FEMALE, 2);
+  assert.equal(counts.MILKING, 1);
+  assert.equal(counts.DRY, 1);
+  assert.equal(counts.PREGNANT, 1);
+  assert.equal(counts.OPEN, 1);
+  assert.equal(counts.SICK, 1);
+
+  assert.equal(matchesCategoryChip(items[0], 'COW'), true);
+  assert.equal(matchesCategoryChip(items[0], 'HEIFER'), false);
+  assert.equal(matchesCategoryChip(items[1], 'SICK'), true);
+});
+
+test('lactationBadge maps stages to tones/herdStates and labels', () => {
+  assert.equal(lactationBadge('FRESH')?.labelKey, 'cattle.lactation.fresh');
+  assert.equal(lactationBadge('MID')?.labelKey, 'cattle.lactation.mid');
+  assert.equal(lactationBadge('UNKNOWN')?.raw, 'UNKNOWN');
+  assert.equal(lactationBadge(null), null);
 });

@@ -8,6 +8,16 @@
 import type { MessageKey } from '../i18n/messages.ts';
 import type { HerdState, StatusTone } from '../components/display/status-style.ts';
 
+export interface CattleNextEvent {
+  kind: string;
+  urgency: string | null;
+  actionable?: boolean;
+  daysUntil: number | null;
+  dueAt: string | null;
+  labelKey: string | null;
+  labelParams?: Record<string, unknown> | null;
+}
+
 export interface CattleListItem {
   id: string;
   tagNumber: string;
@@ -15,17 +25,41 @@ export interface CattleListItem {
   gender: string | null;
   herdStatus: string | null;
   shedId: string | null;
+  shedName: string | null;
   productionStatus: string | null;
   healthStatus: string | null;
   animalCategory: string | null;
   reproductiveStatus: string | null;
   dateOfBirth: string | null;
   breedName: string | null;
+  aqrScore: number | null;
+  lastWeightKg: number | null;
+  lactationStage: string | null;
+  nextEvent: CattleNextEvent | null;
   updatedAt: string | null;
 }
 
 function text(value: unknown): string | null {
   return typeof value === 'string' && value.trim() !== '' ? value : null;
+}
+
+function num(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function parseNextEvent(value: unknown): CattleNextEvent | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const ev = value as Record<string, unknown>;
+  const kind = text(ev.kind) ?? 'TASK';
+  return {
+    kind,
+    urgency: text(ev.urgency),
+    actionable: ev.actionable !== false,
+    daysUntil: num(ev.daysUntil),
+    dueAt: text(ev.dueAt),
+    labelKey: text(ev.labelKey),
+    labelParams: typeof ev.labelParams === 'object' && ev.labelParams !== null ? (ev.labelParams as Record<string, unknown>) : null,
+  };
 }
 
 /** One cached row to a list item; null when the row has no id (never shown, never a crash). */
@@ -39,12 +73,17 @@ export function toCattleItem(row: Record<string, unknown>): CattleListItem | nul
     gender: text(row.gender),
     herdStatus: text(row.herdStatus),
     shedId: text(row.shedId),
+    shedName: text(row.shedName),
     productionStatus: text(row.productionStatus),
     healthStatus: text(row.healthStatus),
     animalCategory: text(row.animalCategory),
     reproductiveStatus: text(row.reproductiveStatus),
     dateOfBirth: text(row.dateOfBirth),
     breedName: text(row.breedName),
+    aqrScore: num(row.aqrScore),
+    lastWeightKg: num(row.lastWeightKg),
+    lactationStage: text(row.lactationStage),
+    nextEvent: parseNextEvent(row.nextEvent ?? row.next_event),
     updatedAt: text(row.updatedAt),
   };
 }
@@ -105,10 +144,129 @@ export function healthBadge(status: string | null): BadgeSpec | null {
 export function reproBadge(status: string | null): BadgeSpec | null {
   if (status === 'PREGNANT') return { herdState: 'pregnant', labelKey: 'cattle.repro.pregnant', raw: null };
   if (status === 'BRED_AWAITING_CONFIRMATION') return { herdState: 'insemination', labelKey: 'cattle.repro.bred', raw: null };
-  if (status === 'OPEN') return { tone: 'neutral', labelKey: 'cattle.repro.open', raw: null };
-  if (status === 'POSTPARTUM_WAITING') return { tone: 'neutral', labelKey: 'cattle.repro.postpartum', raw: null };
+  if (status === 'OPEN') return { tone: 'warning', labelKey: 'cattle.repro.open', raw: null };
+  if (status === 'POSTPARTUM_WAITING') return { tone: 'info', labelKey: 'cattle.repro.postpartum', raw: null };
   if (status === 'NOT_ELIGIBLE') return { tone: 'neutral', labelKey: 'cattle.repro.notEligible', raw: null };
   return status ? { tone: 'neutral', labelKey: null, raw: status } : null;
+}
+
+export function lactationBadge(stage: string | null): BadgeSpec | null {
+  if (stage === 'FRESH') return { herdState: 'fresh', labelKey: 'cattle.lactation.fresh', raw: null };
+  if (stage === 'EARLY') return { tone: 'success', labelKey: 'cattle.lactation.early', raw: null };
+  if (stage === 'MID') return { tone: 'info', labelKey: 'cattle.lactation.mid', raw: null };
+  if (stage === 'LATE') return { tone: 'warning', labelKey: 'cattle.lactation.late', raw: null };
+  if (stage === 'DRY_PERIOD') return { herdState: 'dry', labelKey: 'cattle.lactation.dryPeriod', raw: null };
+  return stage ? { tone: 'neutral', labelKey: null, raw: stage } : null;
+}
+
+export interface CattleHighlightsData {
+  totalActive: number;
+  avgHerdAqr: number | null;
+  breedingReadyCount: number;
+  milkingCount: number;
+}
+
+export function computeCattleHighlights(items: readonly CattleListItem[]): CattleHighlightsData {
+  const active = items.filter((c) => c.herdStatus === 'ACTIVE' || !c.herdStatus);
+  const totalActive = active.length;
+
+  const scored = items.filter((c) => c.aqrScore !== null && c.aqrScore !== undefined);
+  const avgHerdAqr =
+    scored.length > 0
+      ? Math.round((scored.reduce((sum, c) => sum + (c.aqrScore ?? 0), 0) / scored.length) * 10) / 10
+      : null;
+
+  const breedingReadyCount = items.filter(
+    (c) =>
+      c.gender === 'FEMALE' &&
+      (c.reproductiveStatus === 'OPEN' || c.reproductiveStatus === 'POSTPARTUM_WAITING'),
+  ).length;
+
+  const milkingCount = items.filter((c) => c.productionStatus === 'MILKING').length;
+
+  return {
+    totalActive,
+    avgHerdAqr,
+    breedingReadyCount,
+    milkingCount,
+  };
+}
+
+export const CATTLE_CATEGORY_CHIP_KEYS = [
+  'ALL',
+  'COW',
+  'HEIFER',
+  'CALF',
+  'WEANED',
+  'MALE',
+  'FEMALE',
+  'PREGNANT',
+  'MILKING',
+  'DRY',
+  'FRESH',
+  'OPEN',
+  'SICK',
+] as const;
+
+export type CattleCategoryChipKey = (typeof CATTLE_CATEGORY_CHIP_KEYS)[number];
+
+export function matchesCategoryChip(item: CattleListItem, key: CattleCategoryChipKey): boolean {
+  switch (key) {
+    case 'ALL':
+      return true;
+    case 'COW':
+      return item.animalCategory === 'COW';
+    case 'HEIFER':
+      return item.animalCategory === 'HEIFER';
+    case 'CALF':
+      return item.animalCategory === 'CALF';
+    case 'WEANED':
+      return item.animalCategory === 'WEANED';
+    case 'MALE':
+      return item.gender === 'MALE' || item.gender === 'CASTRATED_MALE';
+    case 'FEMALE':
+      return item.gender === 'FEMALE';
+    case 'PREGNANT':
+      return item.reproductiveStatus === 'PREGNANT';
+    case 'MILKING':
+      return item.productionStatus === 'MILKING';
+    case 'DRY':
+      return item.productionStatus === 'DRY';
+    case 'FRESH':
+      return item.lactationStage === 'FRESH';
+    case 'OPEN':
+      return item.reproductiveStatus === 'OPEN';
+    case 'SICK':
+      return item.healthStatus === 'SICK' || item.healthStatus === 'IN_TREATMENT' || item.healthStatus === 'QUARANTINE';
+    default:
+      return true;
+  }
+}
+
+export function computeCategoryCounts(items: readonly CattleListItem[]): Record<CattleCategoryChipKey, number> {
+  const counts = {
+    ALL: 0,
+    COW: 0,
+    HEIFER: 0,
+    CALF: 0,
+    WEANED: 0,
+    MALE: 0,
+    FEMALE: 0,
+    PREGNANT: 0,
+    MILKING: 0,
+    DRY: 0,
+    FRESH: 0,
+    OPEN: 0,
+    SICK: 0,
+  };
+  for (const item of items) {
+    for (const k of CATTLE_CATEGORY_CHIP_KEYS) {
+      if (matchesCategoryChip(item, k)) {
+        counts[k] += 1;
+      }
+    }
+  }
+  return counts;
 }
 
 const CATEGORY_KEYS: Record<string, MessageKey> = {

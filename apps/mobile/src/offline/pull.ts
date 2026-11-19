@@ -97,6 +97,18 @@ export function buildPullSpecs(now: number): PullSpec[] {
       project(row) {
         const id = str(row.id);
         if (!id || row.deletedAt) return null;
+        const nextEvRaw = record(row.next_event) ?? record(row.nextEvent);
+        const nextEvent = nextEvRaw
+          ? {
+              kind: str(nextEvRaw.kind) ?? 'TASK',
+              urgency: str(nextEvRaw.urgency),
+              actionable: nextEvRaw.actionable !== false,
+              daysUntil: num(nextEvRaw.daysUntil),
+              dueAt: str(nextEvRaw.dueAt),
+              labelKey: str(nextEvRaw.labelKey),
+              labelParams: record(nextEvRaw.labelParams),
+            }
+          : null;
         return {
           id,
           search: lower(row.tagNumber, row.name),
@@ -113,6 +125,11 @@ export function buildPullSpecs(now: number): PullSpec[] {
             reproductiveStatus: row.reproductiveStatus ?? null,
             dateOfBirth: row.dateOfBirth ?? null,
             breedName: str(record(row.breed)?.name),
+            aqrScore: num(row.aqrScore),
+            lastWeightKg: num(row.lastWeightKg),
+            shedName: str(record(row.shed)?.name) ?? str(row.shedName),
+            lactationStage: str(row.lactationStage),
+            nextEvent,
             updatedAt: row.updatedAt ?? null,
           },
         };

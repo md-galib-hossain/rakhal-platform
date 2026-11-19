@@ -53,6 +53,61 @@ test('cattle are pulled page by page by cursor and projected to what the screens
     reproductiveStatus: null,
     dateOfBirth: null,
     breedName: 'Holstein Friesian',
+    aqrScore: null,
+    lastWeightKg: null,
+    shedName: null,
+    lactationStage: null,
+    nextEvent: null,
+    updatedAt: null,
+  });
+});
+
+test('cattle projection enriches aqrScore, weight, shed, lactation and nextEvent', async () => {
+  const db = await freshDb();
+  const enrichedCow = cow('c1', 'RKL-001', {
+    aqrScore: 82,
+    lastWeightKg: 460,
+    shed: { name: 'Shed North' },
+    lactationStage: 'MID',
+    next_event: {
+      kind: 'PREGNANCY_CHECK',
+      urgency: 'OVERDUE',
+      actionable: true,
+      daysUntil: -3,
+      dueAt: '2026-11-12T00:00:00Z',
+      labelKey: 'cattle.upcoming.pregnancyCheck',
+      labelParams: { count: 1 },
+    },
+  });
+  const { api } = createFakeApi(() => page([enrichedCow]));
+  assert.equal(await pullEntity(api, db, 'f1', spec('cattle'), NOW), 1);
+  const rows = await readCache(db, 'f1', 'cattle');
+  assert.deepEqual(rows[0], {
+    id: 'c1',
+    tagNumber: 'RKL-001',
+    name: 'Cow RKL-001',
+    gender: 'FEMALE',
+    herdStatus: 'ACTIVE',
+    shedId: null,
+    productionStatus: null,
+    healthStatus: null,
+    animalCategory: null,
+    reproductiveStatus: null,
+    dateOfBirth: null,
+    breedName: 'Holstein Friesian',
+    aqrScore: 82,
+    lastWeightKg: 460,
+    shedName: 'Shed North',
+    lactationStage: 'MID',
+    nextEvent: {
+      kind: 'PREGNANCY_CHECK',
+      urgency: 'OVERDUE',
+      actionable: true,
+      daysUntil: -3,
+      dueAt: '2026-11-12T00:00:00Z',
+      labelKey: 'cattle.upcoming.pregnancyCheck',
+      labelParams: { count: 1 },
+    },
     updatedAt: null,
   });
 });

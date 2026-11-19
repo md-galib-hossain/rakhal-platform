@@ -118,4 +118,62 @@ describe('CattleList', () => {
     expect(screen.getByText('দুধ দিচ্ছে')).toBeTruthy();
     expect(screen.getByText('অসুস্থ')).toBeTruthy();
   });
+
+  it('renders the highlights bar and filters by category chip when tapped', async () => {
+    const h = syncHarness({ handler: server(cows) });
+    await open(h);
+    await waitFor(() => expect(screen.getByTestId('cattle-row-c1')).toBeTruthy());
+
+    expect(screen.getByTestId('cattle-highlights-bar')).toBeTruthy();
+    expect(screen.getByTestId('kpi-total-animals')).toBeTruthy();
+
+    // Tap Heifers chip
+    fireEvent.press(screen.getByTestId('category-chip-HEIFER'));
+    await waitFor(() => expect(screen.queryByTestId('cattle-row-c1')).toBeNull());
+    expect(screen.getByTestId('cattle-row-c3')).toBeTruthy();
+
+    // Tap All chip to unfilter
+    fireEvent.press(screen.getByTestId('category-chip-ALL'));
+    await waitFor(() => expect(screen.getByTestId('cattle-row-c1')).toBeTruthy());
+    expect(screen.getByTestId('cattle-row-c2')).toBeTruthy();
+    expect(screen.getByTestId('cattle-row-c3')).toBeTruthy();
+  });
+
+  it('renders rich card details including AQR score, weight, shed and next event', async () => {
+    const enrichedCows = [
+      {
+        id: 'c10',
+        tagNumber: 'BD-010',
+        name: 'Padma',
+        gender: 'FEMALE',
+        herdStatus: 'ACTIVE',
+        productionStatus: 'MILKING',
+        healthStatus: 'HEALTHY',
+        animalCategory: 'COW',
+        breed: { name: 'Sahiwal' },
+        aqrScore: 85,
+        lastWeightKg: 480,
+        shed: { name: 'Main Shed' },
+        next_event: {
+          kind: 'CALVING',
+          urgency: 'OVERDUE',
+          actionable: true,
+          daysUntil: -2,
+          dueAt: '2026-11-13T00:00:00Z',
+          labelKey: 'cattle.upcoming.calving',
+        },
+      },
+    ];
+    const h = syncHarness({ handler: server(enrichedCows) });
+    await open(h);
+    await waitFor(() => expect(screen.getByTestId('cattle-row-c10')).toBeTruthy());
+
+    expect(screen.getByText('BD-010 · Padma')).toBeTruthy();
+    expect(screen.getAllByText('85').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('/100')).toBeTruthy();
+    expect(screen.getByText('480 kg')).toBeTruthy();
+    expect(screen.getByText('Main Shed')).toBeTruthy();
+    expect(screen.getByText('Calving')).toBeTruthy();
+    expect(screen.getByText('2d overdue')).toBeTruthy();
+  });
 });
