@@ -1,7 +1,7 @@
 ---
 id: UI4
 title: "Mobile: Unified white canvas, app header modernization & language settings"
-status: active
+status: done
 agent: forma
 harness: antigravity
 branch: feat/mobile-milk-border-separation
