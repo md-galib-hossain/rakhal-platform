@@ -1,24 +1,20 @@
 /**
- * Shell header (WP6): the active farm's name (tap to switch farm) and a language toggle. The sync status pill joins it
- * with the offline foundation (WP8b). Falls back to the app name while the farm name is not known.
+ * Modernised top header: displays the brand app name on the left and a notification bell button on the right.
+ * Farm switching lives in the More tab, and language toggle lives in More / Settings.
+ * Clean white canvas (colors.card) with 1px borderBottomColor (colors.border).
  */
-import { router } from 'expo-router';
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../auth/AuthProvider.tsx';
+import { NotificationIcon } from '../assets/icons/NotificationIcon.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { Text } from '../components/primitives/Text.tsx';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 
 export function AppHeader() {
-  const { farmName } = useAuth();
-  const { t, locale, setLocale } = useLocale();
+  const { t } = useLocale();
   const { colors, tokens } = useTheme();
   const insets = useSafeAreaInsets();
-
-  const title = farmName ?? t('common.appName');
-  const otherLocale = locale === 'bn' ? 'en' : 'bn';
 
   return (
     <View
@@ -26,47 +22,40 @@ export function AppHeader() {
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        gap: tokens.spacing.sm,
+        justifyContent: 'space-between',
         paddingTop: insets.top + tokens.spacing.xs,
         paddingBottom: tokens.spacing.xs,
         paddingLeft: insets.left + tokens.spacing.lg,
         paddingRight: insets.right + tokens.spacing.lg,
-        backgroundColor: colors.background,
+        backgroundColor: colors.card,
         borderBottomWidth: 1,
         borderBottomColor: colors.border,
       }}
     >
-      <PressableSurface
-        accessibilityRole="button"
-        accessibilityLabel={t('home.changeFarm')}
-        accessibilityHint={title}
-        pressedStyle="overlay"
-        onPress={() => router.push('/farm')}
-        testID="header-farm"
-        style={{ flex: 1, minHeight: tokens.touchTarget.min, justifyContent: 'center', borderRadius: tokens.radius.md }}
-      >
-        <Text role="h2" numberOfLines={1}>
-          {title}
+      <View style={{ flex: 1, justifyContent: 'center' }}>
+        <Text role="h2" style={{ fontWeight: '800', fontSize: 18 }}>
+          {t('common.appName')}
         </Text>
-      </PressableSurface>
+      </View>
       <PressableSurface
         accessibilityRole="button"
-        accessibilityLabel={t('common.language')}
+        accessibilityLabel={t('common.notifications')}
         pressedStyle="overlay"
-        onPress={() => setLocale(otherLocale)}
-        testID="header-language"
+        onPress={() => {}}
+        testID="header-notifications"
         style={{
-          minHeight: tokens.touchTarget.min,
-          minWidth: tokens.touchTarget.min,
+          width: 40,
+          height: 40,
+          borderRadius: tokens.radius.full,
+          borderWidth: 1,
+          borderColor: colors.border,
+          backgroundColor: colors.card,
           justifyContent: 'center',
           alignItems: 'center',
-          paddingHorizontal: tokens.spacing.md,
-          borderRadius: tokens.radius.md,
-          borderWidth: 1,
-          borderColor: colors.inputBorder,
         }}
+        hitSlop={tokens.spacing.xs}
       >
-        <Text role="label">{otherLocale === 'bn' ? 'বাংলা' : 'English'}</Text>
+        <NotificationIcon size={24} color={colors.foreground} />
       </PressableSurface>
     </View>
   );

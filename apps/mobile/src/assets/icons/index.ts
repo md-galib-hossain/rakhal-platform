@@ -6,3 +6,4 @@ export { HealthIcon } from './HealthIcon.tsx';
 export { MoreIcon } from './MoreIcon.tsx';
 export { HomeIcon } from './HomeIcon.tsx';
 export { TasksIcon } from './TasksIcon.tsx';
+export { NotificationIcon } from './NotificationIcon.tsx';

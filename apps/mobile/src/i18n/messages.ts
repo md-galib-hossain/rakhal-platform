@@ -29,6 +29,7 @@ export const en = {
   'common.filter': 'Filter',
   'common.error.generic': 'Something went wrong. Please try again.',
   'common.language': 'Language',
+  'common.notifications': 'Notifications',
   'error.root.title': 'Something went wrong',
   // language / digits / theme names (shown in the pickers)
   'language.bn': 'Bangla',
@@ -353,6 +354,7 @@ export const bn: Record<MessageKey, string> = {
   'common.filter': 'ফিল্টার',
   'common.error.generic': 'কিছু একটা ভুল হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।',
   'common.language': 'ভাষা',
+  'common.notifications': 'বিজ্ঞপ্তি',
   'error.root.title': 'কিছু একটা ভুল হয়েছে',
   'language.bn': 'বাংলা',
   'language.en': 'English',

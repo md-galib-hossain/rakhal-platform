@@ -22,7 +22,7 @@ export default function TabsLayout() {
   const visible = new Set(visibleTabs(permissions).map((tab) => tab.key));
 
   return (
-    <Tabs style={{ flex: 1, backgroundColor: colors.background }} options={{ backBehavior: 'initialRoute' }}>
+    <Tabs style={{ flex: 1, backgroundColor: colors.card }} options={{ backBehavior: 'initialRoute' }}>
       <AppHeader />
       <TabSlot style={{ flex: 1 }} />
       <TabList

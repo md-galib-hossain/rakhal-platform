@@ -115,26 +115,21 @@ describe('tabs shell', () => {
 });
 
 describe('header', () => {
-  it('shows the farm name, and tapping it opens the farm picker', async () => {
+  it('renders the app brand name and notification button in English', async () => {
     await open(handler(['*']));
-    expect(await screen.findByText('Green Valley')).toBeTruthy();
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('header-farm'));
-    });
-    expect(mockPush).toHaveBeenCalledWith('/farm');
-  });
-
-  it('falls back to the app name until the farm name is known', async () => {
-    await open(() => 'network');
     expect(await screen.findByText('Rakhal')).toBeTruthy();
+    const bell = screen.getByTestId('header-notifications');
+    expect(bell).toBeTruthy();
+    expect(bell.props.accessibilityRole).toBe('button');
+    expect(bell.props.accessibilityLabel).toBe('Notifications');
   });
 
-  it('the language toggle switches the whole shell', async () => {
-    await open(handler(['*']));
-    await act(async () => {
-      fireEvent.press(await screen.findByTestId('header-language'));
-    });
-    expect(await screen.findByLabelText('হোম')).toBeTruthy();
+  it('renders the app brand name and notification button in Bangla', async () => {
+    await open(handler(['*']), 'bn');
+    expect(await screen.findByText('রাখাল')).toBeTruthy();
+    const bell = screen.getByTestId('header-notifications');
+    expect(bell).toBeTruthy();
+    expect(bell.props.accessibilityLabel).toBe('বিজ্ঞপ্তি');
   });
 });
 
