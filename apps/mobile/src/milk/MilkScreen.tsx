@@ -23,13 +23,13 @@
  *    - Session volume breakdown.
  * 4. ADR-007 compliant: strictly zero drop shadows, 1px border and token fills only.
  */
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, PanResponder, Platform, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Button } from '../components/actions/Button.tsx';
-import { IconButton } from '../components/actions/IconButton.tsx';
 import { EmptyState } from '../components/feedback/StateMessage.tsx';
+import { Glyph } from '../components/internal/Glyph.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { DatePickerSheet } from '../components/picker/DatePickerSheet.tsx';
 import { Text } from '../components/primitives/Text.tsx';
@@ -97,6 +97,25 @@ export function MilkScreenContent() {
 
   const activeTank = tanks.find((t) => t.id === selectedTankId) ?? tanks[0];
   const hasActiveFilters = selectedShedId !== null || statusFilter !== 'all' || selectedTankId !== null;
+
+  // Local search state with 200ms debounce to prevent UI stutter and layout thrashing
+  const [localSearch, setLocalSearch] = useState(search);
+
+  useEffect(() => {
+    setLocalSearch(search);
+  }, [search]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(localSearch);
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [localSearch, setSearch]);
+
+  const clearSearch = useCallback(() => {
+    setLocalSearch('');
+    setSearch('');
+  }, [setSearch]);
 
   // Track latest activeTab and modal visibility in refs for PanResponder
   const activeTabRef = useRef(activeTab);
@@ -171,6 +190,7 @@ export function MilkScreenContent() {
     <KeyboardAvoidingView
       testID="screen-milk"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      enabled={Platform.OS === 'ios'}
       style={{ flex: 1, backgroundColor: colors.card }}
       {...panResponder.panHandlers}
     >
@@ -300,26 +320,29 @@ export function MilkScreenContent() {
                 </Text>
               </PressableSurface>
 
-              {/* 2. Search Input */}
+              {/* 2. Search Input (Locked dimensions, zero layout shift) */}
               <View
                 style={{
                   flex: 1,
                   flexDirection: 'row',
                   alignItems: 'center',
                   minHeight: tokens.touchTarget.min,
-                  paddingHorizontal: tokens.spacing.xs + 2,
+                  height: tokens.touchTarget.min,
+                  paddingLeft: tokens.spacing.sm,
+                  paddingRight: tokens.spacing.xs,
                   backgroundColor: colors.card,
                   borderWidth: 1,
                   borderColor: colors.border,
                   borderRadius: tokens.radius.md,
                   gap: tokens.spacing.xs,
+                  position: 'relative',
                 }}
               >
                 <SearchIcon size={16} color={colors.mutedForeground} />
                 <TextInput
                   testID="milk-search"
-                  value={search}
-                  onChangeText={setSearch}
+                  value={localSearch}
+                  onChangeText={setLocalSearch}
                   placeholder={t('cattle.search.placeholder')}
                   placeholderTextColor={colors.mutedForeground}
                   style={{
@@ -327,16 +350,27 @@ export function MilkScreenContent() {
                     color: colors.foreground,
                     fontSize: 13,
                     paddingVertical: tokens.spacing.xs,
+                    paddingRight: 28,
                   }}
                 />
-                {search.length > 0 ? (
-                  <IconButton
-                    icon="close"
+                {localSearch.length > 0 ? (
+                  <PressableSurface
+                    accessibilityRole="button"
                     accessibilityLabel="Clear search"
-                    variant="ghost"
-                    size="md"
-                    onPress={() => setSearch('')}
-                  />
+                    pressedStyle="overlay"
+                    onPress={clearSearch}
+                    style={{
+                      position: 'absolute',
+                      right: 8,
+                      width: 28,
+                      height: 28,
+                      borderRadius: tokens.radius.full,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Glyph name="close" size={16} color="mutedForeground" />
+                  </PressableSurface>
                 ) : null}
               </View>
 

@@ -8,6 +8,7 @@ branch: feat/mobile-milk-border-separation
 paths:
   - apps/mobile/src/milk/MilkScreen.tsx
   - apps/mobile/src/milk/MilkScreen.test.tsx
+  - apps/mobile/src/milk/useMilkScreen.ts
   - apps/mobile/src/milk/MilkCowCard.tsx
   - apps/mobile/src/milk/MilkAnalyticsView.tsx
   - apps/mobile/src/navigation/AppHeader.tsx
@@ -63,4 +64,5 @@ Owner-directed UI/UX experiment on the Milk screen & App Shell:
   - Fluid horizontal swipe navigation enabled between Collection <-> Analytics and bottom navigation tabs (/cattle and /tasks).
   - Mode tabs render as a modern segmented pill control without stacked dividers.
   - Language toggle relocated to MoreScreen with 2-segment pill control switching between "বাং" and "EN".
+  - Fixed search input layout shift: locked input dimensions with constant paddingRight, replaced dynamic 48dp IconButton with absolute-positioned clear button, and applied 200ms debouncer with bilingual digit matching.
 

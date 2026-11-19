@@ -229,6 +229,8 @@ export function useMilkScreen() {
     }
 
     const term = search.trim().toLowerCase();
+    const asciiTerm = term.replace(/[০-৯]/g, (d) => String(d.charCodeAt(0) - 0x09e6));
+    const bengaliTerm = term.replace(/[0-9]/g, (d) => String.fromCharCode(0x09e6 + Number(d)));
     const result: MilkCowRow[] = [];
 
     for (const cow of rawCows) {
@@ -249,11 +251,26 @@ export function useMilkScreen() {
 
       const tag = typeof cow.tagNumber === 'string' ? cow.tagNumber : '';
       const name = typeof cow.name === 'string' ? cow.name : null;
+      const breed = typeof cow.breedName === 'string' ? cow.breedName : null;
+      const shed = typeof cow.shedName === 'string' ? cow.shedName : null;
 
       if (term) {
-        const matchesTag = tag.toLowerCase().includes(term);
-        const matchesName = name ? name.toLowerCase().includes(term) : false;
-        if (!matchesTag && !matchesName) continue;
+        const tagLower = tag.toLowerCase();
+        const nameLower = name ? name.toLowerCase() : '';
+        const breedLower = breed ? breed.toLowerCase() : '';
+        const shedLower = shed ? shed.toLowerCase() : '';
+
+        const matches =
+          tagLower.includes(term) ||
+          tagLower.includes(asciiTerm) ||
+          tagLower.includes(bengaliTerm) ||
+          nameLower.includes(term) ||
+          nameLower.includes(asciiTerm) ||
+          nameLower.includes(bengaliTerm) ||
+          breedLower.includes(term) ||
+          shedLower.includes(term);
+
+        if (!matches) continue;
       }
 
       const sLog = serverLogByCow.get(id);
