@@ -9,7 +9,7 @@ paths:
   - apps/mobile/src/cattle/**
   - apps/mobile/app/(tabs)/cattle.tsx
   - apps/mobile/src/offline/pull.ts
-  - apps/mobile/src/offline/pull.test.ts
+  - apps/mobile/test/offline-pull-sender.test.ts
   - apps/mobile/test/cattle-model.test.ts
 shared:
   - apps/mobile/src/i18n/messages.ts
