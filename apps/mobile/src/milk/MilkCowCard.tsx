@@ -62,6 +62,17 @@ export const MilkCowCard = memo(function MilkCowCard({
   const isInputDisabled = disabled || row.withholding;
   const initialLetter = (row.name?.trim() || row.tag || 'C').charAt(0).toUpperCase();
 
+  const subtitleParts: string[] = [];
+  if (row.name?.trim() && row.tag) {
+    subtitleParts.push(row.tag);
+  }
+  if (row.breedName) {
+    subtitleParts.push(row.breedName);
+  } else if (row.shedName) {
+    subtitleParts.push(row.shedName);
+  }
+  const subtitleText = subtitleParts.join(' · ');
+
   // Local state for each session's text input to allow fluid decimal typing
   const [sessionInputs, setSessionInputs] = useState<Record<MilkSession, string>>(() => {
     const init: Record<MilkSession, string> = {
@@ -159,6 +170,8 @@ export const MilkCowCard = memo(function MilkCowCard({
               color="foreground"
               style={{ fontWeight: '700', fontSize: 16 }}
               accessibilityLabel={title}
+              numberOfLines={1}
+              ellipsizeMode="tail"
             >
               {row.name || row.tag || '—'}
             </Text>
@@ -193,10 +206,11 @@ export const MilkCowCard = memo(function MilkCowCard({
             )}
           </View>
 
-          <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>
-            {row.tag}
-            {row.breedName ? ` · ${row.breedName}` : row.shedName ? ` · ${row.shedName}` : ''}
-          </Text>
+          {subtitleText ? (
+            <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }} numberOfLines={1} ellipsizeMode="tail">
+              {subtitleText}
+            </Text>
+          ) : null}
         </View>
 
         {/* Right: Today's Total */}
@@ -293,7 +307,7 @@ export const MilkCowCard = memo(function MilkCowCard({
                   borderWidth: 1,
                   borderColor: isSelectedSession ? colors.primary : colors.border,
                   borderRadius: tokens.radius.md,
-                  backgroundColor: isSelectedSession ? colors.background : colors.muted,
+                  backgroundColor: colors.card,
                   minHeight: 38,
                   justifyContent: 'center',
                   paddingHorizontal: 4,
@@ -337,7 +351,7 @@ export const MilkCowCard = memo(function MilkCowCard({
                   borderRadius: tokens.radius.sm,
                   borderWidth: 1,
                   borderColor: row.withholding ? colors.destructiveTint : colors.border,
-                  backgroundColor: row.withholding ? colors.destructiveTint : colors.muted,
+                  backgroundColor: row.withholding ? colors.destructiveTint : colors.card,
                   minHeight: 24,
                   opacity: row.withholding ? 0.7 : 1,
                 }}

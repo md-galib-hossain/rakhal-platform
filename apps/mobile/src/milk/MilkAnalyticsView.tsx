@@ -374,7 +374,7 @@ export function MilkAnalyticsView({
                 style={{
                   flex: 1,
                   minWidth: 70,
-                  backgroundColor: colors.background,
+                  backgroundColor: colors.card,
                   borderWidth: 1,
                   borderColor: colors.border,
                   borderRadius: tokens.radius.md,

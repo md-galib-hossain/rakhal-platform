@@ -128,7 +128,7 @@ export function MilkScreenContent() {
     <KeyboardAvoidingView
       testID="screen-milk"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={{ flex: 1, backgroundColor: colors.card }}
     >
       {/* 1. Top Mode Tabs: Collection vs Analytics */}
       <View
@@ -228,7 +228,7 @@ export function MilkScreenContent() {
                   borderRadius: tokens.radius.md,
                   borderWidth: 1,
                   borderColor: colors.border,
-                  backgroundColor: colors.background,
+                  backgroundColor: colors.card,
                   minHeight: tokens.touchTarget.min,
                 }}
               >
@@ -246,7 +246,7 @@ export function MilkScreenContent() {
                   alignItems: 'center',
                   minHeight: tokens.touchTarget.min,
                   paddingHorizontal: tokens.spacing.xs + 2,
-                  backgroundColor: colors.background,
+                  backgroundColor: colors.card,
                   borderWidth: 1,
                   borderColor: colors.border,
                   borderRadius: tokens.radius.md,
@@ -295,7 +295,7 @@ export function MilkScreenContent() {
                   borderRadius: tokens.radius.md,
                   borderWidth: 1,
                   borderColor: hasActiveFilters ? colors.primary : colors.border,
-                  backgroundColor: hasActiveFilters ? colors.card : colors.background,
+                  backgroundColor: colors.card,
                   position: 'relative',
                 }}
               >
