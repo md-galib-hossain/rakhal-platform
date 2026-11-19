@@ -1,16 +1,24 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import { PanResponder, StyleSheet, type GestureResponderEvent, type PanResponderGestureState } from 'react-native';
 import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { ok, sessionReply, type Handler } from '../test-utils/auth-harness.tsx';
 import { mount, restoreMount } from '../test-utils/mount.tsx';
 import { syncHarness } from '../test-utils/sync-harness.tsx';
 import { ToastProvider } from '../components/feedback/Toast.tsx';
+import { radius } from '../theme/tokens.ts';
 import { MilkScreen } from './MilkScreen.tsx';
+
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({
+  router: { push: (...args: unknown[]) => mockPush(...args) },
+}));
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
 
 afterEach(() => {
+  mockPush.mockClear();
   cleanup();
   restoreMount();
 });
@@ -386,5 +394,91 @@ describe('MilkScreen', () => {
       const saves = h.writes().filter((w) => w.url.endsWith('/milk/log'));
       expect(saves.length).toBeGreaterThan(0);
     });
+  });
+
+  it('renders segmented control with radius.md and active pill with radius.md - 2', async () => {
+    const h = syncHarness({
+      handler: serverHandler(),
+    });
+    await renderMilkScreen(h);
+
+    await waitFor(() => expect(screen.getByTestId('milk-tab-switcher-container')).toBeTruthy());
+
+    const container = screen.getByTestId('milk-tab-switcher-container');
+    const collectionTab = screen.getByTestId('milk-tab-collection');
+    const analyticsTab = screen.getByTestId('milk-tab-analytics');
+
+    expect(StyleSheet.flatten(container.props.style)).toMatchObject({
+      borderRadius: radius.md,
+    });
+    expect(StyleSheet.flatten(collectionTab.props.style)).toMatchObject({
+      borderRadius: radius.md - 2,
+    });
+    expect(StyleSheet.flatten(analyticsTab.props.style)).toMatchObject({
+      borderRadius: radius.md - 2,
+    });
+  });
+
+  it('handles horizontal swipe gestures for tab switching and bottom navigation', async () => {
+    let capturedConfig: Parameters<typeof PanResponder.create>[0] | null = null;
+    const originalCreate = PanResponder.create;
+    const createSpy = jest.spyOn(PanResponder, 'create').mockImplementation((config) => {
+      capturedConfig = config;
+      return originalCreate(config);
+    });
+
+    const h = syncHarness({
+      handler: serverHandler(),
+    });
+    await renderMilkScreen(h);
+
+    await waitFor(() => expect(screen.getByTestId('screen-milk')).toBeTruthy());
+    expect(capturedConfig).not.toBeNull();
+    const config = capturedConfig!;
+    const dummyEvent = {} as GestureResponderEvent;
+
+    // 1. Vertical movements should not trigger pan responder (preventing scroll interference)
+    const verticalMovement = { dx: 10, dy: 40 } as PanResponderGestureState;
+    expect(config.onMoveShouldSetPanResponder?.(dummyEvent, verticalMovement)).toBe(false);
+
+    // 2. Small movements under threshold (< 25) should not trigger
+    const smallMovement = { dx: 15, dy: 5 } as PanResponderGestureState;
+    expect(config.onMoveShouldSetPanResponder?.(dummyEvent, smallMovement)).toBe(false);
+
+    // 3. Predominantly horizontal movement claims responder
+    const horizontalMovement = { dx: 30, dy: 10 } as PanResponderGestureState;
+    expect(config.onMoveShouldSetPanResponder?.(dummyEvent, horizontalMovement)).toBe(true);
+
+    // 4. Initial tab is 'collection'. Swiping backward (dx > 50) navigates to /cattle
+    await act(async () => {
+      config.onPanResponderRelease?.(dummyEvent, { dx: 60, dy: 5 } as PanResponderGestureState);
+    });
+    expect(mockPush).toHaveBeenCalledWith('/cattle');
+    mockPush.mockClear();
+
+    // 5. Swiping forward (dx < -50) switches from 'collection' to 'analytics'
+    await act(async () => {
+      config.onPanResponderRelease?.(dummyEvent, { dx: -60, dy: 5 } as PanResponderGestureState);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('milk-tab-analytics').props.accessibilityState).toMatchObject({ selected: true });
+    });
+
+    // 6. On 'analytics', swiping forward (dx < -50) navigates to /tasks
+    await act(async () => {
+      config.onPanResponderRelease?.(dummyEvent, { dx: -60, dy: 5 } as PanResponderGestureState);
+    });
+    expect(mockPush).toHaveBeenCalledWith('/tasks');
+    mockPush.mockClear();
+
+    // 7. On 'analytics', swiping backward (dx > 50) switches back to 'collection'
+    await act(async () => {
+      config.onPanResponderRelease?.(dummyEvent, { dx: 60, dy: 5 } as PanResponderGestureState);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('milk-tab-collection').props.accessibilityState).toMatchObject({ selected: true });
+    });
+
+    createSpy.mockRestore();
   });
 });

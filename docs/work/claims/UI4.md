@@ -7,6 +7,7 @@ harness: antigravity
 branch: feat/mobile-milk-border-separation
 paths:
   - apps/mobile/src/milk/MilkScreen.tsx
+  - apps/mobile/src/milk/MilkScreen.test.tsx
   - apps/mobile/src/milk/MilkCowCard.tsx
   - apps/mobile/src/milk/MilkAnalyticsView.tsx
   - apps/mobile/src/navigation/AppHeader.tsx
@@ -52,12 +53,14 @@ Owner-directed UI/UX experiment on the Milk screen & App Shell:
 - `pnpm.cmd --filter @rakhal/mobile exec tsc --noEmit`: 0 errors.
 - `pnpm.cmd --filter @rakhal/mobile exec eslint .`: 0 warnings, 0 errors.
 - `pnpm.cmd --filter @rakhal/mobile run test:node`: 326 tests passed (326/326).
-- `pnpm.cmd --filter @rakhal/mobile exec jest --ci`: 46 suites passed, 549 tests passed (549/549).
+- `pnpm.cmd --filter @rakhal/mobile exec jest --ci`: 46 suites passed, 551 tests passed (551/551).
 - `node scripts/work.mjs check --no-network`: 13 claims, 0 errors, 0 warnings.
 - Device testing:
   - Verified on Pixel 8 Android emulator (API 34).
   - Background is unified white (`colors.card`) across the Milk canvas and top header without divider line clutter.
   - Header displays brand logo on left and refined 1.5dp notification bell on right.
+  - Collection / Analytics switcher updated from pill/stadium radius to squarish `tokens.radius.md` matching Save button & inputs.
+  - Fluid horizontal swipe navigation enabled between Collection <-> Analytics and bottom navigation tabs (/cattle and /tasks).
   - Mode tabs render as a modern segmented pill control without stacked dividers.
   - Language toggle relocated to MoreScreen with 2-segment pill control switching between "বাং" and "EN".
 

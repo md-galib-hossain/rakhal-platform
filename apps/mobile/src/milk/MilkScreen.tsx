@@ -23,8 +23,9 @@
  *    - Session volume breakdown.
  * 4. ADR-007 compliant: strictly zero drop shadows, 1px border and token fills only.
  */
-import { useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { FlatList, KeyboardAvoidingView, PanResponder, Platform, TextInput, View } from 'react-native';
+import { router } from 'expo-router';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Button } from '../components/actions/Button.tsx';
 import { IconButton } from '../components/actions/IconButton.tsx';
@@ -97,6 +98,48 @@ export function MilkScreenContent() {
   const activeTank = tanks.find((t) => t.id === selectedTankId) ?? tanks[0];
   const hasActiveFilters = selectedShedId !== null || statusFilter !== 'all' || selectedTankId !== null;
 
+  // Track latest activeTab and modal visibility in refs for PanResponder
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  const isModalOpenRef = useRef(false);
+  isModalOpenRef.current =
+    datePickerVisible || filterSheetVisible || sessionConfigVisible || tankPickerVisible;
+
+  // Fluid horizontal swipe navigation between tabs and bottom navigation routes
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          if (isModalOpenRef.current) return false;
+          // Only claim when gesture is predominantly horizontal (avoids blocking vertical scrolling)
+          return (
+            Math.abs(gestureState.dx) > 25 &&
+            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5
+          );
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dx < -50) {
+            // Forward swipe (finger dragged left -> next screen to the right)
+            if (activeTabRef.current === 'collection') {
+              setActiveTab('analytics');
+            } else if (activeTabRef.current === 'analytics') {
+              router.push('/tasks');
+            }
+          } else if (gestureState.dx > 50) {
+            // Backward swipe (finger dragged right -> previous screen to the left)
+            if (activeTabRef.current === 'analytics') {
+              setActiveTab('collection');
+            } else if (activeTabRef.current === 'collection') {
+              router.push('/cattle');
+            }
+          }
+        },
+      }),
+    [setActiveTab],
+  );
+
   // Format date display (e.g. 16 Nov 2026)
   const dateObj = new Date(`${date}T00:00:00`);
   const formattedDate = format.dateSafe(dateObj);
@@ -129,8 +172,9 @@ export function MilkScreenContent() {
       testID="screen-milk"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: colors.card }}
+      {...panResponder.panHandlers}
     >
-      {/* 1. Top Mode Tabs: Segmented Pill Control (Collection vs Analytics) */}
+      {/* 1. Top Mode Tabs: Segmented Control (Collection vs Analytics) */}
       <View
         style={{
           paddingHorizontal: tokens.spacing.md,
@@ -140,10 +184,11 @@ export function MilkScreenContent() {
         }}
       >
         <View
+          testID="milk-tab-switcher-container"
           style={{
             flexDirection: 'row',
             backgroundColor: colors.muted,
-            borderRadius: tokens.radius.full,
+            borderRadius: tokens.radius.md,
             padding: 3,
           }}
         >
@@ -158,7 +203,7 @@ export function MilkScreenContent() {
               flex: 1,
               paddingVertical: tokens.spacing.xs,
               paddingHorizontal: tokens.spacing.sm,
-              borderRadius: tokens.radius.full,
+              borderRadius: tokens.radius.md - 2,
               backgroundColor: activeTab === 'collection' ? colors.card : 'transparent',
               borderWidth: activeTab === 'collection' ? 1 : 0,
               borderColor: activeTab === 'collection' ? colors.border : 'transparent',
@@ -187,7 +232,7 @@ export function MilkScreenContent() {
               flex: 1,
               paddingVertical: tokens.spacing.xs,
               paddingHorizontal: tokens.spacing.sm,
-              borderRadius: tokens.radius.full,
+              borderRadius: tokens.radius.md - 2,
               backgroundColor: activeTab === 'analytics' ? colors.card : 'transparent',
               borderWidth: activeTab === 'analytics' ? 1 : 0,
               borderColor: activeTab === 'analytics' ? colors.border : 'transparent',
