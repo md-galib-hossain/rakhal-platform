@@ -31,14 +31,35 @@ export async function openExpoSqliteDb(name = 'rakhal-offline.db'): Promise<SqlD
   const SQLite = await import('expo-sqlite');
   const raw = await SQLite.openDatabaseAsync(name);
   await raw.execAsync('PRAGMA journal_mode = WAL;');
+  await raw.execAsync('PRAGMA busy_timeout = 5000;');
 
-  const transaction: SqlDb['transaction'] = async (fn) => {
-    let result: unknown;
-    await raw.withExclusiveTransactionAsync(async (txn) => {
-      const nested: SqlDb['transaction'] = () => Promise.reject(new Error('Transactions do not nest'));
-      result = await fn(wrap(txn as unknown as Handle, nested));
-    });
-    return result as never;
+  let mutex: Promise<unknown> = Promise.resolve();
+  const serialize = <T>(op: () => Promise<T>): Promise<T> => {
+    const next = mutex.then(op, op);
+    mutex = next.catch(() => undefined);
+    return next;
   };
-  return wrap(raw as unknown as Handle, transaction);
+
+  const transaction: SqlDb['transaction'] = (fn) =>
+    serialize(async () => {
+      let result: unknown;
+      await raw.withExclusiveTransactionAsync(async (txn) => {
+        const nested: SqlDb['transaction'] = () => Promise.reject(new Error('Transactions do not nest'));
+        result = await fn(wrap(txn as unknown as Handle, nested));
+      });
+      return result as never;
+    });
+
+  return {
+    exec: (sql) => serialize(() => raw.execAsync(sql)),
+    run: (sql, params = []) =>
+      serialize(async () => ({
+        changes: (await raw.runAsync(sql, [...params])).changes,
+      })),
+    all: <T>(sql: string, params: readonly SqlParam[] = []) =>
+      serialize(() => raw.getAllAsync<T>(sql, [...params])),
+    get: <T>(sql: string, params: readonly SqlParam[] = []) =>
+      serialize(() => raw.getFirstAsync<T>(sql, [...params])),
+    transaction,
+  };
 }
