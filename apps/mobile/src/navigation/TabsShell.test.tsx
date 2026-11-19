@@ -115,18 +115,22 @@ describe('tabs shell', () => {
 });
 
 describe('header', () => {
-  it('renders the app brand name and notification button in English', async () => {
+  it('renders the app brand logo and notification button in English', async () => {
     await open(handler(['*']));
-    expect(await screen.findByText('Rakhal')).toBeTruthy();
+    const logo = await screen.findByTestId('app-header-logo');
+    expect(logo).toBeTruthy();
+    expect(logo.props.accessibilityLabel).toBe('Rakhal');
     const bell = screen.getByTestId('header-notifications');
     expect(bell).toBeTruthy();
     expect(bell.props.accessibilityRole).toBe('button');
     expect(bell.props.accessibilityLabel).toBe('Notifications');
   });
 
-  it('renders the app brand name and notification button in Bangla', async () => {
+  it('renders the app brand logo and notification button in Bangla', async () => {
     await open(handler(['*']), 'bn');
-    expect(await screen.findByText('রাখাল')).toBeTruthy();
+    const logo = await screen.findByTestId('app-header-logo');
+    expect(logo).toBeTruthy();
+    expect(logo.props.accessibilityLabel).toBe('রাখাল');
     const bell = screen.getByTestId('header-notifications');
     expect(bell).toBeTruthy();
     expect(bell.props.accessibilityLabel).toBe('বিজ্ঞপ্তি');

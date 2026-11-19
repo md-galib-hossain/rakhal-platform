@@ -130,18 +130,23 @@ export function MilkScreenContent() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: colors.card }}
     >
-      {/* 1. Top Mode Tabs: Collection vs Analytics */}
+      {/* 1. Top Mode Tabs: Segmented Pill Control (Collection vs Analytics) */}
       <View
         style={{
           paddingHorizontal: tokens.spacing.md,
           paddingTop: tokens.spacing.xs,
+          paddingBottom: tokens.spacing.xs,
           backgroundColor: colors.card,
-          borderBottomWidth: 1,
-          borderColor: colors.border,
         }}
       >
-        {/* Mode Tabs: Collection vs Analytics */}
-        <View style={{ flexDirection: 'row', gap: tokens.spacing.md }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            backgroundColor: colors.muted,
+            borderRadius: tokens.radius.full,
+            padding: 3,
+          }}
+        >
           {/* Tab 1: Collection */}
           <PressableSurface
             accessibilityRole="tab"
@@ -150,15 +155,22 @@ export function MilkScreenContent() {
             onPress={() => setActiveTab('collection')}
             testID="milk-tab-collection"
             style={{
-              paddingVertical: tokens.spacing.xs + 2,
-              borderBottomWidth: 2,
-              borderColor: activeTab === 'collection' ? colors.primary : 'transparent',
+              flex: 1,
+              paddingVertical: tokens.spacing.xs,
+              paddingHorizontal: tokens.spacing.sm,
+              borderRadius: tokens.radius.full,
+              backgroundColor: activeTab === 'collection' ? colors.card : 'transparent',
+              borderWidth: activeTab === 'collection' ? 1 : 0,
+              borderColor: activeTab === 'collection' ? colors.border : 'transparent',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 34,
             }}
           >
             <Text
               role="label"
-              color={activeTab === 'collection' ? 'primary' : 'mutedForeground'}
-              style={{ fontWeight: activeTab === 'collection' ? '700' : '500' }}
+              color={activeTab === 'collection' ? 'foreground' : 'mutedForeground'}
+              style={{ fontWeight: activeTab === 'collection' ? '700' : '500', fontSize: 13 }}
             >
               {t('milk.tabCollection')}
             </Text>
@@ -172,15 +184,22 @@ export function MilkScreenContent() {
             onPress={() => setActiveTab('analytics')}
             testID="milk-tab-analytics"
             style={{
-              paddingVertical: tokens.spacing.xs + 2,
-              borderBottomWidth: 2,
-              borderColor: activeTab === 'analytics' ? colors.primary : 'transparent',
+              flex: 1,
+              paddingVertical: tokens.spacing.xs,
+              paddingHorizontal: tokens.spacing.sm,
+              borderRadius: tokens.radius.full,
+              backgroundColor: activeTab === 'analytics' ? colors.card : 'transparent',
+              borderWidth: activeTab === 'analytics' ? 1 : 0,
+              borderColor: activeTab === 'analytics' ? colors.border : 'transparent',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 34,
             }}
           >
             <Text
               role="label"
-              color={activeTab === 'analytics' ? 'primary' : 'mutedForeground'}
-              style={{ fontWeight: activeTab === 'analytics' ? '700' : '500' }}
+              color={activeTab === 'analytics' ? 'foreground' : 'mutedForeground'}
+              style={{ fontWeight: activeTab === 'analytics' ? '700' : '500', fontSize: 13 }}
             >
               {t('milk.tabAnalytics')}
             </Text>
@@ -199,16 +218,14 @@ export function MilkScreenContent() {
         />
       ) : (
         <View style={{ flex: 1 }}>
-          {/* Controls Header: Date Picker & Search/Filter (Compact, zero session duplicacy, no redundant banner) */}
+          {/* Controls Header: Date Picker & Search/Filter without divider line clutter */}
           <View
             style={{
               paddingHorizontal: tokens.spacing.md,
-              paddingTop: tokens.spacing.sm,
+              paddingTop: tokens.spacing.xs,
               paddingBottom: tokens.spacing.xs + 2,
               gap: tokens.spacing.xs,
               backgroundColor: colors.card,
-              borderBottomWidth: 1,
-              borderColor: colors.border,
             }}
           >
             {/* Single Row: Date Trigger Pill + Search Input + Filter Button */}

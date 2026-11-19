@@ -9,6 +9,7 @@
 import { router, useRootNavigationState, useSegments } from 'expo-router';
 import { useEffect, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { RakhalLogo } from '../assets/icons/RakhalLogo.tsx';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 import { authRedirect, gateCoversScreen } from './auth-route.ts';
@@ -18,7 +19,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const { status, needsFarm } = useAuth();
   const segments = useSegments();
   const navigationState = useRootNavigationState();
-  const { colors } = useTheme();
+  const { colors, tokens } = useTheme();
   const { t } = useLocale();
 
   const input = {
@@ -43,9 +44,22 @@ export function AuthGate({ children }: { children: ReactNode }) {
           accessibilityLabel={t('a11y.loading')}
           style={[
             StyleSheet.absoluteFill,
-            { backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
+            {
+              backgroundColor: colors.card,
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: tokens.spacing.lg,
+            },
           ]}
         >
+          <RakhalLogo
+            testID="auth-gate-logo"
+            height={32}
+            width={146}
+            color={colors.foreground}
+            accentColor={colors.primary}
+            accessibilityLabel={t('common.appName')}
+          />
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : null}

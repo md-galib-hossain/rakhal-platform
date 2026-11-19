@@ -1,13 +1,13 @@
 /**
- * Modernised top header: displays the brand app name on the left and a notification bell button on the right.
+ * Modernised top header: displays the brand logo on the left and a notification bell button on the right.
  * Farm switching lives in the More tab, and language toggle lives in More / Settings.
- * Clean white canvas (colors.card) with 1px borderBottomColor (colors.border).
+ * Seamless white canvas (colors.card) flowing directly into the screen content without divider line clutter.
  */
 import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NotificationIcon } from '../assets/icons/NotificationIcon.tsx';
+import { RakhalLogo } from '../assets/icons/RakhalLogo.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
-import { Text } from '../components/primitives/Text.tsx';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 
@@ -28,14 +28,17 @@ export function AppHeader() {
         paddingLeft: insets.left + tokens.spacing.lg,
         paddingRight: insets.right + tokens.spacing.lg,
         backgroundColor: colors.card,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
       }}
     >
       <View style={{ flex: 1, justifyContent: 'center' }}>
-        <Text role="h2" style={{ fontWeight: '800', fontSize: 18 }}>
-          {t('common.appName')}
-        </Text>
+        <RakhalLogo
+          testID="app-header-logo"
+          height={22}
+          width={100}
+          color={colors.foreground}
+          accentColor={colors.primary}
+          accessibilityLabel={t('common.appName')}
+        />
       </View>
       <PressableSurface
         accessibilityRole="button"
@@ -55,7 +58,7 @@ export function AppHeader() {
         }}
         hitSlop={tokens.spacing.xs}
       >
-        <NotificationIcon size={24} color={colors.foreground} />
+        <NotificationIcon size={20} color={colors.foreground} />
       </PressableSurface>
     </View>
   );
