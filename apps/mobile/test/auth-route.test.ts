@@ -10,11 +10,15 @@ test('restoring never redirects (the gate shows a loader instead)', () => {
   assert.equal(gateCoversScreen(at({ status: 'restoring' })), true);
 });
 
-test('signed out: every screen except login goes to /login', () => {
+test('signed out: every screen except login, forgot-password and register goes to /login', () => {
   assert.equal(authRedirect(at({ firstSegment: undefined })), '/login');
   assert.equal(authRedirect(at({ firstSegment: 'farm' })), '/login');
   assert.equal(authRedirect(at({ firstSegment: 'login' })), null);
+  assert.equal(authRedirect(at({ firstSegment: 'forgot-password' })), null);
+  assert.equal(authRedirect(at({ firstSegment: 'register' })), null);
   assert.equal(gateCoversScreen(at({ firstSegment: 'login' })), false);
+  assert.equal(gateCoversScreen(at({ firstSegment: 'forgot-password' })), false);
+  assert.equal(gateCoversScreen(at({ firstSegment: 'register' })), false);
 });
 
 test('dev routes are reachable signed out in development only', () => {
@@ -29,9 +33,11 @@ test('signed in without a farm is held on /farm', () => {
   assert.equal(authRedirect({ ...s, firstSegment: 'farm' }), null);
 });
 
-test('signed in with a farm: login goes home, home and farm stay', () => {
+test('signed in with a farm: login, forgot-password and register go home, home and farm stay', () => {
   const s = at({ status: 'signedIn', needsFarm: false });
   assert.equal(authRedirect({ ...s, firstSegment: 'login' }), '/');
+  assert.equal(authRedirect({ ...s, firstSegment: 'forgot-password' }), '/');
+  assert.equal(authRedirect({ ...s, firstSegment: 'register' }), '/');
   assert.equal(authRedirect({ ...s, firstSegment: undefined }), null);
   assert.equal(authRedirect({ ...s, firstSegment: 'farm' }), null);
   assert.equal(gateCoversScreen({ ...s, firstSegment: undefined }), false);

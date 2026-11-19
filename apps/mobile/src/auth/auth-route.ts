@@ -24,10 +24,12 @@ export function authRedirect({ status, needsFarm, firstSegment, isDev }: AuthRou
   if (status === 'restoring') return null;
   if (isDev && firstSegment === 'dev') return null;
 
-  if (status === 'signedOut') return firstSegment === 'login' ? null : '/login';
+  if (status === 'signedOut') {
+    return firstSegment === 'login' || firstSegment === 'forgot-password' || firstSegment === 'register' ? null : '/login';
+  }
 
   if (needsFarm) return firstSegment === 'farm' ? null : '/farm';
-  return firstSegment === 'login' ? '/' : null;
+  return firstSegment === 'login' || firstSegment === 'forgot-password' || firstSegment === 'register' ? '/' : null;
 }
 
 /** True while the gate must hide the routed screen (loading the session, or a redirect is about to happen). */

@@ -1,7 +1,7 @@
 import { createRef, useState } from 'react';
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, screen } from '@testing-library/react-native';
-import { Pressable, type TextInputInstance } from 'react-native';
+import { Pressable, Text, type TextInputInstance } from 'react-native';
 import { mount, restoreMount } from '../../test-utils/mount.tsx';
 import { expectNoFixedTextHeight, expectTouchTarget, flatStyle } from '../../test-utils/touch-target.ts';
 import { allColors, fontFamily, radius } from '../../theme/tokens.ts';
@@ -289,6 +289,31 @@ describe('TextField themes and locales', () => {
 });
 
 describe('TextField with act', () => {
+  it('renders trailingAction and triggers onPress', async () => {
+    const onPress = jest.fn();
+    await mount(
+      <TextField
+        testID="tf"
+        label="Password"
+        value="secret"
+        onChangeText={noop}
+        trailingAction={{
+          icon: <Text>Eye</Text>,
+          onPress,
+          accessibilityLabel: 'Show password',
+          testID: 'trailing-toggle',
+        }}
+      />,
+    );
+    const action = screen.getByTestId('trailing-toggle');
+    expect(action).toBeTruthy();
+    expect(action.props.accessibilityLabel).toBe('Show password');
+    await act(async () => {
+      fireEvent.press(action);
+    });
+    expect(onPress).toHaveBeenCalledTimes(1);
+  });
+
   it('does not throw when unmounted while focused', async () => {
     const view = await mount(<TextField testID="tf" label="Name" value="" onChangeText={noop} />);
     await fireEvent(input(), 'focus');

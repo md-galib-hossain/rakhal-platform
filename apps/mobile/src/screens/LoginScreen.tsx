@@ -9,8 +9,11 @@
  */
 import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View, type TextInputInstance } from 'react-native';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { Locale } from '@rakhal/domain';
+import { EyeIcon } from '../assets/icons/EyeIcon.tsx';
+import { EyeOffIcon } from '../assets/icons/EyeOffIcon.tsx';
 import { Button } from '../components/actions/Button.tsx';
 import { Chip, ChipGroup } from '../components/forms/Chip.tsx';
 import { TextField } from '../components/forms/TextField.tsx';
@@ -130,15 +133,27 @@ export function LoginScreen() {
             inputRef={passwordRef}
             disabled={submitting}
             testID="login-password"
+            trailingAction={{
+              icon: showPassword ? (
+                <EyeOffIcon size={20} color={colors.mutedForeground} />
+              ) : (
+                <EyeIcon size={20} color={colors.mutedForeground} />
+              ),
+              onPress: () => setShowPassword((v) => !v),
+              accessibilityLabel: t(showPassword ? 'auth.password.hide' : 'auth.password.show'),
+              testID: 'login-toggle-password',
+            }}
           />
-          <Button
-            label={t(showPassword ? 'auth.password.hide' : 'auth.password.show')}
-            variant="ghost"
-            size="md"
-            fullWidth={false}
-            onPress={() => setShowPassword((v) => !v)}
-            testID="login-toggle-password"
-          />
+          <View style={{ alignItems: 'flex-end', marginTop: -tokens.spacing.xs }}>
+            <Button
+              label={t('auth.login.forgotPassword')}
+              variant="ghost"
+              size="md"
+              fullWidth={false}
+              onPress={() => router.push('/forgot-password')}
+              testID="login-forgot-password"
+            />
+          </View>
         </View>
 
         {formError ? (
@@ -148,6 +163,20 @@ export function LoginScreen() {
         ) : null}
 
         <Button label={t('auth.submit')} onPress={() => void submit()} loading={submitting} testID="login-submit" />
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: tokens.spacing.xs, marginTop: tokens.spacing.xs }}>
+          <Text role="caption" color="mutedForeground">
+            {t('auth.login.signUpPrompt')}
+          </Text>
+          <Button
+            label={t('auth.login.signUpLink')}
+            variant="ghost"
+            size="md"
+            fullWidth={false}
+            onPress={() => router.push('/register')}
+            testID="login-go-to-register"
+          />
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );

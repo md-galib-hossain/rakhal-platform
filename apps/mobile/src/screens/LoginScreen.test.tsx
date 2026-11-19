@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { router } from 'expo-router';
 import { fail, fakeApi, ok, sessionReply, type Handler } from '../test-utils/auth-harness.tsx';
 import { mount, restoreMount } from '../test-utils/mount.tsx';
 import { LoginScreen } from './LoginScreen.tsx';
@@ -58,7 +59,7 @@ describe('LoginScreen', () => {
   });
 
   it.each([
-    ['wrong credentials / locked (401)', fail(401, 'Invalid credentials'), /not correct.*locked for 15 minutes/],
+    ['wrong credentials / locked (401)', fail(401, 'Invalid credentials'), /Incorrect email, username or password/],
     ['too many tries (429)', fail(429, 'slow down'), /Too many tries/],
     ['no network', 'network' as const, /No internet connection/],
     ['server problem (503)', fail(503, 'down'), /server had a problem/],
@@ -73,14 +74,25 @@ describe('LoginScreen', () => {
     expect(error).toHaveTextContent(pattern);
   });
 
+  it('navigates to forgot-password when clicking forgot password link', async () => {
+    const { router } = jest.requireMock('expo-router') as { router: { push: jest.Mock } };
+    await open(() => ok({}));
+    const link = screen.getByTestId('login-forgot-password');
+    expect(link).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(link);
+    });
+    expect(router.push).toHaveBeenCalledWith('/forgot-password');
+  });
+
   it('hides the password by default and the toggle reveals it', async () => {
     await open(() => ok({}));
     expect(password().props.secureTextEntry).toBe(true);
     await act(async () => {
-      fireEvent.press(screen.getByText('Show password'));
+      fireEvent.press(screen.getByTestId('login-toggle-password'));
     });
     expect(password().props.secureTextEntry).toBe(false);
-    expect(screen.getByText('Hide password')).toBeTruthy();
+    expect(screen.getByLabelText('Hide password')).toBeTruthy();
   });
 
   it('tells the user when the server ended their session', async () => {
@@ -114,11 +126,27 @@ describe('LoginScreen', () => {
     await act(async () => {
       fireEvent.press(submit());
     });
-    expect(await screen.findByTestId('login-form-error')).toHaveTextContent(/is not correct/);
+    expect(await screen.findByTestId('login-form-error')).toHaveTextContent(/Incorrect email/);
     await act(async () => {
       fireEvent.press(screen.getByTestId('login-language-bn'));
     });
     await waitFor(() => expect(screen.getByTestId('login-form-error')).toHaveTextContent(/সঠিক নয়/));
+  });
+
+  it('navigates to /forgot-password when forgot password is clicked', async () => {
+    await open(() => ok({}));
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('login-forgot-password'));
+    });
+    expect(router.push).toHaveBeenCalledWith('/forgot-password');
+  });
+
+  it('navigates to /register when sign up link is clicked', async () => {
+    await open(() => ok({}));
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('login-go-to-register'));
+    });
+    expect(router.push).toHaveBeenCalledWith('/register');
   });
 
   it('opens in Bangla when that is the stored language', async () => {

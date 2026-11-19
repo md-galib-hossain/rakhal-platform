@@ -1,4 +1,3 @@
-import * as SQLite from 'expo-sqlite';
 import type { SqlDb, SqlParam } from './sql-db.ts';
 
 /** What both `SQLiteDatabase` and the handle given to an exclusive transaction offer. */
@@ -19,8 +18,17 @@ function wrap(handle: Handle, transaction: SqlDb['transaction']): SqlDb {
   };
 }
 
+function isExpoSqliteAvailable(): boolean {
+  const g = globalThis as unknown as { expo?: { modules?: Record<string, unknown> } };
+  return Boolean(g.expo?.modules?.['ExpoSQLite']);
+}
+
 /** Open the on-device database (WAL, so reads are not blocked by the sync loop's writes). */
 export async function openExpoSqliteDb(name = 'rakhal-offline.db'): Promise<SqlDb> {
+  if (!isExpoSqliteAvailable()) {
+    throw new Error("Cannot find native module 'ExpoSQLite'. Offline storage requires a client build with ExpoSQLite linked.");
+  }
+  const SQLite = await import('expo-sqlite');
   const raw = await SQLite.openDatabaseAsync(name);
   await raw.execAsync('PRAGMA journal_mode = WAL;');
 

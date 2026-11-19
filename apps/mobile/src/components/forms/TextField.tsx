@@ -9,7 +9,7 @@
  * - Sizes via minHeight only; no `numberOfLines`. `lineHeight` only when multiline (spike V-C3, unverified on device).
  * Callers pass already-translated strings.
  */
-import { useRef, useState, type Ref } from 'react';
+import { useRef, useState, type ReactNode, type Ref } from 'react';
 import {
   Pressable,
   TextInput,
@@ -29,6 +29,13 @@ import { Text } from '../primitives/Text.tsx';
 import { FieldLabel, FieldMessages, useInputTextProps } from './field-parts.tsx';
 
 export const MULTILINE_MIN_HEIGHT = 112;
+
+export interface TextFieldTrailingAction {
+  icon: ReactNode;
+  onPress: () => void;
+  accessibilityLabel: string;
+  testID?: string;
+}
 
 export interface TextFieldProps {
   label: string;
@@ -56,6 +63,8 @@ export interface TextFieldProps {
   multiline?: boolean;
   onFocus?: (e: TextInputFocusEvent) => void;
   onBlur?: (e: TextInputFocusEvent) => void;
+  /** Action rendered inside the trailing edge of the field (e.g. password toggle). */
+  trailingAction?: TextFieldTrailingAction;
   /** Placed on the TextInput itself. */
   testID?: string;
 }
@@ -90,6 +99,7 @@ export function TextField({
   multiline = false,
   onFocus,
   onBlur,
+  trailingAction,
   testID,
 }: TextFieldProps) {
   const { colors } = useTheme();
@@ -196,6 +206,26 @@ export function TextField({
               {unit}
             </Text>
           </View>
+        ) : null}
+        {trailingAction ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={trailingAction.accessibilityLabel}
+            onPress={trailingAction.onPress}
+            disabled={disabled}
+            testID={trailingAction.testID}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{
+              minWidth: touchTarget.min,
+              minHeight: touchTarget.min,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginLeft: spacing.xs,
+              marginRight: -spacing.xs,
+            }}
+          >
+            {trailingAction.icon}
+          </Pressable>
         ) : null}
       </Pressable>
       <FieldMessages hint={hint} error={error} />
