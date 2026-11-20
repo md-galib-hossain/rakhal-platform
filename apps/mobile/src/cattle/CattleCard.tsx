@@ -373,105 +373,107 @@ export const CattleCard = memo(function CattleCard({
           gap: tokens.spacing.xs,
         }}
       >
-        {/* Status badges & Next Event row in Collapsed state */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          {/* Health Status Badge */}
-          {hlthBadgeSpec && hlthLabel ? (
-            'herdState' in hlthBadgeSpec ? (
-              <StatusBadge herdState={hlthBadgeSpec.herdState} label={hlthLabel} />
-            ) : (
-              <StatusBadge tone={hlthBadgeSpec.tone} label={hlthLabel} />
-            )
-          ) : null}
+        {/* Status badges & Next Event row in Collapsed state (Default view) */}
+        {!isExpanded && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            {/* Health Status Badge */}
+            {hlthBadgeSpec && hlthLabel ? (
+              'herdState' in hlthBadgeSpec ? (
+                <StatusBadge herdState={hlthBadgeSpec.herdState} label={hlthLabel} />
+              ) : (
+                <StatusBadge tone={hlthBadgeSpec.tone} label={hlthLabel} />
+              )
+            ) : null}
 
-          {/* Production Status Badge */}
-          {prodBadgeSpec && prodLabel ? (
-            'herdState' in prodBadgeSpec ? (
-              <StatusBadge herdState={prodBadgeSpec.herdState} label={prodLabel} />
-            ) : (
-              <StatusBadge tone={prodBadgeSpec.tone} label={prodLabel} />
-            )
-          ) : null}
+            {/* Production Status Badge */}
+            {prodBadgeSpec && prodLabel ? (
+              'herdState' in prodBadgeSpec ? (
+                <StatusBadge herdState={prodBadgeSpec.herdState} label={prodLabel} />
+              ) : (
+                <StatusBadge tone={prodBadgeSpec.tone} label={prodLabel} />
+              )
+            ) : null}
 
-          {/* Primary / Exit status if different from health/production */}
-          {primSpec && primLabel && primLabel !== hlthLabel && primLabel !== prodLabel ? (
-            'herdState' in primSpec ? (
-              <StatusBadge herdState={primSpec.herdState} label={primLabel} />
-            ) : (
-              <StatusBadge tone={primSpec.tone} label={primLabel} />
-            )
-          ) : null}
+            {/* Primary / Exit status if different from health/production */}
+            {primSpec && primLabel && primLabel !== hlthLabel && primLabel !== prodLabel ? (
+              'herdState' in primSpec ? (
+                <StatusBadge herdState={primSpec.herdState} label={primLabel} />
+              ) : (
+                <StatusBadge tone={primSpec.tone} label={primLabel} />
+              )
+            ) : null}
 
-          {/* Next Event Pill Chip (Web Parity) or Subtle Clean No-Event Indicator */}
-          {item.nextEvent && nextEventDue && nextEventTitle ? (
-            <PressableSurface
-              accessibilityRole="button"
-              accessibilityLabel={`${nextEventTitle}, ${nextEventDue.text}`}
-              pressedStyle="overlay"
-              disabled={disabled}
-              onPress={() => onOpenUpcomingEvents?.(item)}
-              testID={`${cardTestID}-next-event`}
-              focusInset
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 5,
-                paddingHorizontal: 8,
-                paddingVertical: 3,
-                borderRadius: tokens.radius.full,
-                borderWidth: 1,
-                borderColor: nextToneColors.border,
-                backgroundColor: nextToneColors.bg,
-                maxWidth: '100%',
-              }}
-            >
-              <EventKindIcon kind={item.nextEvent.kind} size={12} color={nextToneColors.text} />
-              <Text
-                role="caption"
+            {/* Next Event Pill Chip (Web Parity) or Subtle Clean No-Event Indicator */}
+            {item.nextEvent && nextEventDue && nextEventTitle ? (
+              <PressableSurface
+                accessibilityRole="button"
+                accessibilityLabel={`${nextEventTitle}, ${nextEventDue.text}`}
+                pressedStyle="overlay"
+                disabled={disabled}
+                onPress={() => onOpenUpcomingEvents?.(item)}
+                testID={`${cardTestID}-next-event`}
+                focusInset
                 style={{
-                  fontSize: 11,
-                  fontWeight: '600',
-                  color: nextToneColors.text,
-                  maxWidth: 140,
-                }}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {nextEventTitle}
-              </Text>
-              <Text
-                role="caption"
-                style={{
-                  fontSize: 11,
-                  fontWeight: '700',
-                  color: nextToneColors.text,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  borderRadius: tokens.radius.full,
+                  borderWidth: 1,
+                  borderColor: nextToneColors.border,
+                  backgroundColor: nextToneColors.bg,
+                  maxWidth: '100%',
                 }}
               >
-                · {nextEventDue.text}
-              </Text>
-            </PressableSurface>
-          ) : (
-            <View
-              testID={`${cardTestID}-no-event`}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 5,
-                paddingHorizontal: 7,
-                paddingVertical: 3,
-                borderRadius: tokens.radius.full,
-                backgroundColor: colors.muted,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <CheckCircleIcon size={11} color={colors.mutedForeground} />
-              <Text role="caption" color="mutedForeground" style={{ fontSize: 10, fontWeight: '500' }}>
-                {t('cattle.card.noEvents')}
-              </Text>
-            </View>
-          )}
-        </View>
+                <EventKindIcon kind={item.nextEvent.kind} size={12} color={nextToneColors.text} />
+                <Text
+                  role="caption"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '600',
+                    color: nextToneColors.text,
+                    maxWidth: 140,
+                  }}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {nextEventTitle}
+                </Text>
+                <Text
+                  role="caption"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    color: nextToneColors.text,
+                  }}
+                >
+                  · {nextEventDue.text}
+                </Text>
+              </PressableSurface>
+            ) : (
+              <View
+                testID={`${cardTestID}-no-event`}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                  paddingHorizontal: 7,
+                  paddingVertical: 3,
+                  borderRadius: tokens.radius.full,
+                  backgroundColor: colors.muted,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <CheckCircleIcon size={11} color={colors.mutedForeground} />
+                <Text role="caption" color="mutedForeground" style={{ fontSize: 10, fontWeight: '500' }}>
+                  {t('cattle.card.noEvents')}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Expanded Comprehensive Status Table (when isExpanded is true) */}
         {isExpanded && (
