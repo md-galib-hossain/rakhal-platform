@@ -714,7 +714,7 @@ export function CattleList({
         ListHeaderComponent={renderHeader()}
         contentContainerStyle={{
           padding: tokens.spacing.md,
-          paddingBottom: selectedIds.size > 0 ? 160 : tokens.spacing.md,
+          paddingBottom: selectedIds.size > 0 ? 160 + insets.bottom : tokens.spacing.md,
           gap: tokens.spacing.sm,
           backgroundColor: colors.card,
         }}
