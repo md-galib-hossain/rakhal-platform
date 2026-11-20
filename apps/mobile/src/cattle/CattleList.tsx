@@ -11,6 +11,7 @@
  */
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Alert, FlatList, ScrollView, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../components/actions/Button.tsx';
 import { SkeletonList } from '../components/display/Skeleton.tsx';
 import { EmptyState, ErrorState } from '../components/feedback/StateMessage.tsx';
@@ -75,6 +76,7 @@ export function CattleList({
   const { t } = useLocale();
   const format = useFormat();
   const { colors, tokens } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const [localSearch, setLocalSearch] = useState('');
   const [search, setSearch] = useState('');
@@ -712,7 +714,7 @@ export function CattleList({
         ListHeaderComponent={renderHeader()}
         contentContainerStyle={{
           padding: tokens.spacing.md,
-          paddingBottom: selectedIds.size > 0 ? 120 : tokens.spacing.md,
+          paddingBottom: selectedIds.size > 0 ? 160 : tokens.spacing.md,
           gap: tokens.spacing.sm,
           backgroundColor: colors.card,
         }}

@@ -1,15 +1,18 @@
 /**
  * Bottom Floating Bulk Action Dock for Cattle Multi-Selection.
- * Strictly adheres to ADR-007 (zero drop shadows, 1px border separation, 48dp touch targets).
+ * Strictly adheres to ADR-007 (zero drop shadows, 1px border separation, 48dp+ touch targets).
+ * Provides vertical action tiles to prevent text truncation in both English and Bangla.
  */
 import { memo } from 'react';
 import { View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Glyph } from '../components/internal/Glyph.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { Text } from '../components/primitives/Text.tsx';
 import { useFormat } from '../i18n/useFormat.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
+import { CalendarPlusIcon, Trash2Icon, UserPlusIcon, WarehouseIcon } from './CattleIcons.tsx';
 
 export interface CattleBulkDockProps {
   selectedCount: number;
@@ -39,6 +42,7 @@ export const CattleBulkDock = memo(function CattleBulkDock({
   const { colors, tokens } = useTheme();
   const { t } = useLocale();
   const format = useFormat();
+  const insets = useSafeAreaInsets();
 
   const isAllSelected = selectedCount > 0 && selectedCount === totalCount;
 
@@ -47,15 +51,16 @@ export const CattleBulkDock = memo(function CattleBulkDock({
       testID={testID}
       style={{
         position: 'absolute',
-        bottom: tokens.spacing.md,
+        bottom: Math.max(tokens.spacing.md, insets.bottom + 8),
         left: tokens.spacing.md,
         right: tokens.spacing.md,
         backgroundColor: colors.card,
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: tokens.radius.lg,
-        padding: tokens.spacing.sm,
-        gap: tokens.spacing.xs,
+        paddingTop: tokens.spacing.xs + 2,
+        paddingBottom: tokens.spacing.sm,
+        paddingHorizontal: tokens.spacing.xs,
         zIndex: 100,
       }}
     >
@@ -66,9 +71,10 @@ export const CattleBulkDock = memo(function CattleBulkDock({
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingHorizontal: tokens.spacing.xs,
+          paddingBottom: 6,
         }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs + 2 }}>
           <View
             style={{
               backgroundColor: colors.primary,
@@ -84,7 +90,7 @@ export const CattleBulkDock = memo(function CattleBulkDock({
               {format.numberSafe(selectedCount)}
             </Text>
           </View>
-          <Text role="label" color="foreground" style={{ fontWeight: '700', fontSize: 14 }}>
+          <Text role="label" color="foreground" style={{ fontWeight: '700', fontSize: 13 }}>
             {t('cattle.bulk.selectedCount', { count: format.numberSafe(selectedCount) })}
           </Text>
         </View>
@@ -97,16 +103,17 @@ export const CattleBulkDock = memo(function CattleBulkDock({
             onPress={isAllSelected ? onDeselectAll : onSelectAll}
             testID="bulk-select-all-btn"
             style={{
-              paddingVertical: 6,
+              paddingVertical: 5,
               paddingHorizontal: tokens.spacing.sm,
-              borderRadius: tokens.radius.sm,
-              backgroundColor: colors.muted,
+              borderRadius: tokens.radius.full,
+              backgroundColor: colors.secondary,
               borderWidth: 1,
               borderColor: colors.border,
-              minHeight: 34,
+              minHeight: 32,
               alignItems: 'center',
               justifyContent: 'center',
             }}
+            hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
           >
             <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 12 }}>
               {isAllSelected ? t('cattle.bulk.deselectAll') : t('cattle.bulk.selectAll', { count: format.numberSafe(totalCount) })}
@@ -120,24 +127,35 @@ export const CattleBulkDock = memo(function CattleBulkDock({
             onPress={onCancel}
             testID="bulk-cancel-btn"
             style={{
-              width: 34,
-              height: 34,
+              width: 32,
+              height: 32,
               borderRadius: tokens.radius.full,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: colors.muted,
+              backgroundColor: colors.secondary,
               borderWidth: 1,
               borderColor: colors.border,
             }}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Glyph name="close" size={16} color="foreground" />
+            <Glyph name="close" size={14} color="foreground" />
           </PressableSurface>
         </View>
       </View>
 
-      {/* Actions buttons row */}
-      <View style={{ flexDirection: 'row', gap: tokens.spacing.xs, paddingTop: 4 }}>
-        {/* 1. Record event (Primary button) */}
+      {/* Hairline divider between control strip and action tiles */}
+      <View style={{ height: 1, backgroundColor: colors.border, marginHorizontal: tokens.spacing.xs, marginBottom: 6 }} />
+
+      {/* 4 Action Columns (vertical icon tile + text) */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 4,
+        }}
+      >
+        {/* 1. Record event */}
         <PressableSurface
           accessibilityRole="button"
           accessibilityLabel={t('cattle.bulk.recordEvent')}
@@ -145,20 +163,37 @@ export const CattleBulkDock = memo(function CattleBulkDock({
           onPress={onRecordEvent}
           testID="bulk-action-record-event"
           style={{
-            flex: 1.2,
-            flexDirection: 'row',
+            flex: 1,
+            minWidth: 0,
+            minHeight: 68,
             alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: tokens.touchTarget.min,
-            height: tokens.touchTarget.min,
-            paddingHorizontal: tokens.spacing.xs,
+            justifyContent: 'flex-start',
+            paddingVertical: 4,
+            paddingHorizontal: 2,
             borderRadius: tokens.radius.md,
-            backgroundColor: colors.primary,
-            gap: 4,
           }}
         >
-          <Glyph name="check" size={16} color="primaryForeground" />
-          <Text role="button" color="primaryForeground" style={{ fontWeight: '700', fontSize: 12 }} numberOfLines={1}>
+          <View
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: tokens.radius.md,
+              backgroundColor: colors.successTint,
+              borderWidth: 1,
+              borderColor: colors.primaryEdge,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 4,
+            }}
+          >
+            <CalendarPlusIcon size={20} color={colors.primaryEdge} />
+          </View>
+          <Text
+            role="caption"
+            color="foreground"
+            style={{ fontWeight: '600', fontSize: 11, lineHeight: 14, textAlign: 'center' }}
+            numberOfLines={2}
+          >
             {t('cattle.bulk.recordEvent')}
           </Text>
         </PressableSurface>
@@ -172,21 +207,36 @@ export const CattleBulkDock = memo(function CattleBulkDock({
           testID="bulk-action-change-shed"
           style={{
             flex: 1,
-            flexDirection: 'row',
+            minWidth: 0,
+            minHeight: 68,
             alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: tokens.touchTarget.min,
-            height: tokens.touchTarget.min,
-            paddingHorizontal: tokens.spacing.xs,
+            justifyContent: 'flex-start',
+            paddingVertical: 4,
+            paddingHorizontal: 2,
             borderRadius: tokens.radius.md,
-            backgroundColor: colors.card,
-            borderWidth: 1,
-            borderColor: colors.border,
-            gap: 4,
           }}
         >
-          <Glyph name="info" size={16} color="foreground" />
-          <Text role="button" color="foreground" style={{ fontWeight: '600', fontSize: 12 }} numberOfLines={1}>
+          <View
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: tokens.radius.md,
+              backgroundColor: colors.secondary,
+              borderWidth: 1,
+              borderColor: colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 4,
+            }}
+          >
+            <WarehouseIcon size={20} color={colors.foreground} />
+          </View>
+          <Text
+            role="caption"
+            color="foreground"
+            style={{ fontWeight: '600', fontSize: 11, lineHeight: 14, textAlign: 'center' }}
+            numberOfLines={2}
+          >
             {t('cattle.bulk.changeShed')}
           </Text>
         </PressableSurface>
@@ -200,21 +250,36 @@ export const CattleBulkDock = memo(function CattleBulkDock({
           testID="bulk-action-add-to-group"
           style={{
             flex: 1,
-            flexDirection: 'row',
+            minWidth: 0,
+            minHeight: 68,
             alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: tokens.touchTarget.min,
-            height: tokens.touchTarget.min,
-            paddingHorizontal: tokens.spacing.xs,
+            justifyContent: 'flex-start',
+            paddingVertical: 4,
+            paddingHorizontal: 2,
             borderRadius: tokens.radius.md,
-            backgroundColor: colors.card,
-            borderWidth: 1,
-            borderColor: colors.border,
-            gap: 4,
           }}
         >
-          <Glyph name="plus" size={16} color="foreground" />
-          <Text role="button" color="foreground" style={{ fontWeight: '600', fontSize: 12 }} numberOfLines={1}>
+          <View
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: tokens.radius.md,
+              backgroundColor: colors.secondary,
+              borderWidth: 1,
+              borderColor: colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 4,
+            }}
+          >
+            <UserPlusIcon size={20} color={colors.foreground} />
+          </View>
+          <Text
+            role="caption"
+            color="foreground"
+            style={{ fontWeight: '600', fontSize: 11, lineHeight: 14, textAlign: 'center' }}
+            numberOfLines={2}
+          >
             {t('cattle.bulk.addToGroup')}
           </Text>
         </PressableSurface>
@@ -227,22 +292,37 @@ export const CattleBulkDock = memo(function CattleBulkDock({
           onPress={onDispose}
           testID="bulk-action-dispose"
           style={{
-            flex: 0.9,
-            flexDirection: 'row',
+            flex: 1,
+            minWidth: 0,
+            minHeight: 68,
             alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: tokens.touchTarget.min,
-            height: tokens.touchTarget.min,
-            paddingHorizontal: tokens.spacing.xs,
+            justifyContent: 'flex-start',
+            paddingVertical: 4,
+            paddingHorizontal: 2,
             borderRadius: tokens.radius.md,
-            backgroundColor: colors.destructiveTint,
-            borderWidth: 1,
-            borderColor: colors.destructive,
-            gap: 4,
           }}
         >
-          <Glyph name="close" size={16} color="destructiveText" />
-          <Text role="button" color="destructiveText" style={{ fontWeight: '700', fontSize: 12 }} numberOfLines={1}>
+          <View
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: tokens.radius.md,
+              backgroundColor: colors.destructiveTint,
+              borderWidth: 1,
+              borderColor: colors.destructive,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 4,
+            }}
+          >
+            <Trash2Icon size={20} color={colors.destructiveText} />
+          </View>
+          <Text
+            role="caption"
+            color="destructiveText"
+            style={{ fontWeight: '600', fontSize: 11, lineHeight: 14, textAlign: 'center' }}
+            numberOfLines={2}
+          >
             {t('cattle.bulk.dispose')}
           </Text>
         </PressableSurface>
