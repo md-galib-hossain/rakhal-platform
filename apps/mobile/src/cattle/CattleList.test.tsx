@@ -176,6 +176,10 @@ describe('CattleList', () => {
     expect(screen.getByText('/100')).toBeTruthy();
     expect(screen.getByText('480 kg')).toBeTruthy();
     expect(screen.getByText('Main Shed')).toBeTruthy();
+
+    // Tap expand toggle to reveal next event row in expanded mode
+    fireEvent.press(screen.getByTestId('cattle-row-c10-expand-toggle'));
+    await waitFor(() => expect(screen.getByTestId('cattle-row-c10-expanded-details')).toBeTruthy());
     expect(screen.getByText('Calving')).toBeTruthy();
     expect(screen.getByText(/2d overdue/)).toBeTruthy();
   });
@@ -210,10 +214,8 @@ describe('CattleList', () => {
     await open(h, onSelect);
     await waitFor(() => expect(screen.getByTestId('cattle-row-c20')).toBeTruthy());
 
-    // Initially collapsed
+    // Initially collapsed (default mode shows only Health & Production, no Next event)
     expect(screen.queryByTestId('cattle-row-c20-expanded-details')).toBeNull();
-    expect(screen.getByTestId('cattle-row-c20-no-event')).toBeTruthy();
-    expect(screen.getAllByText('No pending events').length).toBeGreaterThanOrEqual(1);
 
     // Tap expand toggle: expands card without triggering onSelect
     const toggle = screen.getByTestId('cattle-row-c20-expand-toggle');
@@ -229,6 +231,8 @@ describe('CattleList', () => {
     expect(within(expanded).getByText('Reproduction')).toBeTruthy();
     expect(within(expanded).getByText('Mid lactation')).toBeTruthy();
     expect(within(expanded).getByText('Pregnant')).toBeTruthy();
+    expect(within(expanded).getByTestId('cattle-row-c20-no-event')).toBeTruthy();
+    expect(within(expanded).getAllByText('No pending events').length).toBeGreaterThanOrEqual(1);
 
     // Tap expand toggle again: collapses back
     fireEvent.press(toggle);
@@ -266,7 +270,11 @@ describe('CattleList', () => {
     await open(h, onSelect);
     await waitFor(() => expect(screen.getByTestId('cattle-row-c30')).toBeTruthy());
 
-    // Next event pill chip is visible
+    // Tap expand toggle to reveal next event row (shown in expanded mode)
+    fireEvent.press(screen.getByTestId('cattle-row-c30-expand-toggle'));
+    await waitFor(() => expect(screen.getByTestId('cattle-row-c30-expanded-details')).toBeTruthy());
+
+    // Next event pill chip is visible in expanded mode
     const chip = screen.getByTestId('cattle-row-c30-next-event');
     expect(chip).toBeTruthy();
     expect(within(chip).getByText('Missing milk-log session')).toBeTruthy();

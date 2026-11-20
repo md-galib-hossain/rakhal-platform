@@ -51,7 +51,7 @@ export const CattleCard = memo(function CattleCard({
   const format = useFormat();
   const reduceMotion = useReduceMotion();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [contentHeight, setContentHeight] = useState(74);
+  const [contentHeight, setContentHeight] = useState(115);
 
   const animProgress = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
 
@@ -443,7 +443,7 @@ export const CattleCard = memo(function CattleCard({
             )}
           </View>
 
-          {/* 3 & 4: Lactation and Reproduction rows (animated accordion) */}
+          {/* 3, 4 & 5: Lactation, Reproduction, and Next Event rows (visible in expanded mode via animated accordion) */}
           <Animated.View
             aria-hidden={!isExpanded}
             pointerEvents={isExpanded ? 'auto' : 'none'}
@@ -498,93 +498,93 @@ export const CattleCard = memo(function CattleCard({
                   <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>—</Text>
                 )}
               </View>
+
+              <View style={{ height: 1, backgroundColor: colors.border }} />
+
+              {/* 5. Next Event Row (Expanded mode only) */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <Text role="caption" color="mutedForeground" style={{ fontSize: 12, fontWeight: '600', flexShrink: 0 }}>
+                  {t('cattle.card.nextEvent')}
+                </Text>
+                <View style={{ flexShrink: 1, alignItems: 'flex-end', maxWidth: '70%' }}>
+                  {item.nextEvent && nextEventDue && nextEventTitle ? (
+                    <PressableSurface
+                      accessibilityRole="button"
+                      accessibilityLabel={`${nextEventTitle}, ${nextEventDue.text}`}
+                      pressedStyle="overlay"
+                      disabled={disabled}
+                      onPress={() => onOpenUpcomingEvents?.(item)}
+                      testID={`${cardTestID}-next-event`}
+                      focusInset
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 5,
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: tokens.radius.full,
+                        borderWidth: 1,
+                        borderColor: nextToneColors.border,
+                        backgroundColor: nextToneColors.bg,
+                        overflow: 'hidden',
+                        flexShrink: 1,
+                        maxWidth: '100%',
+                      }}
+                    >
+                      <View style={{ flexShrink: 0 }}>
+                        <EventKindIcon kind={item.nextEvent.kind} size={12} color={nextToneColors.text} />
+                      </View>
+                      <Text
+                        role="caption"
+                        style={{
+                          flexShrink: 1,
+                          minWidth: 0,
+                          fontSize: 11,
+                          fontWeight: '600',
+                          color: nextToneColors.text,
+                        }}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {nextEventTitle}
+                      </Text>
+                      <Text
+                        role="caption"
+                        style={{
+                          flexShrink: 0,
+                          fontSize: 11,
+                          fontWeight: '700',
+                          color: nextToneColors.text,
+                        }}
+                      >
+                        · {nextEventDue.text}
+                      </Text>
+                    </PressableSurface>
+                  ) : (
+                    <View
+                      testID={`${cardTestID}-no-event`}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 5,
+                        paddingHorizontal: 7,
+                        paddingVertical: 3,
+                        borderRadius: tokens.radius.full,
+                        backgroundColor: colors.card,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                      }}
+                    >
+                      <CheckCircleIcon size={11} color={colors.mutedForeground} />
+                      <Text role="caption" color="mutedForeground" style={{ fontSize: 10, fontWeight: '500' }}>
+                        {t('cattle.card.noEvents')}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
             </View>
           </Animated.View>
-
-          <View style={{ height: 1, backgroundColor: colors.border }} />
-
-          {/* Next Event Row (Row 3 when collapsed, Row 5 when expanded) */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-            <Text role="caption" color="mutedForeground" style={{ fontSize: 12, fontWeight: '600', flexShrink: 0 }}>
-              {t('cattle.card.nextEvent')}
-            </Text>
-            <View style={{ flexShrink: 1, alignItems: 'flex-end', maxWidth: '70%' }}>
-              {item.nextEvent && nextEventDue && nextEventTitle ? (
-                <PressableSurface
-                  accessibilityRole="button"
-                  accessibilityLabel={`${nextEventTitle}, ${nextEventDue.text}`}
-                  pressedStyle="overlay"
-                  disabled={disabled}
-                  onPress={() => onOpenUpcomingEvents?.(item)}
-                  testID={`${cardTestID}-next-event`}
-                  focusInset
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 5,
-                    paddingHorizontal: 8,
-                    paddingVertical: 3,
-                    borderRadius: tokens.radius.full,
-                    borderWidth: 1,
-                    borderColor: nextToneColors.border,
-                    backgroundColor: nextToneColors.bg,
-                    overflow: 'hidden',
-                    flexShrink: 1,
-                    maxWidth: '100%',
-                  }}
-                >
-                  <View style={{ flexShrink: 0 }}>
-                    <EventKindIcon kind={item.nextEvent.kind} size={12} color={nextToneColors.text} />
-                  </View>
-                  <Text
-                    role="caption"
-                    style={{
-                      flexShrink: 1,
-                      minWidth: 0,
-                      fontSize: 11,
-                      fontWeight: '600',
-                      color: nextToneColors.text,
-                    }}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {nextEventTitle}
-                  </Text>
-                  <Text
-                    role="caption"
-                    style={{
-                      flexShrink: 0,
-                      fontSize: 11,
-                      fontWeight: '700',
-                      color: nextToneColors.text,
-                    }}
-                  >
-                    · {nextEventDue.text}
-                  </Text>
-                </PressableSurface>
-              ) : (
-                <View
-                  testID={`${cardTestID}-no-event`}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 5,
-                    paddingHorizontal: 7,
-                    paddingVertical: 3,
-                    borderRadius: tokens.radius.full,
-                    backgroundColor: colors.card,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <CheckCircleIcon size={11} color={colors.mutedForeground} />
-                  <Text role="caption" color="mutedForeground" style={{ fontSize: 10, fontWeight: '500' }}>
-                    {t('cattle.card.noEvents')}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
         </View>
       </View>
 
