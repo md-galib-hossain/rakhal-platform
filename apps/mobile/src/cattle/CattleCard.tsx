@@ -95,10 +95,6 @@ export const CattleCard = memo(function CattleCard({
   // Identity hierarchy: Name is primary; Tag & Breed is subtitle
   const hasName = Boolean(item.name?.trim());
   const displayName = hasName ? item.name!.trim() : item.tagNumber;
-  const subtitleParts = hasName
-    ? [item.tagNumber, item.breedName].filter(Boolean)
-    : [item.breedName].filter(Boolean);
-  const subtitleText = subtitleParts.length > 0 ? subtitleParts.join(' · ') : null;
 
   // Category & Status Badges
   const categoryMsgKey = categoryKey(item.animalCategory);
@@ -151,23 +147,23 @@ export const CattleCard = memo(function CattleCard({
         }
       : nextEventUrgency === 'warning'
         ? {
-            border: colors.warning,
-            bg: colors.warningTint,
-            text: colors.warningText,
-          }
-        : nextEventUrgency === 'info'
-          ? {
-              border: colors.info,
-              bg: colors.infoTint,
-              text: colors.infoText,
-            }
-          : {
-              border: colors.border,
-              bg: colors.muted,
-              text: colors.mutedForeground,
-            };
+          border: colors.warning,
+          bg: colors.warningTint,
+          text: colors.warningText,
+        }
+      : nextEventUrgency === 'info'
+        ? {
+          border: colors.info,
+          bg: colors.infoTint,
+          text: colors.infoText,
+        }
+      : {
+          border: colors.border,
+          bg: colors.muted,
+          text: colors.mutedForeground,
+        };
 
-  const cardA11yLabel = [displayName, subtitleText, categoryLabel, hlthLabel, prodLabel].filter(Boolean).join(', ');
+  const cardA11yLabel = [displayName, item.tagNumber, categoryLabel, item.breedName, hlthLabel, prodLabel].filter(Boolean).join(', ');
 
   return (
     <View
@@ -196,8 +192,8 @@ export const CattleCard = memo(function CattleCard({
           borderTopRightRadius: tokens.radius.lg - 1,
         }}
       >
-        {/* Header: Avatar + Category & Health + Name/Gender & Breed + AQR Score Box */}
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: tokens.spacing.sm }}>
+        {/* Header: Avatar + Identity (Name+Gender, Tag · Category · Breed) + AQR Score Box */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm }}>
           {/* Left: Tinted Avatar */}
           <View
             style={{
@@ -214,47 +210,9 @@ export const CattleCard = memo(function CattleCard({
             </Text>
           </View>
 
-          {/* Middle: Category Pill + Health Badge, Name + Gender, Tag & Breed */}
-          <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-            {/* Top Category + Health Status + Primary Badge Row */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              {categoryLabel ? (
-                <View
-                  style={{
-                    paddingHorizontal: 7,
-                    paddingVertical: 2,
-                    borderRadius: tokens.radius.full,
-                    backgroundColor: colors.muted,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <Text role="caption" color="foreground" style={{ fontSize: 10, fontWeight: '700' }}>
-                    {categoryLabel}
-                  </Text>
-                </View>
-              ) : null}
-
-              {/* Health Status Badge */}
-              {hlthBadgeSpec && hlthLabel ? (
-                'herdState' in hlthBadgeSpec ? (
-                  <StatusBadge herdState={hlthBadgeSpec.herdState} label={hlthLabel} />
-                ) : (
-                  <StatusBadge tone={hlthBadgeSpec.tone} label={hlthLabel} />
-                )
-              ) : null}
-
-              {/* Primary / Exit status if different from health status */}
-              {primSpec && primLabel && primLabel !== hlthLabel ? (
-                'herdState' in primSpec ? (
-                  <StatusBadge herdState={primSpec.herdState} label={primLabel} />
-                ) : (
-                  <StatusBadge tone={primSpec.tone} label={primLabel} />
-                )
-              ) : null}
-            </View>
-
-            {/* Cow Name + Gender Glyph */}
+          {/* Middle: Line 1 Name+Gender, Line 2 Tag · Category · Breed */}
+          <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+            {/* Line 1: Cow Name + Gender Glyph */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text
                 role="title"
@@ -272,18 +230,56 @@ export const CattleCard = memo(function CattleCard({
               ) : null}
             </View>
 
-            {/* Subtitle: Tag number · Breed */}
-            {subtitleText ? (
+            {/* Line 2: Tag number · Category pill · Breed */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
               <Text
                 role="caption"
                 color="mutedForeground"
-                style={{ fontSize: 12 }}
+                style={{ fontSize: 12, fontWeight: '500' }}
                 numberOfLines={1}
-                ellipsizeMode="tail"
               >
-                {subtitleText}
+                {item.tagNumber}
               </Text>
-            ) : null}
+
+              {categoryLabel ? (
+                <>
+                  <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>
+                    ·
+                  </Text>
+                  <View
+                    style={{
+                      paddingHorizontal: 6,
+                      paddingVertical: 1,
+                      borderRadius: tokens.radius.full,
+                      backgroundColor: colors.muted,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                    }}
+                  >
+                    <Text role="caption" color="foreground" style={{ fontSize: 10, fontWeight: '700' }}>
+                      {categoryLabel}
+                    </Text>
+                  </View>
+                </>
+              ) : null}
+
+              {item.breedName ? (
+                <>
+                  <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>
+                    ·
+                  </Text>
+                  <Text
+                    role="caption"
+                    color="mutedForeground"
+                    style={{ fontSize: 12 }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {item.breedName}
+                  </Text>
+                </>
+              ) : null}
+            </View>
           </View>
 
           {/* Right: AQR Score Box (Fixed width, zero overlap) */}
@@ -369,7 +365,7 @@ export const CattleCard = memo(function CattleCard({
         </View>
       </PressableSurface>
 
-      {/* 2. Middle Row: Next Event Pill Chip & Expanded Details */}
+      {/* 3. Middle Section: Key Statuses & Next Event Chip (Always visible in Default state) */}
       <View
         style={{
           paddingHorizontal: tokens.spacing.md,
@@ -377,9 +373,37 @@ export const CattleCard = memo(function CattleCard({
           gap: tokens.spacing.xs,
         }}
       >
-        {/* Next Event Pill Chip (Web Parity) or Subtle Clean No-Event Indicator */}
-        {item.nextEvent && nextEventDue && nextEventTitle ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* Status badges & Next Event row in Collapsed state */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          {/* Health Status Badge */}
+          {hlthBadgeSpec && hlthLabel ? (
+            'herdState' in hlthBadgeSpec ? (
+              <StatusBadge herdState={hlthBadgeSpec.herdState} label={hlthLabel} />
+            ) : (
+              <StatusBadge tone={hlthBadgeSpec.tone} label={hlthLabel} />
+            )
+          ) : null}
+
+          {/* Production Status Badge */}
+          {prodBadgeSpec && prodLabel ? (
+            'herdState' in prodBadgeSpec ? (
+              <StatusBadge herdState={prodBadgeSpec.herdState} label={prodLabel} />
+            ) : (
+              <StatusBadge tone={prodBadgeSpec.tone} label={prodLabel} />
+            )
+          ) : null}
+
+          {/* Primary / Exit status if different from health/production */}
+          {primSpec && primLabel && primLabel !== hlthLabel && primLabel !== prodLabel ? (
+            'herdState' in primSpec ? (
+              <StatusBadge herdState={primSpec.herdState} label={primLabel} />
+            ) : (
+              <StatusBadge tone={primSpec.tone} label={primLabel} />
+            )
+          ) : null}
+
+          {/* Next Event Pill Chip (Web Parity) or Subtle Clean No-Event Indicator */}
+          {item.nextEvent && nextEventDue && nextEventTitle ? (
             <PressableSurface
               accessibilityRole="button"
               accessibilityLabel={`${nextEventTitle}, ${nextEventDue.text}`}
@@ -391,10 +415,9 @@ export const CattleCard = memo(function CattleCard({
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                alignSelf: 'flex-start',
-                gap: 6,
-                paddingHorizontal: 10,
-                paddingVertical: 5,
+                gap: 5,
+                paddingHorizontal: 8,
+                paddingVertical: 3,
                 borderRadius: tokens.radius.full,
                 borderWidth: 1,
                 borderColor: nextToneColors.border,
@@ -402,14 +425,14 @@ export const CattleCard = memo(function CattleCard({
                 maxWidth: '100%',
               }}
             >
-              <EventKindIcon kind={item.nextEvent.kind} size={13} color={nextToneColors.text} />
+              <EventKindIcon kind={item.nextEvent.kind} size={12} color={nextToneColors.text} />
               <Text
                 role="caption"
                 style={{
                   fontSize: 11,
                   fontWeight: '600',
                   color: nextToneColors.text,
-                  maxWidth: 180,
+                  maxWidth: 140,
                 }}
                 numberOfLines={1}
                 ellipsizeMode="tail"
@@ -427,31 +450,30 @@ export const CattleCard = memo(function CattleCard({
                 · {nextEventDue.text}
               </Text>
             </PressableSurface>
-          </View>
-        ) : (
-          <View
-            testID={`${cardTestID}-no-event`}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-              alignSelf: 'flex-start',
-              paddingHorizontal: 8,
-              paddingVertical: 4,
-              borderRadius: tokens.radius.full,
-              backgroundColor: colors.muted,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <CheckCircleIcon size={12} color={colors.mutedForeground} />
-            <Text role="caption" color="mutedForeground" style={{ fontSize: 11, fontWeight: '500' }}>
-              {t('cattle.card.noEvents')}
-            </Text>
-          </View>
-        )}
+          ) : (
+            <View
+              testID={`${cardTestID}-no-event`}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+                paddingHorizontal: 7,
+                paddingVertical: 3,
+                borderRadius: tokens.radius.full,
+                backgroundColor: colors.muted,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              <CheckCircleIcon size={11} color={colors.mutedForeground} />
+              <Text role="caption" color="mutedForeground" style={{ fontSize: 10, fontWeight: '500' }}>
+                {t('cattle.card.noEvents')}
+              </Text>
+            </View>
+          )}
+        </View>
 
-        {/* Expanded Secondary / Deep Statuses Panel (when isExpanded is true) */}
+        {/* Expanded Comprehensive Status Table (when isExpanded is true) */}
         {isExpanded && (
           <View
             testID={`${cardTestID}-expanded-details`}
@@ -462,10 +484,28 @@ export const CattleCard = memo(function CattleCard({
               borderColor: colors.border,
               padding: tokens.spacing.sm,
               gap: 8,
-              marginTop: 4,
+              marginTop: 6,
             }}
           >
-            {/* Production Status */}
+            {/* 1. Health Status Row */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text role="caption" color="mutedForeground" style={{ fontSize: 12, fontWeight: '600' }}>
+                {t('cattle.card.health')}
+              </Text>
+              {hlthBadgeSpec && hlthLabel ? (
+                'herdState' in hlthBadgeSpec ? (
+                  <StatusBadge herdState={hlthBadgeSpec.herdState} label={hlthLabel} />
+                ) : (
+                  <StatusBadge tone={hlthBadgeSpec.tone} label={hlthLabel} />
+                )
+              ) : (
+                <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>—</Text>
+              )}
+            </View>
+
+            <View style={{ height: 1, backgroundColor: colors.border }} />
+
+            {/* 2. Production Status Row */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text role="caption" color="mutedForeground" style={{ fontSize: 12, fontWeight: '600' }}>
                 {t('cattle.card.production')}
@@ -483,7 +523,7 @@ export const CattleCard = memo(function CattleCard({
 
             <View style={{ height: 1, backgroundColor: colors.border }} />
 
-            {/* Lactation Stage */}
+            {/* 3. Lactation Stage Row */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text role="caption" color="mutedForeground" style={{ fontSize: 12, fontWeight: '600' }}>
                 {t('cattle.card.lactation')}
@@ -501,7 +541,7 @@ export const CattleCard = memo(function CattleCard({
 
             <View style={{ height: 1, backgroundColor: colors.border }} />
 
-            {/* Reproduction Status */}
+            {/* 4. Reproduction Status Row */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Text role="caption" color="mutedForeground" style={{ fontSize: 12, fontWeight: '600' }}>
                 {t('cattle.card.reproduction')}
@@ -514,6 +554,82 @@ export const CattleCard = memo(function CattleCard({
                 )
               ) : (
                 <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>—</Text>
+              )}
+            </View>
+
+            <View style={{ height: 1, backgroundColor: colors.border }} />
+
+            {/* 5. Next Event Row (Clickable event chip opening UpcomingEventsSheet) */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text role="caption" color="mutedForeground" style={{ fontSize: 12, fontWeight: '600' }}>
+                {t('cattle.card.nextEvent')}
+              </Text>
+              {item.nextEvent && nextEventDue && nextEventTitle ? (
+                <PressableSurface
+                  accessibilityRole="button"
+                  accessibilityLabel={`${nextEventTitle}, ${nextEventDue.text}`}
+                  pressedStyle="overlay"
+                  disabled={disabled}
+                  onPress={() => onOpenUpcomingEvents?.(item)}
+                  testID={`${cardTestID}-expanded-next-event`}
+                  focusInset
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 5,
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                    borderRadius: tokens.radius.full,
+                    borderWidth: 1,
+                    borderColor: nextToneColors.border,
+                    backgroundColor: nextToneColors.bg,
+                    maxWidth: 220,
+                  }}
+                >
+                  <EventKindIcon kind={item.nextEvent.kind} size={12} color={nextToneColors.text} />
+                  <Text
+                    role="caption"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '600',
+                      color: nextToneColors.text,
+                      maxWidth: 120,
+                    }}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {nextEventTitle}
+                  </Text>
+                  <Text
+                    role="caption"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '700',
+                      color: nextToneColors.text,
+                    }}
+                  >
+                    · {nextEventDue.text}
+                  </Text>
+                </PressableSurface>
+              ) : (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 5,
+                    paddingHorizontal: 7,
+                    paddingVertical: 3,
+                    borderRadius: tokens.radius.full,
+                    backgroundColor: colors.card,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <CheckCircleIcon size={11} color={colors.mutedForeground} />
+                  <Text role="caption" color="mutedForeground" style={{ fontSize: 10, fontWeight: '500' }}>
+                    {t('cattle.card.noEvents')}
+                  </Text>
+                </View>
               )}
             </View>
           </View>

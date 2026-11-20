@@ -32,16 +32,19 @@ Full redesign of the mobile Animals (Cattle) tab:
    - Category filter pills with counts (All, Cows, Heifers, Calves, Weaned, Male, Female, Pregnant, In Milk, Dry, Fresh, Open, Needs Care).
 3. Rich Animal Cards with Web-Parity Next Event Pill Chip & Expandable Details:
    - Tinted avatar with cow initial and deterministic `avatarTint`.
-   - Category pill prominently displayed at the top of each animal card.
-   - Animal Identity: Avatar with tint and bold initial, Name (bold) + Gender glyph (`♀` / `♂`), Tag number & Breed cleanly separated so long names never collide with the AQR box.
-   - Health Status: Prominently visible in the card summary (e.g. Healthy, Sick, In Treatment).
-   - Key attributes: Age, Weight, Shed with icons.
-   - AQR Score Box: Clean score display (`XX /100`) with fixed width and zero text overlap.
-   - Web-matching compact Next Event pill chip: Kind icon (syringe, stethoscope, clipboard, baby, milk, shield, calendar), actual event title (`Missing milk-log session...`), and relative due time (`· 12d overdue`, `· Today`, `· in 3d`). Clicking opens the Upcoming Events bottom sheet modal without navigating to the animal screen. Subtle clean indicator ("No pending events" / "কোনো পেন্ডিং ইভেন্ট নেই") when none.
-   - Expandable card control (>=48dp touch target) smoothly expanding in place with `LayoutAnimation` (respecting `prefers-reduced-motion`) to reveal secondary/deep statuses:
-     - Production Status (Milking / Dry)
-     - Lactation Stage (Fresh, Early, Mid, Late, Dry Period)
-     - Reproduction Status (Open, Pregnant, Awaiting Confirmation, etc.)
+   - Layout & Hierarchy:
+     - Line 1: Cow Name in bold font (`Lokkhi ♀` / `Shundori ♀` / `Bhola ♂`) with gender symbol.
+     - Line 2: Tag number (`GALIB_DAIRY_1-001`) · Category pill (`Cow`) · Breed (`Holstein Friesian` or omitted if none).
+     - Fixed-width AQR score box (`XX /100`) with zero text collision.
+   - Key metrics row: Age, Weight, Shed with icons.
+   - Default (Collapsed) state: Clean, compact and focused, surfacing key status badges (Health: `Healthy`/`Sick`, Production: `Milking`/`Dry`) and Next Event pill chip / no-event chip.
+   - Expandable card control (>=48dp touch target) smoothly expanding in place with `LayoutAnimation` (respecting `prefers-reduced-motion`).
+   - Expanded status table: Unifies all operational dimensions in a structured table:
+     - Health status badge (`Healthy` / `Sick` / `In Treatment`)
+     - Production status badge (`Milking` / `Dry`)
+     - Lactation stage badge (`Fresh`, `Early`, `Mid`, `Late`, `Dry period`)
+     - Reproduction status badge (`Open`, `Pregnant`, `Bred, awaiting check`, etc.)
+     - Next Event: Interactive chip with kind icon, title, and overdue days that opens the `UpcomingEventsSheet` on tap.
    - Navigation safety: Tapping expand toggle expands/collapses in-place WITHOUT navigating. Tapping card top area navigates to `/cattle/[id]`.
 4. Upcoming Events Bottom Sheet Modal (`UpcomingEventsSheet.tsx`):
    - Strict ADR-007 compliance: 1px border separation, zero drop shadows, scrimColor backdrop.

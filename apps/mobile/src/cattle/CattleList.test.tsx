@@ -47,7 +47,8 @@ describe('CattleList', () => {
     expect(screen.getByText('Milking')).toBeTruthy();
     expect(screen.getByText('Sick')).toBeTruthy();
     expect(screen.getAllByText('Healthy').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('BD-001 · Sahiwal')).toBeTruthy();
+    expect(screen.getByText('BD-001')).toBeTruthy();
+    expect(screen.getByText('Sahiwal')).toBeTruthy();
     expect(screen.getByTestId('cattle-count')).toHaveTextContent('Animals: 3');
     expect(screen.queryByTestId('cattle-note-updated')).toBeNull();
   });
@@ -169,7 +170,8 @@ describe('CattleList', () => {
     await waitFor(() => expect(screen.getByTestId('cattle-row-c10')).toBeTruthy());
 
     expect(screen.getByText('Padma')).toBeTruthy();
-    expect(screen.getByText('BD-010 · Sahiwal')).toBeTruthy();
+    expect(screen.getByText('BD-010')).toBeTruthy();
+    expect(screen.getByText('Sahiwal')).toBeTruthy();
     expect(screen.getAllByText('85').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('/100')).toBeTruthy();
     expect(screen.getByText('480 kg')).toBeTruthy();
