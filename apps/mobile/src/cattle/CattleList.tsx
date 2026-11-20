@@ -176,14 +176,15 @@ export function CattleList({
         <View style={{ gap: tokens.spacing.sm }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
-              <Text role="title" color="foreground" style={{ fontWeight: '700', fontSize: 16 }}>
-                {t('cattle.highlights.allAnimals')}
-              </Text>
               {status === 'ready' && displayedItems.length > 0 ? (
-                <Text role="label" color="mutedForeground" testID="cattle-count" accessibilityLiveRegion="polite">
+                <Text role="title" color="foreground" style={{ fontWeight: '700', fontSize: 18 }} testID="cattle-count" accessibilityLiveRegion="polite">
                   {t('cattle.count', { count: format.numberSafe(displayedItems.length) })}
                 </Text>
-              ) : null}
+              ) : (
+                <Text role="title" color="foreground" style={{ fontWeight: '700', fontSize: 18 }}>
+                  {t('cattle.highlights.allAnimals')}
+                </Text>
+              )}
             </View>
 
             {/* + Add New Animal Primary Button */}
@@ -198,66 +199,67 @@ export function CattleList({
             />
           </View>
 
-          {/* Search Input Bar (matching MilkScreen design) */}
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              minHeight: tokens.touchTarget.min,
-              height: tokens.touchTarget.min,
-              paddingLeft: tokens.spacing.sm,
-              paddingRight: tokens.spacing.xs,
-              backgroundColor: colors.card,
-              borderWidth: 1,
-              borderColor: colors.border,
-              borderRadius: tokens.radius.md,
-              gap: tokens.spacing.xs,
-            }}
-          >
-            <SearchIcon size={18} color={colors.mutedForeground} />
-            <TextInput
-              testID="cattle-search"
-              value={localSearch}
-              onChangeText={onSearchChange}
-              placeholder={t('cattle.search.placeholder')}
-              placeholderTextColor={colors.mutedForeground}
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="search"
+          {/* Single Row: Search Input + Filters Button + Groups Button */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs + 2 }}>
+            {/* 1. Search Input Bar */}
+            <View
               style={{
                 flex: 1,
-                color: colors.foreground,
-                fontSize: 14,
-                paddingVertical: tokens.spacing.xs,
-                paddingRight: localSearch.length > 0 ? 32 : 8,
+                flexDirection: 'row',
+                alignItems: 'center',
+                minHeight: tokens.touchTarget.min,
+                height: tokens.touchTarget.min,
+                paddingLeft: tokens.spacing.sm,
+                paddingRight: tokens.spacing.xs,
+                backgroundColor: colors.card,
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: tokens.radius.md,
+                gap: tokens.spacing.xs,
               }}
-            />
-            {localSearch.length > 0 ? (
-              <PressableSurface
-                accessibilityRole="button"
-                accessibilityLabel="Clear search"
-                pressedStyle="overlay"
-                onPress={clearSearch}
-                testID="cattle-search-clear"
-                hitSlop={tokens.spacing.xs}
+            >
+              <SearchIcon size={16} color={colors.mutedForeground} />
+              <TextInput
+                testID="cattle-search"
+                value={localSearch}
+                onChangeText={onSearchChange}
+                placeholder={t('cattle.search.placeholder')}
+                placeholderTextColor={colors.mutedForeground}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="search"
                 style={{
-                  position: 'absolute',
-                  right: 8,
-                  width: 30,
-                  height: 30,
-                  borderRadius: tokens.radius.full,
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  flex: 1,
+                  color: colors.foreground,
+                  fontSize: 13,
+                  paddingVertical: tokens.spacing.xs,
+                  paddingRight: localSearch.length > 0 ? 28 : 4,
                 }}
-              >
-                <Glyph name="close" size={16} color="mutedForeground" />
-              </PressableSurface>
-            ) : null}
-          </View>
+              />
+              {localSearch.length > 0 ? (
+                <PressableSurface
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear search"
+                  pressedStyle="overlay"
+                  onPress={clearSearch}
+                  testID="cattle-search-clear"
+                  hitSlop={tokens.spacing.xs}
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    width: 28,
+                    height: 28,
+                    borderRadius: tokens.radius.full,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Glyph name="close" size={16} color="mutedForeground" />
+                </PressableSurface>
+              ) : null}
+            </View>
 
-          {/* Actions Strip: Filters Button & Animal Groups Button */}
-          <View style={{ flexDirection: 'row', gap: tokens.spacing.sm }}>
-            {/* Filters Button */}
+            {/* 2. Filters Button */}
             <PressableSurface
               accessibilityRole="button"
               accessibilityLabel={t('cattle.actions.openFilters')}
@@ -265,17 +267,18 @@ export function CattleList({
               onPress={() => setFilterSheetOpen(true)}
               testID="cattle-filters-button"
               style={{
-                flex: 1,
-                minHeight: 40,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 6,
-                paddingHorizontal: tokens.spacing.md,
+                minHeight: tokens.touchTarget.min,
+                height: tokens.touchTarget.min,
+                paddingHorizontal: tokens.spacing.sm,
                 borderRadius: tokens.radius.md,
                 borderWidth: 1,
                 borderColor: activeFilterCount > 0 ? colors.primaryEdge : colors.border,
                 backgroundColor: activeFilterCount > 0 ? colors.successTint : colors.card,
+                gap: 4,
+                flexShrink: 0,
               }}
             >
               <FilterIcon size={15} color={activeFilterCount > 0 ? colors.primary : colors.foreground} />
@@ -283,6 +286,7 @@ export function CattleList({
                 role="body"
                 color={activeFilterCount > 0 ? 'primary' : 'foreground'}
                 style={{ fontSize: 13, fontWeight: activeFilterCount > 0 ? '700' : '600' }}
+                numberOfLines={1}
               >
                 {t('cattle.actions.openFilters')}
               </Text>
@@ -290,21 +294,22 @@ export function CattleList({
                 <View
                   style={{
                     backgroundColor: colors.primary,
-                    width: 20,
-                    height: 20,
+                    minWidth: 18,
+                    height: 18,
                     borderRadius: tokens.radius.full,
                     alignItems: 'center',
                     justifyContent: 'center',
+                    paddingHorizontal: 4,
                   }}
                 >
-                  <Text role="caption" color="primaryForeground" style={{ fontWeight: '700', fontSize: 11 }}>
+                  <Text role="caption" color="primaryForeground" style={{ fontWeight: '700', fontSize: 10, lineHeight: 12 }}>
                     {activeFilterCount}
                   </Text>
                 </View>
               ) : null}
             </PressableSurface>
 
-            {/* Animal Groups Button */}
+            {/* 3. Animal Groups Button */}
             <PressableSurface
               accessibilityRole="button"
               accessibilityLabel={t('cattle.actions.openGroups')}
@@ -312,29 +317,35 @@ export function CattleList({
               onPress={() => setGroupsSheetOpen(true)}
               testID="cattle-groups-button"
               style={{
-                flex: 1,
-                minHeight: 40,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 6,
-                paddingHorizontal: tokens.spacing.md,
+                minHeight: tokens.touchTarget.min,
+                height: tokens.touchTarget.min,
+                paddingHorizontal: tokens.spacing.sm,
                 borderRadius: tokens.radius.md,
                 borderWidth: 1,
                 borderColor: filterState.animalGroupId ? colors.primaryEdge : colors.border,
                 backgroundColor: filterState.animalGroupId ? colors.successTint : colors.card,
+                gap: 4,
+                flexShrink: 0,
               }}
             >
-              <UsersIcon size={16} color={filterState.animalGroupId ? colors.primary : colors.foreground} />
+              <UsersIcon size={15} color={filterState.animalGroupId ? colors.primary : colors.foreground} />
               <Text
                 role="body"
                 color={filterState.animalGroupId ? 'primary' : 'foreground'}
                 style={{ fontSize: 13, fontWeight: filterState.animalGroupId ? '700' : '600' }}
+                numberOfLines={1}
               >
                 {t('cattle.actions.openGroups')}
               </Text>
               {animalGroups.length > 0 ? (
-                <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>
+                <Text
+                  role="caption"
+                  color={filterState.animalGroupId ? 'primary' : 'mutedForeground'}
+                  style={{ fontSize: 11, fontWeight: '700' }}
+                >
                   ({animalGroups.length})
                 </Text>
               ) : null}
@@ -605,7 +616,7 @@ export function CattleList({
         contentContainerStyle={{
           padding: tokens.spacing.md,
           gap: tokens.spacing.sm,
-          backgroundColor: colors.background,
+          backgroundColor: colors.card,
         }}
       />
     );
@@ -620,7 +631,7 @@ export function CattleList({
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }} testID={testID}>
+    <View style={{ flex: 1, backgroundColor: colors.card }} testID={testID}>
       {content}
 
       {/* Sheet 1: Upcoming Events Detail Sheet */}

@@ -1,7 +1,7 @@
 ---
 id: UI7
 title: "Mobile: Animals page white card background, header count cleanup, and single-row search filters groups"
-status: active
+status: done
 agent: forma
 harness: antigravity
 branch: feat/mobile-cattle-ux-refinement
