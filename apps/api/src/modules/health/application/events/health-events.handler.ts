@@ -102,11 +102,42 @@ export class HealthEventHandler implements EventHandler, OnModuleInit {
     delete p.nextDoseDays;
 
     if (type === 'ILLNESS') {
+      let condition = p.condition;
+      let note = (i.notes ?? p.note) as string | undefined;
+      if (typeof condition === 'string') {
+        const trimmed = condition.trim().toUpperCase();
+        if (
+          [
+            'MASTITIS',
+            'LAMENESS',
+            'METRITIS',
+            'KETOSIS',
+            'MILK_FEVER',
+            'FEVER',
+            'INJURY',
+            'OTHER',
+          ].includes(trimmed)
+        ) {
+          condition = trimmed;
+        } else if (trimmed === '') {
+          condition = undefined;
+        } else {
+          note = note ? `${condition} - ${note}` : condition;
+          condition = 'OTHER';
+        }
+      }
+
+      const rawPriority = String(p.severity ?? p.priority ?? 'MEDIUM').toUpperCase();
+      const priority = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(rawPriority)
+        ? rawPriority
+        : 'MEDIUM';
+
       const dto = await parsePayload(CreateHealthCaseDto, {
         careType: 'CURATIVE',
-        priority: p.severity ?? 'MEDIUM',
-        note: i.notes,
+        priority,
+        note,
         ...p,
+        condition,
         cattleId: i.cattleId,
         startDate: at,
       });

@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, View } from 'react-native';
+import { Glyph } from '../components/internal/Glyph.tsx';
 import { StatusBadge } from '../components/display/StatusBadge.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { useReduceMotion } from '../components/internal/useReduceMotion.ts';
@@ -37,6 +38,10 @@ export interface CattleCardProps {
   onOpenUpcomingEvents?: (item: CattleListItem) => void;
   disabled?: boolean;
   testID?: string;
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: (item: CattleListItem) => void;
+  onLongPress?: (item: CattleListItem) => void;
 }
 
 export const CattleCard = memo(function CattleCard({
@@ -45,6 +50,10 @@ export const CattleCard = memo(function CattleCard({
   onOpenUpcomingEvents,
   disabled = false,
   testID,
+  isSelectionMode = false,
+  isSelected = false,
+  onToggleSelect,
+  onLongPress,
 }: CattleCardProps) {
   const { colors, tokens } = useTheme();
   const { t } = useLocale();
@@ -55,7 +64,14 @@ export const CattleCard = memo(function CattleCard({
 
   const animProgress = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
 
+  const isFirstRender = useRef(true);
+
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
     if (reduceMotion) {
       animProgress.setValue(isExpanded ? 1 : 0);
       return;
@@ -195,19 +211,31 @@ export const CattleCard = memo(function CattleCard({
     <View
       style={{
         backgroundColor: colors.card,
-        borderWidth: 1,
-        borderColor: colors.border,
+        borderWidth: isSelected ? 1.5 : 1,
+        borderColor: isSelected ? colors.primary : colors.border,
         borderRadius: tokens.radius.lg,
         opacity: disabled ? 0.6 : 1,
       }}
     >
-      {/* 1. Card Top Surface: Tapping navigates to /cattle/[id] */}
+      {/* 1. Card Top Surface: Tapping navigates to /cattle/[id] or toggles selection */}
       <PressableSurface
-        accessibilityRole="button"
+        accessibilityRole={isSelectionMode ? 'checkbox' : 'button'}
+        accessibilityState={isSelectionMode ? { checked: isSelected } : undefined}
         accessibilityLabel={cardA11yLabel}
         pressedStyle="overlay"
         disabled={disabled}
-        onPress={() => onSelect(item)}
+        onPress={() => {
+          if (isSelectionMode && onToggleSelect) {
+            onToggleSelect(item);
+          } else {
+            onSelect(item);
+          }
+        }}
+        onLongPress={() => {
+          if (onLongPress) {
+            onLongPress(item);
+          }
+        }}
         testID={cardTestID}
         focusInset
         style={{
@@ -218,8 +246,26 @@ export const CattleCard = memo(function CattleCard({
           borderTopRightRadius: tokens.radius.lg - 1,
         }}
       >
-        {/* Header: Avatar + Identity (Name+Gender, Tag · Category · Breed) + AQR Score Box */}
+        {/* Header: [Selection Checkbox] + Avatar + Identity (Name+Gender, Tag · Category · Breed) + AQR Score Box */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.sm }}>
+          {isSelectionMode ? (
+            <View
+              testID={`cattle-select-check-${item.id}`}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: tokens.radius.full,
+                borderWidth: 1.5,
+                borderColor: isSelected ? colors.primary : colors.border,
+                backgroundColor: isSelected ? colors.primary : colors.card,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              {isSelected ? <Glyph name="check" size={16} color="primaryForeground" /> : null}
+            </View>
+          ) : null}
+
           {/* Left: Tinted Avatar */}
           <View
             style={{

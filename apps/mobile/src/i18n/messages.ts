@@ -452,6 +452,67 @@ export const en = {
   'milk.analytics.sessionsTitle': 'Session Breakdown',
   'milk.analytics.activeCows': '{count} active cows',
   'milk.analytics.vsAvg': '{percent}% vs 7d avg',
+
+  // Cattle Bulk Actions
+  'cattle.bulk.selectedCount': '{count} selected',
+  'cattle.bulk.selectAll': 'Select all ({count})',
+  'cattle.bulk.deselectAll': 'Deselect all',
+  'cattle.bulk.cancel': 'Cancel',
+  'cattle.bulk.selectMode': 'Select',
+  'cattle.bulk.recordEvent': 'Record event',
+  'cattle.bulk.changeShed': 'Change shed',
+  'cattle.bulk.addToGroup': 'Add to group',
+  'cattle.bulk.dispose': 'Dispose',
+
+  // Bulk Record Event Modal
+  'cattle.bulk.event.title': 'Record Event ({count} animals)',
+  'cattle.bulk.event.type': 'Event Type',
+  'cattle.bulk.event.type.illness': 'Sickness / Illness',
+  'cattle.bulk.event.type.vaccination': 'Vaccination',
+  'cattle.bulk.event.type.deworming': 'Deworming',
+  'cattle.bulk.event.type.weight': 'Weight',
+  'cattle.bulk.event.condition': 'Condition / Diagnosis',
+  'cattle.bulk.event.severity': 'Severity',
+  'cattle.bulk.event.symptoms': 'Symptoms',
+  'cattle.bulk.event.medicine': 'Medicine / Vaccine',
+  'cattle.bulk.event.doseAmount': 'Dose Amount',
+  'cattle.bulk.event.doseUnit': 'Dose Unit',
+  'cattle.bulk.event.route': 'Route',
+  'cattle.bulk.event.weight': 'Weight (kg)',
+  'cattle.bulk.event.notes': 'Notes',
+  'cattle.bulk.event.submit': 'Record for {count} animals',
+  'cattle.bulk.event.submitting': 'Recording...',
+  'cattle.bulk.event.success': 'Recorded event for {saved} animals ({skipped} skipped)',
+  'cattle.bulk.event.error': 'Failed to record bulk event',
+
+  // Bulk Change Shed Modal
+  'cattle.bulk.shed.title': 'Change Shed ({count} animals)',
+  'cattle.bulk.shed.selectShed': 'Select target shed',
+  'cattle.bulk.shed.noShed': 'No shed (unassign)',
+  'cattle.bulk.shed.submit': 'Move {count} animals',
+  'cattle.bulk.shed.submitting': 'Moving...',
+  'cattle.bulk.shed.success': 'Moved {count} animals to {shed}',
+  'cattle.bulk.shed.error': 'Failed to change shed',
+
+  // Bulk Add To Group Modal
+  'cattle.bulk.group.title': 'Add to Group ({count} animals)',
+  'cattle.bulk.group.selectGroup': 'Select target group',
+  'cattle.bulk.group.submit': 'Add {count} animals',
+  'cattle.bulk.group.submitting': 'Adding...',
+  'cattle.bulk.group.success': 'Added {added} animals to {name}',
+  'cattle.bulk.group.error': 'Failed to add to group',
+
+  // Bulk Dispose Modal
+  'cattle.bulk.dispose.title': 'Dispose ({count} animals)',
+  'cattle.bulk.dispose.description': 'Select disposition type for the selected animals.',
+  'cattle.bulk.dispose.type': 'Disposition Type',
+  'cattle.bulk.dispose.type.sale': 'Sold',
+  'cattle.bulk.dispose.type.cull': 'Culled',
+  'cattle.bulk.dispose.type.death': 'Deceased',
+  'cattle.bulk.dispose.submit': 'Confirm disposition',
+  'cattle.bulk.dispose.submitting': 'Processing...',
+  'cattle.bulk.dispose.success': 'Disposed {count} animals',
+  'cattle.bulk.dispose.error': 'Failed to dispose animals',
 } as const;
 
 export type MessageKey = keyof typeof en;
@@ -887,6 +948,67 @@ export const bn: Record<MessageKey, string> = {
   'milk.analytics.sessionsTitle': 'সেশনের বিভাজন',
   'milk.analytics.activeCows': '{count}টি সক্রিয় গাভী',
   'milk.analytics.vsAvg': '৭ দিনের গড় থেকে {percent}%',
+
+  // Cattle Bulk Actions
+  'cattle.bulk.selectedCount': '{count}টি নির্বাচিত',
+  'cattle.bulk.selectAll': 'সব নির্বাচন ({count})',
+  'cattle.bulk.deselectAll': 'নির্বাচন বাতিল',
+  'cattle.bulk.cancel': 'বাতিল',
+  'cattle.bulk.selectMode': 'নির্বাচন',
+  'cattle.bulk.recordEvent': 'ইভেন্ট রেকর্ড',
+  'cattle.bulk.changeShed': 'শেড পরিবর্তন',
+  'cattle.bulk.addToGroup': 'গ্রুপে যোগ',
+  'cattle.bulk.dispose': 'নিষ্পত্তি',
+
+  // Bulk Record Event Modal
+  'cattle.bulk.event.title': 'ইভেন্ট রেকর্ড ({count}টি পশু)',
+  'cattle.bulk.event.type': 'ইভেন্টের ধরন',
+  'cattle.bulk.event.type.illness': 'অসুস্থতা',
+  'cattle.bulk.event.type.vaccination': 'টিকা',
+  'cattle.bulk.event.type.deworming': 'কৃমিনাশক',
+  'cattle.bulk.event.type.weight': 'ওজন',
+  'cattle.bulk.event.condition': 'রোগ / লক্ষণ',
+  'cattle.bulk.event.severity': 'তীব্রতা',
+  'cattle.bulk.event.symptoms': 'উপসর্গ',
+  'cattle.bulk.event.medicine': 'ওষুধ / ভ্যাকসিন',
+  'cattle.bulk.event.doseAmount': 'মাত্রার পরিমাণ',
+  'cattle.bulk.event.doseUnit': 'একক (মিলি/ডোজ)',
+  'cattle.bulk.event.route': 'প্রয়োগের মাধ্যম',
+  'cattle.bulk.event.weight': 'ওজন (কেজি)',
+  'cattle.bulk.event.notes': 'মন্তব্য',
+  'cattle.bulk.event.submit': '{count}টি পশুর জন্য রেকর্ড করুন',
+  'cattle.bulk.event.submitting': 'রেকর্ড হচ্ছে...',
+  'cattle.bulk.event.success': '{saved}টি পশুর ইভেন্ট রেকর্ড হয়েছে ({skipped}টি বাদ)',
+  'cattle.bulk.event.error': 'ইভেন্ট রেকর্ড করতে ব্যর্থ হয়েছে',
+
+  // Bulk Change Shed Modal
+  'cattle.bulk.shed.title': 'শেড পরিবর্তন ({count}টি পশু)',
+  'cattle.bulk.shed.selectShed': 'উদ্দিষ্ট শেড নির্বাচন করুন',
+  'cattle.bulk.shed.noShed': 'কোনো শেড নয়',
+  'cattle.bulk.shed.submit': '{count}টি পশু স্থানান্তর করুন',
+  'cattle.bulk.shed.submitting': 'স্থানান্তর হচ্ছে...',
+  'cattle.bulk.shed.success': '{count}টি পশু {shed}-এ স্থানান্তর করা হয়েছে',
+  'cattle.bulk.shed.error': 'শেড পরিবর্তন করতে ব্যর্থ হয়েছে',
+
+  // Bulk Add To Group Modal
+  'cattle.bulk.group.title': 'গ্রুপে যোগ করুন ({count}টি পশু)',
+  'cattle.bulk.group.selectGroup': 'উদ্দিষ্ট গ্রুপ নির্বাচন করুন',
+  'cattle.bulk.group.submit': '{count}টি পশু যোগ করুন',
+  'cattle.bulk.group.submitting': 'যোগ হচ্ছে...',
+  'cattle.bulk.group.success': '{name} গ্রুপে {added}টি পশু যোগ করা হয়েছে',
+  'cattle.bulk.group.error': 'গ্রুপে যোগ করতে ব্যর্থ হয়েছে',
+
+  // Bulk Dispose Modal
+  'cattle.bulk.dispose.title': 'নিষ্পত্তি ({count}টি পশু)',
+  'cattle.bulk.dispose.description': 'নির্বাচিত পশুদের নিষ্পত্তির ধরন নির্ধারণ করুন।',
+  'cattle.bulk.dispose.type': 'নিষ্পত্তির ধরন',
+  'cattle.bulk.dispose.type.sale': 'বিক্রয়',
+  'cattle.bulk.dispose.type.cull': 'বাছাইকৃত অপসারণ',
+  'cattle.bulk.dispose.type.death': 'মৃত্যু',
+  'cattle.bulk.dispose.submit': 'নিষ্পত্তি নিশ্চিত করুন',
+  'cattle.bulk.dispose.submitting': 'প্রক্রিয়াকরণ হচ্ছে...',
+  'cattle.bulk.dispose.success': '{count}টি পশু নিষ্পত্তি সম্পন্ন হয়েছে',
+  'cattle.bulk.dispose.error': 'পশু নিষ্পত্তি করতে ব্যর্থ হয়েছে',
 };
 
 export const messages: Record<Locale, Record<MessageKey, string>> = { en, bn };

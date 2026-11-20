@@ -294,4 +294,35 @@ describe('CattleList', () => {
     fireEvent.press(viewBtn);
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'c30', tagNumber: 'BD-030' }));
   });
+
+  it('supports multi-selection and bulk actions dock with modals', async () => {
+    const h = syncHarness({ handler: server(cows) });
+    await open(h);
+    await waitFor(() => expect(screen.getByTestId('cattle-row-c1')).toBeTruthy());
+
+    // Initially no bulk dock is visible
+    expect(screen.queryByTestId('cattle-bulk-dock')).toBeNull();
+
+    // Tap "Select" button to enter selection mode
+    fireEvent.press(screen.getByTestId('cattle-select-mode-btn'));
+    await waitFor(() => expect(screen.getByTestId('cattle-select-check-c1')).toBeTruthy());
+
+    // Tap cow 1 and wait for dock
+    fireEvent.press(screen.getByTestId('cattle-row-c1'));
+    await waitFor(() => expect(screen.getByTestId('cattle-bulk-dock')).toBeTruthy());
+    expect(screen.getByText('1 selected')).toBeTruthy();
+
+    // Tap cow 2 and wait for count update
+    fireEvent.press(screen.getByTestId('cattle-row-c2'));
+    await waitFor(() => expect(screen.getByText('2 selected')).toBeTruthy());
+
+    // Tap "Record event" opens BulkEventModal
+    fireEvent.press(screen.getByTestId('bulk-action-record-event'));
+    await waitFor(() => expect(screen.getByTestId('bulk-event-modal')).toBeTruthy());
+    expect(screen.getByText('Record Event (2 animals)')).toBeTruthy();
+
+    // Close bulk modal
+    fireEvent.press(screen.getByTestId('bulk-cancel-btn'));
+    await waitFor(() => expect(screen.queryByTestId('cattle-bulk-dock')).toBeNull());
+  });
 });

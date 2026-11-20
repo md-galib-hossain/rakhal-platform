@@ -21,6 +21,11 @@ import { useFormat } from '../i18n/useFormat.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 import { AnimalGroupsSheet } from './AnimalGroupsSheet.tsx';
+import { BulkAddToGroupModal } from './BulkAddToGroupModal.tsx';
+import { BulkChangeShedModal } from './BulkChangeShedModal.tsx';
+import { BulkDisposeModal } from './BulkDisposeModal.tsx';
+import { BulkEventModal } from './BulkEventModal.tsx';
+import { CattleBulkDock } from './CattleBulkDock.tsx';
 import { CattleCard } from './CattleCard.tsx';
 import { CattleFilterSheet } from './CattleFilterSheet.tsx';
 import { CattleHighlightsBar } from './CattleHighlightsBar.tsx';
@@ -82,6 +87,14 @@ export function CattleList({
   const [groupsSheetOpen, setGroupsSheetOpen] = useState(false);
   const [activeGroupName, setActiveGroupName] = useState<string | null>(null);
 
+  // Bulk Selection & Modals state
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkEventOpen, setBulkEventOpen] = useState(false);
+  const [bulkShedOpen, setBulkShedOpen] = useState(false);
+  const [bulkGroupOpen, setBulkGroupOpen] = useState(false);
+  const [bulkDisposeOpen, setBulkDisposeOpen] = useState(false);
+
   const { groups: animalGroups, reload: reloadGroups } = useAnimalGroups();
 
   useEffect(() => {
@@ -141,6 +154,53 @@ export function CattleList({
     Alert.alert(t('cattle.actions.addAnimal'), t('cattle.actions.addAnimalHint'), [{ text: 'OK' }]);
   }, [t]);
 
+  // Bulk Selection Handlers
+  const toggleSelectItem = useCallback((item: CattleListItem) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(item.id)) {
+        next.delete(item.id);
+      } else {
+        next.add(item.id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleLongPressItem = useCallback((item: CattleListItem) => {
+    setIsSelectionMode(true);
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.add(item.id);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    setSelectedIds(new Set(displayedItems.map((i) => i.id)));
+  }, [displayedItems]);
+
+  const handleDeselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleCancelSelection = useCallback(() => {
+    setSelectedIds(new Set());
+    setIsSelectionMode(false);
+    setBulkEventOpen(false);
+    setBulkShedOpen(false);
+    setBulkGroupOpen(false);
+    setBulkDisposeOpen(false);
+  }, []);
+
+  const toggleSelectionMode = useCallback(() => {
+    if (isSelectionMode) {
+      handleCancelSelection();
+    } else {
+      setIsSelectionMode(true);
+    }
+  }, [isSelectionMode, handleCancelSelection]);
+
   const renderItem = useCallback(
     ({ item }: { item: CattleListItem }) => (
       <CattleCard
@@ -149,9 +209,13 @@ export function CattleList({
         onSelect={onSelect}
         onOpenUpcomingEvents={setSheetItem}
         testID={`cattle-row-${item.id}`}
+        isSelectionMode={isSelectionMode}
+        isSelected={selectedIds.has(item.id)}
+        onToggleSelect={toggleSelectItem}
+        onLongPress={handleLongPressItem}
       />
     ),
-    [isDisabled, onSelect],
+    [isDisabled, onSelect, isSelectionMode, selectedIds, toggleSelectItem, handleLongPressItem],
   );
 
   const notes = useMemo(() => {
@@ -187,16 +251,46 @@ export function CattleList({
               )}
             </View>
 
-            {/* + Add New Animal Primary Button */}
-            <Button
-              label={t('cattle.actions.addAnimal')}
-              leadingIcon="plus"
-              variant="primary"
-              size="md"
-              fullWidth={false}
-              onPress={handleAddAnimalPress}
-              testID="cattle-add-animal-btn"
-            />
+            {/* Action buttons: Select Mode toggle + Add New Animal */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
+              <PressableSurface
+                accessibilityRole="button"
+                accessibilityLabel={isSelectionMode ? t('cattle.bulk.cancel') : t('cattle.bulk.selectMode')}
+                pressedStyle="overlay"
+                onPress={toggleSelectionMode}
+                testID="cattle-select-mode-btn"
+                style={{
+                  minHeight: tokens.touchTarget.min,
+                  height: tokens.touchTarget.min,
+                  paddingHorizontal: tokens.spacing.sm,
+                  borderRadius: tokens.radius.md,
+                  borderWidth: 1,
+                  borderColor: isSelectionMode ? colors.primaryEdge : colors.border,
+                  backgroundColor: isSelectionMode ? colors.successTint : colors.card,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text
+                  role="button"
+                  color={isSelectionMode ? 'primary' : 'foreground'}
+                  style={{ fontWeight: isSelectionMode ? '700' : '600', fontSize: 13 }}
+                >
+                  {isSelectionMode ? t('cattle.bulk.cancel') : t('cattle.bulk.selectMode')}
+                </Text>
+              </PressableSurface>
+
+              {/* + Add New Animal Primary Button */}
+              <Button
+                label={t('cattle.actions.addAnimal')}
+                leadingIcon="plus"
+                variant="primary"
+                size="md"
+                fullWidth={false}
+                onPress={handleAddAnimalPress}
+                testID="cattle-add-animal-btn"
+              />
+            </View>
           </View>
 
           {/* Single Row: Search Input + Filters Button + Groups Button */}
@@ -561,6 +655,8 @@ export function CattleList({
       handleClearAllFilters,
       handleAddAnimalPress,
       animalGroups.length,
+      isSelectionMode,
+      toggleSelectionMode,
       notes,
       colors,
       tokens,
@@ -610,11 +706,13 @@ export function CattleList({
     content = (
       <FlatList
         data={displayedItems}
+        extraData={[isSelectionMode, selectedIds]}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        ListHeaderComponent={renderHeader}
+        ListHeaderComponent={renderHeader()}
         contentContainerStyle={{
           padding: tokens.spacing.md,
+          paddingBottom: selectedIds.size > 0 ? 120 : tokens.spacing.md,
           gap: tokens.spacing.sm,
           backgroundColor: colors.card,
         }}
@@ -633,6 +731,70 @@ export function CattleList({
   return (
     <View style={{ flex: 1, backgroundColor: colors.card }} testID={testID}>
       {content}
+
+      {/* Bulk Action Dock */}
+      {selectedIds.size > 0 ? (
+        <CattleBulkDock
+          selectedCount={selectedIds.size}
+          totalCount={displayedItems.length}
+          onSelectAll={handleSelectAll}
+          onDeselectAll={handleDeselectAll}
+          onRecordEvent={() => setBulkEventOpen(true)}
+          onChangeShed={() => setBulkShedOpen(true)}
+          onAddToGroup={() => setBulkGroupOpen(true)}
+          onDispose={() => setBulkDisposeOpen(true)}
+          onCancel={handleCancelSelection}
+        />
+      ) : null}
+
+      {/* Modal 1: Bulk Record Event */}
+      <BulkEventModal
+        visible={bulkEventOpen}
+        onClose={() => setBulkEventOpen(false)}
+        selectedIds={Array.from(selectedIds)}
+        onSuccess={(msg) => {
+          handleCancelSelection();
+          void reload();
+          Alert.alert('', msg);
+        }}
+      />
+
+      {/* Modal 2: Bulk Change Shed */}
+      <BulkChangeShedModal
+        visible={bulkShedOpen}
+        onClose={() => setBulkShedOpen(false)}
+        selectedIds={Array.from(selectedIds)}
+        onSuccess={(msg) => {
+          handleCancelSelection();
+          void reload();
+          Alert.alert('', msg);
+        }}
+      />
+
+      {/* Modal 3: Bulk Add To Group */}
+      <BulkAddToGroupModal
+        visible={bulkGroupOpen}
+        onClose={() => setBulkGroupOpen(false)}
+        selectedIds={Array.from(selectedIds)}
+        onSuccess={(msg) => {
+          handleCancelSelection();
+          void reload();
+          void reloadGroups();
+          Alert.alert('', msg);
+        }}
+      />
+
+      {/* Modal 4: Bulk Dispose */}
+      <BulkDisposeModal
+        visible={bulkDisposeOpen}
+        onClose={() => setBulkDisposeOpen(false)}
+        selectedIds={Array.from(selectedIds)}
+        onSuccess={(msg) => {
+          handleCancelSelection();
+          void reload();
+          Alert.alert('', msg);
+        }}
+      />
 
       {/* Sheet 1: Upcoming Events Detail Sheet */}
       <UpcomingEventsSheet
