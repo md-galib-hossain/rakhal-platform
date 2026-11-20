@@ -87,7 +87,7 @@ export const CattleCard = memo(function CattleCard({
 
   const animMarginTop = animProgress.interpolate({
     inputRange: [0, 1],
-    outputRange: [-8, 0],
+    outputRange: [-6, 0],
   });
 
   const chevronRotation = animProgress.interpolate({
@@ -391,11 +391,11 @@ export const CattleCard = memo(function CattleCard({
         </View>
       </PressableSurface>
 
-      {/* 3. Middle Section: Unified Status Table (Default: 3 rows, Expanded: 5 rows) */}
+      {/* 2. Middle Section: Unified Status Table */}
       <View
         style={{
           paddingHorizontal: tokens.spacing.md,
-          paddingBottom: tokens.spacing.sm,
+          paddingBottom: 6,
         }}
       >
         <View
@@ -405,8 +405,9 @@ export const CattleCard = memo(function CattleCard({
             borderRadius: tokens.radius.md,
             borderWidth: 1,
             borderColor: colors.border,
-            padding: tokens.spacing.sm,
-            gap: 8,
+            paddingHorizontal: tokens.spacing.sm,
+            paddingVertical: 7,
+            gap: 6,
           }}
         >
           {/* 1. Health Status Row */}
@@ -461,7 +462,7 @@ export const CattleCard = memo(function CattleCard({
                   setContentHeight(h);
                 }
               }}
-              style={{ gap: 8 }}
+              style={{ gap: 6 }}
             >
               <View style={{ height: 1, backgroundColor: colors.border }} />
 
@@ -588,7 +589,7 @@ export const CattleCard = memo(function CattleCard({
         </View>
       </View>
 
-      {/* 3. Expand / Collapse Interactive Toggle Button */}
+      {/* 3. Expand / Collapse Compact Interactive Toggle Button */}
       <PressableSurface
         accessibilityRole="button"
         accessibilityState={{ expanded: isExpanded }}
@@ -601,26 +602,26 @@ export const CattleCard = memo(function CattleCard({
         disabled={disabled}
         onPress={toggleExpand}
         testID={`${cardTestID}-expand-toggle`}
+        hitSlop={{ top: 10, bottom: 10, left: 24, right: 24 }}
         focusInset
         style={{
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 6,
-          minHeight: 48,
+          gap: 4,
+          paddingVertical: 7,
           borderTopWidth: 1,
           borderTopColor: colors.border,
           backgroundColor: colors.card,
-          paddingHorizontal: tokens.spacing.md,
           borderBottomLeftRadius: tokens.radius.lg - 1,
           borderBottomRightRadius: tokens.radius.lg - 1,
         }}
       >
-        <Text role="label" color="primary" style={{ fontSize: 12, fontWeight: '700' }}>
+        <Text role="caption" color="primary" style={{ fontSize: 11, fontWeight: '600' }}>
           {isExpanded ? t('cattle.card.lessDetails') : t('cattle.card.moreDetails')}
         </Text>
         <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
-          <ChevronDownIcon size={15} color={colors.primary} />
+          <ChevronDownIcon size={12} color={colors.primary} />
         </Animated.View>
       </PressableSurface>
     </View>
