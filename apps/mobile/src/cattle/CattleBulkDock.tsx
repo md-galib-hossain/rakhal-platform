@@ -138,7 +138,7 @@ export const CattleBulkDock = memo(function CattleBulkDock({
             }}
             hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
-            <Glyph name="close" size={14} color="foreground" />
+            <Glyph name="close" size={16} color="foreground" />
           </PressableSurface>
         </View>
       </View>
