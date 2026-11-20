@@ -1,5 +1,5 @@
-import { memo, useCallback, useState } from 'react';
-import { LayoutAnimation, Platform, UIManager, View } from 'react-native';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Easing, View } from 'react-native';
 import { StatusBadge } from '../components/display/StatusBadge.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { useReduceMotion } from '../components/internal/useReduceMotion.ts';
@@ -24,17 +24,12 @@ import {
   CalendarIcon,
   CheckCircleIcon,
   ChevronDownIcon,
-  ChevronUpIcon,
   EventKindIcon,
   MapPinIcon,
   MarsIcon,
   ScaleIcon,
   VenusIcon,
 } from './CattleIcons.tsx';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 export interface CattleCardProps {
   item: CattleListItem;
@@ -56,13 +51,49 @@ export const CattleCard = memo(function CattleCard({
   const format = useFormat();
   const reduceMotion = useReduceMotion();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [contentHeight, setContentHeight] = useState(74);
+
+  const animProgress = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (reduceMotion) {
+      animProgress.setValue(isExpanded ? 1 : 0);
+      return;
+    }
+
+    const anim = Animated.timing(animProgress, {
+      toValue: isExpanded ? 1 : 0,
+      duration: isExpanded ? 220 : 180,
+      easing: isExpanded ? Easing.bezier(0.2, 0, 0, 1) : Easing.inOut(Easing.ease),
+      useNativeDriver: false,
+    });
+    anim.start();
+    return () => anim.stop();
+  }, [isExpanded, reduceMotion, animProgress]);
 
   const toggleExpand = useCallback(() => {
-    if (!reduceMotion) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    }
     setIsExpanded((prev) => !prev);
-  }, [reduceMotion]);
+  }, []);
+
+  const animHeight = animProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, contentHeight],
+  });
+
+  const animOpacity = animProgress.interpolate({
+    inputRange: [0, 0.35, 1],
+    outputRange: [0, 0, 1],
+  });
+
+  const animMarginTop = animProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-8, 0],
+  });
+
+  const chevronRotation = animProgress.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
 
   const cardTestID = testID ?? `cattle-row-${item.id}`;
   const initial = (item.name?.trim() || item.tagNumber || 'C').charAt(0).toUpperCase();
@@ -412,9 +443,26 @@ export const CattleCard = memo(function CattleCard({
             )}
           </View>
 
-          {/* 3 & 4: Lactation and Reproduction rows (visible only when expanded) */}
-          {isExpanded && (
-            <>
+          {/* 3 & 4: Lactation and Reproduction rows (animated accordion) */}
+          <Animated.View
+            aria-hidden={!isExpanded}
+            pointerEvents={isExpanded ? 'auto' : 'none'}
+            style={{
+              height: animHeight,
+              opacity: animOpacity,
+              marginTop: animMarginTop,
+              overflow: 'hidden',
+            }}
+          >
+            <View
+              onLayout={(event) => {
+                const h = event.nativeEvent.layout.height;
+                if (h > 0 && Math.abs(h - contentHeight) > 1) {
+                  setContentHeight(h);
+                }
+              }}
+              style={{ gap: 8 }}
+            >
               <View style={{ height: 1, backgroundColor: colors.border }} />
 
               {/* 3. Lactation Stage Row */}
@@ -450,8 +498,8 @@ export const CattleCard = memo(function CattleCard({
                   <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>—</Text>
                 )}
               </View>
-            </>
-          )}
+            </View>
+          </Animated.View>
 
           <View style={{ height: 1, backgroundColor: colors.border }} />
 
@@ -571,11 +619,9 @@ export const CattleCard = memo(function CattleCard({
         <Text role="label" color="primary" style={{ fontSize: 12, fontWeight: '700' }}>
           {isExpanded ? t('cattle.card.lessDetails') : t('cattle.card.moreDetails')}
         </Text>
-        {isExpanded ? (
-          <ChevronUpIcon size={15} color={colors.primary} />
-        ) : (
+        <Animated.View style={{ transform: [{ rotate: chevronRotation }] }}>
           <ChevronDownIcon size={15} color={colors.primary} />
-        )}
+        </Animated.View>
       </PressableSurface>
     </View>
   );

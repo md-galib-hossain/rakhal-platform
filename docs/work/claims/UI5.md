@@ -38,7 +38,14 @@ Full redesign of the mobile Animals (Cattle) tab:
      - Fixed-width AQR score box (`XX /100`) with zero text collision.
    - Key metrics row: Age, Weight, Shed with icons.
    - Default (Collapsed) state: Clean, compact and focused, surfacing key status badges (Health: `Healthy`/`Sick`, Production: `Milking`/`Dry`) and Next Event pill chip / no-event chip.
-   - Expandable card control (>=48dp touch target) smoothly expanding in place with `LayoutAnimation` (respecting `prefers-reduced-motion`).
+    - Fluid accordion animation for card details (`CattleCard.tsx`):
+      - Smooth Animated height interpolation (0 to dynamic measured height) and opacity fade (0 to 1).
+      - Expand curve: 220ms with cubic deceleration `Easing.bezier(0.2, 0, 0, 1)`.
+      - Collapse curve: 180ms with `Easing.inOut(Easing.ease)`.
+      - Instantaneous (0ms) when `prefers-reduced-motion` is active.
+      - Seamless 180° chevron rotation (`rotate: 0deg -> 180deg`) synchronized with accordion progress.
+      - Dynamic height measurement via `onLayout` supporting any font scale and Bangla/English text lengths.
+      - Accessible: `aria-hidden` and `pointerEvents="none"` when collapsed, >=48dp touch target on toggle button.
    - Expanded status table: Unifies all operational dimensions in a structured table:
      - Health status badge (`Healthy` / `Sick` / `In Treatment`)
      - Production status badge (`Milking` / `Dry`)
