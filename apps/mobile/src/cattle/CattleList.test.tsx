@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react-native';
 import { ok, sessionReply, type Handler } from '../test-utils/auth-harness.tsx';
 import { mount, restoreMount } from '../test-utils/mount.tsx';
 import { syncHarness } from '../test-utils/sync-harness.tsx';
@@ -46,7 +46,7 @@ describe('CattleList', () => {
     expect(screen.getByText('BD-001 · Rupa')).toBeTruthy();
     expect(screen.getByText('Milking')).toBeTruthy();
     expect(screen.getByText('Sick')).toBeTruthy();
-    expect(screen.getByText('Healthy')).toBeTruthy();
+    expect(screen.getAllByText('Healthy').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Cow · Sahiwal')).toBeTruthy();
     expect(screen.getByTestId('cattle-count')).toHaveTextContent('Animals: 3');
     expect(screen.queryByTestId('cattle-note-updated')).toBeNull();
@@ -175,5 +175,66 @@ describe('CattleList', () => {
     expect(screen.getByText('Main Shed')).toBeTruthy();
     expect(screen.getByText('Calving')).toBeTruthy();
     expect(screen.getByText('2d overdue')).toBeTruthy();
+  });
+
+  it('toggles expandable card in place without navigating to detail, showing deep statuses', async () => {
+    const enrichedCows = [
+      {
+        id: 'c20',
+        tagNumber: 'BD-020',
+        name: 'Moti',
+        gender: 'FEMALE',
+        herdStatus: 'ACTIVE',
+        productionStatus: 'MILKING',
+        lactationStage: 'MID',
+        reproductiveStatus: 'PREGNANT',
+        healthStatus: 'HEALTHY',
+        animalCategory: 'COW',
+      },
+      {
+        id: 'c21',
+        tagNumber: 'BD-021',
+        name: 'Tara',
+        gender: 'FEMALE',
+        herdStatus: 'ACTIVE',
+        productionStatus: 'DRY',
+        healthStatus: 'HEALTHY',
+        animalCategory: 'COW',
+      },
+    ];
+    const onSelect = jest.fn();
+    const h = syncHarness({ handler: server(enrichedCows) });
+    await open(h, onSelect);
+    await waitFor(() => expect(screen.getByTestId('cattle-row-c20')).toBeTruthy());
+
+    // Initially collapsed
+    expect(screen.queryByTestId('cattle-row-c20-expanded-details')).toBeNull();
+    expect(screen.getByTestId('cattle-row-c20-no-event')).toBeTruthy();
+    expect(screen.getAllByText('No pending events').length).toBeGreaterThanOrEqual(1);
+
+    // Tap expand toggle: expands card without triggering onSelect
+    const toggle = screen.getByTestId('cattle-row-c20-expand-toggle');
+    expect(toggle.props.accessibilityState).toMatchObject({ expanded: false });
+    fireEvent.press(toggle);
+
+    expect(onSelect).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByTestId('cattle-row-c20-expanded-details')).toBeTruthy());
+    const expanded = screen.getByTestId('cattle-row-c20-expanded-details');
+    expect(toggle.props.accessibilityState).toMatchObject({ expanded: true });
+    expect(within(expanded).getByText('Production')).toBeTruthy();
+    expect(within(expanded).getByText('Lactation')).toBeTruthy();
+    expect(within(expanded).getByText('Reproduction')).toBeTruthy();
+    expect(within(expanded).getByText('Mid lactation')).toBeTruthy();
+    expect(within(expanded).getByText('Pregnant')).toBeTruthy();
+
+    // Tap expand toggle again: collapses back
+    fireEvent.press(toggle);
+    expect(onSelect).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByTestId('cattle-row-c20-expanded-details')).toBeNull());
+    expect(toggle.props.accessibilityState).toMatchObject({ expanded: false });
+
+    // Tapping card body calls onSelect
+    fireEvent.press(screen.getByTestId('cattle-row-c20'));
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'c20', tagNumber: 'BD-020' }));
   });
 });

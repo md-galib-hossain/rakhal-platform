@@ -1,7 +1,8 @@
-import { memo } from 'react';
-import { View } from 'react-native';
+import { memo, useCallback, useState } from 'react';
+import { LayoutAnimation, Platform, UIManager, View } from 'react-native';
 import { StatusBadge } from '../components/display/StatusBadge.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
+import { useReduceMotion } from '../components/internal/useReduceMotion.ts';
 import { Text } from '../components/primitives/Text.tsx';
 import { useFormat } from '../i18n/useFormat.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
@@ -21,12 +22,19 @@ import {
 } from './cattle-model.ts';
 import {
   CalendarIcon,
+  CheckCircleIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   ClockIcon,
   MapPinIcon,
   MarsIcon,
   ScaleIcon,
   VenusIcon,
 } from './CattleIcons.tsx';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export interface CattleCardProps {
   item: CattleListItem;
@@ -44,6 +52,15 @@ export const CattleCard = memo(function CattleCard({
   const { colors, tokens } = useTheme();
   const { t } = useLocale();
   const format = useFormat();
+  const reduceMotion = useReduceMotion();
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const toggleExpand = useCallback(() => {
+    if (!reduceMotion) {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    }
+    setIsExpanded((prev) => !prev);
+  }, [reduceMotion]);
 
   const title = cattleTitle(item);
   const cardTestID = testID ?? `cattle-row-${item.id}`;
@@ -97,6 +114,10 @@ export const CattleCard = memo(function CattleCard({
       nextEventTitle = t('cattle.upcoming.healthStep');
     } else if (ev.kind === 'PREVENTIVE_STEP') {
       nextEventTitle = t('cattle.upcoming.preventiveStep');
+    } else if (ev.kind === 'VACCINATION') {
+      nextEventTitle = t('cattle.upcoming.vaccination');
+    } else if (ev.kind === 'DEWORMING') {
+      nextEventTitle = t('cattle.upcoming.deworming');
     } else {
       nextEventTitle = t('cattle.upcoming.task');
     }
@@ -118,8 +139,17 @@ export const CattleCard = memo(function CattleCard({
     }
   }
 
+  // Primary status fallback badge
   const primSpec = primaryBadge(item);
   const primLabel = primSpec.labelKey ? t(primSpec.labelKey) : humanize(primSpec.raw ?? '');
+
+  // Deep statuses: Health, Production, Lactation, Reproduction
+  const hlthBadgeSpec = healthBadge(item.healthStatus);
+  const hlthLabel = hlthBadgeSpec
+    ? hlthBadgeSpec.labelKey
+      ? t(hlthBadgeSpec.labelKey)
+      : humanize(hlthBadgeSpec.raw ?? '')
+    : null;
 
   const prodBadgeSpec = productionBadge(item.productionStatus);
   const prodLabel = prodBadgeSpec
@@ -142,213 +172,252 @@ export const CattleCard = memo(function CattleCard({
       : humanize(reproBadgeSpec.raw ?? '')
     : null;
 
-  const hlthBadgeSpec = healthBadge(item.healthStatus);
-  const hlthLabel = hlthBadgeSpec
-    ? hlthBadgeSpec.labelKey
-      ? t(hlthBadgeSpec.labelKey)
-      : humanize(hlthBadgeSpec.raw ?? '')
-    : null;
+  const cardA11yLabel = [title, categoryLabel, hlthLabel, prodLabel].filter(Boolean).join(', ');
 
   return (
-    <PressableSurface
-      accessibilityRole="button"
-      accessibilityLabel={`${title}, ${categoryLabel ?? ''}, ${prodLabel ?? ''}, ${hlthLabel ?? ''}`}
-      pressedStyle="overlay"
-      disabled={disabled}
-      onPress={() => onSelect(item)}
-      testID={cardTestID}
+    <View
       style={{
         backgroundColor: colors.card,
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: tokens.radius.lg,
-        padding: tokens.spacing.md,
-        gap: tokens.spacing.sm,
         opacity: disabled ? 0.6 : 1,
       }}
     >
-      {/* 1. Header: Avatar + Category/Production + Name/Gender + AQR Score Box */}
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: tokens.spacing.sm }}>
-        {/* Left: Tinted Avatar */}
-        <View
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: tokens.radius.md,
-            backgroundColor: tint.bg,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text role="title" style={{ color: tint.text, fontWeight: '800', fontSize: 20 }}>
-            {initial}
-          </Text>
-        </View>
+      {/* 1. Card Body: Tapping navigates to /cattle/[id] */}
+      <PressableSurface
+        accessibilityRole="button"
+        accessibilityLabel={cardA11yLabel}
+        pressedStyle="overlay"
+        disabled={disabled}
+        onPress={() => onSelect(item)}
+        testID={cardTestID}
+        focusInset
+        style={{
+          padding: tokens.spacing.md,
+          gap: tokens.spacing.sm,
+          borderTopLeftRadius: tokens.radius.lg - 1,
+          borderTopRightRadius: tokens.radius.lg - 1,
+        }}
+      >
+        {/* Header: Avatar + Category & Health + Name/Gender & Breed + AQR Score Box */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: tokens.spacing.sm }}>
+          {/* Left: Tinted Avatar */}
+          <View
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: tokens.radius.md,
+              backgroundColor: tint.bg,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text role="title" style={{ color: tint.text, fontWeight: '800', fontSize: 20 }}>
+              {initial}
+            </Text>
+          </View>
 
-        {/* Middle: Name, Gender, Tags & Category */}
-        <View style={{ flex: 1, gap: 2 }}>
-          {/* Top Category / Production Pill Row */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            {categoryLabel ? (
-              <View
-                style={{
-                  paddingHorizontal: 7,
-                  paddingVertical: 2,
-                  borderRadius: tokens.radius.full,
-                  backgroundColor: colors.muted,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                }}
+          {/* Middle: Category Pill + Health Badge, Name + Gender, Breed */}
+          <View style={{ flex: 1, gap: 3 }}>
+            {/* Top Category + Health Status + Primary Badge Row */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              {categoryLabel ? (
+                <View
+                  style={{
+                    paddingHorizontal: 7,
+                    paddingVertical: 2,
+                    borderRadius: tokens.radius.full,
+                    backgroundColor: colors.muted,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <Text role="caption" color="foreground" style={{ fontSize: 10, fontWeight: '700' }}>
+                    {categoryLabel}
+                  </Text>
+                </View>
+              ) : null}
+
+              {/* Health Status Badge prominently visible in summary */}
+              {hlthBadgeSpec && hlthLabel ? (
+                'herdState' in hlthBadgeSpec ? (
+                  <StatusBadge herdState={hlthBadgeSpec.herdState} label={hlthLabel} />
+                ) : (
+                  <StatusBadge tone={hlthBadgeSpec.tone} label={hlthLabel} />
+                )
+              ) : null}
+
+              {/* Primary / Exit status if different from health status (e.g. Milking, Dry, Sold) */}
+              {primSpec && primLabel && primLabel !== hlthLabel ? (
+                'herdState' in primSpec ? (
+                  <StatusBadge herdState={primSpec.herdState} label={primLabel} />
+                ) : (
+                  <StatusBadge tone={primSpec.tone} label={primLabel} />
+                )
+              ) : null}
+            </View>
+
+            {/* Cow Name / Tag + Gender Glyph */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text
+                role="title"
+                color="foreground"
+                style={{ fontWeight: '700', fontSize: 16 }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
               >
-                <Text role="caption" color="foreground" style={{ fontSize: 10, fontWeight: '600' }}>
-                  {categoryLabel}
-                </Text>
-              </View>
-            ) : null}
-          </View>
+                {title}
+              </Text>
+              {item.gender === 'FEMALE' ? (
+                <VenusIcon size={14} color={colors.accentPink} />
+              ) : item.gender === 'MALE' || item.gender === 'CASTRATED_MALE' ? (
+                <MarsIcon size={14} color={colors.info} />
+              ) : null}
+            </View>
 
-          {/* Cow Name + Gender Glyph */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text
-              role="title"
-              color="foreground"
-              style={{ fontWeight: '700', fontSize: 16 }}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {title}
-            </Text>
-            {item.gender === 'FEMALE' ? (
-              <VenusIcon size={14} color={colors.accentPink} />
-            ) : item.gender === 'MALE' || item.gender === 'CASTRATED_MALE' ? (
-              <MarsIcon size={14} color={colors.info} />
-            ) : null}
-          </View>
-
-          {/* Subtitle: Tag number / Breed */}
-          {subtitleText ? (
-            <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }} numberOfLines={1} ellipsizeMode="tail">
-              {subtitleText}
-            </Text>
-          ) : null}
-        </View>
-
-        {/* Right: AQR Score Box */}
-        <View
-          style={{
-            backgroundColor: colors.muted,
-            borderWidth: 1,
-            borderColor: colors.border,
-            borderRadius: tokens.radius.md,
-            paddingHorizontal: 8,
-            paddingVertical: 4,
-            alignItems: 'center',
-            minWidth: 54,
-          }}
-        >
-          <Text role="caption" color="mutedForeground" style={{ fontSize: 9, fontWeight: '700' }}>
-            {t('cattle.card.aqr')}
-          </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-            <Text
-              role="title"
-              color="primary"
-              style={{ fontWeight: '800', fontSize: 16 }}
-            >
-              {item.aqrScore !== null ? format.numberSafe(item.aqrScore) : '—'}
-            </Text>
-            {item.aqrScore !== null ? (
-              <Text role="caption" color="mutedForeground" style={{ fontSize: 9, fontWeight: '500' }}>
-                {t('cattle.card.aqrOutOf')}
+            {/* Subtitle: Breed / details */}
+            {subtitleText ? (
+              <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }} numberOfLines={1} ellipsizeMode="tail">
+                {subtitleText}
               </Text>
             ) : null}
           </View>
-        </View>
-      </View>
 
-      {/* 2. Metadata Attributes Row: Age, Weight, Shed */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          backgroundColor: colors.card,
-          borderWidth: 1,
-          borderColor: colors.border,
-          borderRadius: tokens.radius.md,
-          paddingHorizontal: tokens.spacing.sm,
-          paddingVertical: 6,
-        }}
-      >
-        {/* Age */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <CalendarIcon size={13} color={colors.mutedForeground} />
-          <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
-            {t('cattle.card.age')}:
-          </Text>
-          <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 11 }}>
-            {ageText}
-          </Text>
-        </View>
-
-        {/* Weight */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <ScaleIcon size={13} color={colors.mutedForeground} />
-          <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
-            {t('cattle.card.weight')}:
-          </Text>
-          <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 11 }}>
-            {weightText}
-          </Text>
+          {/* Right: AQR Score Box */}
+          <View
+            style={{
+              backgroundColor: colors.muted,
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: tokens.radius.md,
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              alignItems: 'center',
+              minWidth: 54,
+            }}
+          >
+            <Text role="caption" color="mutedForeground" style={{ fontSize: 9, fontWeight: '700' }}>
+              {t('cattle.card.aqr')}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+              <Text
+                role="title"
+                color="primary"
+                style={{ fontWeight: '800', fontSize: 16 }}
+              >
+                {item.aqrScore !== null ? format.numberSafe(item.aqrScore) : '—'}
+              </Text>
+              {item.aqrScore !== null ? (
+                <Text role="caption" color="mutedForeground" style={{ fontSize: 9, fontWeight: '500' }}>
+                  {t('cattle.card.aqrOutOf')}
+                </Text>
+              ) : null}
+            </View>
+          </View>
         </View>
 
-        {/* Shed */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <MapPinIcon size={13} color={colors.mutedForeground} />
-          <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
-            {t('cattle.card.shed')}:
-          </Text>
-          <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 11 }} numberOfLines={1}>
-            {shedText}
-          </Text>
-        </View>
-      </View>
-
-      {/* 3. Next Event Chip (if present) */}
-      {nextEventTitle && nextEventDue ? (
+        {/* 2. Key Metrics Row: Age, Weight, Shed */}
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 6,
-            paddingHorizontal: tokens.spacing.sm,
-            paddingVertical: 5,
+            backgroundColor: colors.muted,
+            borderWidth: 1,
+            borderColor: colors.border,
             borderRadius: tokens.radius.md,
-            backgroundColor:
-              nextEventUrgency === 'destructive'
-                ? colors.destructiveTint
-                : nextEventUrgency === 'warning'
-                  ? colors.warningTint
-                  : colors.infoTint,
+            paddingHorizontal: tokens.spacing.sm,
+            paddingVertical: 7,
           }}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-            <ClockIcon
-              size={13}
-              color={
+          {/* Age */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <CalendarIcon size={13} color={colors.mutedForeground} />
+            <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
+              {t('cattle.card.age')}:
+            </Text>
+            <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 11 }}>
+              {ageText}
+            </Text>
+          </View>
+
+          {/* Weight */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <ScaleIcon size={13} color={colors.mutedForeground} />
+            <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
+              {t('cattle.card.weight')}:
+            </Text>
+            <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 11 }}>
+              {weightText}
+            </Text>
+          </View>
+
+          {/* Shed */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <MapPinIcon size={13} color={colors.mutedForeground} />
+            <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
+              {t('cattle.card.shed')}:
+            </Text>
+            <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 11 }} numberOfLines={1}>
+              {shedText}
+            </Text>
+          </View>
+        </View>
+
+        {/* 3. Next Event Indicator (prominently highlighted if present, subtle clean notice if none) */}
+        {nextEventTitle && nextEventDue ? (
+          <View
+            testID={`${cardTestID}-next-event`}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 6,
+              paddingHorizontal: tokens.spacing.sm,
+              paddingVertical: 6,
+              borderRadius: tokens.radius.md,
+              backgroundColor:
                 nextEventUrgency === 'destructive'
-                  ? colors.destructiveText
+                  ? colors.destructiveTint
                   : nextEventUrgency === 'warning'
-                    ? colors.warningText
-                    : colors.infoText
-              }
-            />
+                    ? colors.warningTint
+                    : colors.infoTint,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+              <ClockIcon
+                size={13}
+                color={
+                  nextEventUrgency === 'destructive'
+                    ? colors.destructiveText
+                    : nextEventUrgency === 'warning'
+                      ? colors.warningText
+                      : colors.infoText
+                }
+              />
+              <Text
+                role="caption"
+                style={{
+                  fontSize: 11,
+                  fontWeight: '600',
+                  color:
+                    nextEventUrgency === 'destructive'
+                      ? colors.destructiveText
+                      : nextEventUrgency === 'warning'
+                        ? colors.warningText
+                        : colors.infoText,
+                }}
+                numberOfLines={1}
+              >
+                {nextEventTitle}
+              </Text>
+            </View>
             <Text
               role="caption"
               style={{
                 fontSize: 11,
-                fontWeight: '600',
+                fontWeight: '700',
                 color:
                   nextEventUrgency === 'destructive'
                     ? colors.destructiveText
@@ -356,63 +425,138 @@ export const CattleCard = memo(function CattleCard({
                       ? colors.warningText
                       : colors.infoText,
               }}
-              numberOfLines={1}
             >
-              {nextEventTitle}
+              {nextEventDue}
             </Text>
           </View>
-          <Text
-            role="caption"
+        ) : (
+          <View
+            testID={`${cardTestID}-no-event`}
             style={{
-              fontSize: 11,
-              fontWeight: '700',
-              color:
-                nextEventUrgency === 'destructive'
-                  ? colors.destructiveText
-                  : nextEventUrgency === 'warning'
-                    ? colors.warningText
-                    : colors.infoText,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              paddingHorizontal: tokens.spacing.sm,
+              paddingVertical: 5,
+              borderRadius: tokens.radius.md,
+              backgroundColor: colors.muted,
+              borderWidth: 1,
+              borderColor: colors.border,
             }}
           >
-            {nextEventDue}
-          </Text>
-        </View>
-      ) : null}
+            <CheckCircleIcon size={13} color={colors.mutedForeground} />
+            <Text role="caption" color="mutedForeground" style={{ fontSize: 11, fontWeight: '500' }}>
+              {t('cattle.card.noEvents')}
+            </Text>
+          </View>
+        )}
 
-      {/* 4. Bottom Status Badges Row */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', paddingTop: 2 }}>
-        {primSpec && primLabel ? (
-          'herdState' in primSpec ? (
-            <StatusBadge herdState={primSpec.herdState} label={primLabel} />
-          ) : (
-            <StatusBadge tone={primSpec.tone} label={primLabel} />
-          )
-        ) : null}
+        {/* 4. Expanded Secondary / Deep Statuses Panel (when isExpanded is true) */}
+        {isExpanded && (
+          <View
+            testID={`${cardTestID}-expanded-details`}
+            style={{
+              backgroundColor: colors.muted,
+              borderRadius: tokens.radius.md,
+              borderWidth: 1,
+              borderColor: colors.border,
+              padding: tokens.spacing.sm,
+              gap: 8,
+              marginTop: 2,
+            }}
+          >
+            {/* Production Status */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text role="caption" color="mutedForeground" style={{ fontSize: 12, fontWeight: '600' }}>
+                {t('cattle.card.production')}
+              </Text>
+              {prodBadgeSpec && prodLabel ? (
+                'herdState' in prodBadgeSpec ? (
+                  <StatusBadge herdState={prodBadgeSpec.herdState} label={prodLabel} />
+                ) : (
+                  <StatusBadge tone={prodBadgeSpec.tone} label={prodLabel} />
+                )
+              ) : (
+                <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>—</Text>
+              )}
+            </View>
 
-        {lactBadgeSpec && lactLabel && lactLabel !== primLabel ? (
-          'herdState' in lactBadgeSpec ? (
-            <StatusBadge herdState={lactBadgeSpec.herdState} label={lactLabel} />
-          ) : (
-            <StatusBadge tone={lactBadgeSpec.tone} label={lactLabel} />
-          )
-        ) : null}
+            <View style={{ height: 1, backgroundColor: colors.border }} />
 
-        {reproBadgeSpec && reproLabel && reproLabel !== primLabel ? (
-          'herdState' in reproBadgeSpec ? (
-            <StatusBadge herdState={reproBadgeSpec.herdState} label={reproLabel} />
-          ) : (
-            <StatusBadge tone={reproBadgeSpec.tone} label={reproLabel} />
-          )
-        ) : null}
+            {/* Lactation Stage */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text role="caption" color="mutedForeground" style={{ fontSize: 12, fontWeight: '600' }}>
+                {t('cattle.card.lactation')}
+              </Text>
+              {lactBadgeSpec && lactLabel ? (
+                'herdState' in lactBadgeSpec ? (
+                  <StatusBadge herdState={lactBadgeSpec.herdState} label={lactLabel} />
+                ) : (
+                  <StatusBadge tone={lactBadgeSpec.tone} label={lactLabel} />
+                )
+              ) : (
+                <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>—</Text>
+              )}
+            </View>
 
-        {hlthBadgeSpec && hlthLabel && hlthLabel !== primLabel && item.healthStatus !== 'HEALTHY' ? (
-          'herdState' in hlthBadgeSpec ? (
-            <StatusBadge herdState={hlthBadgeSpec.herdState} label={hlthLabel} />
-          ) : (
-            <StatusBadge tone={hlthBadgeSpec.tone} label={hlthLabel} />
-          )
-        ) : null}
-      </View>
-    </PressableSurface>
+            <View style={{ height: 1, backgroundColor: colors.border }} />
+
+            {/* Reproduction Status */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text role="caption" color="mutedForeground" style={{ fontSize: 12, fontWeight: '600' }}>
+                {t('cattle.card.reproduction')}
+              </Text>
+              {reproBadgeSpec && reproLabel ? (
+                'herdState' in reproBadgeSpec ? (
+                  <StatusBadge herdState={reproBadgeSpec.herdState} label={reproLabel} />
+                ) : (
+                  <StatusBadge tone={reproBadgeSpec.tone} label={reproLabel} />
+                )
+              ) : (
+                <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>—</Text>
+              )}
+            </View>
+          </View>
+        )}
+      </PressableSurface>
+
+      {/* 5. Expand / Collapse Interactive Toggle Button */}
+      <PressableSurface
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isExpanded }}
+        accessibilityLabel={
+          isExpanded
+            ? `${t('cattle.card.lessDetails')}, ${title}`
+            : `${t('cattle.card.moreDetails')}, ${title}`
+        }
+        pressedStyle="overlay"
+        disabled={disabled}
+        onPress={toggleExpand}
+        testID={`${cardTestID}-expand-toggle`}
+        focusInset
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          minHeight: 48,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          backgroundColor: colors.card,
+          paddingHorizontal: tokens.spacing.md,
+          borderBottomLeftRadius: tokens.radius.lg - 1,
+          borderBottomRightRadius: tokens.radius.lg - 1,
+        }}
+      >
+        <Text role="label" color="primary" style={{ fontSize: 12, fontWeight: '700' }}>
+          {isExpanded ? t('cattle.card.lessDetails') : t('cattle.card.moreDetails')}
+        </Text>
+        {isExpanded ? (
+          <ChevronUpIcon size={15} color={colors.primary} />
+        ) : (
+          <ChevronDownIcon size={15} color={colors.primary} />
+        )}
+      </PressableSurface>
+    </View>
   );
 });
