@@ -20,6 +20,7 @@ import { useTheme } from '../providers/ThemeProvider.tsx';
 import { CattleCard } from './CattleCard.tsx';
 import { CattleHighlightsBar } from './CattleHighlightsBar.tsx';
 import { SearchIcon } from './CattleIcons.tsx';
+import { UpcomingEventsSheet } from './UpcomingEventsSheet.tsx';
 import {
   computeCategoryCounts,
   computeCattleHighlights,
@@ -64,6 +65,7 @@ export function CattleList({
   const [localSearch, setLocalSearch] = useState('');
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CattleCategoryChipKey>('ALL');
+  const [sheetItem, setSheetItem] = useState<CattleListItem | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -103,6 +105,7 @@ export function CattleList({
         item={item}
         disabled={isDisabled?.(item) ?? false}
         onSelect={onSelect}
+        onOpenUpcomingEvents={setSheetItem}
         testID={`cattle-row-${item.id}`}
       />
     ),
@@ -284,6 +287,15 @@ export function CattleList({
   return (
     <View testID={testID} style={{ flex: 1, backgroundColor: colors.card }}>
       {content}
+      <UpcomingEventsSheet
+        item={sheetItem}
+        visible={sheetItem !== null}
+        onClose={() => setSheetItem(null)}
+        onView={(item) => {
+          setSheetItem(null);
+          onSelect(item);
+        }}
+      />
     </View>
   );
 }

@@ -11,7 +11,8 @@ import { avatarTint } from './avatar-tint.ts';
 import {
   ageInMonths,
   categoryKey,
-  cattleTitle,
+  formatNextEventDue,
+  formatNextEventTitle,
   healthBadge,
   humanize,
   lactationBadge,
@@ -25,7 +26,7 @@ import {
   CheckCircleIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  ClockIcon,
+  EventKindIcon,
   MapPinIcon,
   MarsIcon,
   ScaleIcon,
@@ -39,6 +40,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export interface CattleCardProps {
   item: CattleListItem;
   onSelect: (item: CattleListItem) => void;
+  onOpenUpcomingEvents?: (item: CattleListItem) => void;
   disabled?: boolean;
   testID?: string;
 }
@@ -46,6 +48,7 @@ export interface CattleCardProps {
 export const CattleCard = memo(function CattleCard({
   item,
   onSelect,
+  onOpenUpcomingEvents,
   disabled = false,
   testID,
 }: CattleCardProps) {
@@ -62,7 +65,6 @@ export const CattleCard = memo(function CattleCard({
     setIsExpanded((prev) => !prev);
   }, [reduceMotion]);
 
-  const title = cattleTitle(item);
   const cardTestID = testID ?? `cattle-row-${item.id}`;
   const initial = (item.name?.trim() || item.tagNumber || 'C').charAt(0).toUpperCase();
   const tint = avatarTint(item.id, colors);
@@ -90,54 +92,17 @@ export const CattleCard = memo(function CattleCard({
   // Shed formatting
   const shedText = item.shedName ?? '—';
 
-  // Subtitle: category and breed (matches standard subtitle hierarchy)
+  // Identity hierarchy: Name is primary; Tag & Breed is subtitle
+  const hasName = Boolean(item.name?.trim());
+  const displayName = hasName ? item.name!.trim() : item.tagNumber;
+  const subtitleParts = hasName
+    ? [item.tagNumber, item.breedName].filter(Boolean)
+    : [item.breedName].filter(Boolean);
+  const subtitleText = subtitleParts.length > 0 ? subtitleParts.join(' · ') : null;
+
+  // Category & Status Badges
   const categoryMsgKey = categoryKey(item.animalCategory);
   const categoryLabel = categoryMsgKey ? t(categoryMsgKey) : null;
-  const subtitleText = item.breedName
-    ? [categoryLabel, item.breedName].filter(Boolean).join(' · ')
-    : null;
-
-  // Next Event formatting
-  let nextEventTitle: string | null = null;
-  let nextEventDue: string | null = null;
-  let nextEventUrgency = 'muted';
-
-  if (item.nextEvent) {
-    const ev = item.nextEvent;
-    if (ev.kind === 'CALVING') {
-      nextEventTitle = t('cattle.upcoming.calving');
-    } else if (ev.kind === 'PREGNANCY_CHECK') {
-      nextEventTitle = t('cattle.upcoming.pregnancyCheck');
-    } else if (ev.kind === 'DRY_OFF') {
-      nextEventTitle = t('cattle.upcoming.dryOff');
-    } else if (ev.kind === 'HEALTH_STEP') {
-      nextEventTitle = t('cattle.upcoming.healthStep');
-    } else if (ev.kind === 'PREVENTIVE_STEP') {
-      nextEventTitle = t('cattle.upcoming.preventiveStep');
-    } else if (ev.kind === 'VACCINATION') {
-      nextEventTitle = t('cattle.upcoming.vaccination');
-    } else if (ev.kind === 'DEWORMING') {
-      nextEventTitle = t('cattle.upcoming.deworming');
-    } else {
-      nextEventTitle = t('cattle.upcoming.task');
-    }
-
-    if (ev.daysUntil !== null && ev.daysUntil !== undefined) {
-      if (ev.daysUntil < 0) {
-        nextEventDue = t('cattle.upcoming.overdueDays', { count: format.numberSafe(-ev.daysUntil) });
-        nextEventUrgency = 'destructive';
-      } else if (ev.daysUntil === 0) {
-        nextEventDue = t('cattle.upcoming.today');
-        nextEventUrgency = 'warning';
-      } else if (ev.daysUntil === 1) {
-        nextEventDue = t('cattle.upcoming.tomorrow');
-        nextEventUrgency = 'warning';
-      } else {
-        nextEventDue = t('cattle.upcoming.inDays', { count: format.numberSafe(ev.daysUntil) });
-        nextEventUrgency = 'info';
-      }
-    }
-  }
 
   // Primary status fallback badge
   const primSpec = primaryBadge(item);
@@ -172,7 +137,37 @@ export const CattleCard = memo(function CattleCard({
       : humanize(reproBadgeSpec.raw ?? '')
     : null;
 
-  const cardA11yLabel = [title, categoryLabel, hlthLabel, prodLabel].filter(Boolean).join(', ');
+  // Next Event formatting
+  const nextEventTitle = item.nextEvent ? formatNextEventTitle(item.nextEvent, t) : null;
+  const nextEventDue = item.nextEvent ? formatNextEventDue(item.nextEvent.daysUntil, t, format.numberSafe) : null;
+  const nextEventUrgency = nextEventDue?.urgency ?? 'muted';
+
+  const nextToneColors =
+    nextEventUrgency === 'destructive'
+      ? {
+          border: colors.destructive,
+          bg: colors.destructiveTint,
+          text: colors.destructiveText,
+        }
+      : nextEventUrgency === 'warning'
+        ? {
+            border: colors.warning,
+            bg: colors.warningTint,
+            text: colors.warningText,
+          }
+        : nextEventUrgency === 'info'
+          ? {
+              border: colors.info,
+              bg: colors.infoTint,
+              text: colors.infoText,
+            }
+          : {
+              border: colors.border,
+              bg: colors.muted,
+              text: colors.mutedForeground,
+            };
+
+  const cardA11yLabel = [displayName, subtitleText, categoryLabel, hlthLabel, prodLabel].filter(Boolean).join(', ');
 
   return (
     <View
@@ -184,7 +179,7 @@ export const CattleCard = memo(function CattleCard({
         opacity: disabled ? 0.6 : 1,
       }}
     >
-      {/* 1. Card Body: Tapping navigates to /cattle/[id] */}
+      {/* 1. Card Top Surface: Tapping navigates to /cattle/[id] */}
       <PressableSurface
         accessibilityRole="button"
         accessibilityLabel={cardA11yLabel}
@@ -195,6 +190,7 @@ export const CattleCard = memo(function CattleCard({
         focusInset
         style={{
           padding: tokens.spacing.md,
+          paddingBottom: tokens.spacing.sm,
           gap: tokens.spacing.sm,
           borderTopLeftRadius: tokens.radius.lg - 1,
           borderTopRightRadius: tokens.radius.lg - 1,
@@ -218,8 +214,8 @@ export const CattleCard = memo(function CattleCard({
             </Text>
           </View>
 
-          {/* Middle: Category Pill + Health Badge, Name + Gender, Breed */}
-          <View style={{ flex: 1, gap: 3 }}>
+          {/* Middle: Category Pill + Health Badge, Name + Gender, Tag & Breed */}
+          <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
             {/* Top Category + Health Status + Primary Badge Row */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               {categoryLabel ? (
@@ -239,7 +235,7 @@ export const CattleCard = memo(function CattleCard({
                 </View>
               ) : null}
 
-              {/* Health Status Badge prominently visible in summary */}
+              {/* Health Status Badge */}
               {hlthBadgeSpec && hlthLabel ? (
                 'herdState' in hlthBadgeSpec ? (
                   <StatusBadge herdState={hlthBadgeSpec.herdState} label={hlthLabel} />
@@ -248,7 +244,7 @@ export const CattleCard = memo(function CattleCard({
                 )
               ) : null}
 
-              {/* Primary / Exit status if different from health status (e.g. Milking, Dry, Sold) */}
+              {/* Primary / Exit status if different from health status */}
               {primSpec && primLabel && primLabel !== hlthLabel ? (
                 'herdState' in primSpec ? (
                   <StatusBadge herdState={primSpec.herdState} label={primLabel} />
@@ -258,16 +254,16 @@ export const CattleCard = memo(function CattleCard({
               ) : null}
             </View>
 
-            {/* Cow Name / Tag + Gender Glyph */}
+            {/* Cow Name + Gender Glyph */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Text
                 role="title"
                 color="foreground"
-                style={{ fontWeight: '700', fontSize: 16 }}
+                style={{ fontWeight: '700', fontSize: 16, flexShrink: 1 }}
                 numberOfLines={1}
                 ellipsizeMode="tail"
               >
-                {title}
+                {displayName}
               </Text>
               {item.gender === 'FEMALE' ? (
                 <VenusIcon size={14} color={colors.accentPink} />
@@ -276,15 +272,21 @@ export const CattleCard = memo(function CattleCard({
               ) : null}
             </View>
 
-            {/* Subtitle: Breed / details */}
+            {/* Subtitle: Tag number · Breed */}
             {subtitleText ? (
-              <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }} numberOfLines={1} ellipsizeMode="tail">
+              <Text
+                role="caption"
+                color="mutedForeground"
+                style={{ fontSize: 12 }}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
                 {subtitleText}
               </Text>
             ) : null}
           </View>
 
-          {/* Right: AQR Score Box */}
+          {/* Right: AQR Score Box (Fixed width, zero overlap) */}
           <View
             style={{
               backgroundColor: colors.muted,
@@ -294,7 +296,8 @@ export const CattleCard = memo(function CattleCard({
               paddingHorizontal: 8,
               paddingVertical: 4,
               alignItems: 'center',
-              minWidth: 54,
+              width: 58,
+              flexShrink: 0,
             }}
           >
             <Text role="caption" color="mutedForeground" style={{ fontSize: 9, fontWeight: '700' }}>
@@ -364,70 +367,66 @@ export const CattleCard = memo(function CattleCard({
             </Text>
           </View>
         </View>
+      </PressableSurface>
 
-        {/* 3. Next Event Indicator (prominently highlighted if present, subtle clean notice if none) */}
-        {nextEventTitle && nextEventDue ? (
-          <View
-            testID={`${cardTestID}-next-event`}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 6,
-              paddingHorizontal: tokens.spacing.sm,
-              paddingVertical: 6,
-              borderRadius: tokens.radius.md,
-              backgroundColor:
-                nextEventUrgency === 'destructive'
-                  ? colors.destructiveTint
-                  : nextEventUrgency === 'warning'
-                    ? colors.warningTint
-                    : colors.infoTint,
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-              <ClockIcon
-                size={13}
-                color={
-                  nextEventUrgency === 'destructive'
-                    ? colors.destructiveText
-                    : nextEventUrgency === 'warning'
-                      ? colors.warningText
-                      : colors.infoText
-                }
-              />
+      {/* 2. Middle Row: Next Event Pill Chip & Expanded Details */}
+      <View
+        style={{
+          paddingHorizontal: tokens.spacing.md,
+          paddingBottom: tokens.spacing.sm,
+          gap: tokens.spacing.xs,
+        }}
+      >
+        {/* Next Event Pill Chip (Web Parity) or Subtle Clean No-Event Indicator */}
+        {item.nextEvent && nextEventDue && nextEventTitle ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+            <PressableSurface
+              accessibilityRole="button"
+              accessibilityLabel={`${nextEventTitle}, ${nextEventDue.text}`}
+              pressedStyle="overlay"
+              disabled={disabled}
+              onPress={() => onOpenUpcomingEvents?.(item)}
+              testID={`${cardTestID}-next-event`}
+              focusInset
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                alignSelf: 'flex-start',
+                gap: 6,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderRadius: tokens.radius.full,
+                borderWidth: 1,
+                borderColor: nextToneColors.border,
+                backgroundColor: nextToneColors.bg,
+                maxWidth: '100%',
+              }}
+            >
+              <EventKindIcon kind={item.nextEvent.kind} size={13} color={nextToneColors.text} />
               <Text
                 role="caption"
                 style={{
                   fontSize: 11,
                   fontWeight: '600',
-                  color:
-                    nextEventUrgency === 'destructive'
-                      ? colors.destructiveText
-                      : nextEventUrgency === 'warning'
-                        ? colors.warningText
-                        : colors.infoText,
+                  color: nextToneColors.text,
+                  maxWidth: 180,
                 }}
                 numberOfLines={1}
+                ellipsizeMode="tail"
               >
                 {nextEventTitle}
               </Text>
-            </View>
-            <Text
-              role="caption"
-              style={{
-                fontSize: 11,
-                fontWeight: '700',
-                color:
-                  nextEventUrgency === 'destructive'
-                    ? colors.destructiveText
-                    : nextEventUrgency === 'warning'
-                      ? colors.warningText
-                      : colors.infoText,
-              }}
-            >
-              {nextEventDue}
-            </Text>
+              <Text
+                role="caption"
+                style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: nextToneColors.text,
+                }}
+              >
+                · {nextEventDue.text}
+              </Text>
+            </PressableSurface>
           </View>
         ) : (
           <View
@@ -436,22 +435,23 @@ export const CattleCard = memo(function CattleCard({
               flexDirection: 'row',
               alignItems: 'center',
               gap: 6,
-              paddingHorizontal: tokens.spacing.sm,
-              paddingVertical: 5,
-              borderRadius: tokens.radius.md,
+              alignSelf: 'flex-start',
+              paddingHorizontal: 8,
+              paddingVertical: 4,
+              borderRadius: tokens.radius.full,
               backgroundColor: colors.muted,
               borderWidth: 1,
               borderColor: colors.border,
             }}
           >
-            <CheckCircleIcon size={13} color={colors.mutedForeground} />
+            <CheckCircleIcon size={12} color={colors.mutedForeground} />
             <Text role="caption" color="mutedForeground" style={{ fontSize: 11, fontWeight: '500' }}>
               {t('cattle.card.noEvents')}
             </Text>
           </View>
         )}
 
-        {/* 4. Expanded Secondary / Deep Statuses Panel (when isExpanded is true) */}
+        {/* Expanded Secondary / Deep Statuses Panel (when isExpanded is true) */}
         {isExpanded && (
           <View
             testID={`${cardTestID}-expanded-details`}
@@ -462,7 +462,7 @@ export const CattleCard = memo(function CattleCard({
               borderColor: colors.border,
               padding: tokens.spacing.sm,
               gap: 8,
-              marginTop: 2,
+              marginTop: 4,
             }}
           >
             {/* Production Status */}
@@ -518,16 +518,16 @@ export const CattleCard = memo(function CattleCard({
             </View>
           </View>
         )}
-      </PressableSurface>
+      </View>
 
-      {/* 5. Expand / Collapse Interactive Toggle Button */}
+      {/* 3. Expand / Collapse Interactive Toggle Button */}
       <PressableSurface
         accessibilityRole="button"
         accessibilityState={{ expanded: isExpanded }}
         accessibilityLabel={
           isExpanded
-            ? `${t('cattle.card.lessDetails')}, ${title}`
-            : `${t('cattle.card.moreDetails')}, ${title}`
+            ? `${t('cattle.card.lessDetails')}, ${displayName}`
+            : `${t('cattle.card.moreDetails')}, ${displayName}`
         }
         pressedStyle="overlay"
         disabled={disabled}

@@ -98,15 +98,22 @@ export function buildPullSpecs(now: number): PullSpec[] {
         const id = str(row.id);
         if (!id || row.deletedAt) return null;
         const nextEvRaw = record(row.next_event) ?? record(row.nextEvent);
+        const labelParams = nextEvRaw ? record(nextEvRaw.labelParams) : null;
         const nextEvent = nextEvRaw
           ? {
               kind: str(nextEvRaw.kind) ?? 'TASK',
+              title: str(labelParams?.title) ?? str(nextEvRaw.title),
               urgency: str(nextEvRaw.urgency),
               actionable: nextEvRaw.actionable !== false,
               daysUntil: num(nextEvRaw.daysUntil),
               dueAt: str(nextEvRaw.dueAt),
               labelKey: str(nextEvRaw.labelKey),
-              labelParams: record(nextEvRaw.labelParams),
+              labelParams,
+              upcomingEventCount:
+                num(row.upcoming_event_count) ??
+                num(row.upcomingEventCount) ??
+                num(nextEvRaw.upcomingEventCount) ??
+                1,
             }
           : null;
         return {

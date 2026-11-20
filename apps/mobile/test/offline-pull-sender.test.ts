@@ -76,8 +76,9 @@ test('cattle projection enriches aqrScore, weight, shed, lactation and nextEvent
       daysUntil: -3,
       dueAt: '2026-11-12T00:00:00Z',
       labelKey: 'cattle.upcoming.pregnancyCheck',
-      labelParams: { count: 1 },
+      labelParams: { count: 1, title: 'Routine Pregnancy Check' },
     },
+    upcoming_event_count: 2,
   });
   const { api } = createFakeApi(() => page([enrichedCow]));
   assert.equal(await pullEntity(api, db, 'f1', spec('cattle'), NOW), 1);
@@ -101,12 +102,14 @@ test('cattle projection enriches aqrScore, weight, shed, lactation and nextEvent
     lactationStage: 'MID',
     nextEvent: {
       kind: 'PREGNANCY_CHECK',
+      title: 'Routine Pregnancy Check',
       urgency: 'OVERDUE',
       actionable: true,
       daysUntil: -3,
       dueAt: '2026-11-12T00:00:00Z',
       labelKey: 'cattle.upcoming.pregnancyCheck',
-      labelParams: { count: 1 },
+      labelParams: { count: 1, title: 'Routine Pregnancy Check' },
+      upcomingEventCount: 2,
     },
     updatedAt: null,
   });

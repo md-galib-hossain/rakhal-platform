@@ -6,6 +6,8 @@ import {
   cattleTitle,
   computeCategoryCounts,
   computeCattleHighlights,
+  formatNextEventDue,
+  formatNextEventTitle,
   healthBadge,
   humanize,
   isStale,
@@ -18,7 +20,7 @@ import {
   toCattleItems,
   STALE_AFTER_MS,
 } from '../src/cattle/cattle-model.ts';
-import { bn, en } from '../src/i18n/messages.ts';
+import { bn, en, type MessageKey } from '../src/i18n/messages.ts';
 
 const NOW = Date.parse('2026-11-15T12:00:00Z');
 
@@ -177,12 +179,76 @@ test('toCattleItem parses enriched metrics (aqrScore, lastWeightKg, shedName, la
   assert.equal(item.lactationStage, 'EARLY');
   assert.deepEqual(item.nextEvent, {
     kind: 'CALVING',
+    title: null,
     urgency: 'OVERDUE',
     actionable: true,
     daysUntil: -2,
     dueAt: '2026-11-13T00:00:00Z',
     labelKey: 'cattle.upcoming.calving',
     labelParams: null,
+  });
+});
+
+test('toCattleItem parses nextEvent with title and upcomingEventCount', () => {
+  const item = toCattleItem({
+    id: 'c2',
+    tagNumber: 'T-200',
+    upcoming_event_count: 3,
+    next_event: {
+      kind: 'TASK',
+      title: 'Missing milk-log session',
+      urgency: 'OVERDUE',
+      daysUntil: -12,
+    },
+  });
+  assert.ok(item?.nextEvent);
+  assert.equal(item.nextEvent.title, 'Missing milk-log session');
+  assert.equal(item.nextEvent.upcomingEventCount, 3);
+  assert.equal(item.nextEvent.daysUntil, -12);
+});
+
+test('formatNextEventTitle prefers title, otherwise falls back to translated kind', () => {
+  const mockT = (key: MessageKey) => `[${key}]`;
+  assert.equal(
+    formatNextEventTitle({ kind: 'TASK', title: 'Review reported sickness', urgency: 'OVERDUE', daysUntil: -1, dueAt: null, labelKey: null }, mockT),
+    'Review reported sickness',
+  );
+  assert.equal(
+    formatNextEventTitle({ kind: 'PREVENTIVE_STEP', title: null, urgency: 'DUE_SOON', daysUntil: 3, dueAt: null, labelKey: null }, mockT),
+    '[cattle.upcoming.preventiveStep]',
+  );
+  assert.equal(
+    formatNextEventTitle({ kind: 'SOME_UNKNOWN_KIND', title: '', urgency: null, daysUntil: null, dueAt: null, labelKey: null }, mockT),
+    'Some unknown kind',
+  );
+});
+
+test('formatNextEventDue formats overdue, today, tomorrow, and future days', () => {
+  const mockT = (key: MessageKey, params?: Record<string, string | number>) => `${key}:${params ? JSON.stringify(params) : ''}`;
+  const numFmt = (n: number) => String(n);
+
+  const overdue = formatNextEventDue(-12, mockT, numFmt);
+  assert.deepEqual(overdue, {
+    text: 'cattle.upcoming.overdueDays:{"count":"12"}',
+    urgency: 'destructive',
+  });
+
+  const today = formatNextEventDue(0, mockT, numFmt);
+  assert.deepEqual(today, {
+    text: 'cattle.upcoming.today:',
+    urgency: 'warning',
+  });
+
+  const tomorrow = formatNextEventDue(1, mockT, numFmt);
+  assert.deepEqual(tomorrow, {
+    text: 'cattle.upcoming.tomorrow:',
+    urgency: 'warning',
+  });
+
+  const inDays = formatNextEventDue(5, mockT, numFmt);
+  assert.deepEqual(inDays, {
+    text: 'cattle.upcoming.inDays:{"count":"5"}',
+    urgency: 'info',
   });
 });
 

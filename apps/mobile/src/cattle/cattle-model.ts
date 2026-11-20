@@ -10,12 +10,14 @@ import type { HerdState, StatusTone } from '../components/display/status-style.t
 
 export interface CattleNextEvent {
   kind: string;
+  title?: string | null;
   urgency: string | null;
   actionable?: boolean;
   daysUntil: number | null;
   dueAt: string | null;
   labelKey: string | null;
   labelParams?: Record<string, unknown> | null;
+  upcomingEventCount?: number;
 }
 
 export interface CattleListItem {
@@ -51,14 +53,19 @@ function parseNextEvent(value: unknown): CattleNextEvent | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const ev = value as Record<string, unknown>;
   const kind = text(ev.kind) ?? 'TASK';
+  const labelParams = typeof ev.labelParams === 'object' && ev.labelParams !== null ? (ev.labelParams as Record<string, unknown>) : null;
+  const rawTitle = text(ev.title) ?? (labelParams ? text(labelParams.title) : null);
+  const upcomingCount = num(ev.upcomingEventCount) ?? num(ev.upcoming_event_count);
   return {
     kind,
+    title: rawTitle,
     urgency: text(ev.urgency),
     actionable: ev.actionable !== false,
     daysUntil: num(ev.daysUntil),
     dueAt: text(ev.dueAt),
     labelKey: text(ev.labelKey),
-    labelParams: typeof ev.labelParams === 'object' && ev.labelParams !== null ? (ev.labelParams as Record<string, unknown>) : null,
+    labelParams,
+    ...(upcomingCount !== null ? { upcomingEventCount: upcomingCount } : {}),
   };
 }
 
@@ -66,6 +73,13 @@ function parseNextEvent(value: unknown): CattleNextEvent | null {
 export function toCattleItem(row: Record<string, unknown>): CattleListItem | null {
   const id = text(row.id);
   if (!id) return null;
+  const nextEvent = parseNextEvent(row.nextEvent ?? row.next_event);
+  if (nextEvent && nextEvent.upcomingEventCount === undefined) {
+    const topCount = num(row.upcoming_event_count) ?? num(row.upcomingEventCount);
+    if (topCount !== null) {
+      nextEvent.upcomingEventCount = topCount;
+    }
+  }
   return {
     id,
     tagNumber: text(row.tagNumber) ?? '',
@@ -83,7 +97,7 @@ export function toCattleItem(row: Record<string, unknown>): CattleListItem | nul
     aqrScore: num(row.aqrScore),
     lastWeightKg: num(row.lastWeightKg),
     lactationStage: text(row.lactationStage),
-    nextEvent: parseNextEvent(row.nextEvent ?? row.next_event),
+    nextEvent,
     updatedAt: text(row.updatedAt),
   };
 }
@@ -320,4 +334,72 @@ export const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 
 export function isStale(lastSyncedAt: number | null, now: number): boolean {
   return lastSyncedAt === null || now - lastSyncedAt > STALE_AFTER_MS;
+}
+
+export function eventKindMessageKey(kind: string): MessageKey | null {
+  switch (kind) {
+    case 'CALVING':
+      return 'cattle.upcoming.calving';
+    case 'PREGNANCY_CHECK':
+      return 'cattle.upcoming.pregnancyCheck';
+    case 'DRY_OFF':
+      return 'cattle.upcoming.dryOff';
+    case 'HEALTH_STEP':
+      return 'cattle.upcoming.healthStep';
+    case 'PREVENTIVE_STEP':
+      return 'cattle.upcoming.preventiveStep';
+    case 'VACCINATION':
+      return 'cattle.upcoming.vaccination';
+    case 'DEWORMING':
+      return 'cattle.upcoming.deworming';
+    case 'WITHDRAWAL_END':
+      return 'cattle.upcoming.withdrawalEnd';
+    case 'WEANING':
+      return 'cattle.upcoming.weaning';
+    case 'TASK':
+      return 'cattle.upcoming.task';
+    default:
+      return null;
+  }
+}
+
+export function formatNextEventTitle(
+  ev: CattleNextEvent,
+  t: (key: MessageKey, params?: Record<string, string | number>) => string,
+): string {
+  if (ev.title?.trim()) {
+    return ev.title.trim();
+  }
+  const key = eventKindMessageKey(ev.kind);
+  return key ? t(key) : humanize(ev.kind);
+}
+
+export function formatNextEventDue(
+  daysUntil: number | null | undefined,
+  t: (key: MessageKey, params?: Record<string, string | number>) => string,
+  formatNumber: (n: number) => string,
+): { text: string; urgency: 'destructive' | 'warning' | 'info' | 'muted' } | null {
+  if (daysUntil === null || daysUntil === undefined) return null;
+  if (daysUntil < 0) {
+    return {
+      text: t('cattle.upcoming.overdueDays', { count: formatNumber(-daysUntil) }),
+      urgency: 'destructive',
+    };
+  }
+  if (daysUntil === 0) {
+    return {
+      text: t('cattle.upcoming.today'),
+      urgency: 'warning',
+    };
+  }
+  if (daysUntil === 1) {
+    return {
+      text: t('cattle.upcoming.tomorrow'),
+      urgency: 'warning',
+    };
+  }
+  return {
+    text: t('cattle.upcoming.inDays', { count: formatNumber(daysUntil) }),
+    urgency: 'info',
+  };
 }

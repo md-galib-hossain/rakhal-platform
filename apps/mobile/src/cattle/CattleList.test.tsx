@@ -43,11 +43,11 @@ describe('CattleList', () => {
     const h = syncHarness({ handler: server(cows) });
     await open(h);
     await waitFor(() => expect(screen.getByTestId('cattle-row-c1')).toBeTruthy());
-    expect(screen.getByText('BD-001 · Rupa')).toBeTruthy();
+    expect(screen.getByText('Rupa')).toBeTruthy();
     expect(screen.getByText('Milking')).toBeTruthy();
     expect(screen.getByText('Sick')).toBeTruthy();
     expect(screen.getAllByText('Healthy').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText('Cow · Sahiwal')).toBeTruthy();
+    expect(screen.getByText('BD-001 · Sahiwal')).toBeTruthy();
     expect(screen.getByTestId('cattle-count')).toHaveTextContent('Animals: 3');
     expect(screen.queryByTestId('cattle-note-updated')).toBeNull();
   });
@@ -168,13 +168,14 @@ describe('CattleList', () => {
     await open(h);
     await waitFor(() => expect(screen.getByTestId('cattle-row-c10')).toBeTruthy());
 
-    expect(screen.getByText('BD-010 · Padma')).toBeTruthy();
+    expect(screen.getByText('Padma')).toBeTruthy();
+    expect(screen.getByText('BD-010 · Sahiwal')).toBeTruthy();
     expect(screen.getAllByText('85').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('/100')).toBeTruthy();
     expect(screen.getByText('480 kg')).toBeTruthy();
     expect(screen.getByText('Main Shed')).toBeTruthy();
     expect(screen.getByText('Calving')).toBeTruthy();
-    expect(screen.getByText('2d overdue')).toBeTruthy();
+    expect(screen.getByText(/2d overdue/)).toBeTruthy();
   });
 
   it('toggles expandable card in place without navigating to detail, showing deep statuses', async () => {
@@ -236,5 +237,51 @@ describe('CattleList', () => {
     // Tapping card body calls onSelect
     fireEvent.press(screen.getByTestId('cattle-row-c20'));
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'c20', tagNumber: 'BD-020' }));
+  });
+
+  it('opens upcoming events sheet on tapping next event chip without navigating, and view animal navigates', async () => {
+    const cowsWithEvents = [
+      {
+        id: 'c30',
+        tagNumber: 'BD-030',
+        name: 'Lokkhi',
+        gender: 'FEMALE',
+        herdStatus: 'ACTIVE',
+        next_event: {
+          kind: 'TASK',
+          title: 'Missing milk-log session',
+          urgency: 'OVERDUE',
+          actionable: true,
+          daysUntil: -12,
+          dueAt: '2026-11-03T00:00:00Z',
+          labelKey: 'cattle.upcoming.task',
+        },
+        upcoming_event_count: 2,
+      },
+    ];
+    const onSelect = jest.fn();
+    const h = syncHarness({ handler: server(cowsWithEvents) });
+    await open(h, onSelect);
+    await waitFor(() => expect(screen.getByTestId('cattle-row-c30')).toBeTruthy());
+
+    // Next event pill chip is visible
+    const chip = screen.getByTestId('cattle-row-c30-next-event');
+    expect(chip).toBeTruthy();
+    expect(within(chip).getByText('Missing milk-log session')).toBeTruthy();
+    expect(within(chip).getByText('· 12d overdue')).toBeTruthy();
+
+    // Pressing chip does NOT navigate to animal detail
+    fireEvent.press(chip);
+    expect(onSelect).not.toHaveBeenCalled();
+
+    // Upcoming events sheet modal opens
+    await waitFor(() => expect(screen.getByTestId('upcoming-events-sheet')).toBeTruthy());
+    expect(screen.getByText('Upcoming events')).toBeTruthy();
+    expect(screen.getByText('Lokkhi (BD-030)')).toBeTruthy();
+
+    // Clicking "View animal" button calls onSelect
+    const viewBtn = screen.getByTestId('upcoming-events-sheet-view-animal-btn');
+    fireEvent.press(viewBtn);
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'c30', tagNumber: 'BD-030' }));
   });
 });
