@@ -1,6 +1,6 @@
 import type { SqlDb } from './sql-db.ts';
 
-export type CacheEntity = 'cattle' | 'sheds' | 'milkTanks' | 'tasks' | 'milkLog';
+export type CacheEntity = 'cattle' | 'sheds' | 'milkTanks' | 'tasks' | 'milkLog' | 'animalGroups';
 
 export interface ProjectedRow {
   id: string;
@@ -136,8 +136,35 @@ export function buildPullSpecs(now: number): PullSpec[] {
             lastWeightKg: num(row.lastWeightKg),
             shedName: str(record(row.shed)?.name) ?? str(row.shedName),
             lactationStage: str(row.lactationStage),
+            groupIds: Array.isArray(row.animalGroupMemberships)
+              ? (row.animalGroupMemberships as Array<{ groupId?: unknown }>).map((m) => str(m.groupId)).filter((g): g is string => g !== null)
+              : Array.isArray(row.groupIds)
+                ? (row.groupIds as unknown[]).map(str).filter((g): g is string => g !== null)
+                : [],
             nextEvent,
             updatedAt: row.updatedAt ?? null,
+          },
+        };
+      },
+    },
+    {
+      entity: 'animalGroups',
+      path: '/animal-groups',
+      query: { limit: PAGE_LIMIT, sortOrder: 'asc' },
+      paged: true,
+      project(row) {
+        const id = str(row.id);
+        if (!id || row.deletedAt) return null;
+        return {
+          id,
+          search: lower(row.name, row.description),
+          data: {
+            id,
+            name: str(row.name) ?? '',
+            description: str(row.description),
+            memberCount: num(row.memberCount) ?? 0,
+            createdAt: str(row.createdAt),
+            updatedAt: str(row.updatedAt),
           },
         };
       },

@@ -204,6 +204,7 @@ export interface CattleListFilters {
   shedId?: string;
   animalGroupId?: string;
   productionStatus?: ProductionStatus;
+  lactationStage?: LactationStage;
   healthStatus?: HealthStatusFilter;
   reproductiveStatus?: ReproductiveStatus;
   /** RAKHAL-289 — real derived-category filter now supported server-side

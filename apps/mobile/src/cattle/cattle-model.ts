@@ -37,6 +37,7 @@ export interface CattleListItem {
   aqrScore: number | null;
   lastWeightKg: number | null;
   lactationStage: string | null;
+  groupIds?: string[];
   nextEvent: CattleNextEvent | null;
   updatedAt: string | null;
 }
@@ -97,6 +98,11 @@ export function toCattleItem(row: Record<string, unknown>): CattleListItem | nul
     aqrScore: num(row.aqrScore),
     lastWeightKg: num(row.lastWeightKg),
     lactationStage: text(row.lactationStage),
+    groupIds: Array.isArray(row.groupIds)
+      ? (row.groupIds as unknown[]).map(text).filter((g): g is string => g !== null)
+      : Array.isArray(row.animalGroupMemberships)
+        ? (row.animalGroupMemberships as Array<{ groupId?: unknown }>).map((m) => text(m.groupId)).filter((g): g is string => g !== null)
+        : [],
     nextEvent,
     updatedAt: text(row.updatedAt),
   };
@@ -402,4 +408,46 @@ export function formatNextEventDue(
     text: t('cattle.upcoming.inDays', { count: formatNumber(daysUntil) }),
     urgency: 'info',
   };
+}
+
+export interface CattleFilterState {
+  animalCategory?: string | null;
+  productionStatus?: string | null;
+  lactationStage?: string | null;
+  reproductiveStatus?: string | null;
+  healthStatus?: string | null;
+  animalGroupId?: string | null;
+}
+
+export function countActiveFilters(filters: CattleFilterState): number {
+  let count = 0;
+  if (filters.animalCategory) count++;
+  if (filters.productionStatus) count++;
+  if (filters.lactationStage) count++;
+  if (filters.reproductiveStatus) count++;
+  if (filters.healthStatus) count++;
+  if (filters.animalGroupId) count++;
+  return count;
+}
+
+export function matchesCattleFilters(item: CattleListItem, filters: CattleFilterState): boolean {
+  if (filters.animalCategory && item.animalCategory?.toUpperCase() !== filters.animalCategory.toUpperCase()) {
+    return false;
+  }
+  if (filters.productionStatus && item.productionStatus?.toUpperCase() !== filters.productionStatus.toUpperCase()) {
+    return false;
+  }
+  if (filters.lactationStage && item.lactationStage?.toUpperCase() !== filters.lactationStage.toUpperCase()) {
+    return false;
+  }
+  if (filters.reproductiveStatus && item.reproductiveStatus?.toUpperCase() !== filters.reproductiveStatus.toUpperCase()) {
+    return false;
+  }
+  if (filters.healthStatus && item.healthStatus?.toUpperCase() !== filters.healthStatus.toUpperCase()) {
+    return false;
+  }
+  if (filters.animalGroupId && !(item.groupIds ?? []).includes(filters.animalGroupId)) {
+    return false;
+  }
+  return true;
 }

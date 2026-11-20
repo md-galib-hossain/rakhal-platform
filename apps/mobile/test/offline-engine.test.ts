@@ -88,7 +88,7 @@ test('sends the queue in order with each row\'s own key, then pulls the working 
   const lastPostIndex = s.fake.calls.map((c) => c.method).lastIndexOf('POST');
   const firstGetIndex = s.fake.calls.findIndex((c) => c.method === 'GET');
   assert.ok(firstGetIndex > lastPostIndex, 'push first, then pull');
-  assert.deepEqual(s.fake.gets().map((c) => c.path), ['/sheds', '/inventory/milk-tanks', '/cattle', '/tasks', '/milk/log']);
+  assert.deepEqual(s.fake.gets().map((c) => c.path), ['/sheds', '/inventory/milk-tanks', '/cattle', '/animal-groups', '/tasks', '/milk/log']);
   const snap = s.engine.getSnapshot();
   assert.equal(snap.state, 'idle');
   assert.deepEqual([snap.waiting, snap.failed, snap.conflict], [0, 0, 0]);

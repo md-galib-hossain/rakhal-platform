@@ -92,6 +92,7 @@ export function CattleTable() {
     shedId: searchParams.get("shedId") ?? undefined,
     animalGroupId: searchParams.get("animalGroupId") ?? undefined,
     productionStatus: (searchParams.get("productionStatus") as ProductionStatus | null) ?? undefined,
+    lactationStage: (searchParams.get("lactationStage") as any) ?? undefined,
     healthStatus: (searchParams.get("healthStatus") as HealthStatusFilter | null) ?? undefined,
     reproductiveStatus: (searchParams.get("reproductiveStatus") as ReproductiveStatus | null) ?? undefined,
     animalCategory: (searchParams.get("animalCategory") as AnimalCategory | null) ?? undefined,

@@ -35,6 +35,15 @@ export const HEALTH_STATUS_FILTERS = [
 ] as const;
 export type HealthStatusFilter = (typeof HEALTH_STATUS_FILTERS)[number];
 
+export const LACTATION_STAGES = [
+  'FRESH',
+  'EARLY',
+  'MID',
+  'LATE',
+  'DRY_PERIOD',
+] as const;
+export type LactationStageFilter = (typeof LACTATION_STAGES)[number];
+
 export class ListCattleQueryDto extends CursorPaginationQueryDto {
   @IsOptional()
   @Transform(trimString)
@@ -94,6 +103,11 @@ export class ListCattleQueryDto extends CursorPaginationQueryDto {
   @Transform(trimString)
   @IsIn(LIFECYCLE_SUB_STAGES)
   lifecycleSubStage?: LifecycleSubStage;
+
+  @IsOptional()
+  @Transform(trimString)
+  @IsIn(LACTATION_STAGES)
+  lactationStage?: LactationStageFilter;
 
   /** RAKHAL-475: animals with an actionable upcoming event — overdue / due today / due within a week
    * (`DUE_FILTERS`). Mirrors `AnimalUpcomingEventsService.dueFilterWhere()`. */

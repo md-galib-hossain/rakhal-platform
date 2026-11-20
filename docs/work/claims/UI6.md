@@ -1,19 +1,23 @@
 ---
 id: UI6
 title: "Mobile: Animals page filters, animal groups management, and add animal layout button"
-status: active
+status: done
 agent: forma
 harness: antigravity
 branch: feat/mobile-cattle-filters-groups
 paths:
   - apps/mobile/src/cattle/**
   - apps/mobile/src/offline/pull.ts
+  - apps/mobile/src/offline/SyncProvider.test.tsx
   - apps/mobile/test/**
   - apps/api/src/modules/cattle/**
+  - apps/api/openapi/customer-api.json
   - apps/web/features/cattle/**
   - packages/api-client/**
 shared:
   - apps/mobile/src/i18n/messages.ts
+  - apps/web/i18n/messages/bn.json
+  - apps/web/i18n/messages/en.json
 depends_on: []
 blocked_by: []
 resolved: []

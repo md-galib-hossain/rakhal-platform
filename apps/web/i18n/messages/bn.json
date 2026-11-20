@@ -1044,6 +1044,22 @@
       "animalCategory": "ক্যাটাগরি",
       "stage": "বাছুরের ধাপ",
       "herdStatus": "পালের অবস্থা",
+      "lactationStage": "দুগ্ধকাল",
+      "lactationStageOptions": {
+        "FRESH": "সদ্য প্রসব",
+        "EARLY": "শুরুর দুধের কাল",
+        "MID": "মাঝের দুধের কাল",
+        "LATE": "শেষের দুধের কাল",
+        "DRY_PERIOD": "শুষ্ক কাল"
+      },
+      "reproductiveStatus": "প্রজনন অবস্থা",
+      "reproductiveOptions": {
+        "OPEN": "ফাঁকা",
+        "BRED_AWAITING_CONFIRMATION": "নিশ্চিতকরণের অপেক্ষায়",
+        "PREGNANT": "গাভীন",
+        "POSTPARTUM_WAITING": "প্রসবোত্তর বিশ্রাম",
+        "NOT_ELIGIBLE": "প্রজননযোগ্য নয়"
+      },
       "lifecycleSubStage": "জীবনচক্র ধাপ",
       "due": "সময়সীমা",
       "dueOptions": {

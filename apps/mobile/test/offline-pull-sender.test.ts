@@ -57,6 +57,7 @@ test('cattle are pulled page by page by cursor and projected to what the screens
     lastWeightKg: null,
     shedName: null,
     lactationStage: null,
+    groupIds: [],
     nextEvent: null,
     updatedAt: null,
   });
@@ -100,6 +101,7 @@ test('cattle projection enriches aqrScore, weight, shed, lactation and nextEvent
     lastWeightKg: 460,
     shedName: 'Shed North',
     lactationStage: 'MID',
+    groupIds: [],
     nextEvent: {
       kind: 'PREGNANCY_CHECK',
       title: 'Routine Pregnancy Check',
@@ -112,6 +114,22 @@ test('cattle projection enriches aqrScore, weight, shed, lactation and nextEvent
       upcomingEventCount: 2,
     },
     updatedAt: null,
+  });
+});
+
+test('animal groups are pulled and projected with member counts and search', async () => {
+  const db = await freshDb();
+  const group1 = { id: 'g1', name: 'Batch A', description: 'High yield cows', memberCount: 5, createdAt: '2026-11-01T00:00:00Z', updatedAt: '2026-11-02T00:00:00Z' };
+  const { api } = createFakeApi(() => page([group1, { id: 'g2', name: 'Deleted Group', deletedAt: '2026-11-03T00:00:00Z' }]));
+  assert.equal(await pullEntity(api, db, 'f1', spec('animalGroups'), NOW), 1);
+  const rows = await readCache(db, 'f1', 'animalGroups');
+  assert.deepEqual(rows[0], {
+    id: 'g1',
+    name: 'Batch A',
+    description: 'High yield cows',
+    memberCount: 5,
+    createdAt: '2026-11-01T00:00:00Z',
+    updatedAt: '2026-11-02T00:00:00Z',
   });
 });
 

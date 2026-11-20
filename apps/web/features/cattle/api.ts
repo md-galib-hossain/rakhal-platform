@@ -46,6 +46,7 @@ export const cattleApi = {
         shedId: filters.shedId,
         animalGroupId: filters.animalGroupId,
         productionStatus: filters.productionStatus,
+        lactationStage: filters.lactationStage,
         healthStatus: filters.healthStatus,
         reproductiveStatus: filters.reproductiveStatus,
         animalCategory: filters.animalCategory,

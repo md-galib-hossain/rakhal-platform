@@ -16,6 +16,8 @@ import {
   primaryBadge,
   productionBadge,
   reproBadge,
+  countActiveFilters,
+  matchesCattleFilters,
   toCattleItem,
   toCattleItems,
   STALE_AFTER_MS,
@@ -294,4 +296,50 @@ test('lactationBadge maps stages to tones/herdStates and labels', () => {
   assert.equal(lactationBadge('MID')?.labelKey, 'cattle.lactation.mid');
   assert.equal(lactationBadge('UNKNOWN')?.raw, 'UNKNOWN');
   assert.equal(lactationBadge(null), null);
+});
+
+test('matchesCattleFilters filters by production, lactation, reproduction, health, category and group', () => {
+  const cow1 = toCattleItem({
+    id: 'c1',
+    tagNumber: 'TAG-1',
+    animalCategory: 'COW',
+    productionStatus: 'MILKING',
+    lactationStage: 'FRESH',
+    reproductiveStatus: 'OPEN',
+    healthStatus: 'HEALTHY',
+    groupIds: ['g1', 'g2'],
+  })!;
+
+  const cow2 = toCattleItem({
+    id: 'c2',
+    tagNumber: 'TAG-2',
+    animalCategory: 'HEIFER',
+    productionStatus: 'DRY',
+    lactationStage: 'DRY_PERIOD',
+    reproductiveStatus: 'PREGNANT',
+    healthStatus: 'SICK',
+    groupIds: ['g2'],
+  })!;
+
+  assert.equal(matchesCattleFilters(cow1, { animalCategory: 'COW' }), true);
+  assert.equal(matchesCattleFilters(cow2, { animalCategory: 'COW' }), false);
+
+  assert.equal(matchesCattleFilters(cow1, { productionStatus: 'MILKING' }), true);
+  assert.equal(matchesCattleFilters(cow2, { productionStatus: 'MILKING' }), false);
+
+  assert.equal(matchesCattleFilters(cow1, { lactationStage: 'FRESH' }), true);
+  assert.equal(matchesCattleFilters(cow2, { lactationStage: 'FRESH' }), false);
+
+  assert.equal(matchesCattleFilters(cow1, { reproductiveStatus: 'OPEN' }), true);
+  assert.equal(matchesCattleFilters(cow2, { reproductiveStatus: 'OPEN' }), false);
+
+  assert.equal(matchesCattleFilters(cow1, { healthStatus: 'HEALTHY' }), true);
+  assert.equal(matchesCattleFilters(cow2, { healthStatus: 'HEALTHY' }), false);
+
+  assert.equal(matchesCattleFilters(cow1, { animalGroupId: 'g1' }), true);
+  assert.equal(matchesCattleFilters(cow2, { animalGroupId: 'g1' }), false);
+  assert.equal(matchesCattleFilters(cow2, { animalGroupId: 'g2' }), true);
+
+  assert.equal(countActiveFilters({}), 0);
+  assert.equal(countActiveFilters({ productionStatus: 'MILKING', animalGroupId: 'g1' }), 2);
 });

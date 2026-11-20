@@ -27,7 +27,7 @@ describe('SyncProvider', () => {
     await waitFor(() => expect(h.sync().snapshot.lastSyncedAt).not.toBeNull());
     expect(h.sync().snapshot).toMatchObject({ state: 'idle', waiting: 0, failed: 0, conflict: 0 });
     expect(h.pulls().map((r) => new URL(r.url).pathname.replace('/api/v1', '')).sort()).toEqual(
-      ['/cattle', '/inventory/milk-tanks', '/milk/log', '/sheds', '/tasks'].sort(),
+      ['/animal-groups', '/cattle', '/inventory/milk-tanks', '/milk/log', '/sheds', '/tasks'].sort(),
     );
   });
 

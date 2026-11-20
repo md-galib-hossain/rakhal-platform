@@ -219,7 +219,7 @@ export class ApiClient {
     return this.send<T>("PATCH", path, { ...options, body });
   }
 
-  delete<T>(path: string, options?: Omit<RequestOptions, "body">): Promise<ApiResult<T>> {
+  delete<T>(path: string, options?: RequestOptions): Promise<ApiResult<T>> {
     return this.send<T>("DELETE", path, options ?? {});
   }
 

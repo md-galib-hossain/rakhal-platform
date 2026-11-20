@@ -27311,6 +27311,21 @@
           },
           {
             "in": "query",
+            "name": "lactationStage",
+            "required": false,
+            "schema": {
+              "enum": [
+                "FRESH",
+                "EARLY",
+                "MID",
+                "LATE",
+                "DRY_PERIOD"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "dueFilter",
             "required": false,
             "schema": {

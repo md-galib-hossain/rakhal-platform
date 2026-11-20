@@ -1044,6 +1044,22 @@
       "animalCategory": "Category",
       "stage": "Calf Stage",
       "herdStatus": "Herd Status",
+      "lactationStage": "Lactation Stage",
+      "lactationStageOptions": {
+        "FRESH": "Fresh",
+        "EARLY": "Early lactation",
+        "MID": "Mid lactation",
+        "LATE": "Late lactation",
+        "DRY_PERIOD": "Dry period"
+      },
+      "reproductiveStatus": "Reproduction Status",
+      "reproductiveOptions": {
+        "OPEN": "Open",
+        "BRED_AWAITING_CONFIRMATION": "Awaiting confirmation",
+        "PREGNANT": "Pregnant",
+        "POSTPARTUM_WAITING": "Postpartum (waiting)",
+        "NOT_ELIGIBLE": "Not eligible"
+      },
       "lifecycleSubStage": "Lifecycle Stage",
       "due": "Due",
       "dueOptions": {

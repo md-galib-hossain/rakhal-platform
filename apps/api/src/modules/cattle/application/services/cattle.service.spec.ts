@@ -351,6 +351,50 @@ describe('CattleService — RAKHAL-269 production status', () => {
     });
   });
 
+  describe('findAll — lactationStage filter', () => {
+    it('filters for DRY_PERIOD correctly', async () => {
+      const service = make();
+      await service.findAll('farm-1', {
+        limit: 20,
+        sortOrder: 'desc',
+        includeDeleted: false,
+        lactationStage: 'DRY_PERIOD',
+      } as never);
+
+      const calls = prisma.cattle.findMany.mock.calls as unknown as Array<
+        [{ where: { dryPeriods?: unknown } }]
+      >;
+      const lastCall = calls[calls.length - 1][0];
+      expect(lastCall.where.dryPeriods).toEqual({
+        some: { actualEndDate: null },
+      });
+    });
+
+    it('filters for FRESH correctly', async () => {
+      const service = make();
+      await service.findAll('farm-1', {
+        limit: 20,
+        sortOrder: 'desc',
+        includeDeleted: false,
+        lactationStage: 'FRESH',
+      } as never);
+
+      const calls = prisma.cattle.findMany.mock.calls as unknown as Array<
+        [{ where: { dryPeriods?: unknown; lactations?: unknown } }]
+      >;
+      const lastCall = calls[calls.length - 1][0];
+      expect(lastCall.where.dryPeriods).toEqual({
+        none: { actualEndDate: null },
+      });
+      const lactations = lastCall.where.lactations as {
+        some: { status: string; endDate: null; startDate: { gte: Date } };
+      };
+      expect(lactations.some.status).toBe('ACTIVE');
+      expect(lactations.some.endDate).toBeNull();
+      expect(lactations.some.startDate.gte).toBeInstanceOf(Date);
+    });
+  });
+
   describe('findAll — RAKHAL-475 upcoming events', () => {
     const listQuery = {
       limit: 20,

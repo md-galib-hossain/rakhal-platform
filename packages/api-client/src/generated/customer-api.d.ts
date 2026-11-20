@@ -13710,6 +13710,7 @@ export interface operations {
                 gender?: "MALE" | "FEMALE" | "CASTRATED_MALE";
                 healthStatus?: "HEALTHY" | "SICK" | "IN_TREATMENT" | "WITHHOLDING" | "QUARANTINE";
                 includeDeleted: components["schemas"]["Object"];
+                lactationStage?: "FRESH" | "EARLY" | "MID" | "LATE" | "DRY_PERIOD";
                 lifecycleSubStage?: "WEANED_HEIFER" | "GROWING_HEIFER" | "BREEDING_HEIFER" | "WEANER_BULL" | "GROWING_BULL" | "MATURE_BULL";
                 limit: components["schemas"]["Object"];
                 productionStatus?: "MILKING" | "DRY";

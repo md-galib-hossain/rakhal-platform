@@ -30,6 +30,8 @@ export function CattleFilters({
   const [search, setSearch] = useQueryState("search", parseAsString.withDefault(""));
   const [animalCategory, setAnimalCategory] = useQueryState("animalCategory", parseAsString);
   const [productionStatus, setProductionStatus] = useQueryState("productionStatus", parseAsString);
+  const [lactationStage, setLactationStage] = useQueryState("lactationStage", parseAsString);
+  const [reproductiveStatus, setReproductiveStatus] = useQueryState("reproductiveStatus", parseAsString);
   const [herdStatus, setHerdStatus] = useQueryState("herdStatus", parseAsString);
   const [lifecycleSubStage, setLifecycleSubStage] = useQueryState("lifecycleSubStage", parseAsString);
   const [healthStatus, setHealthStatus] = useQueryState("healthStatus", parseAsString);
@@ -60,6 +62,30 @@ export function CattleFilters({
         options: [
           { value: "MILKING", label: t("statusOptions.milking") },
           { value: "DRY", label: t("statusOptions.dry") },
+        ],
+      },
+      {
+        id: "lactationStage",
+        label: t("lactationStage"),
+        mode: "single",
+        options: [
+          { value: "FRESH", label: t("lactationStageOptions.FRESH") },
+          { value: "EARLY", label: t("lactationStageOptions.EARLY") },
+          { value: "MID", label: t("lactationStageOptions.MID") },
+          { value: "LATE", label: t("lactationStageOptions.LATE") },
+          { value: "DRY_PERIOD", label: t("lactationStageOptions.DRY_PERIOD") },
+        ],
+      },
+      {
+        id: "reproductiveStatus",
+        label: t("reproductiveStatus"),
+        mode: "single",
+        options: [
+          { value: "OPEN", label: t("reproductiveOptions.OPEN") },
+          { value: "BRED_AWAITING_CONFIRMATION", label: t("reproductiveOptions.BRED_AWAITING_CONFIRMATION") },
+          { value: "PREGNANT", label: t("reproductiveOptions.PREGNANT") },
+          { value: "POSTPARTUM_WAITING", label: t("reproductiveOptions.POSTPARTUM_WAITING") },
+          { value: "NOT_ELIGIBLE", label: t("reproductiveOptions.NOT_ELIGIBLE") },
         ],
       },
       {
@@ -139,6 +165,8 @@ export function CattleFilters({
     const values: Record<string, string[]> = {};
     if (animalCategory) values.animalCategory = [animalCategory];
     if (productionStatus) values.productionStatus = [productionStatus];
+    if (lactationStage) values.lactationStage = [lactationStage];
+    if (reproductiveStatus) values.reproductiveStatus = [reproductiveStatus];
     if (herdStatus) values.herdStatus = [herdStatus];
     if (lifecycleSubStage) values.lifecycleSubStage = [lifecycleSubStage];
     if (healthStatus) values.healthStatus = [healthStatus];
@@ -150,6 +178,8 @@ export function CattleFilters({
   }, [
     animalCategory,
     productionStatus,
+    lactationStage,
+    reproductiveStatus,
     herdStatus,
     lifecycleSubStage,
     healthStatus,
@@ -163,6 +193,8 @@ export function CattleFilters({
   function handleFilterChange(next: Record<string, string[]>) {
     void setAnimalCategory(next.animalCategory?.[0] || null);
     void setProductionStatus(next.productionStatus?.[0] || null);
+    void setLactationStage(next.lactationStage?.[0] || null);
+    void setReproductiveStatus(next.reproductiveStatus?.[0] || null);
     void setHerdStatus(next.herdStatus?.[0] || null);
     void setLifecycleSubStage(next.lifecycleSubStage?.[0] || null);
     void setHealthStatus(next.healthStatus?.[0] || null);
@@ -176,6 +208,8 @@ export function CattleFilters({
   function handleClearAll() {
     void setAnimalCategory(null);
     void setProductionStatus(null);
+    void setLactationStage(null);
+    void setReproductiveStatus(null);
     void setHerdStatus(null);
     void setLifecycleSubStage(null);
     void setHealthStatus(null);

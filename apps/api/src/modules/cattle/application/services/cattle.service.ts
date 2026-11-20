@@ -95,6 +95,7 @@ import { BulkCattleDto } from '../../presentation/dto/bulk-cattle.dto';
 import { CreateCattleDto } from '../../presentation/dto/create-cattle.dto';
 import {
   HealthStatusFilter,
+  LactationStageFilter,
   ListCattleQueryDto,
 } from '../../presentation/dto/list-cattle-query.dto';
 import { UpcomingEventsQueryDto } from '../../presentation/dto/upcoming-events-query.dto';
@@ -537,7 +538,7 @@ export class CattleService {
     // `lifecycleSubStage` — reused below for composeStatus's `reproCtx` too
     // (never fetched twice for one request).
     const presetSettings =
-      query.lifecycleSubStage || query.animalCategory
+      query.lifecycleSubStage || query.animalCategory || query.lactationStage
         ? await this.farmSettings.getEffective(farmId)
         : undefined;
 
@@ -591,6 +592,9 @@ export class CattleService {
             new Date(),
             this.lifecycleBoundaries(presetSettings!),
           )
+        : {}),
+      ...(query.lactationStage
+        ? this.lactationStageWhere(query.lactationStage, presetSettings!)
         : {}),
     };
 
@@ -2104,6 +2108,76 @@ export class CattleService {
     }
   }
 
+  private lactationStageWhere(
+    stage: LactationStageFilter,
+    settings: FarmModuleSettings,
+  ): Prisma.CattleWhereInput {
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const now = new Date();
+    const freshCutoff = new Date(
+      now.getTime() - settings.lactationFreshDays * DAY_MS,
+    );
+    const earlyCutoff = new Date(
+      now.getTime() - settings.lactationEarlyDays * DAY_MS,
+    );
+    const midCutoff = new Date(
+      now.getTime() - settings.lactationMidDays * DAY_MS,
+    );
+
+    switch (stage) {
+      case 'DRY_PERIOD':
+        return {
+          dryPeriods: { some: { actualEndDate: null } },
+        };
+      case 'FRESH':
+        return {
+          dryPeriods: { none: { actualEndDate: null } },
+          lactations: {
+            some: {
+              status: LactationStatus.ACTIVE,
+              endDate: null,
+              startDate: { gte: freshCutoff },
+            },
+          },
+        };
+      case 'EARLY':
+        return {
+          dryPeriods: { none: { actualEndDate: null } },
+          lactations: {
+            some: {
+              status: LactationStatus.ACTIVE,
+              endDate: null,
+              startDate: { gte: earlyCutoff, lt: freshCutoff },
+            },
+          },
+        };
+      case 'MID':
+        return {
+          dryPeriods: { none: { actualEndDate: null } },
+          lactations: {
+            some: {
+              status: LactationStatus.ACTIVE,
+              endDate: null,
+              startDate: { gte: midCutoff, lt: earlyCutoff },
+            },
+          },
+        };
+      case 'LATE':
+        return {
+          dryPeriods: { none: { actualEndDate: null } },
+          lactations: {
+            some: {
+              status: LactationStatus.ACTIVE,
+              endDate: null,
+              startDate: { lt: midCutoff },
+            },
+          },
+        };
+      default:
+        return { id: '__none__' };
+    }
+  }
+
   /**
    * Today's and yesterday's total yield (litres) for the farm. Submitted entries only — same definition as
    * `MilkService.overview` / the Dashboard KPI, so the Animal page never disagrees with them (UX audit 2026-10-20).
@@ -2337,6 +2411,7 @@ export class CattleService {
     return {
       breed: true,
       shed: true,
+      animalGroupMemberships: { select: { groupId: true } },
       mother: { select: this.summarySelect() },
       father: { select: this.summarySelect() },
       reproductionProfile: {
