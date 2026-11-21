@@ -149,8 +149,13 @@ function CattleFormDialogBody({
 
   const pending = createCattle.isPending || updateCattle.isPending || photo.pending;
 
-  async function goToHistory() {
-    if (await form.trigger()) setCreateStep("history");
+  async function goToHistory(e?: React.MouseEvent) {
+    e?.preventDefault();
+    e?.stopPropagation();
+    const valid = await form.trigger();
+    if (valid) {
+      setCreateStep("history");
+    }
   }
 
   /** Create: the "her history" answers go in `history` and become backdated HISTORICAL events server-side. */
@@ -275,25 +280,25 @@ function CattleFormDialogBody({
             </>
           ) : createStep === "basic" ? (
             <>
-              <Button type="button" variant="outline" className="h-10 flex-1 sm:flex-none" onClick={() => onOpenChange(false)} disabled={pending}>
+              <Button key="cancel-basic" type="button" variant="outline" className="h-10 flex-1 sm:flex-none" onClick={() => onOpenChange(false)} disabled={pending}>
                 {t("cancel")}
               </Button>
-              <Button type="button" variant="outline" className="h-10 flex-1 sm:flex-none" onClick={() => void form.handleSubmit((values) => onSubmit(values, false))()} disabled={pending}>
+              <Button key="save-without" type="button" variant="outline" className="h-10 flex-1 sm:flex-none" onClick={() => void form.handleSubmit((values) => onSubmit(values, false))()} disabled={pending}>
                 {pending ? "…" : t("history.saveWithout")}
               </Button>
-              <Button type="button" className="h-10 w-full sm:w-auto" onClick={() => void goToHistory()} disabled={pending}>
+              <Button key="next-history" type="button" className="h-10 w-full sm:w-auto" onClick={(e) => void goToHistory(e)} disabled={pending}>
                 {t(watchedGender === "FEMALE" ? "history.nextFemale" : "history.nextMale")}
               </Button>
             </>
           ) : (
             <>
-              <Button type="button" variant="outline" className="h-10 flex-1 sm:flex-none" onClick={() => setCreateStep("basic")} disabled={pending}>
+              <Button key="back-history" type="button" variant="outline" className="h-10 flex-1 sm:flex-none" onClick={() => setCreateStep("basic")} disabled={pending}>
                 {tCommon("back")}
               </Button>
-              <Button type="button" variant="outline" className="h-10 flex-1 sm:flex-none" onClick={() => void form.handleSubmit((values) => onSubmit(values, false))()} disabled={pending}>
+              <Button key="skip-history" type="button" variant="outline" className="h-10 flex-1 sm:flex-none" onClick={() => void form.handleSubmit((values) => onSubmit(values, false))()} disabled={pending}>
                 {t("history.skip")}
               </Button>
-              <Button type="submit" className="h-10 w-full sm:w-auto" disabled={pending}>
+              <Button key="save-history" type="submit" className="h-10 w-full sm:w-auto" disabled={pending}>
                 {pending ? "…" : t("history.save")}
               </Button>
             </>
