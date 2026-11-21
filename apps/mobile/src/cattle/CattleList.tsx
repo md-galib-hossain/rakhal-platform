@@ -90,6 +90,7 @@ export function CattleList({
   const [activeGroupName, setActiveGroupName] = useState<string | null>(null);
 
   // Bulk Selection & Modals state
+  const [containerHeight, setContainerHeight] = useState(0);
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkEventOpen, setBulkEventOpen] = useState(false);
@@ -695,12 +696,17 @@ export function CattleList({
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.card }} testID={testID}>
+    <View
+      style={{ flex: 1, backgroundColor: colors.card }}
+      testID={testID}
+      onLayout={(e) => setContainerHeight(e.nativeEvent.layout.height)}
+    >
       {content}
 
       {/* Bulk Action Dock */}
       {selectedIds.size > 0 ? (
         <CattleBulkDock
+          containerHeight={containerHeight}
           selectedCount={selectedIds.size}
           totalCount={displayedItems.length}
           onSelectAll={handleSelectAll}

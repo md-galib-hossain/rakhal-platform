@@ -16,6 +16,7 @@ import { useTheme } from '../providers/ThemeProvider.tsx';
 import { CalendarPlusIcon, Trash2Icon, UserPlusIcon, WarehouseIcon } from './CattleIcons.tsx';
 
 export interface CattleBulkDockProps {
+  containerHeight?: number;
   selectedCount: number;
   totalCount: number;
   onSelectAll: () => void;
@@ -33,6 +34,7 @@ const DOCK_APPROX_HEIGHT = 330;
 const EDGE_MARGIN = 16;
 
 export const CattleBulkDock = memo(function CattleBulkDock({
+  containerHeight,
   selectedCount,
   totalCount,
   onSelectAll,
@@ -51,27 +53,41 @@ export const CattleBulkDock = memo(function CattleBulkDock({
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const isAllSelected = selectedCount > 0 && selectedCount === totalCount;
+  const [dockHeight, setDockHeight] = useState(DOCK_APPROX_HEIGHT);
 
-  // Safe vertical bounds
-  const minY = Math.max(tokens.spacing.md, insets.top + 60);
-  const maxY = Math.max(minY, screenHeight - insets.bottom - 50 - DOCK_APPROX_HEIGHT);
+  // When containerHeight is passed, use it directly (this is the CattleList TabSlot view height).
+  // Otherwise fallback to estimating based on window height minus insets.
+  const effectiveHeight =
+    containerHeight && containerHeight > 0
+      ? containerHeight
+      : screenHeight - insets.top - insets.bottom - 130;
+
+  // Safe vertical bounds:
+  // minY = 8: 8dp below the top header (TabSlot top edge), right before touching AppHeader (logo & notification bell).
+  // maxY = effectiveHeight - dockHeight - 12: keeps bottom of dock 12dp above TabList (bottom navbar), never slipping behind it.
+  const minY = 8;
+  const maxY = Math.max(minY, effectiveHeight - dockHeight - 12);
 
   const initialRightX = Math.max(EDGE_MARGIN, screenWidth - DOCK_WIDTH - EDGE_MARGIN);
   const initialY = Math.max(minY, maxY);
 
   const pan = useRef(new Animated.ValueXY({ x: initialRightX, y: initialY })).current;
   const posRef = useRef({ x: initialRightX, y: initialY });
+  const hasUserDragged = useRef(false);
   const [side, setSide] = useState<'left' | 'right'>('right');
 
   // Keep position clamped and edge-snapped if screen dimensions change
   useEffect(() => {
     const targetX = side === 'left' ? EDGE_MARGIN : Math.max(EDGE_MARGIN, screenWidth - DOCK_WIDTH - EDGE_MARGIN);
-    const targetY = Math.min(maxY, Math.max(minY, posRef.current.y));
+    const targetY = hasUserDragged.current
+      ? Math.min(maxY, Math.max(minY, posRef.current.y))
+      : Math.max(minY, maxY);
     posRef.current = { x: targetX, y: targetY };
     pan.setValue({ x: targetX, y: targetY });
-  }, [screenWidth, screenHeight, minY, maxY, side, pan]);
+  }, [screenWidth, effectiveHeight, dockHeight, minY, maxY, side, pan]);
 
   const handleSnap = (gestureState: { dx: number; dy: number }) => {
+    hasUserDragged.current = true;
     const currentReleaseX = posRef.current.x + gestureState.dx;
     const currentReleaseY = Math.min(maxY, Math.max(minY, posRef.current.y + gestureState.dy));
 
@@ -119,6 +135,12 @@ export const CattleBulkDock = memo(function CattleBulkDock({
   return (
     <Animated.View
       testID={testID}
+      onLayout={(e) => {
+        const h = e.nativeEvent.layout.height;
+        if (h > 0 && Math.abs(h - dockHeight) > 1) {
+          setDockHeight(h);
+        }
+      }}
       {...panResponder.panHandlers}
       style={{
         position: 'absolute',
