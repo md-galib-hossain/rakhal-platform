@@ -426,15 +426,14 @@ export function AddAnimalModal({
                   accessibilityRole="button"
                   accessibilityLabel={t('cattle.add.photoBox')}
                   pressedStyle="overlay"
-                  onPress={() => setPhotoAttached(!photoAttached)}
+                  onPress={() => setPhotoAttached((prev) => !prev)}
                   style={{
                     width: 100,
                     height: 100,
                     borderRadius: tokens.radius.md,
                     borderWidth: 1,
-                    borderColor: photoAttached ? colors.primaryEdge : colors.border,
-                    borderStyle: photoAttached ? 'solid' : 'dashed',
-                    backgroundColor: photoAttached ? colors.primaryHover : colors.muted,
+                    borderColor: photoAttached ? colors.primary : colors.border,
+                    backgroundColor: photoAttached ? colors.muted : colors.background,
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: 6,
@@ -442,14 +441,24 @@ export function AddAnimalModal({
                   }}
                   testID="add-animal-photo-box"
                 >
-                  <Glyph
-                    name={photoAttached ? 'check' : 'plus'}
-                    size={24}
-                    color={photoAttached ? 'primaryForeground' : 'mutedForeground'}
-                  />
+                  {photoAttached ? (
+                    <Glyph
+                      key="glyph-check"
+                      name="check"
+                      size={24}
+                      color="primary"
+                    />
+                  ) : (
+                    <Glyph
+                      key="glyph-plus"
+                      name="plus"
+                      size={24}
+                      color="mutedForeground"
+                    />
+                  )}
                   <Text
                     role="caption"
-                    color={photoAttached ? 'primaryForeground' : 'mutedForeground'}
+                    color={photoAttached ? 'primary' : 'mutedForeground'}
                     style={{ textAlign: 'center', fontSize: 11, fontWeight: '600' }}
                   >
                     {photoAttached ? t('cattle.add.photoAttached') : t('cattle.add.photoBox')}
@@ -1843,79 +1852,83 @@ export function AddAnimalModal({
         }}
       >
         {step === 'basic' ? (
-          <View style={{ flexDirection: 'row', gap: tokens.spacing.xs }}>
-            <View style={{ flex: 1 }}>
-              <Button
-                label={t('cattle.add.cancel')}
-                variant="secondary"
-                size="md"
-                fullWidth
-                onPress={handleClose}
-                disabled={submitting}
-                testID="add-animal-cancel-btn"
-              />
-            </View>
+          <View style={{ gap: tokens.spacing.xs }}>
+            {/* Primary Action: Full Width */}
+            <Button
+              label={gender === 'FEMALE' ? t('cattle.add.nextFemale') : t('cattle.add.nextMale')}
+              variant="primary"
+              size="md"
+              fullWidth
+              onPress={handleNextStep}
+              disabled={submitting}
+              testID="add-animal-next-btn"
+            />
 
-            <View style={{ flex: 1.5 }}>
-              <Button
-                label={t('cattle.add.saveWithout')}
-                variant="secondary"
-                size="md"
-                fullWidth
-                onPress={() => void handleSave(false)}
-                disabled={submitting}
-                testID="add-animal-save-without-history-btn"
-              />
-            </View>
+            {/* Secondary Actions: Clean 50/50 Row */}
+            <View style={{ flexDirection: 'row', gap: tokens.spacing.xs }}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label={t('cattle.add.cancel')}
+                  variant="secondary"
+                  size="md"
+                  fullWidth
+                  onPress={handleClose}
+                  disabled={submitting}
+                  testID="add-animal-cancel-btn"
+                />
+              </View>
 
-            <View style={{ flex: 1.5 }}>
-              <Button
-                label={gender === 'FEMALE' ? t('cattle.add.nextFemale') : t('cattle.add.nextMale')}
-                variant="primary"
-                size="md"
-                fullWidth
-                onPress={handleNextStep}
-                disabled={submitting}
-                testID="add-animal-next-btn"
-              />
+              <View style={{ flex: 1.5 }}>
+                <Button
+                  label={t('cattle.add.saveWithout')}
+                  variant="secondary"
+                  size="md"
+                  fullWidth
+                  onPress={() => void handleSave(false)}
+                  disabled={submitting}
+                  testID="add-animal-save-without-history-btn"
+                />
+              </View>
             </View>
           </View>
         ) : (
-          <View style={{ flexDirection: 'row', gap: tokens.spacing.xs }}>
-            <View style={{ flex: 1 }}>
-              <Button
-                label={t('cattle.add.history.back')}
-                variant="secondary"
-                size="md"
-                fullWidth
-                onPress={() => setStep('basic')}
-                disabled={submitting}
-                testID="add-animal-history-back-btn"
-              />
-            </View>
+          <View style={{ gap: tokens.spacing.xs }}>
+            {/* Primary Action: Full Width */}
+            <Button
+              label={submitting ? t('cattle.add.submitting') : t('cattle.add.history.save')}
+              variant="primary"
+              size="md"
+              fullWidth
+              onPress={() => void handleSave(true)}
+              disabled={submitting}
+              testID="add-animal-history-save-btn"
+            />
 
-            <View style={{ flex: 1.5 }}>
-              <Button
-                label={t('cattle.add.history.skip')}
-                variant="secondary"
-                size="md"
-                fullWidth
-                onPress={() => void handleSave(false)}
-                disabled={submitting}
-                testID="add-animal-history-skip-btn"
-              />
-            </View>
+            {/* Secondary Actions: Clean 50/50 Row */}
+            <View style={{ flexDirection: 'row', gap: tokens.spacing.xs }}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label={t('cattle.add.history.back')}
+                  variant="secondary"
+                  size="md"
+                  fullWidth
+                  onPress={() => setStep('basic')}
+                  disabled={submitting}
+                  testID="add-animal-history-back-btn"
+                />
+              </View>
 
-            <View style={{ flex: 1.5 }}>
-              <Button
-                label={submitting ? t('cattle.add.submitting') : t('cattle.add.history.save')}
-                variant="primary"
-                size="md"
-                fullWidth
-                onPress={() => void handleSave(true)}
-                disabled={submitting}
-                testID="add-animal-history-save-btn"
-              />
+              <View style={{ flex: 1.5 }}>
+                <Button
+                  label={t('cattle.add.history.skip')}
+                  variant="secondary"
+                  size="md"
+                  fullWidth
+                  onPress={() => void handleSave(false)}
+                  disabled={submitting}
+                  testID="add-animal-history-skip-btn"
+                />
+              </View>
             </View>
           </View>
         )}

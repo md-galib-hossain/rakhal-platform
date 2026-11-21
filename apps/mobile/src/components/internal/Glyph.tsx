@@ -132,7 +132,7 @@ export function Glyph({ name, size = 20, color, testID }: GlyphProps) {
       style={{ width: size, height: size }}
     >
       {parts(name, size, resolved).map((style, i) => (
-        <View key={i} style={style} />
+        <View key={`${name}-${i}`} style={style} />
       ))}
     </View>
   );
