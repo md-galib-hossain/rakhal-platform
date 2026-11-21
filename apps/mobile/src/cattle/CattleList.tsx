@@ -22,6 +22,7 @@ import { useFormat } from '../i18n/useFormat.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 import { AnimalGroupsSheet } from './AnimalGroupsSheet.tsx';
+import { AddAnimalModal } from './AddAnimalModal.tsx';
 import { BulkAddToGroupModal } from './BulkAddToGroupModal.tsx';
 import { BulkChangeShedModal } from './BulkChangeShedModal.tsx';
 import { BulkDisposeModal } from './BulkDisposeModal.tsx';
@@ -97,6 +98,7 @@ export function CattleList({
   const [bulkShedOpen, setBulkShedOpen] = useState(false);
   const [bulkGroupOpen, setBulkGroupOpen] = useState(false);
   const [bulkDisposeOpen, setBulkDisposeOpen] = useState(false);
+  const [addAnimalOpen, setAddAnimalOpen] = useState(false);
 
   const { groups: animalGroups, reload: reloadGroups } = useAnimalGroups();
 
@@ -154,8 +156,8 @@ export function CattleList({
   }, []);
 
   const handleAddAnimalPress = useCallback(() => {
-    Alert.alert(t('cattle.actions.addAnimal'), t('cattle.actions.addAnimalHint'), [{ text: 'OK' }]);
-  }, [t]);
+    setAddAnimalOpen(true);
+  }, []);
 
   // Bulk Selection Handlers
   const toggleSelectItem = useCallback((item: CattleListItem) => {
@@ -764,6 +766,17 @@ export function CattleList({
         onSuccess={(msg) => {
           handleCancelSelection();
           void reload();
+          Alert.alert('', msg);
+        }}
+      />
+
+      {/* Modal 5: Add Animal Modal */}
+      <AddAnimalModal
+        visible={addAnimalOpen}
+        onClose={() => setAddAnimalOpen(false)}
+        onSuccess={(msg) => {
+          void reload();
+          void reloadGroups();
           Alert.alert('', msg);
         }}
       />
