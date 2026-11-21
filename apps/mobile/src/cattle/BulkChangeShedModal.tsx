@@ -48,20 +48,58 @@ export function BulkChangeShedModal({
 
   useEffect(() => {
     if (!visible) return;
-    void sync.readCache('sheds').then((rows) => {
-      const parsed: ShedOption[] = [];
-      for (const r of rows) {
-        const p = r.payload as { id?: unknown; name?: unknown };
-        if (typeof p.id === 'string' && typeof p.name === 'string') {
-          parsed.push({ id: p.id, name: p.name });
+    let active = true;
+
+    async function loadSheds() {
+      try {
+        const rows = await sync.readCache('sheds');
+        const parsed: ShedOption[] = [];
+        if (Array.isArray(rows)) {
+          for (const r of rows) {
+            if (!r || typeof r !== 'object') continue;
+            const rowRecord = r as Record<string, unknown>;
+            const payload = (rowRecord.payload as Record<string, unknown> | undefined) ?? rowRecord;
+            const id = typeof payload.id === 'string' ? payload.id : null;
+            const name = typeof payload.name === 'string' ? payload.name : null;
+            if (id && name) {
+              parsed.push({ id, name });
+            }
+          }
         }
+        if (parsed.length > 0 && active) {
+          setSheds(parsed);
+          setSelectedShedId((prev) => (prev === null ? parsed[0].id : prev));
+          return;
+        }
+      } catch {
+        // Cache read error; continue to online fallback
       }
-      setSheds(parsed);
-      if (parsed.length > 0 && selectedShedId === null) {
-        setSelectedShedId(parsed[0].id);
+
+      // Online fallback if cache was empty or uninitialized
+      try {
+        const res = await client.get<Array<{ id: string; name: string }>>('/sheds');
+        const items = Array.isArray(res?.data) ? res.data : [];
+        const parsed: ShedOption[] = [];
+        for (const item of items) {
+          if (item && typeof item.id === 'string' && typeof item.name === 'string') {
+            parsed.push({ id: item.id, name: item.name });
+          }
+        }
+        if (active && parsed.length > 0) {
+          setSheds(parsed);
+          setSelectedShedId((prev) => (prev === null ? parsed[0].id : prev));
+        }
+      } catch {
+        // Ignore fallback failure
       }
-    });
-  }, [visible, sync, selectedShedId]);
+    }
+
+    void loadSheds();
+
+    return () => {
+      active = false;
+    };
+  }, [visible, sync, client]);
 
   const handleClose = () => {
     setError(null);
