@@ -508,7 +508,7 @@ export const CattleCard = memo(function CattleCard({
                   setContentHeight(h);
                 }
               }}
-              style={{ gap: 6 }}
+              style={{ gap: 6, paddingBottom: 3 }}
             >
               <View style={{ height: 1, backgroundColor: colors.border }} />
 
@@ -568,12 +568,11 @@ export const CattleCard = memo(function CattleCard({
                         alignItems: 'center',
                         gap: 5,
                         paddingHorizontal: 8,
-                        paddingVertical: 3,
+                        paddingVertical: 4,
                         borderRadius: tokens.radius.full,
                         borderWidth: 1,
                         borderColor: nextToneColors.border,
                         backgroundColor: nextToneColors.bg,
-                        overflow: 'hidden',
                         flexShrink: 1,
                         maxWidth: '100%',
                       }}
@@ -615,7 +614,7 @@ export const CattleCard = memo(function CattleCard({
                         alignItems: 'center',
                         gap: 5,
                         paddingHorizontal: 7,
-                        paddingVertical: 3,
+                        paddingVertical: 4,
                         borderRadius: tokens.radius.full,
                         backgroundColor: colors.card,
                         borderWidth: 1,
