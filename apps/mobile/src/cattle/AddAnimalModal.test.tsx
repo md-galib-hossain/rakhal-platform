@@ -9,6 +9,14 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
 
+jest.mock('expo-image-picker', () => ({
+  requestMediaLibraryPermissionsAsync: jest.fn<() => Promise<{ granted: boolean }>>().mockResolvedValue({ granted: true }),
+  launchImageLibraryAsync: jest.fn<() => Promise<{ canceled: boolean; assets: Array<{ uri: string }> }>>().mockResolvedValue({
+    canceled: false,
+    assets: [{ uri: 'file://test-image.jpg' }],
+  }),
+}));
+
 afterEach(() => {
   cleanup();
   restoreMount();
@@ -51,9 +59,14 @@ describe('AddAnimalModal', () => {
     expect(screen.getByTestId('add-animal-tag-input')).toBeTruthy();
     expect(screen.getByTestId('add-animal-photo-box')).toBeTruthy();
 
-    // Toggle photo box
+    // Pick photo
     await fireEvent.press(screen.getByTestId('add-animal-photo-box'));
-    await waitFor(() => expect(screen.getByText('Image attached')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('add-animal-photo-preview')).toBeTruthy());
+    expect(screen.getByTestId('add-animal-photo-remove')).toBeTruthy();
+
+    // Remove photo
+    await fireEvent.press(screen.getByTestId('add-animal-photo-remove'));
+    await waitFor(() => expect(screen.getByTestId('add-animal-photo-box')).toBeTruthy());
   });
 
   it('validates Tag ID requirement before advancing to Step 2', async () => {

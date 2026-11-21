@@ -6,7 +6,8 @@
  * with paddingHorizontal: 4 so input focus rings are never cut off, and sticky footer.
  */
 import { useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Image, ScrollView, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Button } from '../components/actions/Button.tsx';
 import { IconButton } from '../components/actions/IconButton.tsx';
@@ -81,7 +82,7 @@ export function AddAnimalModal({
   const [step, setStep] = useState<'basic' | 'history'>('basic');
 
   // Step 1: Basic Form State
-  const [photoAttached, setPhotoAttached] = useState(false);
+  const [imageUri, setImageUri] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [tagId, setTagId] = useState('');
   const [tagError, setTagError] = useState<string | null>(null);
@@ -211,6 +212,27 @@ export function AddAnimalModal({
     };
   }, [visible, sync, client]);
 
+  const handlePickPhoto = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets[0]?.uri) {
+        setImageUri(result.assets[0].uri);
+      }
+    } catch {
+      // User cancelled or picker unavailable
+    }
+  };
+
   // Reset modal state on close/open
   const handleClose = () => {
     if (submitting) return;
@@ -218,6 +240,7 @@ export function AddAnimalModal({
     setSubmitError(null);
     setTagError(null);
     setExpandedSection(null);
+    setImageUri(null);
     onClose();
   };
 
@@ -422,48 +445,81 @@ export function AddAnimalModal({
 
               {/* Photo Box */}
               <View style={{ alignItems: 'center' }}>
-                <PressableSurface
-                  accessibilityRole="button"
-                  accessibilityLabel={t('cattle.add.photoBox')}
-                  pressedStyle="overlay"
-                  onPress={() => setPhotoAttached((prev) => !prev)}
-                  style={{
-                    width: 100,
-                    height: 100,
-                    borderRadius: tokens.radius.md,
-                    borderWidth: 1,
-                    borderColor: photoAttached ? colors.primary : colors.border,
-                    backgroundColor: photoAttached ? colors.muted : colors.background,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    padding: 8,
-                  }}
-                  testID="add-animal-photo-box"
-                >
-                  {photoAttached ? (
-                    <Glyph
-                      key="glyph-check"
-                      name="check"
-                      size={24}
-                      color="primary"
+                {imageUri ? (
+                  <View style={{ width: 100, height: 100, position: 'relative' }}>
+                    <Image
+                      source={{ uri: imageUri }}
+                      style={{
+                        width: 100,
+                        height: 100,
+                        borderRadius: tokens.radius.md,
+                        borderWidth: 1,
+                        borderColor: colors.primary,
+                      }}
+                      resizeMode="cover"
+                      testID="add-animal-photo-preview"
                     />
-                  ) : (
+                    <PressableSurface
+                      accessibilityRole="button"
+                      accessibilityLabel={t('cattle.add.removePhoto')}
+                      pressedStyle="overlay"
+                      onPress={() => {
+                        setImageUri(null);
+                      }}
+                      hitSlop={8}
+                      style={{
+                        position: 'absolute',
+                        top: -6,
+                        right: -6,
+                        width: 28,
+                        height: 28,
+                        borderRadius: 14,
+                        backgroundColor: colors.card,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      testID="add-animal-photo-remove"
+                    >
+                      <Glyph name="close" size={16} color="foreground" />
+                    </PressableSurface>
+                  </View>
+                ) : (
+                  <PressableSurface
+                    accessibilityRole="button"
+                    accessibilityLabel={t('cattle.add.photoBox')}
+                    pressedStyle="overlay"
+                    onPress={() => void handlePickPhoto()}
+                    style={{
+                      width: 100,
+                      height: 100,
+                      borderRadius: tokens.radius.md,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      backgroundColor: colors.background,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
+                      padding: 8,
+                    }}
+                    testID="add-animal-photo-box"
+                  >
                     <Glyph
                       key="glyph-plus"
                       name="plus"
                       size={24}
                       color="mutedForeground"
                     />
-                  )}
-                  <Text
-                    role="caption"
-                    color={photoAttached ? 'primary' : 'mutedForeground'}
-                    style={{ textAlign: 'center', fontSize: 11, fontWeight: '600' }}
-                  >
-                    {photoAttached ? t('cattle.add.photoAttached') : t('cattle.add.photoBox')}
-                  </Text>
-                </PressableSurface>
+                    <Text
+                      role="caption"
+                      color="mutedForeground"
+                      style={{ textAlign: 'center', fontSize: 11, fontWeight: '600' }}
+                    >
+                      {t('cattle.add.photoBox')}
+                    </Text>
+                  </PressableSurface>
+                )}
               </View>
 
               {/* Tag ID (Required) */}
