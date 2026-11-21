@@ -59,8 +59,14 @@ export const NotificationSheet = memo(function NotificationSheet({
   }, [onClose]);
 
   return (
-    <SheetModal visible={visible} onRequestClose={handleClose} testID={testID}>
-      {/* 1. Header */}
+    <SheetModal
+      visible={visible}
+      onRequestClose={handleClose}
+      testID={testID}
+      scrollable={false}
+      heightFraction={0.78}
+    >
+      {/* 1. Header (Always fixed at top) */}
       <View
         style={{
           flexDirection: 'row',
@@ -133,10 +139,12 @@ export const NotificationSheet = memo(function NotificationSheet({
 
       {/* 2. Content */}
       {view === 'preferences' ? (
-        <NotificationPreferencesView />
+        <View style={{ flex: 1 }}>
+          <NotificationPreferencesView />
+        </View>
       ) : (
         <View style={{ flex: 1 }}>
-          {/* Segmented Tabs Control */}
+          {/* Segmented Tabs Control (Fixed below header) */}
           <View
             style={{
               flexDirection: 'row',
@@ -185,7 +193,7 @@ export const NotificationSheet = memo(function NotificationSheet({
             })}
           </View>
 
-          {/* Active Tab Body */}
+          {/* Active Tab Body (Scrollable inside flex: 1) */}
           <View style={{ flex: 1, marginTop: tokens.spacing.xs }}>
             {activeTab === 'inbox' ? (
               <InboxTab onNavigate={handleClose} />

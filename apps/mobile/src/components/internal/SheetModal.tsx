@@ -83,9 +83,24 @@ export interface SheetModalProps {
   dismissable?: boolean;
   children: ReactNode;
   testID?: string;
+  /** Default true. Pass false to avoid an outer ScrollView (e.g. for sheets with fixed header and nested scroll). */
+  scrollable?: boolean;
+  /** Fixed height as a fraction of window height (e.g. 0.78 for consistent tabbed sheets). */
+  heightFraction?: number;
+  /** Max height as a fraction of window height (default 0.9 / SHEET_MAX_HEIGHT_FRACTION). */
+  maxHeightFraction?: number;
 }
 
-export function SheetModal({ visible, onRequestClose, dismissable = true, children, testID }: SheetModalProps) {
+export function SheetModal({
+  visible,
+  onRequestClose,
+  dismissable = true,
+  children,
+  testID,
+  scrollable = true,
+  heightFraction,
+  maxHeightFraction,
+}: SheetModalProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
@@ -152,6 +167,9 @@ export function SheetModal({ visible, onRequestClose, dismissable = true, childr
   const travel = sheetHeight > 0 ? sheetHeight : windowHeight;
   const translateY = slide.interpolate({ inputRange: [0, 1], outputRange: [0, travel] });
 
+  const effectiveMaxHeightFraction =
+    maxHeightFraction ?? (heightFraction !== undefined ? heightFraction : SHEET_MAX_HEIGHT_FRACTION);
+
   return (
     <Modal
       testID={testID ?? 'sheet-modal'}
@@ -179,7 +197,8 @@ export function SheetModal({ visible, onRequestClose, dismissable = true, childr
           accessibilityViewIsModal
           onLayout={onSheetLayout}
           style={{
-            maxHeight: windowHeight * SHEET_MAX_HEIGHT_FRACTION,
+            ...(heightFraction !== undefined ? { height: windowHeight * heightFraction } : null),
+            maxHeight: windowHeight * effectiveMaxHeightFraction,
             backgroundColor: colors.popover,
             borderTopLeftRadius: radius.lg,
             borderTopRightRadius: radius.lg,
@@ -191,19 +210,33 @@ export function SheetModal({ visible, onRequestClose, dismissable = true, childr
           }}
         >
           <TitleRefContext.Provider value={titleRef}>
-            <ScrollView
-              testID="sheet-content"
-              bounces={false}
-              style={{ flexGrow: 0 }}
-              contentContainerStyle={{
-                paddingTop: spacing.lg,
-                paddingHorizontal: spacing.lg,
-                paddingBottom: sheetBottomPadding(insets.bottom),
-                gap: spacing.md,
-              }}
-            >
-              {children}
-            </ScrollView>
+            {scrollable === false ? (
+              <View
+                testID="sheet-content"
+                style={{
+                  flex: 1,
+                  paddingTop: spacing.lg,
+                  paddingHorizontal: spacing.lg,
+                  paddingBottom: sheetBottomPadding(insets.bottom),
+                }}
+              >
+                {children}
+              </View>
+            ) : (
+              <ScrollView
+                testID="sheet-content"
+                bounces={false}
+                style={{ flexGrow: 0 }}
+                contentContainerStyle={{
+                  paddingTop: spacing.lg,
+                  paddingHorizontal: spacing.lg,
+                  paddingBottom: sheetBottomPadding(insets.bottom),
+                  gap: spacing.md,
+                }}
+              >
+                {children}
+              </ScrollView>
+            )}
           </TitleRefContext.Provider>
         </Animated.View>
       </View>

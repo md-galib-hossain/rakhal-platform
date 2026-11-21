@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, ScrollView, TextInput, View } from 'react-native';
+import { ScrollView, TextInput, View } from 'react-native';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Button } from '../components/actions/Button.tsx';
 import { IconButton } from '../components/actions/IconButton.tsx';
@@ -7,6 +7,7 @@ import { Chip } from '../components/forms/Chip.tsx';
 import { TextField } from '../components/forms/TextField.tsx';
 import { Glyph } from '../components/internal/Glyph.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
+import { SheetModal, SheetTitle } from '../components/internal/SheetModal.tsx';
 import { DatePickerSheet } from '../components/picker/DatePickerSheet.tsx';
 import { Text } from '../components/primitives/Text.tsx';
 import { useLocale } from '../providers/LocaleProvider.tsx';
@@ -197,7 +198,13 @@ export const NewTab = memo(function NewTab({
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={{ gap: tokens.spacing.md, paddingVertical: tokens.spacing.sm, paddingBottom: 60 }}
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={{
+        gap: tokens.spacing.md,
+        paddingVertical: tokens.spacing.sm,
+        paddingHorizontal: 4,
+        paddingBottom: 60,
+      }}
       testID={testID}
     >
       {/* 1. Title Input */}
@@ -785,100 +792,119 @@ export const NewTab = memo(function NewTab({
         }}
       />
 
-      {/* Animal Search Modal */}
-      <Modal visible={animalModalOpen} animationType="slide" onRequestClose={() => setAnimalModalOpen(false)}>
-        <View style={{ flex: 1, backgroundColor: colors.background, padding: tokens.spacing.md, paddingTop: 48 }}>
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: tokens.spacing.md,
-            }}
-          >
-            <Text role="title" color="foreground" style={{ fontWeight: '700', fontSize: 18 }}>
-              {t('notif.new.animalsLabel')}
-            </Text>
-            <IconButton
-              icon="close"
-              accessibilityLabel={t('common.close')}
-              variant="ghost"
-              onPress={() => setAnimalModalOpen(false)}
-            />
-          </View>
+      {/* Animal Search Bottom Sheet */}
+      <SheetModal
+        visible={animalModalOpen}
+        onRequestClose={() => setAnimalModalOpen(false)}
+        heightFraction={0.75}
+        scrollable={false}
+        testID="notif-animal-sheet"
+      >
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingBottom: tokens.spacing.sm,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+            marginBottom: tokens.spacing.xs,
+          }}
+        >
+          <SheetTitle>
+            {t('notif.new.animalsLabel')}
+          </SheetTitle>
+          <IconButton
+            icon="close"
+            accessibilityLabel={t('common.close')}
+            variant="ghost"
+            size="md"
+            onPress={() => setAnimalModalOpen(false)}
+          />
+        </View>
 
+        {/* Search Input */}
+        <View style={{ paddingVertical: 2 }}>
           <TextField
             label=""
             value={animalSearch}
             onChangeText={setAnimalSearch}
             placeholder={t('notif.new.animalsPlaceholder')}
           />
+        </View>
 
-          <ScrollView style={{ flex: 1, marginTop: tokens.spacing.sm }}>
-            {filteredAnimals.map((animal) => {
-              const selected = selectedAnimals.some((a) => a.id === animal.id);
-              return (
-                <PressableSurface
-                  key={animal.id}
-                  accessibilityRole="button"
-                  pressedStyle="overlay"
-                  onPress={() => {
-                    setSelectedAnimals((prev) =>
-                      selected ? prev.filter((a) => a.id !== animal.id) : [...prev, animal],
-                    );
-                  }}
+        {/* Scrollable Animal List */}
+        <ScrollView
+          style={{ flex: 1, marginTop: tokens.spacing.xs }}
+          contentContainerStyle={{ paddingHorizontal: 2, paddingBottom: tokens.spacing.sm }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {filteredAnimals.map((animal) => {
+            const selected = selectedAnimals.some((a) => a.id === animal.id);
+            return (
+              <PressableSurface
+                key={animal.id}
+                accessibilityRole="button"
+                pressedStyle="overlay"
+                onPress={() => {
+                  setSelectedAnimals((prev) =>
+                    selected ? prev.filter((a) => a.id !== animal.id) : [...prev, animal],
+                  );
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingVertical: tokens.spacing.sm,
+                  paddingHorizontal: tokens.spacing.md,
+                  borderRadius: tokens.radius.md,
+                  borderWidth: 1,
+                  borderColor: selected ? colors.primary : colors.border,
+                  backgroundColor: colors.card,
+                  marginBottom: 6,
+                }}
+              >
+                <View>
+                  <Text role="body" color="foreground" style={{ fontWeight: '700' }}>
+                    {animal.tagNumber}
+                  </Text>
+                  {animal.name ? (
+                    <Text role="caption" color="mutedForeground">
+                      {animal.name}
+                    </Text>
+                  ) : null}
+                </View>
+                <View
                   style={{
-                    flexDirection: 'row',
+                    width: 20,
+                    height: 20,
+                    borderRadius: 4,
+                    borderWidth: 1.5,
+                    borderColor: selected ? colors.primary : colors.inputBorder,
+                    backgroundColor: selected ? colors.primary : 'transparent',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingVertical: tokens.spacing.sm,
-                    paddingHorizontal: tokens.spacing.md,
-                    borderRadius: tokens.radius.md,
-                    borderWidth: 1,
-                    borderColor: selected ? colors.primary : colors.border,
-                    backgroundColor: colors.card,
-                    marginBottom: 6,
+                    justifyContent: 'center',
                   }}
                 >
-                  <View>
-                    <Text role="body" color="foreground" style={{ fontWeight: '700' }}>
-                      {animal.tagNumber}
-                    </Text>
-                    {animal.name ? (
-                      <Text role="caption" color="mutedForeground">
-                        {animal.name}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <View
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 4,
-                      borderWidth: 1.5,
-                      borderColor: selected ? colors.primary : colors.inputBorder,
-                      backgroundColor: selected ? colors.primary : 'transparent',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {selected ? <CheckIcon size={12} color={colors.primaryForeground} /> : null}
-                  </View>
-                </PressableSurface>
-              );
-            })}
-          </ScrollView>
+                  {selected ? <CheckIcon size={12} color={colors.primaryForeground} /> : null}
+                </View>
+              </PressableSurface>
+            );
+          })}
+        </ScrollView>
 
-          <View style={{ paddingTop: tokens.spacing.md }}>
-            <Button
-              label={t('common.close')}
-              variant="primary"
-              size="lg"
-              onPress={() => setAnimalModalOpen(false)}
-            />
-          </View>
+        {/* Close / Done Button */}
+        <View style={{ paddingTop: tokens.spacing.sm }}>
+          <Button
+            label={t('common.close')}
+            variant="primary"
+            size="lg"
+            onPress={() => setAnimalModalOpen(false)}
+          />
         </View>
-      </Modal>
+      </SheetModal>
     </ScrollView>
   );
 });

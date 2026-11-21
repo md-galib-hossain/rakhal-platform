@@ -113,11 +113,17 @@ export function TextField({
   const dropUnit = unit !== undefined && shouldDropUnit({ fontScale, unitWidth: widths.unit, containerWidth: widths.container });
 
   const textColor = disabled ? colors.mutedForeground : colors.foreground;
-  const borderColor = disabled ? colors.border : error ? colors.destructive : colors.inputBorder;
+  const borderColor = disabled
+    ? colors.border
+    : error
+      ? colors.destructive
+      : focused
+        ? colors.primary
+        : colors.inputBorder;
   const accessibilityLabel = unit ? t('a11y.fieldWithUnit', { label, unit }) : label;
 
   return (
-    <View>
+    <View style={{ marginHorizontal: 2 }}>
       <FieldLabel label={label} optional={optional} />
       <Pressable
         accessible={false}
