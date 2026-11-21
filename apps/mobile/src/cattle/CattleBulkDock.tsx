@@ -1,10 +1,11 @@
 /**
  * Vertical Floating Bulk Action Dock for Cattle Multi-Selection.
- * Positioned on the lower right of the screen (matching the user's vertical dock design).
+ * Draggable vertically up and down, with magnetic edge snapping to either the left or right edge.
+ * It cannot rest inside the screen (always anchored to the left or right edge).
  * Strictly adheres to ADR-007 (zero drop shadows, 1px border separation, accessible touch targets).
  */
-import { memo } from 'react';
-import { View } from 'react-native';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, PanResponder, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Glyph } from '../components/internal/Glyph.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
@@ -27,6 +28,10 @@ export interface CattleBulkDockProps {
   testID?: string;
 }
 
+const DOCK_WIDTH = 66;
+const DOCK_APPROX_HEIGHT = 330;
+const EDGE_MARGIN = 16;
+
 export const CattleBulkDock = memo(function CattleBulkDock({
   selectedCount,
   totalCount,
@@ -43,18 +48,83 @@ export const CattleBulkDock = memo(function CattleBulkDock({
   const { t } = useLocale();
   const format = useFormat();
   const insets = useSafeAreaInsets();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   const isAllSelected = selectedCount > 0 && selectedCount === totalCount;
-  const bottomOffset = Math.max(tokens.spacing.md, insets.bottom + 12);
+
+  // Safe vertical bounds
+  const minY = Math.max(tokens.spacing.md, insets.top + 60);
+  const maxY = Math.max(minY, screenHeight - insets.bottom - 50 - DOCK_APPROX_HEIGHT);
+
+  const initialRightX = Math.max(EDGE_MARGIN, screenWidth - DOCK_WIDTH - EDGE_MARGIN);
+  const initialY = Math.max(minY, maxY);
+
+  const pan = useRef(new Animated.ValueXY({ x: initialRightX, y: initialY })).current;
+  const posRef = useRef({ x: initialRightX, y: initialY });
+  const [side, setSide] = useState<'left' | 'right'>('right');
+
+  // Keep position clamped and edge-snapped if screen dimensions change
+  useEffect(() => {
+    const targetX = side === 'left' ? EDGE_MARGIN : Math.max(EDGE_MARGIN, screenWidth - DOCK_WIDTH - EDGE_MARGIN);
+    const targetY = Math.min(maxY, Math.max(minY, posRef.current.y));
+    posRef.current = { x: targetX, y: targetY };
+    pan.setValue({ x: targetX, y: targetY });
+  }, [screenWidth, screenHeight, minY, maxY, side, pan]);
+
+  const handleSnap = (gestureState: { dx: number; dy: number }) => {
+    const currentReleaseX = posRef.current.x + gestureState.dx;
+    const currentReleaseY = Math.min(maxY, Math.max(minY, posRef.current.y + gestureState.dy));
+
+    // Magnetic snapping: cannot rest in the middle of the screen
+    const snapToLeft = currentReleaseX + DOCK_WIDTH / 2 < screenWidth / 2;
+    const targetX = snapToLeft ? EDGE_MARGIN : Math.max(EDGE_MARGIN, screenWidth - DOCK_WIDTH - EDGE_MARGIN);
+    const targetY = currentReleaseY;
+
+    posRef.current = { x: targetX, y: targetY };
+    setSide(snapToLeft ? 'left' : 'right');
+
+    Animated.spring(pan, {
+      toValue: { x: targetX, y: targetY },
+      useNativeDriver: false,
+      bounciness: 4,
+      speed: 16,
+    }).start();
+  };
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onStartShouldSetPanResponderCapture: () => false,
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          Math.abs(gestureState.dx) > 6 || Math.abs(gestureState.dy) > 6,
+        onMoveShouldSetPanResponderCapture: (_, gestureState) =>
+          Math.abs(gestureState.dx) > 6 || Math.abs(gestureState.dy) > 6,
+        onPanResponderTerminationRequest: () => false,
+        onPanResponderMove: (_, gestureState) => {
+          const newX = posRef.current.x + gestureState.dx;
+          const newY = Math.min(maxY, Math.max(minY, posRef.current.y + gestureState.dy));
+          pan.setValue({ x: newX, y: newY });
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          handleSnap(gestureState);
+        },
+        onPanResponderTerminate: (_, gestureState) => {
+          handleSnap(gestureState);
+        },
+      }),
+    [minY, maxY, screenWidth, pan],
+  );
 
   return (
-    <View
+    <Animated.View
       testID={testID}
+      {...panResponder.panHandlers}
       style={{
         position: 'absolute',
-        bottom: bottomOffset,
-        right: tokens.spacing.md,
-        width: 66,
+        top: pan.y,
+        left: pan.x,
+        width: DOCK_WIDTH,
         backgroundColor: colors.card,
         borderWidth: 1,
         borderColor: colors.border,
@@ -66,6 +136,18 @@ export const CattleBulkDock = memo(function CattleBulkDock({
         zIndex: 100,
       }}
     >
+      {/* Drag Grip Handle */}
+      <View
+        style={{
+          width: 24,
+          height: 4,
+          borderRadius: 2,
+          backgroundColor: colors.mutedForeground,
+          opacity: 0.4,
+          marginBottom: 2,
+        }}
+      />
+
       {/* 1. Selection Counter Badge */}
       <View
         style={{
@@ -320,6 +402,18 @@ export const CattleBulkDock = memo(function CattleBulkDock({
           <Glyph name="close" size={16} color="foreground" />
         </View>
       </PressableSurface>
-    </View>
+
+      {/* Bottom Drag Grip Handle */}
+      <View
+        style={{
+          width: 20,
+          height: 3,
+          borderRadius: 1.5,
+          backgroundColor: colors.mutedForeground,
+          opacity: 0.3,
+          marginTop: 1,
+        }}
+      />
+    </Animated.View>
   );
 });
