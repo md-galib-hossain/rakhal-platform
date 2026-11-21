@@ -303,12 +303,9 @@ describe('CattleList', () => {
     // Initially no bulk dock is visible
     expect(screen.queryByTestId('cattle-bulk-dock')).toBeNull();
 
-    // Tap "Select" button to enter selection mode
-    fireEvent.press(screen.getByTestId('cattle-select-mode-btn'));
+    // Long-press cow 1 to enter selection mode and select it
+    fireEvent(screen.getByTestId('cattle-row-c1'), 'longPress');
     await waitFor(() => expect(screen.getByTestId('cattle-select-check-c1')).toBeTruthy());
-
-    // Tap cow 1 and wait for dock
-    fireEvent.press(screen.getByTestId('cattle-row-c1'));
     await waitFor(() => expect(screen.getByTestId('cattle-bulk-dock')).toBeTruthy());
     expect(screen.getByText('1 selected')).toBeTruthy();
 

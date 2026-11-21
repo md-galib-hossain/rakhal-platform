@@ -165,6 +165,9 @@ export function CattleList({
       } else {
         next.add(item.id);
       }
+      if (next.size === 0) {
+        setIsSelectionMode(false);
+      }
       return next;
     });
   }, []);
@@ -184,6 +187,7 @@ export function CattleList({
 
   const handleDeselectAll = useCallback(() => {
     setSelectedIds(new Set());
+    setIsSelectionMode(false);
   }, []);
 
   const handleCancelSelection = useCallback(() => {
@@ -194,14 +198,6 @@ export function CattleList({
     setBulkGroupOpen(false);
     setBulkDisposeOpen(false);
   }, []);
-
-  const toggleSelectionMode = useCallback(() => {
-    if (isSelectionMode) {
-      handleCancelSelection();
-    } else {
-      setIsSelectionMode(true);
-    }
-  }, [isSelectionMode, handleCancelSelection]);
 
   const renderItem = useCallback(
     ({ item }: { item: CattleListItem }) => (
@@ -253,35 +249,8 @@ export function CattleList({
               )}
             </View>
 
-            {/* Action buttons: Select Mode toggle + Add New Animal */}
+            {/* Action buttons: Add New Animal */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
-              <PressableSurface
-                accessibilityRole="button"
-                accessibilityLabel={isSelectionMode ? t('cattle.bulk.cancel') : t('cattle.bulk.selectMode')}
-                pressedStyle="overlay"
-                onPress={toggleSelectionMode}
-                testID="cattle-select-mode-btn"
-                style={{
-                  minHeight: tokens.touchTarget.min,
-                  height: tokens.touchTarget.min,
-                  paddingHorizontal: tokens.spacing.sm,
-                  borderRadius: tokens.radius.md,
-                  borderWidth: 1,
-                  borderColor: isSelectionMode ? colors.primaryEdge : colors.border,
-                  backgroundColor: isSelectionMode ? colors.successTint : colors.card,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text
-                  role="button"
-                  color={isSelectionMode ? 'primary' : 'foreground'}
-                  style={{ fontWeight: isSelectionMode ? '700' : '600', fontSize: 13 }}
-                >
-                  {isSelectionMode ? t('cattle.bulk.cancel') : t('cattle.bulk.selectMode')}
-                </Text>
-              </PressableSurface>
-
               {/* + Add New Animal Primary Button */}
               <Button
                 label={t('cattle.actions.addAnimal')}
@@ -658,7 +627,6 @@ export function CattleList({
       handleAddAnimalPress,
       animalGroups.length,
       isSelectionMode,
-      toggleSelectionMode,
       notes,
       colors,
       tokens,
@@ -714,7 +682,7 @@ export function CattleList({
         ListHeaderComponent={renderHeader()}
         contentContainerStyle={{
           padding: tokens.spacing.md,
-          paddingBottom: selectedIds.size > 0 ? 160 + insets.bottom : tokens.spacing.md,
+          paddingBottom: selectedIds.size > 0 ? 260 + insets.bottom : tokens.spacing.md,
           gap: tokens.spacing.sm,
           backgroundColor: colors.card,
         }}
