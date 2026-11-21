@@ -84,6 +84,11 @@ export function MilkFilterSheet({
     onClose();
   };
 
+  const activeCount =
+    (draftShedId !== null ? 1 : 0) +
+    (draftStatus !== 'all' ? 1 : 0) +
+    (draftTankId !== null ? 1 : 0);
+
   return (
     <SheetModal visible={visible} onRequestClose={onClose} testID={testID}>
       {/* Header */}
@@ -92,27 +97,40 @@ export function MilkFilterSheet({
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: tokens.spacing.sm,
+          paddingBottom: tokens.spacing.sm,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+          marginBottom: tokens.spacing.xs,
         }}
       >
-        <SheetTitle>{t('milk.filterTitle')}</SheetTitle>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
-          <Button
-            label={t('milk.resetFilter')}
-            variant="ghost"
-            size="md"
-            onPress={handleReset}
-            testID="filter-reset-btn"
-          />
-          <IconButton
-            icon="close"
-            accessibilityLabel={t('picker.close')}
-            variant="ghost"
-            size="md"
-            onPress={onClose}
-            testID="filter-sheet-close"
-          />
+          <SheetTitle>{t('milk.filterTitle')}</SheetTitle>
+          {activeCount > 0 ? (
+            <View
+              style={{
+                backgroundColor: colors.successTint,
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+                borderRadius: tokens.radius.full,
+                borderWidth: 1,
+                borderColor: colors.primaryEdge,
+              }}
+            >
+              <Text role="caption" color="foreground" style={{ fontWeight: '700', fontSize: 12 }}>
+                {String(activeCount)}
+              </Text>
+            </View>
+          ) : null}
         </View>
+
+        <IconButton
+          icon="close"
+          accessibilityLabel={t('picker.close')}
+          variant="ghost"
+          size="md"
+          onPress={onClose}
+          testID="filter-sheet-close"
+        />
       </View>
 
       <ScrollView
@@ -197,15 +215,37 @@ export function MilkFilterSheet({
         ) : null}
       </ScrollView>
 
-      {/* Full-width Apply Button */}
-      <View style={{ paddingTop: tokens.spacing.sm, borderTopWidth: 1, borderColor: colors.border }}>
-        <Button
-          label={t('milk.applyFilter')}
-          variant="primary"
-          size="lg"
-          onPress={handleApply}
-          testID="filter-apply-btn"
-        />
+      {/* Footer Actions */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingTop: tokens.spacing.md,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          gap: tokens.spacing.sm,
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Button
+            label={t('milk.resetFilter')}
+            variant="secondary"
+            size="md"
+            onPress={handleReset}
+            testID="filter-reset-btn"
+          />
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Button
+            label={t('milk.applyFilter')}
+            variant="primary"
+            size="md"
+            onPress={handleApply}
+            testID="filter-apply-btn"
+          />
+        </View>
       </View>
     </SheetModal>
   );
