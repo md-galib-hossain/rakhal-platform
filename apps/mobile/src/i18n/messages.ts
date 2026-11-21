@@ -359,6 +359,10 @@ export const en = {
   'cattle.groups.selectAnimalsTitle': 'Select Animals to Add',
   'cattle.groups.addCount': 'Add ({count})',
   'cattle.groups.noAvailableAnimals': 'All animals are already in this group',
+  'cattle.groups.delete': 'Delete',
+  'cattle.groups.deleteTitle': 'Delete group?',
+  'cattle.groups.deleteConfirm': 'Are you sure you want to delete "{name}"? Animals in this group will not be deleted.',
+  'cattle.groups.deleteSuccess': 'Group deleted successfully',
   // WP10 milk log
   'milk.title': 'Milk Production',
   'milk.session.morning': 'Morning',
@@ -861,6 +865,10 @@ export const bn: Record<MessageKey, string> = {
   'cattle.groups.selectAnimalsTitle': 'দলে যোগ করতে পশু নির্বাচন করুন',
   'cattle.groups.addCount': 'যোগ করুন ({count})',
   'cattle.groups.noAvailableAnimals': 'সকল পশু ইতিমধ্যে এই দলে রয়েছে',
+  'cattle.groups.delete': 'মুছুন',
+  'cattle.groups.deleteTitle': 'দল মুছবেন?',
+  'cattle.groups.deleteConfirm': 'আপনি কি নিশ্চিত যে "{name}" দল মুছে ফেলতে চান? দলের পশুগুলো মুছে যাবে না।',
+  'cattle.groups.deleteSuccess': 'দল সফলভাবে মুছে ফেলা হয়েছে',
   // WP10 milk log
   'milk.title': 'দুধ সংগ্রহ',
   'milk.session.morning': 'সকাল',

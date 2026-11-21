@@ -34,8 +34,8 @@ export function useAnimalGroups() {
       const res = await client.get<{ items?: Array<{ id: string; name: string; memberCount?: number }> }>('/animal-groups', {
         query: { limit: 100 },
       });
-      const items = res?.data?.items ?? [];
-      if (items.length > 0) {
+      const items = res?.data?.items;
+      if (Array.isArray(items)) {
         setGroups(
           items.map((g) => ({
             id: g.id,

@@ -6,15 +6,19 @@
  */
 import { useCallback, useMemo, useState } from 'react';
 import { TextInput, View } from 'react-native';
+import { useAuth } from '../auth/AuthProvider.tsx';
 import { Button } from '../components/actions/Button.tsx';
 import { IconButton } from '../components/actions/IconButton.tsx';
+import { ConfirmSheet } from '../components/feedback/ConfirmSheet.tsx';
+import { useOptionalToast } from '../components/feedback/Toast.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { SheetModal, SheetTitle } from '../components/internal/SheetModal.tsx';
 import { Text } from '../components/primitives/Text.tsx';
+import { can } from '../permissions/can.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 import type { AnimalGroupOption } from './CattleFilterSheet.tsx';
-import { SearchIcon, UsersIcon } from './CattleIcons.tsx';
+import { SearchIcon, Trash2Icon, UsersIcon } from './CattleIcons.tsx';
 import { CreateGroupSheet } from './CreateGroupSheet.tsx';
 import { GroupMembersSheet } from './GroupMembersSheet.tsx';
 import type { CattleListItem } from './cattle-model.ts';
@@ -42,10 +46,15 @@ export function AnimalGroupsSheet({
 }: AnimalGroupsSheetProps) {
   const { t } = useLocale();
   const { colors, tokens } = useTheme();
+  const { client, permissions } = useAuth();
+  const toast = useOptionalToast();
+  const canDeleteGroup = can(permissions, 'cattle.bulk');
 
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [managingGroup, setManagingGroup] = useState<AnimalGroupOption | null>(null);
+  const [deletingGroup, setDeletingGroup] = useState<AnimalGroupOption | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const displayedGroups = useMemo(() => {
     if (!search.trim()) return groups;
@@ -59,6 +68,29 @@ export function AnimalGroupsSheet({
     },
     [onRefreshGroups],
   );
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deletingGroup) return;
+    setIsDeleting(true);
+    try {
+      await client.delete(`/animal-groups/${encodeURIComponent(deletingGroup.id)}`);
+      if (activeGroupId === deletingGroup.id) {
+        onFilterByGroup(null);
+      }
+      onRefreshGroups?.();
+      toast?.show({
+        message: t('cattle.groups.deleteSuccess'),
+      });
+      setDeletingGroup(null);
+    } catch (err) {
+      toast?.show({
+        message: err instanceof Error ? err.message : t('common.error.generic'),
+        tone: 'error',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [deletingGroup, client, activeGroupId, onFilterByGroup, onRefreshGroups, toast, t]);
 
   return (
     <>
@@ -185,7 +217,7 @@ export function AnimalGroupsSheet({
                   </View>
 
                   {/* Actions Row */}
-                  <View style={{ flexDirection: 'row', gap: tokens.spacing.xs, justifyContent: 'flex-end', marginTop: 4 }}>
+                  <View style={{ flexDirection: 'row', gap: tokens.spacing.xs, alignItems: 'center', justifyContent: 'flex-end', marginTop: 4 }}>
                     <PressableSurface
                       accessibilityRole="button"
                       accessibilityLabel={t('cattle.groups.viewMembers')}
@@ -199,6 +231,9 @@ export function AnimalGroupsSheet({
                         borderWidth: 1,
                         borderColor: colors.border,
                         backgroundColor: colors.card,
+                        minHeight: 32,
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
                       <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 12 }}>
@@ -226,6 +261,9 @@ export function AnimalGroupsSheet({
                         backgroundColor: isActive ? colors.secondary : colors.primary,
                         borderWidth: 1,
                         borderColor: isActive ? colors.border : colors.primary,
+                        minHeight: 32,
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
                       <Text
@@ -236,6 +274,28 @@ export function AnimalGroupsSheet({
                         {isActive ? t('cattle.filters.clearAll') : t('cattle.groups.filterByGroup')}
                       </Text>
                     </PressableSurface>
+
+                    {canDeleteGroup ? (
+                      <PressableSurface
+                        accessibilityRole="button"
+                        accessibilityLabel={t('cattle.groups.delete')}
+                        pressedStyle="overlay"
+                        onPress={() => setDeletingGroup(item)}
+                        testID={`animal-group-delete-btn-${item.id}`}
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: tokens.radius.sm,
+                          borderWidth: 1,
+                          borderColor: colors.destructive,
+                          backgroundColor: colors.destructiveTint,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Trash2Icon size={15} color={colors.destructiveText} />
+                      </PressableSurface>
+                    ) : null}
                   </View>
                 </View>
               );
@@ -243,6 +303,21 @@ export function AnimalGroupsSheet({
           )}
         </View>
       </SheetModal>
+
+      {/* Delete Group Confirmation Sheet */}
+      <ConfirmSheet
+        visible={deletingGroup !== null}
+        title={t('cattle.groups.deleteTitle')}
+        message={t('cattle.groups.deleteConfirm', { name: deletingGroup?.name ?? '' })}
+        confirmLabel={t('cattle.groups.delete')}
+        cancelLabel={t('cattle.groups.cancel')}
+        tone="destructive"
+        loading={isDeleting}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          if (!isDeleting) setDeletingGroup(null);
+        }}
+      />
 
       {/* Create Group Sheet */}
       <CreateGroupSheet

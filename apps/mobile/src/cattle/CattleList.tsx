@@ -324,7 +324,7 @@ export function CattleList({
               ) : null}
             </View>
 
-            {/* 2. Filters Button */}
+            {/* 2. Filters Button (Icon only, matching milk page consistency) */}
             <PressableSurface
               accessibilityRole="button"
               accessibilityLabel={t('cattle.actions.openFilters')}
@@ -335,39 +335,35 @@ export function CattleList({
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
+                minWidth: tokens.touchTarget.min,
                 minHeight: tokens.touchTarget.min,
                 height: tokens.touchTarget.min,
-                paddingHorizontal: tokens.spacing.sm,
+                paddingHorizontal: tokens.spacing.xs + 2,
                 borderRadius: tokens.radius.md,
                 borderWidth: 1,
                 borderColor: activeFilterCount > 0 ? colors.primaryEdge : colors.border,
                 backgroundColor: activeFilterCount > 0 ? colors.successTint : colors.card,
-                gap: 4,
+                position: 'relative',
                 flexShrink: 0,
               }}
             >
-              <FilterIcon size={15} color={activeFilterCount > 0 ? colors.primary : colors.foreground} />
-              <Text
-                role="body"
-                color={activeFilterCount > 0 ? 'primary' : 'foreground'}
-                style={{ fontSize: 13, fontWeight: activeFilterCount > 0 ? '700' : '600' }}
-                numberOfLines={1}
-              >
-                {t('cattle.actions.openFilters')}
-              </Text>
+              <FilterIcon size={18} color={activeFilterCount > 0 ? colors.primary : colors.foreground} />
               {activeFilterCount > 0 ? (
                 <View
                   style={{
+                    position: 'absolute',
+                    top: 6,
+                    right: 6,
                     backgroundColor: colors.primary,
-                    minWidth: 18,
-                    height: 18,
+                    minWidth: 16,
+                    height: 16,
                     borderRadius: tokens.radius.full,
                     alignItems: 'center',
                     justifyContent: 'center',
-                    paddingHorizontal: 4,
+                    paddingHorizontal: 3,
                   }}
                 >
-                  <Text role="caption" color="primaryForeground" style={{ fontWeight: '700', fontSize: 10, lineHeight: 12 }}>
+                  <Text role="caption" color="primaryForeground" style={{ fontWeight: '700', fontSize: 9, lineHeight: 11 }}>
                     {activeFilterCount}
                   </Text>
                 </View>

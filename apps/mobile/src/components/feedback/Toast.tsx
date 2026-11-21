@@ -63,6 +63,10 @@ export function useToast(): ToastApi {
   return api;
 }
 
+export function useOptionalToast(): ToastApi | null {
+  return useContext(ToastContext);
+}
+
 interface ActiveToast {
   id: string;
   options: ToastOptions;

@@ -1,4 +1,4 @@
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 
 export interface FilterIconProps {
   size?: number;
@@ -6,20 +6,18 @@ export interface FilterIconProps {
 }
 
 /**
- * Filter icon (modern sliders symbol, matching mockup [ 🎚️ ]).
+ * Filter icon (funnel symbol, consistent across Animals and Milk pages).
  */
-export function FilterIcon({ size = 20, color = 'currentColor' }: FilterIconProps) {
+export function FilterIcon({ size = 18, color = 'currentColor' }: FilterIconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M4 21V14" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M4 10V3" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M12 21V12" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M12 8V3" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M20 21V16" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M20 12V3" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      <Circle cx="4" cy="12" r="2" stroke={color} strokeWidth={2} fill="none" />
-      <Circle cx="12" cy="10" r="2" stroke={color} strokeWidth={2} fill="none" />
-      <Circle cx="20" cy="14" r="2" stroke={color} strokeWidth={2} fill="none" />
+      <Path
+        d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </Svg>
   );
 }
