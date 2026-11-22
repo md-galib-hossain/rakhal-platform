@@ -96,6 +96,28 @@ describe('PressableSurface pressed look', () => {
     expect(flatStyle(screen.getByTestId('pressed-overlay', HIDDEN)).backgroundColor).toBe(allColors.dark.foreground);
   });
 
+  it('overlay respects per-corner border radii', async () => {
+    await mount(
+      <Surface
+        style={{
+          borderTopLeftRadius: 15,
+          borderTopRightRadius: 15,
+          borderBottomLeftRadius: 10,
+          borderBottomRightRadius: 10,
+          borderWidth: 1,
+        }}
+      />,
+    );
+    await pressDown(surface());
+    const overlay = screen.getByTestId('pressed-overlay', HIDDEN);
+    expect(flatStyle(overlay)).toMatchObject({
+      borderTopLeftRadius: 14,
+      borderTopRightRadius: 14,
+      borderBottomLeftRadius: 9,
+      borderBottomRightRadius: 9,
+    });
+  });
+
   it('fill: background swaps to the token while pressed and no overlay is drawn', async () => {
     await mount(<Surface pressedStyle={{ fill: 'primaryHover' }} style={{ ...base, backgroundColor: allColors.light.primary }} />);
     expect(flatStyle(surface()).backgroundColor).toBe(allColors.light.primary);

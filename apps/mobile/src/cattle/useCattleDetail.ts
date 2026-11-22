@@ -1,16 +1,26 @@
 /**
- * One animal's detail (WP9, read only): the cached row shows at once, the live `/profile` + `/overview` replace it when
- * they arrive. If the live request fails the cached row stays with a notice ("offline" for a network failure, "could not
- * load the latest" otherwise). A 404 means the animal is gone from the farm: not found, even if an old row is cached.
- *
- * `/overview` is optional: if only it fails the profile is still shown (milk and weight numbers are just left out).
+ * One animal's detail & workspace (WP9 & Animal Workspace).
+ * Cached row displays immediately; live profile + overview + tab data replace it once loaded.
+ * Resilient to individual endpoint failures (e.g. finance permission required or non-female animal).
  */
 import { ApiError, NetworkError } from '@rakhal/api-client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { useSync } from '../offline/SyncProvider.tsx';
 import { toCattleItem } from './cattle-model.ts';
-import { fromCacheItem, parseProfile, withOverview, type CattleDetail } from './cattle-detail-model.ts';
+import {
+  fromCacheItem,
+  parseFeedRequirement,
+  parseFinance,
+  parseHealthSummary,
+  parseOverview,
+  parsePedigree,
+  parseProfile,
+  parseReproductionSummary,
+  parseTimelineEvents,
+  parseUpcomingEvents,
+  type CattleDetail,
+} from './cattle-detail-model.ts';
 
 export type CattleDetailState =
   | { phase: 'loading' }
@@ -81,27 +91,97 @@ export function useCattleDetail(id: string): UseCattleDetailResult {
     setState((prev) => (prev.phase === 'ready' ? prev : { phase: 'loading' }));
 
     void (async () => {
-      const [profile, overview] = await Promise.allSettled([
-        client.get<unknown>(`/cattle/${encodeURIComponent(id)}/profile`),
-        client.get<unknown>(`/cattle/${encodeURIComponent(id)}/overview`),
+      const encId = encodeURIComponent(id);
+      const [profileRes, detailRes, overviewRes] = await Promise.allSettled([
+        client.get<unknown>(`/cattle/${encId}/profile`),
+        client.get<unknown>(`/cattle/${encId}`),
+        client.get<unknown>(`/cattle/${encId}/overview`),
       ]);
       if (cancelled) return;
 
-      if (profile.status === 'fulfilled') {
-        const parsed = parseProfile(profile.value.data, now);
+      if (profileRes.status === 'fulfilled') {
+        const parsed = parseProfile(profileRes.value.data, now);
         if (parsed) {
           live.current = true;
-          const detail = overview.status === 'fulfilled' ? withOverview(parsed, overview.value.data) : parsed;
+          const overview = overviewRes.status === 'fulfilled' ? parseOverview(overviewRes.value.data) : null;
+          const rawDetail =
+            detailRes.status === 'fulfilled' &&
+            typeof detailRes.value.data === 'object' &&
+            detailRes.value.data !== null &&
+            !Array.isArray(detailRes.value.data)
+              ? (detailRes.value.data as Record<string, unknown>)
+              : null;
+          const liveLactation =
+            rawDetail && typeof rawDetail.lactationStage === 'string' ? rawDetail.lactationStage : parsed.lactationStage;
+          const liveRepro =
+            rawDetail && typeof rawDetail.reproductiveStatus === 'string'
+              ? rawDetail.reproductiveStatus
+              : parsed.reproductiveStatus;
+
+          let detail: CattleDetail = {
+            ...parsed,
+            lactationStage: liveLactation ?? parsed.lactationStage,
+            reproductiveStatus: liveRepro ?? parsed.reproductiveStatus,
+            overview,
+            avgDailyYield7d: overview?.avg_daily_yield_7d ?? parsed.avgDailyYield7d,
+            lastWeightKg: overview?.last_weight_kg ?? parsed.lastWeightKg,
+            aqrScore: overview?.aqr_score ?? parsed.aqrScore,
+          };
+
+          // Render preliminary ready state with profile + overview
+          setState({ phase: 'ready', detail, source: 'online', notice: null });
+
+          // In parallel, load secondary workspace tab queries
+          const isFemale = parsed.gender === 'FEMALE';
+          const [reproRes, healthRes, pedigreeRes, financeRes, eventsRes, upcomingRes, feedRes] =
+            await Promise.allSettled([
+              isFemale ? client.get<unknown>(`/cattle/${encId}/reproduction-summary`) : Promise.resolve(null),
+              client.get<unknown>(`/cattle/${encId}/health-summary`),
+              client.get<unknown>(`/cattle/${encId}/pedigree`),
+              client.get<unknown>(`/cattle/${encId}/finance`),
+              client.get<unknown>(`/cattle/${encId}/events?limit=30`),
+              client.get<unknown>(`/cattle/${encId}/upcoming-events?limit=10`),
+              client.get<unknown>(`/feed/cattle/${encId}/requirement-override`),
+            ]);
+
+          if (cancelled) return;
+
+          const reproduction =
+            reproRes.status === 'fulfilled' && reproRes.value ? parseReproductionSummary(reproRes.value.data) : null;
+          const health = healthRes.status === 'fulfilled' ? parseHealthSummary(healthRes.value.data) : null;
+          const pedigree = pedigreeRes.status === 'fulfilled' ? parsePedigree(pedigreeRes.value.data) : null;
+          const finance = financeRes.status === 'fulfilled' ? parseFinance(financeRes.value.data) : null;
+          const timelineEvents = eventsRes.status === 'fulfilled' ? parseTimelineEvents(eventsRes.value.data) : [];
+          const upcomingEvents = upcomingRes.status === 'fulfilled' ? parseUpcomingEvents(upcomingRes.value.data) : [];
+          const feedRequirement = feedRes.status === 'fulfilled' ? parseFeedRequirement(feedRes.value.data) : null;
+
+          const hasMilkHold =
+            Boolean(health?.safetyWithdrawalWarning) ||
+            Boolean(health?.activeWithdrawals?.some((w) => w.kind === 'milk'));
+
+          detail = {
+            ...detail,
+            dim: reproduction?.dim ?? detail.dim,
+            hasMilkHold,
+            reproduction,
+            health,
+            pedigree,
+            finance,
+            timelineEvents,
+            upcomingEvents,
+            feedRequirement,
+          };
+
           setState({ phase: 'ready', detail, source: 'online', notice: null });
           return;
         }
-      } else if (profile.reason instanceof ApiError && profile.reason.status === 404) {
+      } else if (profileRes.reason instanceof ApiError && profileRes.reason.status === 404) {
         live.current = true;
         setState({ phase: 'notFound' });
         return;
       }
 
-      const offline = profile.status === 'rejected' && profile.reason instanceof NetworkError;
+      const offline = profileRes.status === 'rejected' && profileRes.reason instanceof NetworkError;
       const notice = offline ? 'offline' : 'failed';
       failure.current = notice; // a cache read that finishes later picks this up
       setState((prev) => {

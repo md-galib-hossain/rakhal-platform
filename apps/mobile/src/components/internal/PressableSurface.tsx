@@ -66,7 +66,12 @@ export function PressableSurface({
   const state: AccessibilityState = { ...accessibilityState, disabled: inert, busy };
   const flat = StyleSheet.flatten(style) ?? {};
   // The overlay lives inside the border box, so its radius is the outer radius minus the border.
-  const overlayRadius = Math.max(0, (typeof flat.borderRadius === 'number' ? flat.borderRadius : 0) - (typeof flat.borderWidth === 'number' ? flat.borderWidth : 0));
+  const bw = typeof flat.borderWidth === 'number' ? flat.borderWidth : 0;
+  const overlayRadius = Math.max(0, (typeof flat.borderRadius === 'number' ? flat.borderRadius : 0) - bw);
+  const btlr = typeof flat.borderTopLeftRadius === 'number' ? Math.max(0, flat.borderTopLeftRadius - bw) : overlayRadius;
+  const btrr = typeof flat.borderTopRightRadius === 'number' ? Math.max(0, flat.borderTopRightRadius - bw) : overlayRadius;
+  const bblr = typeof flat.borderBottomLeftRadius === 'number' ? Math.max(0, flat.borderBottomLeftRadius - bw) : overlayRadius;
+  const bbrr = typeof flat.borderBottomRightRadius === 'number' ? Math.max(0, flat.borderBottomRightRadius - bw) : overlayRadius;
 
   const handlePress = (event: GestureResponderEvent) => {
     if (inert) return;
@@ -104,7 +109,17 @@ export function PressableSurface({
               pointerEvents="none"
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
-              style={[StyleSheet.absoluteFill, { borderRadius: overlayRadius }, pressedOverlayStyle(colors)]}
+              style={[
+                StyleSheet.absoluteFill,
+                {
+                  borderRadius: overlayRadius,
+                  borderTopLeftRadius: btlr,
+                  borderTopRightRadius: btrr,
+                  borderBottomLeftRadius: bblr,
+                  borderBottomRightRadius: bbrr,
+                },
+                pressedOverlayStyle(colors),
+              ]}
             />
           ) : null}
           {children}

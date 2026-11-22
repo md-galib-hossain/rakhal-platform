@@ -16,3 +16,4 @@ coverage
 # service-account / credential files must never be committed
 *adminsdk*.json
 conf/
+artifacts/

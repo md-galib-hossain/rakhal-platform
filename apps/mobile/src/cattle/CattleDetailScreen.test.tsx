@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react-native';
+import { AccessibilityInfo } from 'react-native';
 import { fail, ok, sessionReply, type Handler, type Reply } from '../test-utils/auth-harness.tsx';
 import { mount, restoreMount } from '../test-utils/mount.tsx';
 import { syncHarness } from '../test-utils/sync-harness.tsx';
@@ -18,8 +19,12 @@ const router = (jest.requireMock('expo-router') as { router: { back: jest.Mock; 
 beforeEach(() => {
   router.back.mockClear();
   router.replace.mockClear();
+  jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
 });
-afterEach(restoreMount);
+afterEach(() => {
+  cleanup();
+  restoreMount();
+});
 
 const row = {
   id: 'c1',
@@ -72,7 +77,8 @@ describe('CattleDetailScreen', () => {
     const h = syncHarness({ handler: server({}) });
     await open(h);
     await waitFor(() => expect(screen.getByTestId('detail-yield')).toBeTruthy());
-    expect(screen.getByText('BD-001 · Rupa')).toBeTruthy();
+    expect(screen.getByText('Rupa')).toBeTruthy();
+    expect(screen.getByText('BD-001')).toBeTruthy();
     expect(screen.getByText('Shed A')).toBeTruthy();
     expect(screen.getByText('BD-000 · Old Cow')).toBeTruthy();
     expect(screen.getByText('14.5 L')).toBeTruthy();
@@ -81,11 +87,45 @@ describe('CattleDetailScreen', () => {
     expect(screen.queryByTestId('detail-offline')).toBeNull();
   });
 
+  it('switches between workspace tabs and interacts with the floating action button', async () => {
+    const h = syncHarness({ handler: server({}) });
+    await open(h);
+    await waitFor(() => expect(screen.getByTestId('section-switcher')).toBeTruthy());
+
+    // Initially on Overview
+    expect(screen.getByTestId('tab-overview')).toBeTruthy();
+    expect(screen.getByTestId('card-at-a-glance')).toBeTruthy();
+
+    // Switch to Timeline
+    fireEvent.press(screen.getByTestId('switcher-tab-timeline'));
+    await waitFor(() => expect(screen.getByTestId('tab-timeline')).toBeTruthy());
+
+    // Switch to Feeding
+    fireEvent.press(screen.getByTestId('switcher-tab-feeding'));
+    await waitFor(() => expect(screen.getByTestId('tab-feeding')).toBeTruthy());
+
+    // Switch to Family
+    fireEvent.press(screen.getByTestId('switcher-tab-family'));
+    await waitFor(() => expect(screen.getByTestId('tab-family')).toBeTruthy());
+
+    // Switch to Money
+    fireEvent.press(screen.getByTestId('switcher-tab-money'));
+    await waitFor(() => expect(screen.getByTestId('tab-money')).toBeTruthy());
+
+    // Sticky floating action bar
+    expect(screen.getByTestId('sticky-floating-bar')).toBeTruthy();
+    fireEvent.press(screen.getByTestId('record-event-floating-btn'));
+    await waitFor(() => expect(screen.getByTestId('record-event-modal')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('picker-close-btn'));
+    await waitFor(() => expect(screen.queryByTestId('record-event-modal')).toBeNull());
+  });
+
   it('offline: keeps the cached animal and says it is offline with the last-updated time', async () => {
     const h = syncHarness({ handler: server({ profile: 'network', overview: 'network' }) });
     await open(h);
     await waitFor(() => expect(screen.getByTestId('detail-offline')).toBeTruthy());
-    expect(screen.getByText('BD-001 · Rupa')).toBeTruthy();
+    expect(screen.getByText('Rupa')).toBeTruthy();
+    expect(screen.getByText('BD-001')).toBeTruthy();
     expect(screen.queryByTestId('detail-yield')).toBeNull();
   });
 
@@ -93,7 +133,8 @@ describe('CattleDetailScreen', () => {
     const h = syncHarness({ handler: server({ profile: fail(500, 'boom') }) });
     await open(h);
     await waitFor(() => expect(screen.getByTestId('detail-failed')).toBeTruthy());
-    expect(screen.getByText('BD-001 · Rupa')).toBeTruthy();
+    expect(screen.getByText('Rupa')).toBeTruthy();
+    expect(screen.getByText('BD-001')).toBeTruthy();
   });
 
   it('a 404 means the animal is gone, even if an old row is cached', async () => {
@@ -114,7 +155,7 @@ describe('CattleDetailScreen', () => {
     const h = syncHarness({ handler: server({}) });
     await open(h, 'bn');
     await waitFor(() => expect(screen.getByText('দুধ দিচ্ছে')).toBeTruthy());
-    expect(screen.getByText('ফিরে যান')).toBeTruthy();
+    expect(screen.getByLabelText('ফিরে যান')).toBeTruthy();
   });
 
   it('Back goes back; with no history it goes to the cattle list', async () => {

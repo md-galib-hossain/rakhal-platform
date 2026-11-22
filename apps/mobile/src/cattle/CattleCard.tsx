@@ -215,6 +215,7 @@ export const CattleCard = memo(function CattleCard({
         borderColor: isSelected ? colors.primary : colors.border,
         borderRadius: tokens.radius.lg,
         opacity: disabled ? 0.6 : 1,
+        overflow: 'hidden',
       }}
     >
       {/* 1. Card Top Surface: Tapping navigates to /cattle/[id] or toggles selection */}
@@ -244,6 +245,8 @@ export const CattleCard = memo(function CattleCard({
           gap: tokens.spacing.sm,
           borderTopLeftRadius: tokens.radius.lg - 1,
           borderTopRightRadius: tokens.radius.lg - 1,
+          borderBottomLeftRadius: tokens.radius.md,
+          borderBottomRightRadius: tokens.radius.md,
         }}
       >
         {/* Header: [Selection Checkbox] + Avatar + Identity (Name+Gender, Tag · Category · Breed) + AQR Score Box */}
