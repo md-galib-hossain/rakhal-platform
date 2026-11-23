@@ -676,4 +676,53 @@ describe('MilkScreen', () => {
     expect(screen.getByTestId('milk-stepper-c2-input').props.value).toBe('13.0');
     expect(screen.getByTestId('milk-stepper-c1-input').props.value).toBe('12.0');
   });
+
+  it('guarantees newer outbox write wins even if older outbox row exists or disk cache is reloaded', async () => {
+    const staleMilkLog = {
+      ...demoMilkLog,
+      sessionConfig: ['MORNING', 'NOON', 'EVENING', 'NIGHT'],
+      entries: [
+        {
+          cattleId: 'c1',
+          cattleTag: 'TAG-101',
+          log: { morningL: 10, nightL: null, submittedSessions: [], updatedAt: {} },
+        },
+        {
+          cattleId: 'c2',
+          cattleTag: 'TAG-102',
+          log: { morningL: 8, nightL: 1.0, submittedSessions: [], updatedAt: {} },
+        },
+      ],
+    };
+    const h = syncHarness({
+      handler: serverHandler({ milkLog: staleMilkLog }),
+    });
+    await renderMilkScreen(h);
+
+    await waitFor(() => expect(screen.getByTestId('milk-cow-card-c2')).toBeTruthy());
+
+    // Switch to Night session
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('session-chip-night'));
+    });
+
+    const saveBtn = screen.getByTestId('milk-submit-btn');
+    const input2 = screen.getByTestId('milk-stepper-c2-input');
+
+    // 1. Enter 13.0L and save
+    await act(async () => {
+      fireEvent.changeText(input2, '13.0');
+    });
+    await act(async () => {
+      fireEvent.press(saveBtn);
+    });
+
+    // 2. Simulate background sync completing and snapshot firing reloadData
+    await act(async () => {
+      await h.sync().syncNow();
+    });
+
+    // 3. Kajol must strictly remain 13.0 without temporary flicker back to 1.0
+    expect(screen.getByTestId('milk-stepper-c2-input').props.value).toBe('13.0');
+  });
 });

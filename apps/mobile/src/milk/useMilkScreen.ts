@@ -159,7 +159,33 @@ export function useMilkScreen() {
     if (!ready) return;
 
     void sync.readCache('cattle').then(setRawCows);
-    void sync.readCache('milkLog').then(setRawMilkLogs);
+    void sync.readCache('milkLog').then((cachedLogs) => {
+      setRawMilkLogs((prev) => {
+        if (!cachedLogs || cachedLogs.length === 0) return prev;
+        const merged = [...cachedLogs];
+        for (const prevItem of prev) {
+          const idx = merged.findIndex((m) => m.cattleId === prevItem.cattleId);
+          if (idx >= 0) {
+            const mergedItem = merged[idx]!;
+            const mergedLog = (mergedItem.log as Record<string, unknown>) || {};
+            const prevLog = (prevItem.log as Record<string, unknown>) || {};
+            merged[idx] = {
+              ...mergedItem,
+              log: {
+                ...mergedLog,
+                morningL: prevLog.morningL ?? mergedLog.morningL,
+                noonL: prevLog.noonL ?? mergedLog.noonL,
+                eveningL: prevLog.eveningL ?? mergedLog.eveningL,
+                nightL: prevLog.nightL ?? mergedLog.nightL,
+              },
+            };
+          } else {
+            merged.push(prevItem);
+          }
+        }
+        return merged;
+      });
+    });
     void sync.list().then((rows) => {
       setOutboxRows(rows);
       const saves = rows.filter((r) => r.endpoint === 'milk.saveLog' && r.status !== 'done');
@@ -201,10 +227,10 @@ export function useMilkScreen() {
     }
 
     // Index outbox pending and completed writes per session
-    // Map: `${cattleId}:${session}` -> { yieldL, status, localId, tankId, queuedAt }
+    // Map: `${cattleId}:${session}` -> { yieldL, status, localId, tankId, queuedAt, seq }
     const outboxByCowSession = new Map<
       string,
-      { yieldL: number | null; status: MilkEntryStatus; localId: string; tankId?: string; queuedAt: number }
+      { yieldL: number | null; status: MilkEntryStatus; localId: string; tankId?: string; queuedAt: number; seq: number }
     >();
 
     const localSubmittedSessions = new Set<string>();
@@ -228,13 +254,23 @@ export function useMilkScreen() {
 
           for (const entry of body.entries) {
             if (typeof entry.cattleId === 'string') {
-              outboxByCowSession.set(`${entry.cattleId}:${body.session}`, {
-                yieldL: typeof entry.yieldL === 'number' ? entry.yieldL : null,
-                status: entryStatus,
-                localId: ob.localId,
-                tankId: entry.tankId,
-                queuedAt: ob.queuedAt,
-              });
+              const key = `${entry.cattleId}:${body.session}`;
+              const existing = outboxByCowSession.get(key);
+              // Always keep the NEWEST write by queuedAt and seq to prevent older outbox writes from overwriting newer saves
+              if (
+                !existing ||
+                ob.queuedAt > existing.queuedAt ||
+                (ob.queuedAt === existing.queuedAt && ob.seq >= existing.seq)
+              ) {
+                outboxByCowSession.set(key, {
+                  yieldL: typeof entry.yieldL === 'number' ? entry.yieldL : null,
+                  status: entryStatus,
+                  localId: ob.localId,
+                  tankId: entry.tankId,
+                  queuedAt: ob.queuedAt,
+                  seq: ob.seq,
+                });
+              }
             }
           }
         }
@@ -619,9 +655,10 @@ export function useMilkScreen() {
     setIsSaving(true);
 
     // 0ms Optimistic Instant Handoff: create synthetic optimistic outbox rows
+    const nowMs = Date.now();
     const optimisticQueuedRows: OutboxRow[] = batchToQueue.map((item, i) => ({
-      seq: Date.now() + i,
-      localId: `opt-${Date.now()}-${i}`,
+      seq: nowMs + i,
+      localId: `opt-${nowMs}-${i}`,
       farmId: '',
       userId: '',
       endpoint: item.endpoint,
@@ -630,7 +667,7 @@ export function useMilkScreen() {
       body: item.body,
       dependsOn: null,
       status: 'pending',
-      queuedAt: Date.now(),
+      queuedAt: nowMs + i,
       attempts: 0,
       nextAttemptAt: null,
       lastError: null,
@@ -835,9 +872,10 @@ export function useMilkScreen() {
     setIsSaving(true);
 
     // 0ms Optimistic Instant Handoff: create synthetic optimistic outbox rows
+    const nowMs = Date.now();
     const optimisticQueuedRows: OutboxRow[] = batchToQueue.map((item, i) => ({
-      seq: Date.now() + i,
-      localId: `opt-${Date.now()}-${i}`,
+      seq: nowMs + i,
+      localId: `opt-${nowMs}-${i}`,
       farmId: '',
       userId: '',
       endpoint: item.endpoint,
@@ -846,7 +884,7 @@ export function useMilkScreen() {
       body: item.body,
       dependsOn: null,
       status: 'pending',
-      queuedAt: Date.now(),
+      queuedAt: nowMs + i,
       attempts: 0,
       nextAttemptAt: null,
       lastError: null,
