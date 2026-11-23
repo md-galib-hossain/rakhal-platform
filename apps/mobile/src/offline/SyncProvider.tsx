@@ -44,6 +44,8 @@ export interface SyncContextValue {
   snapshot: SyncSnapshot;
   /** Queue a write for this user and farm; the pass that sends it starts at once. Rejects with OutboxFullError when full. */
   enqueue(input: Omit<EnqueueInput, 'farmId' | 'userId'>): Promise<OutboxRow>;
+  /** Queue a batch of writes in one atomic transaction; background send starts after commit. */
+  enqueueBatch(inputs: Array<Omit<EnqueueInput, 'farmId' | 'userId'>>): Promise<OutboxRow[]>;
   syncNow(): Promise<void>;
   list(): Promise<OutboxRow[]>;
   retry(localId: string): Promise<void>;
@@ -64,6 +66,7 @@ const INERT: SyncContextValue = {
   ready: false,
   snapshot: IDLE_SNAPSHOT,
   enqueue: () => Promise.reject(new Error('Offline sync is not running')),
+  enqueueBatch: () => Promise.reject(new Error('Offline sync is not running')),
   syncNow: () => Promise.resolve(),
   list: () => Promise.resolve([]),
   retry: () => Promise.resolve(),
@@ -199,6 +202,7 @@ export function SyncProvider({
       ready: true,
       snapshot,
       enqueue: (input) => engine.enqueue(input),
+      enqueueBatch: (inputs) => engine.enqueueBatch(inputs),
       syncNow,
       list: () => engine.list(),
       retry: (localId) => engine.retry(localId),

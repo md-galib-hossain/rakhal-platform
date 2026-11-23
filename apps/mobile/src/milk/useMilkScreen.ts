@@ -572,18 +572,21 @@ export function useMilkScreen() {
     let savedAny = false;
 
     try {
-      for (const s of configuredSessions) {
-        // Only save sessions that have dirty/draft edits to prevent redundant network calls
-        const hasDirtyEdits =
-          (s === session && (Object.keys(yieldOverrides).length > 0 || rows.some((r) => r.status !== 'saved' && (r.yieldL ?? 0) > 0))) ||
-          Object.keys(multiYieldOverrides).some((id) => multiYieldOverrides[id]?.[s] !== undefined) ||
-          Object.keys(tankOverrides).some((id) => tankOverrides[id]?.[s] !== undefined) ||
-          rows.some((r) => {
-            const st = r.sessions?.[s]?.status;
-            return st !== 'saved' && (r.sessions?.[s]?.yieldL ?? 0) > 0;
-          });
+      const batchToQueue: Array<{
+        endpoint: string;
+        method: 'POST';
+        path: string;
+        body: Record<string, unknown>;
+      }> = [];
 
-        if (!hasDirtyEdits) continue;
+      for (const s of configuredSessions) {
+        // Only save sessions that have explicit draft overrides
+        const hasExplicitEdits =
+          (s === session && (Object.keys(yieldOverrides).length > 0 || rows.some((r) => r.yieldL !== null && r.status !== 'saved'))) ||
+          Boolean(Object.keys(multiYieldOverrides).some((id) => multiYieldOverrides[id]?.[s] !== undefined)) ||
+          Boolean(Object.keys(tankOverrides).some((id) => tankOverrides[id]?.[s] !== undefined));
+
+        if (!hasExplicitEdits) continue;
 
         const entriesToSave: Array<{
           cattleId: string;
@@ -607,7 +610,7 @@ export function useMilkScreen() {
         }
 
         if (entriesToSave.length > 0) {
-          const queued = await sync.enqueue({
+          batchToQueue.push({
             endpoint: 'milk.saveLog',
             method: 'POST',
             path: '/milk/log',
@@ -617,8 +620,14 @@ export function useMilkScreen() {
               entries: entriesToSave,
             },
           });
-          lastSaveLocalId.current = queued.localId;
           savedAny = true;
+        }
+      }
+
+      if (batchToQueue.length > 0) {
+        const queued = await sync.enqueueBatch(batchToQueue);
+        if (queued.length > 0) {
+          lastSaveLocalId.current = queued[queued.length - 1]!.localId;
         }
       }
 
@@ -665,18 +674,21 @@ export function useMilkScreen() {
     setIsSaving(true);
 
     try {
-      for (const s of configuredSessions) {
-        // Only save sessions that are the target session or have dirty/unsaved edits
-        const hasDirtyEdits =
-          s === session ||
-          Object.keys(multiYieldOverrides).some((id) => multiYieldOverrides[id]?.[s] !== undefined) ||
-          Object.keys(tankOverrides).some((id) => tankOverrides[id]?.[s] !== undefined) ||
-          rows.some((r) => {
-            const st = r.sessions?.[s]?.status;
-            return st !== 'saved' && (r.sessions?.[s]?.yieldL ?? 0) > 0;
-          });
+      const batchToQueue: Array<{
+        endpoint: string;
+        method: 'POST';
+        path: string;
+        body: Record<string, unknown>;
+      }> = [];
 
-        if (!hasDirtyEdits) continue;
+      for (const s of configuredSessions) {
+        // Only save sessions that are the target session or have explicit user edits
+        const hasExplicitEdits =
+          s === session ||
+          Boolean(Object.keys(multiYieldOverrides).some((id) => multiYieldOverrides[id]?.[s] !== undefined)) ||
+          Boolean(Object.keys(tankOverrides).some((id) => tankOverrides[id]?.[s] !== undefined));
+
+        if (!hasExplicitEdits) continue;
 
         const entriesToSave: Array<{
           cattleId: string;
@@ -700,7 +712,7 @@ export function useMilkScreen() {
         }
 
         if (entriesToSave.length > 0) {
-          const queued = await sync.enqueue({
+          batchToQueue.push({
             endpoint: 'milk.saveLog',
             method: 'POST',
             path: '/milk/log',
@@ -710,12 +722,11 @@ export function useMilkScreen() {
               entries: entriesToSave,
             },
           });
-          lastSaveLocalId.current = queued.localId;
         }
       }
 
       // Also submit current session
-      await sync.enqueue({
+      batchToQueue.push({
         endpoint: 'milk.submit',
         method: 'POST',
         path: '/milk/submit',
@@ -724,6 +735,12 @@ export function useMilkScreen() {
           session,
         },
       });
+
+      // Atomic batch enqueue to prevent SQLite mutex lock contention
+      const queuedRows = await sync.enqueueBatch(batchToQueue);
+      if (queuedRows.length > 0) {
+        lastSaveLocalId.current = queuedRows[queuedRows.length - 1]!.localId;
+      }
 
       setYieldOverrides({});
       setMultiYieldOverrides({});

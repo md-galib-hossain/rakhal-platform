@@ -135,29 +135,44 @@ export function createOutbox(db: SqlDb, options: OutboxOptions) {
   }
 
   async function enqueue(input: EnqueueInput): Promise<OutboxRow> {
-    const localId = options.newId();
+    const [row] = await enqueueBatch([input]);
+    return row!;
+  }
+
+  async function enqueueBatch(inputs: EnqueueInput[]): Promise<OutboxRow[]> {
+    if (inputs.length === 0) return [];
+    const localIds = inputs.map(() => options.newId());
     await db.transaction(async (tx) => {
       const open = await tx.get<{ n: number }>(
         "SELECT COUNT(*) AS n FROM outbox WHERE status IN ('pending', 'sending', 'failed', 'conflict')",
       );
-      if ((open?.n ?? 0) >= OUTBOX_CAP) throw new OutboxFullError(OUTBOX_CAP);
-      await tx.run(
-        `INSERT INTO outbox (local_id, farm_id, user_id, endpoint, method, path, body, depends_on, status, queued_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
-        [
-          localId,
-          input.farmId,
-          input.userId,
-          input.endpoint,
-          input.method,
-          input.path,
-          JSON.stringify(input.body ?? null),
-          input.dependsOn ?? null,
-          now(),
-        ],
-      );
+      if ((open?.n ?? 0) + inputs.length > OUTBOX_CAP) throw new OutboxFullError(OUTBOX_CAP);
+      for (let i = 0; i < inputs.length; i++) {
+        const input = inputs[i]!;
+        const localId = localIds[i]!;
+        await tx.run(
+          `INSERT INTO outbox (local_id, farm_id, user_id, endpoint, method, path, body, depends_on, status, queued_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+          [
+            localId,
+            input.farmId,
+            input.userId,
+            input.endpoint,
+            input.method,
+            input.path,
+            JSON.stringify(input.body ?? null),
+            input.dependsOn ?? null,
+            now(),
+          ],
+        );
+      }
     });
-    return (await get(localId))!;
+    const results: OutboxRow[] = [];
+    for (const id of localIds) {
+      const r = await get(id);
+      if (r) results.push(r);
+    }
+    return results;
   }
 
   /** Mark failed, and every row waiting on it. Failed rows are never dropped silently. */
@@ -202,6 +217,7 @@ export function createOutbox(db: SqlDb, options: OutboxOptions) {
 
   return {
     enqueue,
+    enqueueBatch,
     get,
     fail,
     nextForSending,

@@ -256,6 +256,14 @@ export function createSyncEngine(deps: EngineDeps) {
       return row;
     },
 
+    async enqueueBatch(inputs: Array<Omit<EnqueueInput, 'farmId' | 'userId'>>): Promise<OutboxRow[]> {
+      if (inputs.length === 0) return [];
+      const rows = await outbox.enqueueBatch(inputs.map((input) => ({ ...input, farmId, userId })));
+      await publish();
+      void kick();
+      return rows;
+    },
+
     list: (statuses?: readonly OutboxRow['status'][]) => outbox.list({ userId, statuses }),
 
     async retry(localId: string): Promise<void> {
