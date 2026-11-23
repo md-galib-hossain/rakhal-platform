@@ -9,7 +9,7 @@ import { useFormat } from '../i18n/useFormat.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 import { NotificationFilterTrigger } from './NotificationFilterTrigger.tsx';
-import { CheckIcon } from './notification-icons.tsx';
+import { CheckIcon, CowIcon } from './notification-icons.tsx';
 import type { AnimalScope, NotificationListItem, NotificationPriority } from './notification-types.ts';
 import { useNotifications } from './useNotifications.ts';
 
@@ -44,6 +44,45 @@ const EVENT_TO_CATEGORY: Record<string, string> = {
   stock_discrepancy: 'inventory',
 };
 
+export function findAssociatedAnimal(
+  item: { link?: string | null; data?: Record<string, unknown> | null; title: string; message: string },
+  cattleList?: AnimalScope[],
+): AnimalScope | null {
+  // 1. Direct from data payload
+  const rawId = item.data?.animalId || item.data?.animal_id || item.data?.cattleId;
+  if (typeof rawId === 'string' && rawId) {
+    const found = cattleList?.find((c) => c.id === rawId);
+    if (found) return found;
+    return { id: rawId, tagNumber: typeof item.data?.tagNumber === 'string' ? item.data.tagNumber : rawId };
+  }
+
+  // 2. From link (e.g. /animals?view=id, /cattle/id, /animals/id)
+  if (item.link) {
+    const match = item.link.match(/(?:\/animals\?view=|\/cattle\/|\/animals\/)([^&/?#]+)/i);
+    if (match && match[1]) {
+      const linkId = decodeURIComponent(match[1]);
+      const found = cattleList?.find((c) => c.id === linkId || c.tagNumber.toLowerCase() === linkId.toLowerCase());
+      if (found) return found;
+      return { id: linkId, tagNumber: linkId };
+    }
+  }
+
+  // 3. From text mentions against cattleList
+  if (cattleList && cattleList.length > 0) {
+    const text = `${item.title} ${item.message}`.toLowerCase();
+    for (const c of cattleList) {
+      if (c.tagNumber && text.includes(c.tagNumber.toLowerCase())) {
+        return c;
+      }
+      if (c.name && c.name.length >= 3 && text.includes(c.name.toLowerCase())) {
+        return c;
+      }
+    }
+  }
+
+  return null;
+}
+
 interface InboxTabProps {
   scopedAnimal?: AnimalScope | null;
   selectedAnimals?: AnimalScope[];
@@ -54,6 +93,7 @@ interface InboxTabProps {
   onOpenFilters?: () => void;
   onResetFilters?: () => void;
   onNavigate?: () => void;
+  onNavigateToAnimal?: (animalId: string) => void;
   testID?: string;
 }
 
@@ -81,6 +121,7 @@ export const InboxTab = memo(function InboxTab({
   onOpenFilters,
   onResetFilters,
   onNavigate,
+  onNavigateToAnimal,
   testID = 'notification-inbox-tab',
 }: InboxTabProps) {
   const { colors, tokens } = useTheme();
@@ -251,11 +292,14 @@ export const InboxTab = memo(function InboxTab({
       if (!item.read) {
         void markRead(item.id);
       }
-      if (item.link && onNavigate) {
+      const animal = findAssociatedAnimal(item, cattleList);
+      if (animal && onNavigateToAnimal) {
+        onNavigateToAnimal(animal.id);
+      } else if (item.link && onNavigate) {
         onNavigate();
       }
     },
-    [markRead, onNavigate],
+    [markRead, cattleList, onNavigateToAnimal, onNavigate],
   );
 
   return (
@@ -437,6 +481,7 @@ export const InboxTab = memo(function InboxTab({
           {filteredItems.map((item) => {
             const tone = PRIORITY_TONE[item.priority] || 'neutral';
             const priorityLabel = t(PRIORITY_LABELS[item.priority]) || item.priority;
+            const associatedAnimal = findAssociatedAnimal(item, cattleList);
             return (
               <PressableSurface
                 key={item.id}
@@ -481,6 +526,42 @@ export const InboxTab = memo(function InboxTab({
                 <Text role="caption" color="mutedForeground" style={{ fontSize: 13, lineHeight: 18 }}>
                   {item.message}
                 </Text>
+
+                {associatedAnimal ? (
+                  <PressableSurface
+                    accessibilityRole="button"
+                    accessibilityLabel={`${associatedAnimal.tagNumber} ${associatedAnimal.name || ''}`}
+                    pressedStyle="overlay"
+                    onPress={() => {
+                      if (!item.read) void markRead(item.id);
+                      onNavigateToAnimal?.(associatedAnimal.id);
+                    }}
+                    testID={`inbox-item-animal-${item.id}`}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      alignSelf: 'flex-start',
+                      paddingHorizontal: 8,
+                      paddingVertical: 3,
+                      borderRadius: tokens.radius.full,
+                      backgroundColor: colors.muted,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      marginTop: 4,
+                    }}
+                  >
+                    <CowIcon size={12} color={colors.primary} />
+                    <Text role="caption" color="primary" style={{ fontWeight: '700', fontSize: 11 }}>
+                      #{associatedAnimal.tagNumber}
+                    </Text>
+                    {associatedAnimal.name ? (
+                      <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 11 }}>
+                        · {associatedAnimal.name}
+                      </Text>
+                    ) : null}
+                  </PressableSurface>
+                ) : null}
               </PressableSurface>
             );
           })}

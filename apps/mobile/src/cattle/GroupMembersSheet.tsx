@@ -5,6 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Button } from '../components/actions/Button.tsx';
 import { IconButton } from '../components/actions/IconButton.tsx';
@@ -37,6 +38,7 @@ export function GroupMembersSheet({
   const { t } = useLocale();
   const { colors, tokens } = useTheme();
   const { client } = useAuth();
+  const router = useRouter();
 
   const [search, setSearch] = useState('');
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -263,14 +265,24 @@ export function GroupMembersSheet({
                 }}
                 testID={`group-member-row-${item.id}`}
               >
-                <View style={{ gap: 2, flex: 1, marginRight: tokens.spacing.sm }}>
+                <PressableSurface
+                  accessibilityRole="button"
+                  accessibilityLabel={item.name ? `${item.name} (${item.tagNumber})` : item.tagNumber}
+                  pressedStyle="overlay"
+                  onPress={() => {
+                    onClose();
+                    router.push(`/cattle/${encodeURIComponent(item.id)}`);
+                  }}
+                  testID={`group-member-link-${item.id}`}
+                  style={{ gap: 2, flex: 1, marginRight: tokens.spacing.sm, borderRadius: tokens.radius.sm }}
+                >
                   <Text role="body" color="foreground" style={{ fontWeight: '700', fontSize: 14 }}>
                     {item.name ? `${item.name} (${item.tagNumber})` : item.tagNumber}
                   </Text>
                   <Text role="caption" color="mutedForeground">
                     {item.animalCategory ?? item.breedName ?? '—'}
                   </Text>
-                </View>
+                </PressableSurface>
 
                 <IconButton
                   icon="close"

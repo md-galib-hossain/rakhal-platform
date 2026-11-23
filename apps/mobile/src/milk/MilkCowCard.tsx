@@ -13,6 +13,7 @@
  */
 import { memo, useEffect, useState } from 'react';
 import { TextInput, View } from 'react-native';
+import { router } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { Glyph } from '../components/internal/Glyph.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
@@ -146,72 +147,89 @@ export const MilkCowCard = memo(function MilkCowCard({
           gap: tokens.spacing.sm,
         }}
       >
-        {/* Left: Round Avatar Circle */}
-        <View
+        {/* Left & Middle: Pressable Avatar + Name + Tag -> navigates to Cattle detail */}
+        <PressableSurface
+          accessibilityRole="button"
+          accessibilityLabel={`${title} ${t('cattle.detail.title')}`}
+          pressedStyle="overlay"
+          onPress={() => router.push(`/cattle/${encodeURIComponent(row.cattleId)}`)}
+          testID={`milk-cow-nav-${row.cattleId}`}
           style={{
-            width: 42,
-            height: 42,
-            borderRadius: tokens.radius.full,
-            backgroundColor: colors.primary,
+            flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'center',
+            gap: tokens.spacing.sm,
+            flex: 1,
+            minWidth: 0,
+            borderRadius: tokens.radius.sm,
           }}
         >
-          <Text role="title" style={{ color: colors.primaryForeground, fontWeight: '800', fontSize: 18 }}>
-            {initialLetter}
-          </Text>
-        </View>
-
-        {/* Middle: Name, Status Badge, Tag & Breed */}
-        <View style={{ flex: 1, gap: 2 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs, flexWrap: 'wrap' }}>
-            <Text
-              role="label"
-              color="foreground"
-              style={{ fontWeight: '700', fontSize: 16 }}
-              accessibilityLabel={title}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {row.name || row.tag || '—'}
+          {/* Round Avatar Circle */}
+          <View
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: tokens.radius.full,
+              backgroundColor: colors.primary,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text role="title" style={{ color: colors.primaryForeground, fontWeight: '800', fontSize: 18 }}>
+              {initialLetter}
             </Text>
-
-            {row.withholding ? (
-              <View
-                testID={`milk-withholding-${row.cattleId}`}
-                style={{
-                  paddingHorizontal: 6,
-                  paddingVertical: 1.5,
-                  borderRadius: tokens.radius.full,
-                  backgroundColor: colors.destructiveTint,
-                }}
-              >
-                <Text role="caption" color="destructiveText" style={{ fontSize: 10, fontWeight: '600' }}>
-                  {t('milk.withholdingBadge')}
-                </Text>
-              </View>
-            ) : (
-              <View
-                style={{
-                  paddingHorizontal: 6,
-                  paddingVertical: 1.5,
-                  borderRadius: tokens.radius.full,
-                  backgroundColor: colors.successTint,
-                }}
-              >
-                <Text role="caption" color="primaryText" style={{ fontSize: 10, fontWeight: '600' }}>
-                  {t('milk.statusMilking')}
-                </Text>
-              </View>
-            )}
           </View>
 
-          {subtitleText ? (
-            <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }} numberOfLines={1} ellipsizeMode="tail">
-              {subtitleText}
-            </Text>
-          ) : null}
-        </View>
+          {/* Name, Status Badge, Tag & Breed */}
+          <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs, flexWrap: 'wrap' }}>
+              <Text
+                role="label"
+                color="foreground"
+                style={{ fontWeight: '700', fontSize: 16 }}
+                accessibilityLabel={title}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {row.name || row.tag || '—'}
+              </Text>
+
+              {row.withholding ? (
+                <View
+                  testID={`milk-withholding-${row.cattleId}`}
+                  style={{
+                    paddingHorizontal: 6,
+                    paddingVertical: 1.5,
+                    borderRadius: tokens.radius.full,
+                    backgroundColor: colors.destructiveTint,
+                  }}
+                >
+                  <Text role="caption" color="destructiveText" style={{ fontSize: 10, fontWeight: '600' }}>
+                    {t('milk.withholdingBadge')}
+                  </Text>
+                </View>
+              ) : (
+                <View
+                  style={{
+                    paddingHorizontal: 6,
+                    paddingVertical: 1.5,
+                    borderRadius: tokens.radius.full,
+                    backgroundColor: colors.successTint,
+                  }}
+                >
+                  <Text role="caption" color="primaryText" style={{ fontSize: 10, fontWeight: '600' }}>
+                    {t('milk.statusMilking')}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            {subtitleText ? (
+              <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }} numberOfLines={1} ellipsizeMode="tail">
+                {subtitleText}
+              </Text>
+            ) : null}
+          </View>
+        </PressableSurface>
 
         {/* Right: Today's Total */}
         <View style={{ alignItems: 'flex-end', gap: 1 }}>

@@ -6,6 +6,12 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   jest.requireActual('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
 
+const mockPush = jest.fn();
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: mockPush }),
+  router: { push: mockPush },
+}));
+
 import { fakeApi, ok, sessionReply } from '../test-utils/auth-harness.tsx';
 import { mount, restoreMount } from '../test-utils/mount.tsx';
 import { flatStyle } from '../test-utils/touch-target.ts';
@@ -147,8 +153,9 @@ describe('NotificationSheet', () => {
 
     // Open filter sheet to inspect and clear animal
     await fireEvent.press(screen.getByTestId('notif-filter-trigger'));
-    expect(screen.getByTestId('notif-filter-sheet')).toBeTruthy();
-    expect(screen.getByText('#COW-001')).toBeTruthy();
+    const filterSheet = screen.getByTestId('notif-filter-sheet');
+    expect(filterSheet).toBeTruthy();
+    expect(within(filterSheet).getByText('#COW-001')).toBeTruthy();
 
     // Clear animal filter in modal
     await fireEvent.press(screen.getByTestId('notif-filter-clear-animal'));
@@ -498,5 +505,54 @@ describe('NotificationSheet', () => {
     // Returned to filter sheet with selected animal
     expect(within(filterModal).getByText('#COW-001')).toBeTruthy();
     expect(within(filterModal).getByText('Lalita')).toBeTruthy();
+  });
+
+  it('navigates to animal detail screen when tapping animal tag or notification with associated animal', async () => {
+    mockPush.mockClear();
+    const onClose = jest.fn();
+    const { Wrapper } = fakeApi(
+      (url) => {
+        if (url.includes('/notifications')) {
+          return ok({
+            unread_count: 1,
+            notifications: [
+              {
+                id: 'notif-1',
+                type: 'scheduled_vaccination',
+                priority: 'high',
+                title: 'Vaccination Due',
+                message: 'Booster scheduled for #COW-001 (Lalita)',
+                link: '/cattle/c-1',
+                data: { animalId: 'c-1' },
+                read: false,
+                created_at: new Date().toISOString(),
+              },
+            ],
+            meta: { page: 1, per_page: 20, total: 1 },
+          });
+        }
+        if (url.includes('/cattle')) {
+          return ok({ items: [{ id: 'c-1', tagNumber: 'COW-001', name: 'Lalita' }] });
+        }
+        return sessionReply(1);
+      },
+      { refreshToken: 'rt-1', farmId: 'farm-1' },
+    );
+
+    await mount(
+      <Wrapper>
+        <NotificationSheet visible={true} onClose={onClose} initialTab="inbox" />
+      </Wrapper>,
+    );
+
+    // Verify animal chip is rendered in notification item
+    const animalChip = screen.getByTestId('inbox-item-animal-notif-1');
+    expect(animalChip).toBeTruthy();
+    expect(within(animalChip).getByText('#COW-001')).toBeTruthy();
+
+    // Tapping animal chip navigates to animal detail page and closes sheet
+    await fireEvent.press(animalChip);
+    expect(onClose).toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith('/cattle/c-1');
   });
 });

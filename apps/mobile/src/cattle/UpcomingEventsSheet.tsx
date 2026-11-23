@@ -8,6 +8,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Button } from '../components/actions/Button.tsx';
 import { IconButton } from '../components/actions/IconButton.tsx';
+import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { SheetModal, SheetTitle } from '../components/internal/SheetModal.tsx';
 import { Text } from '../components/primitives/Text.tsx';
 import { useFormat } from '../i18n/useFormat.ts';
@@ -159,7 +160,19 @@ export function UpcomingEventsSheet({
               </View>
             ) : null}
           </View>
-          <SheetTitle>{animalTitle}</SheetTitle>
+          <PressableSurface
+            accessibilityRole="button"
+            accessibilityLabel={`${animalTitle} ${t('cattle.detail.title')}`}
+            pressedStyle="overlay"
+            onPress={() => {
+              onClose();
+              onView(item);
+            }}
+            testID={`${testID}-animal-title-link`}
+            style={{ borderRadius: tokens.radius.sm, alignSelf: 'flex-start' }}
+          >
+            <SheetTitle>{animalTitle}</SheetTitle>
+          </PressableSurface>
         </View>
 
         <IconButton

@@ -11,6 +11,7 @@ import { MilkScreen } from './MilkScreen.tsx';
 const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   router: { push: (...args: unknown[]) => mockPush(...args) },
+  useRouter: () => ({ push: (...args: unknown[]) => mockPush(...args) }),
 }));
 
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -480,5 +481,21 @@ describe('MilkScreen', () => {
     });
 
     createSpy.mockRestore();
+  });
+
+  it('navigates to animal detail screen when clicking cow avatar or name in milk card', async () => {
+    mockPush.mockClear();
+    const h = syncHarness({
+      handler: serverHandler(),
+    });
+    await renderMilkScreen(h);
+
+    await waitFor(() => expect(screen.getByTestId('milk-cow-nav-c1')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('milk-cow-nav-c1'));
+    });
+
+    expect(mockPush).toHaveBeenCalledWith('/cattle/c1');
   });
 });

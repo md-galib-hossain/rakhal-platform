@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Button } from '../components/actions/Button.tsx';
 import { IconButton } from '../components/actions/IconButton.tsx';
@@ -135,6 +136,8 @@ export const NotificationSheet = memo(function NotificationSheet({
     setActiveTab('upcoming');
   }, []);
 
+  const router = useRouter();
+
   const handleClose = useCallback(() => {
     setView('tabs');
     setEditingScheduleId(null);
@@ -142,6 +145,14 @@ export const NotificationSheet = memo(function NotificationSheet({
     setAnimalModalOpen(false);
     onClose();
   }, [onClose]);
+
+  const handleNavigateToAnimal = useCallback(
+    (animalId: string) => {
+      handleClose();
+      router.push(`/cattle/${encodeURIComponent(animalId)}`);
+    },
+    [handleClose, router],
+  );
 
   const handleResetFilters = useCallback(() => {
     setSelectedAnimals([]);
@@ -312,6 +323,7 @@ export const NotificationSheet = memo(function NotificationSheet({
                 onOpenFilters={() => setFilterModalOpen(true)}
                 onResetFilters={handleResetFilters}
                 onNavigate={handleClose}
+                onNavigateToAnimal={handleNavigateToAnimal}
               />
             ) : activeTab === 'upcoming' ? (
               <UpcomingTab
@@ -323,6 +335,7 @@ export const NotificationSheet = memo(function NotificationSheet({
                 onOpenFilters={() => setFilterModalOpen(true)}
                 onResetFilters={handleResetFilters}
                 onEdit={handleEditSchedule}
+                onNavigateToAnimal={handleNavigateToAnimal}
               />
             ) : (
               <NewTab

@@ -8,8 +8,9 @@ import type { MessageKey } from '../i18n/messages.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 import { NotificationFilterTrigger } from './NotificationFilterTrigger.tsx';
-import { CalendarClockIcon, EditIcon, PauseIcon, TrashIcon } from './notification-icons.tsx';
+import { CalendarClockIcon, CowIcon, EditIcon, PauseIcon, TrashIcon } from './notification-icons.tsx';
 import type { AnimalScope, UpcomingItem } from './notification-types.ts';
+import { findAssociatedAnimal } from './InboxTab.tsx';
 import { useNotifications } from './useNotifications.ts';
 
 interface UpcomingTabProps {
@@ -22,6 +23,7 @@ interface UpcomingTabProps {
   onOpenFilters?: () => void;
   onResetFilters?: () => void;
   onEdit?: (scheduleId: string) => void;
+  onNavigateToAnimal?: (animalId: string) => void;
   testID?: string;
 }
 
@@ -43,6 +45,7 @@ export const UpcomingTab = memo(function UpcomingTab({
   onOpenFilters,
   onResetFilters,
   onEdit,
+  onNavigateToAnimal,
   testID = 'notification-upcoming-tab',
 }: UpcomingTabProps) {
   const { colors, tokens } = useTheme();
@@ -325,45 +328,85 @@ export const UpcomingTab = memo(function UpcomingTab({
                 {day}
               </Text>
 
-              {dayItems.map((item) => (
-                <View
-                  key={item.occurrence_id}
-                  testID={`upcoming-item-${item.occurrence_id}`}
-                  style={{
-                    backgroundColor: colors.card,
-                    borderRadius: tokens.radius.md,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    padding: tokens.spacing.sm,
-                    gap: 6,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Text role="body" color="foreground" style={{ fontWeight: '700', fontSize: 14, flex: 1 }}>
-                      {item.title}
-                    </Text>
-                    <Text role="caption" color="primary" style={{ fontWeight: '700', fontSize: 12 }}>
-                      {item.fire_at_local ? item.fire_at_local.slice(11, 16) : ''}
-                    </Text>
-                  </View>
-
-                  {item.body ? (
-                    <Text role="caption" color="mutedForeground" style={{ fontSize: 13, lineHeight: 18 }}>
-                      {item.body}
-                    </Text>
-                  ) : null}
-
-                  {/* Badges & Actions */}
-                  <View
+              {dayItems.map((item) => {
+                const associatedAnimal = findAssociatedAnimal(
+                  { link: item.link, title: item.title, message: item.body || '' },
+                  cattleList,
+                );
+                return (
+                  <PressableSurface
+                    key={item.occurrence_id}
+                    accessibilityRole="button"
+                    pressedStyle="overlay"
+                    disabled={!associatedAnimal}
+                    onPress={associatedAnimal ? () => onNavigateToAnimal?.(associatedAnimal.id) : undefined}
+                    testID={`upcoming-item-${item.occurrence_id}`}
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      marginTop: 2,
+                      backgroundColor: colors.card,
+                      borderRadius: tokens.radius.md,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      padding: tokens.spacing.sm,
+                      gap: 6,
                     }}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      {item.repeat && item.repeat !== 'NEVER' ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Text role="body" color="foreground" style={{ fontWeight: '700', fontSize: 14, flex: 1 }}>
+                        {item.title}
+                      </Text>
+                      <Text role="caption" color="primary" style={{ fontWeight: '700', fontSize: 12 }}>
+                        {item.fire_at_local ? item.fire_at_local.slice(11, 16) : ''}
+                      </Text>
+                    </View>
+
+                    {item.body ? (
+                      <Text role="caption" color="mutedForeground" style={{ fontSize: 13, lineHeight: 18 }}>
+                        {item.body}
+                      </Text>
+                    ) : null}
+
+                    {/* Badges & Actions */}
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginTop: 2,
+                      }}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        {associatedAnimal ? (
+                          <PressableSurface
+                            accessibilityRole="button"
+                            accessibilityLabel={`${associatedAnimal.tagNumber} ${associatedAnimal.name || ''}`}
+                            pressedStyle="overlay"
+                            onPress={() => onNavigateToAnimal?.(associatedAnimal.id)}
+                            testID={`upcoming-item-animal-${item.occurrence_id}`}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 4,
+                              paddingHorizontal: 8,
+                              paddingVertical: 3,
+                              borderRadius: tokens.radius.full,
+                              backgroundColor: colors.muted,
+                              borderWidth: 1,
+                              borderColor: colors.border,
+                            }}
+                          >
+                            <CowIcon size={12} color={colors.primary} />
+                            <Text role="caption" color="primary" style={{ fontWeight: '700', fontSize: 11 }}>
+                              #{associatedAnimal.tagNumber}
+                            </Text>
+                            {associatedAnimal.name ? (
+                              <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 11 }}>
+                                · {associatedAnimal.name}
+                              </Text>
+                            ) : null}
+                          </PressableSurface>
+                        ) : null}
+
+                        {item.repeat && item.repeat !== 'NEVER' ? (
                         <View
                           style={{
                             backgroundColor: colors.muted,
@@ -448,8 +491,9 @@ export const UpcomingTab = memo(function UpcomingTab({
                       </View>
                     ) : null}
                   </View>
-                </View>
-              ))}
+                </PressableSurface>
+              );
+            })}
             </View>
           ))}
         </ScrollView>
