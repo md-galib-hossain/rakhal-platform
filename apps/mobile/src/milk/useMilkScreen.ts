@@ -356,16 +356,10 @@ export function useMilkScreen() {
         let finalSessionYield = serverSessionYield;
         let finalSessionStatus: MilkEntryStatus | null = serverSessionYield !== null ? 'saved' : null;
 
+        // Local outbox write on this device is always authoritative over stale server cache
         if (obSessionEntry) {
-          const serverUpdatedStr = updatedMap?.[s];
-          const serverUpdatedMs = serverUpdatedStr ? new Date(serverUpdatedStr).getTime() : 0;
-          const serverIsNewer = serverUpdatedMs > obSessionEntry.queuedAt;
-
-          // If outbox write has not been superseded by a newer server write, outbox is authoritative
-          if (!serverIsNewer || obSessionEntry.status !== 'saved') {
-            finalSessionYield = obSessionEntry.yieldL;
-            finalSessionStatus = obSessionEntry.status;
-          }
+          finalSessionYield = obSessionEntry.yieldL;
+          finalSessionStatus = obSessionEntry.status;
         }
 
         // Multi-yield override check

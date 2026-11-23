@@ -618,4 +618,62 @@ describe('MilkScreen', () => {
     expect(screen.getByTestId('milk-stepper-c1-input').props.value).toBe('2.0');
     expect(screen.getByTestId('milk-stepper-c2-input').props.value).toBe('3.0');
   });
+
+  it('preserves night collection yields across cows without reverting to stale cache', async () => {
+    // Stale server cache where c2 has 1.0L in Night session with future timestamp
+    const staleMilkLog = {
+      ...demoMilkLog,
+      sessionConfig: ['MORNING', 'NOON', 'EVENING', 'NIGHT'],
+      entries: [
+        {
+          cattleId: 'c1',
+          cattleTag: 'TAG-101',
+          log: { morningL: 10, nightL: null, submittedSessions: [], updatedAt: {} },
+        },
+        {
+          cattleId: 'c2',
+          cattleTag: 'TAG-102',
+          log: { morningL: 8, nightL: 1.0, submittedSessions: [], updatedAt: { NIGHT: '2099-01-01T00:00:00.000Z' } },
+        },
+      ],
+    };
+    const h = syncHarness({
+      handler: serverHandler({ milkLog: staleMilkLog }),
+    });
+    await renderMilkScreen(h);
+
+    await waitFor(() => expect(screen.getByTestId('milk-cow-card-c1')).toBeTruthy());
+
+    // Switch to Night session
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('session-chip-night'));
+    });
+
+    // 1. Enter 12.0L for Sundor (c1) and tap Save
+    const input1 = screen.getByTestId('milk-stepper-c1-input');
+    await act(async () => {
+      fireEvent.changeText(input1, '12.0');
+    });
+
+    const saveBtn = screen.getByTestId('milk-submit-btn');
+    await act(async () => {
+      fireEvent.press(saveBtn);
+    });
+
+    expect(screen.getByTestId('milk-stepper-c1-input').props.value).toBe('12.0');
+
+    // 2. Enter 13.0L for Kajol (c2) and tap Save
+    const input2 = screen.getByTestId('milk-stepper-c2-input');
+    await act(async () => {
+      fireEvent.changeText(input2, '13.0');
+    });
+
+    await act(async () => {
+      fireEvent.press(saveBtn);
+    });
+
+    // 3. Verify Kajol retains 13.0L and does NOT revert to the stale server value of 1.0L
+    expect(screen.getByTestId('milk-stepper-c2-input').props.value).toBe('13.0');
+    expect(screen.getByTestId('milk-stepper-c1-input').props.value).toBe('12.0');
+  });
 });

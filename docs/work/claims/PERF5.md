@@ -19,7 +19,7 @@ When a milk outbox write is drained and marked `status: 'done'`, `useMilkScreen`
 
 ## Completed Work
 1. **Preserve Completed Outbox Writes**: Removed `if (ob.status === 'done') continue;`. Completed outbox writes are mapped to `status: 'saved'` in `outboxByCowSession`.
-2. **Timestamp Precedence**: Checked whether `serverLog.updatedAt` is strictly newer than `ob.queuedAt`. If not superseded by a newer server record, the local outbox entry remains authoritative.
+2. **Eliminated Flawed Clock Comparison**: Removed `serverIsNewer = serverUpdatedMs > obSessionEntry.queuedAt`. Because device clock and server clock (UTC vs local BST) drift, comparing server timestamps against local `queuedAt` caused local outbox writes to be mistakenly rejected in favor of older server cache. Local outbox entries on this device are now strictly authoritative.
 3. **In-Memory Cache Updates**: In `saveAllDrafts` and `saveCollection`, `rawMilkLogs` is optimistically updated in memory so local React state is never stale while waiting for network.
-4. **Automated Verification**: Added unit test `preserves completed outbox values across sequential saves without reverting to stale cache`. All 585 Jest tests and 357 node tests pass cleanly.
+4. **Automated Verification**: Added unit test `preserves night collection yields across cows without reverting to stale cache` alongside sequential save tests. All 585 Jest tests and 357 node tests pass cleanly.
 
