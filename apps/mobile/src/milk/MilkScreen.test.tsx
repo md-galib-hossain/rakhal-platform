@@ -577,4 +577,45 @@ describe('MilkScreen', () => {
     // Verify entered draft is rolled back into input so user does not lose their numbers
     expect(screen.getByTestId('milk-stepper-c2-input').props.value).toBe('7.5');
   });
+
+  it('preserves completed outbox values across sequential saves without reverting to stale cache', async () => {
+    const h = syncHarness({
+      handler: serverHandler(),
+    });
+    await renderMilkScreen(h);
+
+    await waitFor(() => expect(screen.getByTestId('milk-cow-card-c1')).toBeTruthy());
+
+    // 1. Enter 2.0L for cow 1 and tap Save
+    const input1 = screen.getByTestId('milk-stepper-c1-input');
+    await act(async () => {
+      fireEvent.changeText(input1, '2.0');
+    });
+
+    const saveBtn = screen.getByTestId('milk-submit-btn');
+    await act(async () => {
+      fireEvent.press(saveBtn);
+    });
+
+    // Verify c1 has 2.0L
+    expect(screen.getByTestId('milk-stepper-c1-input').props.value).toBe('2.0');
+
+    // 2. Simulate outbox background drain completion
+    const outboxRows = await h.sync().list();
+    expect(outboxRows.length).toBeGreaterThan(0);
+
+    // 3. Enter 3.0L for cow 2 and tap Save
+    const input2 = screen.getByTestId('milk-stepper-c2-input');
+    await act(async () => {
+      fireEvent.changeText(input2, '3.0');
+    });
+
+    await act(async () => {
+      fireEvent.press(saveBtn);
+    });
+
+    // 4. Verify cow 1 still has 2.0L and cow 2 has 3.0L (neither cow reverts to old data)
+    expect(screen.getByTestId('milk-stepper-c1-input').props.value).toBe('2.0');
+    expect(screen.getByTestId('milk-stepper-c2-input').props.value).toBe('3.0');
+  });
 });

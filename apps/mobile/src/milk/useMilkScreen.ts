@@ -200,17 +200,16 @@ export function useMilkScreen() {
       }
     }
 
-    // Index outbox pending writes per session
-    // Map: `${cattleId}:${session}` -> { yieldL, status, localId, tankId }
+    // Index outbox pending and completed writes per session
+    // Map: `${cattleId}:${session}` -> { yieldL, status, localId, tankId, queuedAt }
     const outboxByCowSession = new Map<
       string,
-      { yieldL: number | null; status: MilkEntryStatus; localId: string; tankId?: string }
+      { yieldL: number | null; status: MilkEntryStatus; localId: string; tankId?: string; queuedAt: number }
     >();
 
     const localSubmittedSessions = new Set<string>();
 
     for (const ob of outboxRows) {
-      if (ob.status === 'done') continue;
       if (ob.endpoint === 'milk.submit') {
         const body = ob.body as { date?: string; session?: string } | null;
         if (body && body.date === date && body.session) {
@@ -223,7 +222,7 @@ export function useMilkScreen() {
           entries?: Array<{ cattleId: string; yieldL: number | null; tankId?: string }>;
         } | null;
         if (body && body.date === date && body.session && Array.isArray(body.entries)) {
-          let entryStatus: MilkEntryStatus = 'waiting';
+          let entryStatus: MilkEntryStatus = ob.status === 'done' ? 'saved' : 'waiting';
           if (ob.status === 'conflict') entryStatus = 'conflict';
           else if (ob.status === 'failed') entryStatus = 'failed';
 
@@ -234,6 +233,7 @@ export function useMilkScreen() {
                 status: entryStatus,
                 localId: ob.localId,
                 tankId: entry.tankId,
+                queuedAt: ob.queuedAt,
               });
             }
           }
@@ -357,8 +357,15 @@ export function useMilkScreen() {
         let finalSessionStatus: MilkEntryStatus | null = serverSessionYield !== null ? 'saved' : null;
 
         if (obSessionEntry) {
-          finalSessionYield = obSessionEntry.yieldL;
-          finalSessionStatus = obSessionEntry.status;
+          const serverUpdatedStr = updatedMap?.[s];
+          const serverUpdatedMs = serverUpdatedStr ? new Date(serverUpdatedStr).getTime() : 0;
+          const serverIsNewer = serverUpdatedMs > obSessionEntry.queuedAt;
+
+          // If outbox write has not been superseded by a newer server write, outbox is authoritative
+          if (!serverIsNewer || obSessionEntry.status !== 'saved') {
+            finalSessionYield = obSessionEntry.yieldL;
+            finalSessionStatus = obSessionEntry.status;
+          }
         }
 
         // Multi-yield override check
@@ -559,6 +566,7 @@ export function useMilkScreen() {
     const prevYieldOverrides = { ...yieldOverrides };
     const prevMultiYieldOverrides = { ...multiYieldOverrides };
     const prevTankOverrides = { ...tankOverrides };
+    const prevRawMilkLogs = rawMilkLogs;
 
     const batchToQueue: Array<{
       endpoint: string;
@@ -642,6 +650,45 @@ export function useMilkScreen() {
     setYieldOverrides({});
     setMultiYieldOverrides({});
 
+    // Optimistically update rawMilkLogs in memory so local cache never falls behind
+    setRawMilkLogs((prev) => {
+      const copy = [...prev];
+      for (const item of batchToQueue) {
+        if (item.endpoint === 'milk.saveLog') {
+          const body = item.body as {
+            date?: string;
+            session?: MilkSession;
+            entries?: Array<{ cattleId: string; yieldL: number | null }>;
+          } | null;
+          if (body && body.date === date && body.session && Array.isArray(body.entries)) {
+            const sessionKey = `${body.session.toLowerCase()}L`;
+            for (const entry of body.entries) {
+              const idx = copy.findIndex((c) => c.cattleId === entry.cattleId);
+              if (idx >= 0) {
+                const item = copy[idx]!;
+                const itemLog = (item.log as Record<string, unknown>) || {};
+                copy[idx] = {
+                  ...item,
+                  log: {
+                    ...itemLog,
+                    [sessionKey]: entry.yieldL,
+                  },
+                };
+              } else {
+                copy.push({
+                  cattleId: entry.cattleId,
+                  log: {
+                    [sessionKey]: entry.yieldL,
+                  },
+                });
+              }
+            }
+          }
+        }
+      }
+      return copy;
+    });
+
     // Immediate user feedback (0ms perceived latency)
     toast.show({
       message: t('milk.saveSuccess'),
@@ -672,6 +719,7 @@ export function useMilkScreen() {
       setYieldOverrides(prevYieldOverrides);
       setMultiYieldOverrides(prevMultiYieldOverrides);
       setTankOverrides(prevTankOverrides);
+      setRawMilkLogs(prevRawMilkLogs);
       toast.show({
         message: t('milk.saveFailed'),
         tone: 'error',
@@ -721,6 +769,7 @@ export function useMilkScreen() {
     const prevYieldOverrides = { ...yieldOverrides };
     const prevMultiYieldOverrides = { ...multiYieldOverrides };
     const prevTankOverrides = { ...tankOverrides };
+    const prevRawMilkLogs = rawMilkLogs;
 
     const batchToQueue: Array<{
       endpoint: string;
@@ -817,6 +866,45 @@ export function useMilkScreen() {
     setYieldOverrides({});
     setMultiYieldOverrides({});
 
+    // Optimistically update rawMilkLogs in memory so local cache never falls behind
+    setRawMilkLogs((prev) => {
+      const copy = [...prev];
+      for (const item of batchToQueue) {
+        if (item.endpoint === 'milk.saveLog') {
+          const body = item.body as {
+            date?: string;
+            session?: MilkSession;
+            entries?: Array<{ cattleId: string; yieldL: number | null }>;
+          } | null;
+          if (body && body.date === date && body.session && Array.isArray(body.entries)) {
+            const sessionKey = `${body.session.toLowerCase()}L`;
+            for (const entry of body.entries) {
+              const idx = copy.findIndex((c) => c.cattleId === entry.cattleId);
+              if (idx >= 0) {
+                const item = copy[idx]!;
+                const itemLog = (item.log as Record<string, unknown>) || {};
+                copy[idx] = {
+                  ...item,
+                  log: {
+                    ...itemLog,
+                    [sessionKey]: entry.yieldL,
+                  },
+                };
+              } else {
+                copy.push({
+                  cattleId: entry.cattleId,
+                  log: {
+                    [sessionKey]: entry.yieldL,
+                  },
+                });
+              }
+            }
+          }
+        }
+      }
+      return copy;
+    });
+
     // Immediate user feedback (0ms perceived latency)
     toast.show({
       message: t('milk.saveSuccess'),
@@ -848,6 +936,7 @@ export function useMilkScreen() {
       setYieldOverrides(prevYieldOverrides);
       setMultiYieldOverrides(prevMultiYieldOverrides);
       setTankOverrides(prevTankOverrides);
+      setRawMilkLogs(prevRawMilkLogs);
       toast.show({
         message: t('milk.saveFailed'),
         tone: 'error',
