@@ -35,19 +35,84 @@ import { seedDemoDataset } from './seed-demo-data';
 import { seedTestAccounts } from './seed-test-accounts';
 
 /**
- * RBAC + dev-data seed (RAKHAL-019). Idempotent — safe to run repeatedly.
+ * RBAC + dev/staging/prod seed (RAKHAL-019). Idempotent — safe to run repeatedly.
  *
  *   pnpm seed     # or: ts-node -r tsconfig-paths/register prisma/seed.ts
  *
  * Seeds:
  *  1. The permission catalogue (PERMISSIONS).
  *  2. The three global system roles (Owner/Manager/Worker) + their grants.
- *  3. (non-production only) a demo owner + farm + membership so the whole auth →
- *     tenant → permission chain is exercisable immediately.
+ *  3. System catalogues (units, income categories, feed ingredients, repro protocols, plans).
+ *  4. Legal documents (Terms & Privacy).
+ *  5. Platform config (invoice counters) and super admins.
+ *  6. Demo dataset & fixture accounts (opt-in/out via SEED_DEMO_DATA / SEED_TEST_ACCOUNTS).
  */
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
 });
+
+/**
+ * Seed configuration (staging/production-ready).
+ *
+ * Demo data (farms, cattle, transactions) is gated:
+ *   SEED_DEMO_DATA=true|false
+ * Default: false when NODE_ENV === 'production' && !IS_STAGING, true otherwise.
+ *
+ * Stage test accounts (fixture users with realistic multi-farm herd):
+ *   SEED_TEST_ACCOUNTS=true|false
+ * Default: true in development/staging, or when SEED_DEMO_DATA is true.
+ *
+ * Demo platform admin (admin@rakhal.test with pre-enrolled fixed 2FA secret):
+ *   SEED_PLATFORM_ADMIN=true|false
+ * Default: true outside production, or when SEED_DEMO_DATA or IS_STAGING is true.
+ *
+ * Passwords are env-overridable so public staging or production deployments
+ * do not expose well-known dev credentials.
+ */
+const IS_STAGING =
+  process.env.STAGE === 'true' ||
+  process.env.IS_STAGING === 'true' ||
+  process.env.APP_ENV === 'staging';
+
+const SEED_DEMO_DATA =
+  process.env.SEED_DEMO_DATA !== undefined
+    ? process.env.SEED_DEMO_DATA === 'true'
+    : process.env.NODE_ENV !== 'production' || IS_STAGING;
+
+const SEED_TEST_ACCOUNTS =
+  process.env.SEED_TEST_ACCOUNTS !== undefined
+    ? process.env.SEED_TEST_ACCOUNTS === 'true'
+    : SEED_DEMO_DATA || IS_STAGING;
+
+const SEED_PLATFORM_ADMIN =
+  process.env.SEED_PLATFORM_ADMIN !== undefined
+    ? process.env.SEED_PLATFORM_ADMIN === 'true'
+    : SEED_DEMO_DATA || IS_STAGING;
+
+const SEED_PASSWORDS = {
+  owner: process.env.SEED_OWNER_PASSWORD ?? 'DemoPass123',
+  manager: process.env.SEED_MANAGER_PASSWORD ?? 'ManagerPass123',
+  worker: process.env.SEED_WORKER_PASSWORD ?? 'WorkerPass123',
+  admin: process.env.SEED_ADMIN_PASSWORD ?? 'AdminPass123',
+};
+
+const DEMO_ADMIN_TOTP_SECRET =
+  process.env.SEED_ADMIN_TOTP_SECRET ?? 'JBSWY3DPEHPK3PXP';
+
+/** Mask custom env passwords from appearing in deploy logs */
+function maskIfCustom(value: string, fallback: string): string {
+  return value === fallback ? value : '<from env>';
+}
+
+function describeTarget(): string {
+  const raw = process.env.DATABASE_URL ?? '';
+  try {
+    const url = new URL(raw);
+    return `${url.host}${url.pathname}`;
+  } catch {
+    return '(database)';
+  }
+}
 
 async function seedPermissions(): Promise<void> {
   for (const perm of PERMISSIONS) {
@@ -100,15 +165,34 @@ async function seedRole(name: SystemRoleName): Promise<string> {
 async function seedDemo(
   ownerRoleId: string,
 ): Promise<{ farmId: string; ownerUserId: string }> {
-  const email = 'owner@demo.rakhal.test';
-  const passwordHash = await argon2.hash('DemoPass123', {
+  if (!SEED_DEMO_DATA) {
+    console.log('· demo dataset skipped (SEED_DEMO_DATA=false)');
+    return { farmId: '', ownerUserId: '' };
+  }
+
+  const email = process.env.SEED_OWNER_EMAIL ?? 'owner@demo.rakhal.test';
+  const username = process.env.SEED_OWNER_USERNAME ?? 'demo_owner';
+  const password = SEED_PASSWORDS.owner;
+  const passwordHash = await argon2.hash(password, {
     type: argon2.argon2id,
   });
 
   const user = await prisma.user.upsert({
     where: { email },
-    update: {},
-    create: { email, name: 'Demo Owner', passwordHash, isEmailVerified: true },
+    update: {
+      passwordHash,
+      username,
+      isBlocked: false,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+    },
+    create: {
+      email,
+      username,
+      name: 'Demo Owner',
+      passwordHash,
+      isEmailVerified: true,
+    },
     select: { id: true },
   });
 
@@ -130,7 +214,7 @@ async function seedDemo(
   });
 
   console.log(
-    `✔ demo: ${email} / DemoPass123 — userId=${user.id} farmId=${farm.id}`,
+    `✔ demo: ${email} (${username}) / ${maskIfCustom(password, 'DemoPass123')} — userId=${user.id} farmId=${farm.id}`,
   );
   return { farmId: farm.id, ownerUserId: user.id };
 }
@@ -143,6 +227,7 @@ async function seedDemo(
  */
 async function seedDemoMember(
   email: string,
+  username: string,
   name: string,
   password: string,
   farmId: string,
@@ -151,8 +236,20 @@ async function seedDemoMember(
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
   const user = await prisma.user.upsert({
     where: { email },
-    update: {},
-    create: { email, name, passwordHash, isEmailVerified: true },
+    update: {
+      passwordHash,
+      username,
+      isBlocked: false,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+    },
+    create: {
+      email,
+      username,
+      name,
+      passwordHash,
+      isEmailVerified: true,
+    },
     select: { id: true },
   });
   await prisma.farmMember.upsert({
@@ -160,7 +257,9 @@ async function seedDemoMember(
     update: { roleId },
     create: { farmId, userId: user.id, roleId },
   });
-  console.log(`✔ demo member: ${email} / ${password} (${name})`);
+  console.log(
+    `✔ demo member: ${email} (${username}) / ${maskIfCustom(password, password)} (${name})`,
+  );
 }
 
 /**
@@ -170,11 +269,13 @@ async function seedDemoMember(
  * TOTP code without going through the interactive setup flow). Never a real
  * production admin credential.
  */
-const DEMO_ADMIN_TOTP_SECRET = 'JBSWY3DPEHPK3PXP';
-
 async function seedPlatformAdmin(): Promise<void> {
-  const email = 'admin@rakhal.test';
-  const password = 'AdminPass123';
+  if (!SEED_PLATFORM_ADMIN) {
+    console.log('· test platform admin skipped (SEED_PLATFORM_ADMIN=false)');
+    return;
+  }
+  const email = process.env.SEED_ADMIN_EMAIL ?? 'admin@rakhal.test';
+  const password = SEED_PASSWORDS.admin;
   const passwordHash = await argon2.hash(password, { type: argon2.argon2id });
   await prisma.platformAdmin.upsert({
     where: { email },
@@ -195,7 +296,7 @@ async function seedPlatformAdmin(): Promise<void> {
     },
   });
   console.log(
-    `✔ platform admin: ${email} / ${password} (2FA secret: ${DEMO_ADMIN_TOTP_SECRET})`,
+    `✔ platform admin: ${email} / ${maskIfCustom(password, 'AdminPass123')} (2FA secret: ${maskIfCustom(DEMO_ADMIN_TOTP_SECRET, 'JBSWY3DPEHPK3PXP')})`,
   );
 }
 
@@ -207,7 +308,7 @@ async function seedPlatformAdmin(): Promise<void> {
  */
 async function seedPrimarySuperAdmin(): Promise<void> {
   const email = process.env.SUPERADMIN_EMAIL ?? 'mdgalib23@gmail.com';
-  const isProd = process.env.NODE_ENV === 'production';
+  const isProd = process.env.NODE_ENV === 'production' && !IS_STAGING;
   const password =
     process.env.SUPERADMIN_PASSWORD ?? (isProd ? undefined : '12345678');
   if (!password) {
@@ -1610,6 +1711,9 @@ async function seedDemoDashboardHistory(
 }
 
 async function main(): Promise<void> {
+  console.log(
+    `Seeding ${describeTarget()} — NODE_ENV=${process.env.NODE_ENV ?? 'development'}, demo data: ${SEED_DEMO_DATA ? 'on' : 'off'}, test accounts: ${SEED_TEST_ACCOUNTS ? 'on' : 'off'}, test platform admin: ${SEED_PLATFORM_ADMIN ? 'on' : 'off'}`,
+  );
   await seedPermissions();
   const ownerRoleId = await seedRole(SYSTEM_ROLES.OWNER);
   const managerRoleId = await seedRole(SYSTEM_ROLES.MANAGER);
@@ -1629,16 +1733,18 @@ async function main(): Promise<void> {
   const demo = await seedDemo(ownerRoleId);
   if (demo.farmId) {
     await seedDemoMember(
-      'manager@demo.rakhal.test',
+      process.env.SEED_MANAGER_EMAIL ?? 'manager@demo.rakhal.test',
+      process.env.SEED_MANAGER_USERNAME ?? 'demo_manager',
       'Demo Manager',
-      'ManagerPass123',
+      SEED_PASSWORDS.manager,
       demo.farmId,
       managerRoleId,
     );
     await seedDemoMember(
-      'worker@demo.rakhal.test',
+      process.env.SEED_WORKER_EMAIL ?? 'worker@demo.rakhal.test',
+      process.env.SEED_WORKER_USERNAME ?? 'demo_worker',
       'Demo Worker',
-      'WorkerPass123',
+      SEED_PASSWORDS.worker,
       demo.farmId,
       workerRoleId,
     );
@@ -1660,11 +1766,15 @@ async function main(): Promise<void> {
   await seedInvoiceCounter();
   await seedPlatformAdmin();
   await seedPrimarySuperAdmin();
-  await seedLegalConsent(demo.ownerUserId ?? null);
+  await seedLegalConsent(demo.ownerUserId || null);
   if (demo.farmId) {
     await seedDemoSubscription(demo.farmId);
   }
-  await seedTestAccounts(prisma, ownerRoleId);
+  if (SEED_TEST_ACCOUNTS) {
+    await seedTestAccounts(prisma, ownerRoleId);
+  } else {
+    console.log('· test fixture accounts skipped (SEED_TEST_ACCOUNTS=false)');
+  }
 }
 
 main()

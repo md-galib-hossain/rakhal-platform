@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaClient, SubscriptionStatus } from '@prisma/client';
 import * as argon2 from 'argon2';
+import { DEFAULT_CHART_OF_ACCOUNTS } from '../src/modules/finance-v2/ledger/domain/default-chart-of-accounts';
 
 /**
  * Stage-testing fixture accounts (user request 2026-08-09, no ticket #).
@@ -17,15 +18,19 @@ import * as argon2 from 'argon2';
 
 interface TestUserSpec {
   email: string;
+  username: string;
   password: string;
   name: string;
   farms: { slug: string; name: string }[];
 }
 
+const TEST_PASSWORD = process.env.SEED_TEST_ACCOUNTS_PASSWORD ?? '12345678';
+
 const TEST_USERS: TestUserSpec[] = [
   {
     email: 'mdgalibdev23@gmail.com',
-    password: '12345678',
+    username: 'galib',
+    password: TEST_PASSWORD,
     name: 'MD Galib',
     farms: [
       { slug: 'galib-dairy-1', name: 'Galib Dairy Farm' },
@@ -34,7 +39,8 @@ const TEST_USERS: TestUserSpec[] = [
   },
   {
     email: 'mahadihasann@gmail.com',
-    password: '12345678',
+    username: 'mahadi',
+    password: TEST_PASSWORD,
     name: 'Mahadi Hasan',
     farms: [
       { slug: 'mahadi-dairy-1', name: 'Mahadi Dairy Farm' },
@@ -589,6 +595,46 @@ async function seedFarmSubscription(
   });
 }
 
+async function seedFarmLedgerAccounts(
+  prisma: PrismaClient,
+  farmId: string,
+): Promise<void> {
+  await prisma.ledgerAccount.createMany({
+    data: DEFAULT_CHART_OF_ACCOUNTS.map((account) => ({
+      farmId,
+      category: account.category,
+      code: account.code,
+      name: account.name,
+      isSystem: true,
+    })),
+    skipDuplicates: true,
+  });
+}
+
+async function seedUserConsent(
+  prisma: PrismaClient,
+  userId: string,
+): Promise<void> {
+  const docs = await prisma.legalDocument.findMany({
+    where: { published: true },
+    select: { id: true, type: true, version: true },
+  });
+  for (const doc of docs) {
+    await prisma.consentRecord.upsert({
+      where: {
+        userId_documentId: { userId, documentId: doc.id },
+      },
+      update: {},
+      create: {
+        userId,
+        documentId: doc.id,
+        documentType: doc.type,
+        version: doc.version,
+      },
+    });
+  }
+}
+
 /**
  * Entry point, called from `seed.ts#main` after roles/plans/legal-docs exist.
  * Requires `seedSubscriptionPlans()` (Pro plan) to have already run.
@@ -603,15 +649,24 @@ export async function seedTestAccounts(
     });
     const user = await prisma.user.upsert({
       where: { email: spec.email },
-      update: {},
+      update: {
+        passwordHash,
+        username: spec.username,
+        isBlocked: false,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
       create: {
         email: spec.email,
+        username: spec.username,
         name: spec.name,
         passwordHash,
         isEmailVerified: true,
       },
       select: { id: true },
     });
+
+    await seedUserConsent(prisma, user.id);
 
     for (const f of spec.farms) {
       const existingFarm = await prisma.farm.findFirst({
@@ -636,14 +691,17 @@ export async function seedTestAccounts(
         create: { farmId: farm.id, userId: user.id, roleId: ownerRoleId },
       });
 
+      await seedFarmLedgerAccounts(prisma, farm.id);
       await seedFarmSubscription(prisma, farm.id);
       const farmPrefix = f.slug.replace(/-/g, '_');
       await seedHerd(prisma, farm.id, user.id, farmPrefix);
       await seedFeedInventory(prisma, farm.id, user.id, farmPrefix);
     }
 
+    const maskedPass =
+      spec.password === '12345678' ? spec.password : '<from env>';
     console.log(
-      `✔ test account: ${spec.email} / ${spec.password} — ${spec.farms.length} farms (Pro)`,
+      `✔ test account: ${spec.email} (${spec.username}) / ${maskedPass} — ${spec.farms.length} farms (Pro)`,
     );
   }
 }
