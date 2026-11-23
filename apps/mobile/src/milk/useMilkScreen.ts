@@ -168,9 +168,21 @@ export function useMilkScreen() {
     });
   }, [ready, sync]);
 
-  // Refresh whenever lastSyncedAt or outbox waiting count changes
+  const isInitialSyncMount = useRef(true);
+
+  // Refresh whenever lastSyncedAt or outbox waiting count changes.
+  // Immediate on mount, debounced on subsequent sync draining bursts to
+  // prevent rapid SQLite queries and UI re-renders during outbox storm.
   useEffect(() => {
-    reloadData();
+    if (isInitialSyncMount.current) {
+      isInitialSyncMount.current = false;
+      reloadData();
+      return;
+    }
+    const timer = setTimeout(() => {
+      reloadData();
+    }, 150);
+    return () => clearTimeout(timer);
   }, [reloadData, snapshot.lastSyncedAt, snapshot.waiting, snapshot.conflict, snapshot.failed]);
 
   // Primary tank & withholding tank lookup
@@ -561,6 +573,18 @@ export function useMilkScreen() {
 
     try {
       for (const s of configuredSessions) {
+        // Only save sessions that have dirty/draft edits to prevent redundant network calls
+        const hasDirtyEdits =
+          (s === session && (Object.keys(yieldOverrides).length > 0 || rows.some((r) => r.status !== 'saved' && (r.yieldL ?? 0) > 0))) ||
+          Object.keys(multiYieldOverrides).some((id) => multiYieldOverrides[id]?.[s] !== undefined) ||
+          Object.keys(tankOverrides).some((id) => tankOverrides[id]?.[s] !== undefined) ||
+          rows.some((r) => {
+            const st = r.sessions?.[s]?.status;
+            return st !== 'saved' && (r.sessions?.[s]?.yieldL ?? 0) > 0;
+          });
+
+        if (!hasDirtyEdits) continue;
+
         const entriesToSave: Array<{
           cattleId: string;
           yieldL: number | null;
@@ -599,6 +623,8 @@ export function useMilkScreen() {
       }
 
       if (savedAny) {
+        setYieldOverrides({});
+        setMultiYieldOverrides({});
         reloadData();
         toast.show({
           message: t('milk.saveSuccess'),
@@ -616,7 +642,22 @@ export function useMilkScreen() {
     } finally {
       setIsSaving(false);
     }
-  }, [configuredSessions, rows, session, tankOverrides, selectedTankId, sync, date, reloadData, toast, t, isSaving, isSubmitting]);
+  }, [
+    isSaving,
+    isSubmitting,
+    configuredSessions,
+    session,
+    yieldOverrides,
+    rows,
+    multiYieldOverrides,
+    tankOverrides,
+    selectedTankId,
+    sync,
+    date,
+    reloadData,
+    toast,
+    t,
+  ]);
 
   // Save collection (entries + submit session) with robust feedback
   const saveCollection = useCallback(async () => {
@@ -625,6 +666,18 @@ export function useMilkScreen() {
 
     try {
       for (const s of configuredSessions) {
+        // Only save sessions that are the target session or have dirty/unsaved edits
+        const hasDirtyEdits =
+          s === session ||
+          Object.keys(multiYieldOverrides).some((id) => multiYieldOverrides[id]?.[s] !== undefined) ||
+          Object.keys(tankOverrides).some((id) => tankOverrides[id]?.[s] !== undefined) ||
+          rows.some((r) => {
+            const st = r.sessions?.[s]?.status;
+            return st !== 'saved' && (r.sessions?.[s]?.yieldL ?? 0) > 0;
+          });
+
+        if (!hasDirtyEdits) continue;
+
         const entriesToSave: Array<{
           cattleId: string;
           yieldL: number | null;
@@ -672,6 +725,9 @@ export function useMilkScreen() {
         },
       });
 
+      setYieldOverrides({});
+      setMultiYieldOverrides({});
+
       reloadData();
       toast.show({
         message: t('milk.saveSuccess'),
@@ -688,7 +744,21 @@ export function useMilkScreen() {
     } finally {
       setIsSaving(false);
     }
-  }, [configuredSessions, rows, session, tankOverrides, selectedTankId, sync, date, reloadData, toast, t, isSaving, isSubmitting]);
+  }, [
+    isSaving,
+    isSubmitting,
+    configuredSessions,
+    session,
+    multiYieldOverrides,
+    tankOverrides,
+    rows,
+    selectedTankId,
+    sync,
+    date,
+    reloadData,
+    toast,
+    t,
+  ]);
 
   // Submit current session
   const submitSession = useCallback(async () => {

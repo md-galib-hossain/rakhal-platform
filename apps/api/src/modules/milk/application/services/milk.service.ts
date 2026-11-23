@@ -693,16 +693,19 @@ export class MilkService {
     );
 
     // AQR: milk session logged (+0.5) per newly-submitted cow (RD-006 last emitter).
-    for (const entry of pending) {
-      await this.aqrService.applyEvent(
-        farmId,
-        entry.cattleId,
-        'milk_session_logged',
-        {
-          actorId: userId,
-        },
-      );
-    }
+    // Parallelized across pending cattle to avoid sequential N-query round-trip bottlenecks.
+    await Promise.all(
+      pending.map((entry) =>
+        this.aqrService.applyEvent(
+          farmId,
+          entry.cattleId,
+          'milk_session_logged',
+          {
+            actorId: userId,
+          },
+        ),
+      ),
+    );
 
     // Activity Log: session summary (PRD §10.5.4).
     await this.activityLog.record({
