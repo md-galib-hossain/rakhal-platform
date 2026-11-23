@@ -1,21 +1,26 @@
 import { createContext, memo, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useAuth } from '../auth/AuthProvider.tsx';
-import type { NotificationListResult } from './notification-types.ts';
+import type { AnimalScope, NotificationListResult } from './notification-types.ts';
 import { NotificationSheet, type NotificationTabKey } from './NotificationSheet.tsx';
 
+export interface NotificationOpenOptions {
+  animal?: AnimalScope | null;
+}
+
 export interface NotificationContextValue {
-  openNotifications: (initialTab?: NotificationTabKey) => void;
+  openNotifications: (initialTab?: NotificationTabKey, options?: NotificationOpenOptions) => void;
   closeNotifications: () => void;
   unreadCount: number;
   refreshUnreadCount: () => void;
 }
 
-const NotificationContext = createContext<NotificationContextValue | null>(null);
+export const NotificationContext = createContext<NotificationContextValue | null>(null);
 
 export const NotificationProvider = memo(function NotificationProvider({ children }: { children: ReactNode }) {
   const { client, status } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [initialTab, setInitialTab] = useState<NotificationTabKey>('inbox');
+  const [scopedAnimal, setScopedAnimal] = useState<AnimalScope | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const refreshUnreadCount = useCallback(async () => {
@@ -39,13 +44,18 @@ export const NotificationProvider = memo(function NotificationProvider({ childre
     return () => clearInterval(interval);
   }, [refreshUnreadCount]);
 
-  const openNotifications = useCallback((tab: NotificationTabKey = 'inbox') => {
-    setInitialTab(tab);
-    setIsOpen(true);
-  }, []);
+  const openNotifications = useCallback(
+    (tab: NotificationTabKey = 'inbox', options?: NotificationOpenOptions) => {
+      setInitialTab(tab);
+      setScopedAnimal(options?.animal ?? null);
+      setIsOpen(true);
+    },
+    [],
+  );
 
   const closeNotifications = useCallback(() => {
     setIsOpen(false);
+    setScopedAnimal(null);
     void refreshUnreadCount();
   }, [refreshUnreadCount]);
 
@@ -62,7 +72,14 @@ export const NotificationProvider = memo(function NotificationProvider({ childre
   return (
     <NotificationContext.Provider value={value}>
       {children}
-      <NotificationSheet visible={isOpen} onClose={closeNotifications} initialTab={initialTab} />
+      {isOpen ? (
+        <NotificationSheet
+          visible={isOpen}
+          onClose={closeNotifications}
+          initialTab={initialTab}
+          initialAnimal={scopedAnimal}
+        />
+      ) : null}
     </NotificationContext.Provider>
   );
 });

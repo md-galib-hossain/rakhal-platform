@@ -4,6 +4,7 @@ import { AccessibilityInfo } from 'react-native';
 import { fail, ok, sessionReply, type Handler, type Reply } from '../test-utils/auth-harness.tsx';
 import { mount, restoreMount } from '../test-utils/mount.tsx';
 import { syncHarness } from '../test-utils/sync-harness.tsx';
+import { NotificationContext } from '../notifications/NotificationContext.tsx';
 import { CattleDetailScreen } from './CattleDetailScreen.tsx';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -57,6 +58,13 @@ function server(detail: { profile?: Reply; overview?: Reply }): Handler {
     if (url.endsWith('/farms')) return ok([{ id: 'farm-1', name: 'Green Valley', slug: 'gv', role: 'OWNER' }]);
     if (url.includes('/cattle/c1/profile')) return detail.profile ?? ok(profile);
     if (url.includes('/cattle/c1/overview')) return detail.overview ?? ok(overview);
+    if (url.includes('/notifications')) {
+      return ok({
+        unread_count: 0,
+        notifications: [],
+        meta: { page: 1, per_page: 20, total: 0 },
+      });
+    }
     if (method === 'GET' && /\/cattle(\?|$)/.test(url)) return ok([row]);
     if (method === 'GET') return ok([]);
     return ok({ ok: true });
@@ -156,6 +164,36 @@ describe('CattleDetailScreen', () => {
     await open(h, 'bn');
     await waitFor(() => expect(screen.getByText('দুধ দিচ্ছে')).toBeTruthy());
     expect(screen.getByLabelText('ফিরে যান')).toBeTruthy();
+  });
+
+  it('tapping header notification icon opens notification sheet scoped to the animal', async () => {
+    const openNotifications = jest.fn();
+    const h = syncHarness({ handler: server({}) });
+    await mount(
+      <h.Tree>
+        <NotificationContext.Provider
+          value={{
+            openNotifications,
+            closeNotifications: jest.fn(),
+            unreadCount: 0,
+            refreshUnreadCount: jest.fn(),
+          }}
+        >
+          <CattleDetailScreen />
+        </NotificationContext.Provider>
+      </h.Tree>,
+      { locale: 'en' },
+    );
+    await waitFor(() => expect(screen.getByTestId('header-btn-remind')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('header-btn-remind'));
+    expect(openNotifications).toHaveBeenCalledWith('inbox', {
+      animal: {
+        id: 'c1',
+        tagNumber: 'BD-001',
+        name: 'Rupa',
+        group: 'COW',
+      },
+    });
   });
 
   it('Back goes back; with no history it goes to the cattle list', async () => {

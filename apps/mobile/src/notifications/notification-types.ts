@@ -1,5 +1,12 @@
 export type NotificationPriority = 'critical' | 'high' | 'medium' | 'low';
 
+export interface AnimalScope {
+  id: string;
+  tagNumber: string;
+  name?: string | null;
+  group?: string | null;
+}
+
 export interface NotificationListItem {
   id: string;
   type: string;
@@ -7,6 +14,7 @@ export interface NotificationListItem {
   title: string;
   message: string;
   link: string | null;
+  data?: Record<string, unknown> | null;
   read: boolean;
   created_at: string;
 }

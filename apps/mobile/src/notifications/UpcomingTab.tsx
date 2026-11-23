@@ -1,16 +1,26 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { Button } from '../components/actions/Button.tsx';
 import { ConfirmSheet } from '../components/feedback/ConfirmSheet.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { Text } from '../components/primitives/Text.tsx';
 import type { MessageKey } from '../i18n/messages.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
+import { NotificationFilterTrigger } from './NotificationFilterTrigger.tsx';
 import { CalendarClockIcon, EditIcon, PauseIcon, TrashIcon } from './notification-icons.tsx';
-import type { UpcomingItem } from './notification-types.ts';
+import type { AnimalScope, UpcomingItem } from './notification-types.ts';
 import { useNotifications } from './useNotifications.ts';
 
 interface UpcomingTabProps {
+  scopedAnimal?: AnimalScope | null;
+  selectedAnimals?: AnimalScope[];
+  category?: string | null;
+  group?: string | null;
+  cattleList?: AnimalScope[];
+  activeFilterCount?: number;
+  onOpenFilters?: () => void;
+  onResetFilters?: () => void;
   onEdit?: (scheduleId: string) => void;
   testID?: string;
 }
@@ -24,6 +34,14 @@ const RANGE_LABELS: Record<UpcomingRange, MessageKey> = {
 };
 
 export const UpcomingTab = memo(function UpcomingTab({
+  scopedAnimal,
+  selectedAnimals,
+  category,
+  group,
+  cattleList,
+  activeFilterCount = 0,
+  onOpenFilters,
+  onResetFilters,
   onEdit,
   testID = 'notification-upcoming-tab',
 }: UpcomingTabProps) {
@@ -59,7 +77,6 @@ export const UpcomingTab = memo(function UpcomingTab({
         await pauseSchedule(item.schedule_id);
         void fetchItems();
       } catch {
-        // try resume if paused
         try {
           await resumeSchedule(item.schedule_id);
           void fetchItems();
@@ -82,66 +99,201 @@ export const UpcomingTab = memo(function UpcomingTab({
     }
   }, [cancellingItem, cancelSchedule, fetchItems]);
 
+  const animals = useMemo(() => {
+    if (selectedAnimals && selectedAnimals.length > 0) return selectedAnimals;
+    if (scopedAnimal) return [scopedAnimal];
+    return [];
+  }, [selectedAnimals, scopedAnimal]);
+
+  const hasExtraFilters = Boolean(
+    (category && category !== 'all') || animals.length > 0 || (group && group !== 'all'),
+  );
+
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      // 1. Category filter
+      if (category && category !== 'all') {
+        const itemCat = item.category?.toLowerCase() || '';
+        const targetCat = category.toLowerCase();
+        if (itemCat) {
+          if (itemCat !== targetCat && !itemCat.includes(targetCat)) return false;
+        } else {
+          const textToSearch = `${item.title} ${item.body || ''}`.toLowerCase();
+          if (!textToSearch.includes(targetCat)) return false;
+        }
+      }
+
+      // 2. Animal filter (supports multi-selection)
+      if (animals.length > 0) {
+        const textToSearch = `${item.title} ${item.body || ''}`.toLowerCase();
+        const animalMatched = animals.some((animal) => {
+          const linkMatch = item.link
+            ? item.link.includes(animal.id) || item.link.includes(animal.tagNumber)
+            : false;
+          const tag = animal.tagNumber.toLowerCase();
+          const tagRegex = new RegExp(`(?:^|[^a-z0-9])#?${tag}(?:[^a-z0-9]|$)`, 'i');
+          const tagMatch = tagRegex.test(textToSearch);
+          const nameMatch =
+            animal.name && animal.name.trim().length > 1
+              ? textToSearch.includes(animal.name.trim().toLowerCase())
+              : false;
+          const animalIdsMatch = (item as unknown as { animal_ids?: string[] }).animal_ids?.includes(animal.id);
+
+          return linkMatch || tagMatch || nameMatch || animalIdsMatch;
+        });
+
+        if (!animalMatched) {
+          return false;
+        }
+      }
+
+      // 3. Cattle group filter
+      if (group && group !== 'all') {
+        const g = group.toLowerCase();
+        let groupMatched = false;
+
+        if (animals.length > 0 && animals.some((a) => a.group?.toLowerCase() === g)) {
+          groupMatched = true;
+        }
+
+        if (!groupMatched && cattleList && cattleList.length > 0) {
+          const matchingCattle = cattleList.filter((c) => c.group?.toLowerCase() === g);
+          const textToSearch = `${item.title} ${item.body || ''} ${item.link || ''}`.toLowerCase();
+          for (const c of matchingCattle) {
+            if (
+              (item.link && (item.link.includes(c.id) || item.link.includes(c.tagNumber))) ||
+              textToSearch.includes(c.tagNumber.toLowerCase()) ||
+              (c.name && c.name.length > 1 && textToSearch.includes(c.name.toLowerCase()))
+            ) {
+              groupMatched = true;
+              break;
+            }
+          }
+        }
+
+        if (!groupMatched) {
+          const textToSearch = `${item.title} ${item.body || ''}`.toLowerCase();
+          const groupRegex = new RegExp(`(?:^|[^a-z0-9])${g}(?:[^a-z0-9]|$)`, 'i');
+          if (groupRegex.test(textToSearch)) {
+            groupMatched = true;
+          }
+        }
+
+        if (!groupMatched) return false;
+      }
+
+      return true;
+    });
+  }, [items, category, animals, group, cattleList]);
+
   // Group items by day
   const grouped = useMemo(() => {
     const map = new Map<string, UpcomingItem[]>();
-    for (const it of items) {
+    for (const it of filteredItems) {
       const day = it.fire_at_local ? it.fire_at_local.slice(0, 10) : it.fire_at.slice(0, 10);
       const list = map.get(day) || [];
       list.push(it);
       map.set(day, list);
     }
     return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-  }, [items]);
+  }, [filteredItems]);
 
   return (
     <View style={{ flex: 1 }} testID={testID}>
-      {/* Range Filter Pills */}
+      {/* Unified Subheader: [ Today | 7d | 14d ] on Left, [ FilterIcon ] on Right */}
       <View
         style={{
           flexDirection: 'row',
-          backgroundColor: colors.muted,
-          borderRadius: tokens.radius.md,
-          padding: 2,
-          marginVertical: tokens.spacing.sm,
-          borderWidth: 1,
-          borderColor: colors.border,
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: tokens.spacing.xs,
+          marginBottom: tokens.spacing.xs,
+          gap: tokens.spacing.sm,
         }}
       >
-        {(['today', 'week', 'fortnight'] as const).map((r) => (
-          <PressableSurface
-            key={r}
-            accessibilityRole="button"
-            pressedStyle="overlay"
-            onPress={() => setRange(r)}
-            testID={`upcoming-range-${r}`}
-            style={{
-              flex: 1,
-              paddingVertical: 6,
-              borderRadius: tokens.radius.md - 2,
-              backgroundColor: range === r ? colors.card : 'transparent',
-              borderWidth: range === r ? 1 : 0,
-              borderColor: colors.border,
-              minHeight: 32,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text
-              role="caption"
-              color={range === r ? 'primary' : 'mutedForeground'}
-              style={{ fontWeight: '700', fontSize: 13 }}
+        <View
+          style={{
+            flexDirection: 'row',
+            backgroundColor: colors.muted,
+            borderRadius: tokens.radius.md,
+            padding: 2,
+            borderWidth: 1,
+            borderColor: colors.border,
+            height: 32,
+            alignItems: 'center',
+          }}
+        >
+          {(['today', 'week', 'fortnight'] as const).map((r) => (
+            <PressableSurface
+              key={r}
+              accessibilityRole="button"
+              pressedStyle="overlay"
+              onPress={() => setRange(r)}
+              testID={`upcoming-range-${r}`}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              style={{
+                paddingHorizontal: tokens.spacing.sm,
+                height: 26,
+                borderRadius: tokens.radius.md - 2,
+                backgroundColor: range === r ? colors.card : 'transparent',
+                borderWidth: range === r ? 1 : 0,
+                borderColor: colors.border,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              {t(RANGE_LABELS[r])}
-            </Text>
-          </PressableSurface>
-        ))}
+              <Text
+                role="caption"
+                color={range === r ? 'primary' : 'mutedForeground'}
+                style={{ fontWeight: '700', fontSize: 12 }}
+              >
+                {t(RANGE_LABELS[r])}
+              </Text>
+            </PressableSurface>
+          ))}
+        </View>
+
+        {onOpenFilters ? (
+          <NotificationFilterTrigger
+            activeFilterCount={activeFilterCount}
+            onPress={onOpenFilters}
+            testID="notif-filter-trigger"
+          />
+        ) : null}
       </View>
 
       {/* Content */}
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
           <ActivityIndicator size="small" color={colors.primary} />
+        </View>
+      ) : hasExtraFilters && items.length > 0 && filteredItems.length === 0 ? (
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingVertical: 48,
+            paddingHorizontal: 24,
+            gap: 12,
+          }}
+          testID="upcoming-filtered-empty-state"
+        >
+          <Text role="title" color="foreground" style={{ fontWeight: '700', fontSize: 16 }}>
+            {t('notif.upcoming.emptyFiltered')}
+          </Text>
+          <Text role="body" color="mutedForeground" style={{ textAlign: 'center', fontSize: 14 }}>
+            {t('notif.upcoming.emptyFilteredDescription')}
+          </Text>
+          {onResetFilters ? (
+            <Button
+              label={t('notif.filters.reset')}
+              variant="secondary"
+              size="md"
+              onPress={onResetFilters}
+              testID="upcoming-reset-filters-btn"
+            />
+          ) : null}
         </View>
       ) : items.length === 0 ? (
         <View

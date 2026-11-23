@@ -122,3 +122,37 @@ export function TelegramIcon({ size = 20, color = 'currentColor' }: IconProps) {
     </Svg>
   );
 }
+
+export function FilterIcon({ size = 16, color = 'currentColor' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function XIcon({ size = 16, color = 'currentColor' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Line x1="18" y1="6" x2="6" y2="18" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Line x1="6" y1="6" x2="18" y2="18" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function CowIcon({ size = 16, color = 'currentColor' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M5 4c0 3 2 5 4 5M19 4c0 3-2 5-4 5M7 9h10c1.5 0 2.5 1 2.5 3v4c0 2-1.5 3.5-3.5 3.5h-8C6 19.5 4.5 18 4.5 16v-4c0-2 1-3 2.5-3z"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Circle cx="9" cy="14" r="1" fill={color} />
+      <Circle cx="15" cy="14" r="1" fill={color} />
+    </Svg>
+  );
+}
+

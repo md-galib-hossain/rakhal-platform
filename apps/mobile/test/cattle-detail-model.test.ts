@@ -42,6 +42,25 @@ test('parseOverview parses milk records, weight history, and bcs', () => {
   assert.equal(parsed.bcs_records.length, 1);
 });
 
+test('parseOverview normalizes ISO timestamp dates to YYYY-MM-DD', () => {
+  const raw = {
+    recent_milk_records: [
+      { date: '2026-11-23T08:30:00.000Z', morning_l: 10, total_l: 10 },
+    ],
+    weight_history: [
+      { date: '2026-11-20T12:00:00.000Z', weight_kg: 450 },
+    ],
+    bcs_records: [
+      { date: '2026-11-15T00:00:00.000Z', score: 3.25 },
+    ],
+  };
+  const parsed = parseOverview(raw);
+  assert.ok(parsed);
+  assert.equal(parsed.recent_milk_records[0]?.date, '2026-11-23');
+  assert.equal(parsed.weight_history[0]?.date, '2026-11-20');
+  assert.equal(parsed.bcs_records[0]?.date, '2026-11-15');
+});
+
 test('parseReproductionSummary parses female repro metrics', () => {
   const raw = {
     status: 'PREGNANT',
@@ -218,6 +237,43 @@ test('milkFigures computes today, 7d average and week total', () => {
   assert.equal(fig.weekTotal, 97);
   assert.equal(fig.hasData, true);
   assert.equal(fig.series.length, 7);
+  assert.deepEqual(fig.series, [12, 13, 14, 13, 15, 14, 16]);
+});
+
+test('milkFigures handles full ISO timestamps matching today and calculates week metrics', () => {
+  const records = [
+    { date: '2026-11-20T00:00:00.000Z', total_l: 10 },
+    { date: '2026-11-22T00:00:00.000Z', total_l: 12 },
+    { date: '2026-11-23T08:30:00.000Z', total_l: 15 },
+  ];
+
+  const fig = milkFigures(records, '2026-11-23');
+  assert.equal(fig.today, 15);
+  assert.equal(fig.weekTotal, 37);
+  assert.equal(fig.hasData, true);
+  assert.equal(fig.series.length, 7);
+  // Last 7 days: Nov 17..Nov 23
+  // Nov 17: 0, Nov 18: 0, Nov 19: 0, Nov 20: 10, Nov 21: 0, Nov 22: 12, Nov 23: 15
+  assert.deepEqual(fig.series, [0, 0, 0, 10, 0, 12, 15]);
+});
+
+test('milkFigures handles single-day entry for today with 6 leading zeros', () => {
+  const records = [{ date: '2026-11-23', total_l: 14.5 }];
+  const fig = milkFigures(records, '2026-11-23');
+  assert.equal(fig.today, 14.5);
+  assert.equal(fig.weekTotal, 14.5);
+  assert.equal(fig.hasData, true);
+  assert.equal(fig.series.length, 7);
+  assert.deepEqual(fig.series, [0, 0, 0, 0, 0, 0, 14.5]);
+});
+
+test('milkFigures handles zero records with 7 zeros and null today', () => {
+  const fig = milkFigures([], '2026-11-23');
+  assert.equal(fig.today, null);
+  assert.equal(fig.weekTotal, 0);
+  assert.equal(fig.hasData, false);
+  assert.equal(fig.series.length, 7);
+  assert.deepEqual(fig.series, [0, 0, 0, 0, 0, 0, 0]);
 });
 
 test('weightTrend calculates 30-day delta and overview cards applicability', () => {

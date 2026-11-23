@@ -14,6 +14,7 @@ import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 import { CalendarIcon, CheckIcon, ChevronDownIcon, ClockIcon } from './notification-icons.tsx';
 import type {
+  AnimalScope,
   CreateScheduleInput,
   FarmMemberOption,
   ScheduleAudienceMode,
@@ -23,6 +24,7 @@ import { useNotifications } from './useNotifications.ts';
 
 interface NewTabProps {
   editingScheduleId?: string | null;
+  initialAnimal?: AnimalScope | null;
   onDone?: () => void;
   onCancel?: () => void;
   testID?: string;
@@ -36,6 +38,7 @@ interface AnimalOption {
 
 export const NewTab = memo(function NewTab({
   editingScheduleId,
+  initialAnimal,
   onDone,
   onCancel,
   testID = 'notification-new-tab',
@@ -65,7 +68,12 @@ export const NewTab = memo(function NewTab({
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
-  const [selectedAnimals, setSelectedAnimals] = useState<AnimalOption[]>([]);
+  const [selectedAnimals, setSelectedAnimals] = useState<AnimalOption[]>(() => {
+    if (initialAnimal && !editingScheduleId) {
+      return [{ id: initialAnimal.id, tagNumber: initialAnimal.tagNumber, name: initialAnimal.name }];
+    }
+    return [];
+  });
   const [animalModalOpen, setAnimalModalOpen] = useState(false);
   const [animalSearch, setAnimalSearch] = useState('');
   const [availableAnimals, setAvailableAnimals] = useState<AnimalOption[]>([]);
@@ -73,6 +81,16 @@ export const NewTab = memo(function NewTab({
   const [members, setMembers] = useState<FarmMemberOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Sync initialAnimal if changed and not editing
+  useEffect(() => {
+    if (initialAnimal && !editingScheduleId) {
+      setSelectedAnimals((prev) => {
+        if (prev.some((a) => a.id === initialAnimal.id)) return prev;
+        return [{ id: initialAnimal.id, tagNumber: initialAnimal.tagNumber, name: initialAnimal.name }];
+      });
+    }
+  }, [initialAnimal, editingScheduleId]);
 
   // Load farm members and animals
   useEffect(() => {

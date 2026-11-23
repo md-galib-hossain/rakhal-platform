@@ -203,7 +203,16 @@ function DetailContent({ id }: { id: string }) {
             accessibilityRole="button"
             pressedStyle="overlay"
             accessibilityLabel={t('cattle.workspace.remindMe')}
-            onPress={() => notifications?.openNotifications('new')}
+            onPress={() =>
+              notifications?.openNotifications('inbox', {
+                animal: {
+                  id: detail.id,
+                  tagNumber: detail.tagNumber,
+                  name: detail.name,
+                  group: detail.animalCategory ?? detail.herdStatus,
+                },
+              })
+            }
             testID="header-btn-remind"
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={{
@@ -294,7 +303,14 @@ function DetailContent({ id }: { id: string }) {
         <WorkspaceHeader
           detail={detail}
           onRemindMe={() => {
-            notifications?.openNotifications('new');
+            notifications?.openNotifications('inbox', {
+              animal: {
+                id: detail.id,
+                tagNumber: detail.tagNumber,
+                name: detail.name,
+                group: detail.animalCategory ?? detail.herdStatus,
+              },
+            });
           }}
           onEdit={() => setEditOpen(true)}
           onDispose={() => setDisposeOpen(true)}

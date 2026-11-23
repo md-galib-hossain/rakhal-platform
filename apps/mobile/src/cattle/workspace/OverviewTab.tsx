@@ -129,7 +129,7 @@ export function OverviewTab({
   // 2. Milk Figures & Sparkline Bars
   const milkData = milkFigures(detail.overview?.recent_milk_records ?? [], today);
   const avgYield = detail.avgDailyYield7d ?? (milkData.weekTotal > 0 ? milkData.weekTotal / 7 : null);
-  const maxBar = Math.max(...milkData.series.slice(-7), 1);
+  const maxBar = Math.max(...milkData.series, 1);
 
   // 3. Health Summary
   const health = detail.health;
@@ -336,7 +336,7 @@ export function OverviewTab({
                 paddingVertical: 4,
               }}
             >
-              {(milkData.series.length > 0 ? milkData.series.slice(-7) : [0, 0, 0, 0, 0, 0, 0]).map((val, idx) => {
+              {milkData.series.map((val, idx) => {
                 const heightPct = Math.max(12, Math.round((val / maxBar) * 100));
                 return (
                   <View

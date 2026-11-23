@@ -324,7 +324,7 @@ export function parseOverview(raw: unknown): CattleOverviewData | null {
   const recent_milk_records: RecentMilkRecord[] = arr(o.recent_milk_records).map((item) => {
     const r = rec(item);
     return {
-      date: str(r?.date) ?? '',
+      date: (str(r?.date) ?? '').slice(0, 10),
       morning_l: num(r?.morning_l) ?? 0,
       noon_l: num(r?.noon_l) ?? 0,
       evening_l: num(r?.evening_l) ?? 0,
@@ -336,7 +336,7 @@ export function parseOverview(raw: unknown): CattleOverviewData | null {
   const weight_history: WeightHistoryRecord[] = arr(o.weight_history).map((item) => {
     const r = rec(item);
     return {
-      date: str(r?.date) ?? '',
+      date: (str(r?.date) ?? '').slice(0, 10),
       weight_kg: num(r?.weight_kg) ?? 0,
     };
   }).filter((r) => Boolean(r.date));
@@ -344,7 +344,7 @@ export function parseOverview(raw: unknown): CattleOverviewData | null {
   const bcs_records: BcsRecord[] = arr(o.bcs_records).map((item) => {
     const r = rec(item);
     return {
-      date: str(r?.date) ?? '',
+      date: (str(r?.date) ?? '').slice(0, 10),
       score: num(r?.score) ?? 0,
     };
   }).filter((r) => Boolean(r.date));
@@ -652,14 +652,30 @@ export function calvingsShown(totalCalvings: number | null | undefined, dim: num
 }
 
 export function milkFigures(records: { date: string; total_l: number }[], today: string) {
-  const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date));
-  const weekStart = addDaysIso(today, -6);
-  const week = sorted.filter((r) => r.date >= weekStart && r.date <= today);
+  const normToday = today.slice(0, 10);
+  const byDate = new Map<string, number>();
+  for (const r of records) {
+    const d = r.date.slice(0, 10);
+    if (!d) continue;
+    byDate.set(d, (byDate.get(d) ?? 0) + (Number.isFinite(r.total_l) ? r.total_l : 0));
+  }
+  const weekStart = addDaysIso(normToday, -6);
+  let weekTotal = 0;
+  for (const [d, total] of byDate.entries()) {
+    if (d >= weekStart && d <= normToday) {
+      weekTotal += total;
+    }
+  }
+  const series: number[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = addDaysIso(normToday, -i);
+    series.push(byDate.get(d) ?? 0);
+  }
   return {
-    series: sorted.slice(-14).map((r) => r.total_l),
-    today: sorted.find((r) => r.date === today)?.total_l ?? null,
-    weekTotal: week.reduce((sum, r) => sum + r.total_l, 0),
-    hasData: sorted.length > 0,
+    series,
+    today: byDate.get(normToday) ?? null,
+    weekTotal,
+    hasData: records.length > 0,
   };
 }
 

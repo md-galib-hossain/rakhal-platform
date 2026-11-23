@@ -1,17 +1,22 @@
-import Svg, { Path, Rect, G } from 'react-native-svg';
+import { Image, type ImageSourcePropType } from 'react-native';
 import type { IconProps } from './types.ts';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const clipboardSource = require('./clipboard.png') as ImageSourcePropType;
+
 /**
- * Tasks icon (Official Lucide `clipboard-check`): 24x24 2dp stroke geometry.
+ * Tasks icon rendered from brand asset (clipboard.png).
  */
 export function TasksIcon({ size = 24, color = 'currentColor' }: IconProps) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <G stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-        <Rect width={8} height={4} x={8} y={2} rx={1} />
-        <Path d="M16 4H18C19.1046 4 20 4.89543 20 6V20C20 21.1046 19.1046 22 18 22H6C4.89543 22 4 21.1046 4 20V6C4 4.89543 4.89543 4 6 4H8" />
-        <Path d="M9 14L11 16L15 12" />
-      </G>
-    </Svg>
+    <Image
+      source={clipboardSource}
+      style={{
+        width: size,
+        height: size,
+        tintColor: color === 'currentColor' ? undefined : color,
+      }}
+      resizeMode="contain"
+    />
   );
 }

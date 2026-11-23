@@ -1,5 +1,5 @@
 /**
- * One bottom-tab button (WP6, modernized with Flaticon SVG icons and active pill).
+ * One bottom-tab button (WP6, modernized with brand PNG icons and active pill).
  * Rendered through `TabTrigger asChild`, which hands it `isFocused` and `onPress`.
  * A tab the account may not see renders nothing.
  *

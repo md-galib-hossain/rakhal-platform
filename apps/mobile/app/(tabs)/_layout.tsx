@@ -5,7 +5,6 @@ import { AppHeader } from '../../src/navigation/AppHeader.tsx';
 import { TABS, visibleTabs } from '../../src/navigation/nav-config.ts';
 import { TabButton } from '../../src/navigation/TabButton.tsx';
 import { useLastTab } from '../../src/navigation/useLastTab.ts';
-import { NotificationProvider } from '../../src/notifications/NotificationContext.tsx';
 import { useLocale } from '../../src/providers/LocaleProvider.tsx';
 import { useTheme } from '../../src/providers/ThemeProvider.tsx';
 
@@ -23,28 +22,26 @@ export default function TabsLayout() {
   const visible = new Set(visibleTabs(permissions).map((tab) => tab.key));
 
   return (
-    <NotificationProvider>
-      <Tabs style={{ flex: 1, backgroundColor: colors.card }} options={{ backBehavior: 'initialRoute' }}>
-        <AppHeader />
-        <TabSlot style={{ flex: 1 }} />
-        <TabList
-          accessibilityRole="tablist"
-          accessibilityLabel={t('nav.tabsLabel')}
-          style={{
-            flexDirection: 'row',
-            backgroundColor: colors.card,
-            borderTopWidth: 1,
-            borderTopColor: colors.border,
-            paddingBottom: insets.bottom,
-          }}
-        >
-          {TABS.map((tab) => (
-            <TabTrigger key={tab.key} name={tab.routeName} href={tab.href} asChild>
-              <TabButton tab={tab} visible={visible.has(tab.key)} />
-            </TabTrigger>
-          ))}
-        </TabList>
-      </Tabs>
-    </NotificationProvider>
+    <Tabs style={{ flex: 1, backgroundColor: colors.card }} options={{ backBehavior: 'initialRoute' }}>
+      <AppHeader />
+      <TabSlot style={{ flex: 1 }} />
+      <TabList
+        accessibilityRole="tablist"
+        accessibilityLabel={t('nav.tabsLabel')}
+        style={{
+          flexDirection: 'row',
+          backgroundColor: colors.card,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          paddingBottom: insets.bottom,
+        }}
+      >
+        {TABS.map((tab) => (
+          <TabTrigger key={tab.key} name={tab.routeName} href={tab.href} asChild>
+            <TabButton tab={tab} visible={visible.has(tab.key)} />
+          </TabTrigger>
+        ))}
+      </TabList>
+    </Tabs>
   );
 }

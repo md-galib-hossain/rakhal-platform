@@ -1,17 +1,22 @@
-import Svg, { Circle, G } from 'react-native-svg';
+import { Image, type ImageSourcePropType } from 'react-native';
 import type { IconProps } from './types.ts';
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const applicationSource = require('./application.png') as ImageSourcePropType;
+
 /**
- * More icon (Official Lucide `more-horizontal`): 24x24 2dp stroke geometry.
+ * More icon rendered from brand asset (application.png).
  */
 export function MoreIcon({ size = 24, color = 'currentColor' }: IconProps) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <G fill={color}>
-        <Circle cx="12" cy="12" r="1.75" />
-        <Circle cx="19" cy="12" r="1.75" />
-        <Circle cx="5" cy="12" r="1.75" />
-      </G>
-    </Svg>
+    <Image
+      source={applicationSource}
+      style={{
+        width: size,
+        height: size,
+        tintColor: color === 'currentColor' ? undefined : color,
+      }}
+      resizeMode="contain"
+    />
   );
 }

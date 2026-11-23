@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { AuthGate } from '../src/auth/AuthGate.tsx';
 import { AuthProvider } from '../src/auth/AuthProvider.tsx';
 import { RootErrorBoundary } from '../src/components/RootErrorBoundary.tsx';
+import { NotificationProvider } from '../src/notifications/NotificationContext.tsx';
 import { SyncProvider } from '../src/offline/SyncProvider.tsx';
 import { AppProviders } from '../src/providers/AppProviders.tsx';
 import { useTheme } from '../src/providers/ThemeProvider.tsx';
@@ -20,7 +21,9 @@ function Shell() {
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <RootErrorBoundary>
         <AuthGate>
-          <Slot />
+          <NotificationProvider>
+            <Slot />
+          </NotificationProvider>
         </AuthGate>
       </RootErrorBoundary>
     </View>
