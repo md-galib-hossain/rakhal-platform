@@ -80,9 +80,6 @@ export function MilkScreenContent() {
     selectedTankId,
     setSelectedTankId,
     calendarDays,
-    isSessionSubmitted,
-    isSubmitting,
-    isSaving,
     updateYield,
     updateContainer,
     saveAllDrafts,
@@ -480,11 +477,11 @@ export function MilkScreenContent() {
           >
             {/* Primary Action Button: Save / Submit Milk Collection with Total embedded */}
             <Button
-              label={isSaving || isSubmitting ? t('milk.saving') : buttonLabel}
+              label={buttonLabel}
               variant="primary"
               size="lg"
-              loading={isSaving || isSubmitting}
-              disabled={!canLog || rows.length === 0 || isSaving || isSubmitting}
+              loading={false}
+              disabled={!canLog || rows.length === 0}
               onPress={saveCollection}
               testID="milk-submit-btn"
             />

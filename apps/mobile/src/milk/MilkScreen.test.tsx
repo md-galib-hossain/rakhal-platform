@@ -510,4 +510,71 @@ describe('MilkScreen', () => {
 
     expect(mockPush).toHaveBeenCalledWith('/cattle/c1');
   });
+
+  it('instantly saves collection with 0ms optimistic feedback without blocking spinner', async () => {
+    const h = syncHarness({
+      handler: serverHandler(),
+    });
+    await renderMilkScreen(h);
+
+    await waitFor(() => expect(screen.getByTestId('milk-cow-card-c2')).toBeTruthy());
+
+    // Enter yield for cow 2
+    const input = screen.getByTestId('milk-stepper-c2-input');
+    await act(async () => {
+      fireEvent.changeText(input, '6.0');
+    });
+
+    // Save collection
+    const saveBtn = screen.getByTestId('milk-submit-btn');
+    await act(async () => {
+      fireEvent.press(saveBtn);
+    });
+
+    // Verify success toast appears immediately
+    await waitFor(() => {
+      expect(screen.getByText(/Milk collection saved/)).toBeTruthy();
+    });
+
+    // Verify button remains enabled without spinning indicator
+    expect(screen.queryByTestId('activity-indicator')).toBeNull();
+
+    // Verify write is queued in outbox
+    await waitFor(() => {
+      const writes = h.writes();
+      expect(writes.some((w) => w.url.includes('/milk/log'))).toBe(true);
+    });
+  });
+
+  it('rolls back optimistic state and restores draft inputs when SQLite write fails', async () => {
+    const h = syncHarness({
+      handler: serverHandler(),
+    });
+    await renderMilkScreen(h);
+
+    await waitFor(() => expect(screen.getByTestId('milk-cow-card-c2')).toBeTruthy());
+
+    // Enter yield for cow 2
+    const input = screen.getByTestId('milk-stepper-c2-input');
+    await act(async () => {
+      fireEvent.changeText(input, '7.5');
+    });
+
+    // Mock enqueueBatch to simulate disk failure
+    jest.spyOn(h.sync(), 'enqueueBatch').mockRejectedValueOnce(new Error('disk I/O error'));
+
+    // Tap save button
+    const saveBtn = screen.getByTestId('milk-submit-btn');
+    await act(async () => {
+      fireEvent.press(saveBtn);
+    });
+
+    // Verify error toast appears upon failure
+    await waitFor(() => {
+      expect(screen.getByText(/Failed to save milk collection/)).toBeTruthy();
+    });
+
+    // Verify entered draft is rolled back into input so user does not lose their numbers
+    expect(screen.getByTestId('milk-stepper-c2-input').props.value).toBe('7.5');
+  });
 });

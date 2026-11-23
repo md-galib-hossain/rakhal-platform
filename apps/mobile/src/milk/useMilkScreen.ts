@@ -48,6 +48,7 @@ export function useMilkScreen() {
   const [outboxRows, setOutboxRows] = useState<OutboxRow[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
 
   // Tanks state
   const [tanks, setTanks] = useState<MilkTankOption[]>([]);
@@ -550,100 +551,137 @@ export function useMilkScreen() {
     }));
   }, []);
 
-  // Save all entered drafts across sessions
+  // Save all entered drafts across sessions (0ms Optimistic Update with Graceful Rollback)
   const saveAllDrafts = useCallback(async () => {
-    if (isSaving || isSubmitting) return;
-    setIsSaving(true);
-    let savedAny = false;
+    if (isSavingRef.current || isSubmitting) return;
 
-    try {
-      const batchToQueue: Array<{
-        endpoint: string;
-        method: 'POST';
-        path: string;
-        body: Record<string, unknown>;
+    // Snapshot uncommitted draft overrides for graceful rollback on failure
+    const prevYieldOverrides = { ...yieldOverrides };
+    const prevMultiYieldOverrides = { ...multiYieldOverrides };
+    const prevTankOverrides = { ...tankOverrides };
+
+    const batchToQueue: Array<{
+      endpoint: string;
+      method: 'POST';
+      path: string;
+      body: Record<string, unknown>;
+    }> = [];
+
+    for (const s of configuredSessions) {
+      // Only save sessions that have explicit draft overrides
+      const hasExplicitEdits =
+        (s === session && (Object.keys(yieldOverrides).length > 0 || rows.some((r) => r.yieldL !== null && r.status !== 'saved'))) ||
+        Boolean(Object.keys(multiYieldOverrides).some((id) => multiYieldOverrides[id]?.[s] !== undefined)) ||
+        Boolean(Object.keys(tankOverrides).some((id) => tankOverrides[id]?.[s] !== undefined));
+
+      if (!hasExplicitEdits) continue;
+
+      const entriesToSave: Array<{
+        cattleId: string;
+        yieldL: number | null;
+        baseUpdatedAt: string | null;
+        tankId?: string | null;
       }> = [];
 
-      for (const s of configuredSessions) {
-        // Only save sessions that have explicit draft overrides
-        const hasExplicitEdits =
-          (s === session && (Object.keys(yieldOverrides).length > 0 || rows.some((r) => r.yieldL !== null && r.status !== 'saved'))) ||
-          Boolean(Object.keys(multiYieldOverrides).some((id) => multiYieldOverrides[id]?.[s] !== undefined)) ||
-          Boolean(Object.keys(tankOverrides).some((id) => tankOverrides[id]?.[s] !== undefined));
-
-        if (!hasExplicitEdits) continue;
-
-        const entriesToSave: Array<{
-          cattleId: string;
-          yieldL: number | null;
-          baseUpdatedAt: string | null;
-          tankId?: string | null;
-        }> = [];
-
-        for (const r of rows) {
-          if (r.withholding) continue;
-          const sEntry = r.sessions?.[s];
-          const yieldVal = sEntry?.yieldL ?? (s === session ? r.yieldL : null);
-          if (typeof yieldVal === 'number' && yieldVal > 0) {
-            entriesToSave.push({
-              cattleId: r.cattleId,
-              yieldL: yieldVal,
-              baseUpdatedAt: r.baseUpdatedAt,
-              tankId: sEntry?.tankId ?? tankOverrides[r.cattleId]?.[s] ?? selectedTankId,
-            });
-          }
-        }
-
-        if (entriesToSave.length > 0) {
-          batchToQueue.push({
-            endpoint: 'milk.saveLog',
-            method: 'POST',
-            path: '/milk/log',
-            body: {
-              date,
-              session: s,
-              entries: entriesToSave,
-            },
+      for (const r of rows) {
+        if (r.withholding) continue;
+        const sEntry = r.sessions?.[s];
+        const yieldVal = sEntry?.yieldL ?? (s === session ? r.yieldL : null);
+        if (typeof yieldVal === 'number' && yieldVal > 0) {
+          entriesToSave.push({
+            cattleId: r.cattleId,
+            yieldL: yieldVal,
+            baseUpdatedAt: r.baseUpdatedAt,
+            tankId: sEntry?.tankId ?? tankOverrides[r.cattleId]?.[s] ?? selectedTankId,
           });
-          savedAny = true;
         }
       }
 
-      if (batchToQueue.length > 0) {
-        const queued = await sync.enqueueBatch(batchToQueue);
-        if (queued.length > 0) {
-          lastSaveLocalId.current = queued[queued.length - 1]!.localId;
-          // Optimistic seamless handoff: update outboxRows immediately before clearing overrides.
-          // Batched in the same render pass to eliminate the split-second fallback to stale cache.
-          setOutboxRows((prev) => [
-            ...prev.filter((r) => !queued.some((q) => q.localId === r.localId)),
-            ...queued,
-          ]);
-        }
-      }
-
-      if (savedAny) {
-        setYieldOverrides({});
-        setMultiYieldOverrides({});
-        reloadData();
-        toast.show({
-          message: t('milk.saveSuccess'),
-          tone: 'success',
-          bottomOffset: 90,
+      if (entriesToSave.length > 0) {
+        batchToQueue.push({
+          endpoint: 'milk.saveLog',
+          method: 'POST',
+          path: '/milk/log',
+          body: {
+            date,
+            session: s,
+            entries: entriesToSave,
+          },
         });
       }
+    }
+
+    if (batchToQueue.length === 0) return;
+
+    isSavingRef.current = true;
+    setIsSaving(true);
+
+    // 0ms Optimistic Instant Handoff: create synthetic optimistic outbox rows
+    const optimisticQueuedRows: OutboxRow[] = batchToQueue.map((item, i) => ({
+      seq: Date.now() + i,
+      localId: `opt-${Date.now()}-${i}`,
+      farmId: '',
+      userId: '',
+      endpoint: item.endpoint,
+      method: item.method,
+      path: item.path,
+      body: item.body,
+      dependsOn: null,
+      status: 'pending',
+      queuedAt: Date.now(),
+      attempts: 0,
+      nextAttemptAt: null,
+      lastError: null,
+      conflict: null,
+      result: null,
+      doneAt: null,
+    }));
+
+    // Update outboxRows and clear overrides in the same React render pass
+    setOutboxRows((prev) => [...prev, ...optimisticQueuedRows]);
+    setYieldOverrides({});
+    setMultiYieldOverrides({});
+
+    // Immediate user feedback (0ms perceived latency)
+    toast.show({
+      message: t('milk.saveSuccess'),
+      tone: 'success',
+      bottomOffset: 90,
+    });
+
+    try {
+      const realQueued = await sync.enqueueBatch(batchToQueue);
+      if (realQueued.length > 0) {
+        lastSaveLocalId.current = realQueued[realQueued.length - 1]!.localId;
+        setOutboxRows((prev) => [
+          ...prev.filter(
+            (r) =>
+              !optimisticQueuedRows.some((o) => o.localId === r.localId) &&
+              !realQueued.some((q) => q.localId === r.localId),
+          ),
+          ...realQueued,
+        ]);
+      }
+      reloadData();
     } catch (err) {
-      console.warn('Failed to queue milk draft save', err);
+      console.warn('Failed to queue milk draft save, rolling back optimistic state:', err);
+      // Graceful rollback
+      setOutboxRows((prev) =>
+        prev.filter((r) => !optimisticQueuedRows.some((o) => o.localId === r.localId)),
+      );
+      setYieldOverrides(prevYieldOverrides);
+      setMultiYieldOverrides(prevMultiYieldOverrides);
+      setTankOverrides(prevTankOverrides);
       toast.show({
         message: t('milk.saveFailed'),
         tone: 'error',
         bottomOffset: 90,
       });
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
     }
   }, [
-    isSaving,
     isSubmitting,
     configuredSessions,
     session,
@@ -659,9 +697,9 @@ export function useMilkScreen() {
     t,
   ]);
 
-  // Save collection (entries + submit session) with robust feedback
+  // Save collection (entries + submit session) (0ms Optimistic Update with Graceful Rollback)
   const saveCollection = useCallback(async () => {
-    if (isSaving || isSubmitting) return;
+    if (isSavingRef.current || isSubmitting) return;
 
     // Check if session is already submitted with no new dirty edits
     const hasDirtyEdits =
@@ -679,106 +717,147 @@ export function useMilkScreen() {
       return;
     }
 
-    setIsSaving(true);
+    // Snapshot uncommitted draft overrides for graceful rollback on failure
+    const prevYieldOverrides = { ...yieldOverrides };
+    const prevMultiYieldOverrides = { ...multiYieldOverrides };
+    const prevTankOverrides = { ...tankOverrides };
 
-    try {
-      const batchToQueue: Array<{
-        endpoint: string;
-        method: 'POST';
-        path: string;
-        body: Record<string, unknown>;
+    const batchToQueue: Array<{
+      endpoint: string;
+      method: 'POST';
+      path: string;
+      body: Record<string, unknown>;
+    }> = [];
+
+    for (const s of configuredSessions) {
+      // Only save sessions that are the target session or have explicit user edits
+      const hasExplicitEdits =
+        s === session ||
+        Boolean(Object.keys(multiYieldOverrides).some((id) => multiYieldOverrides[id]?.[s] !== undefined)) ||
+        Boolean(Object.keys(tankOverrides).some((id) => tankOverrides[id]?.[s] !== undefined));
+
+      if (!hasExplicitEdits) continue;
+
+      const entriesToSave: Array<{
+        cattleId: string;
+        yieldL: number | null;
+        baseUpdatedAt: string | null;
+        tankId?: string | null;
       }> = [];
 
-      for (const s of configuredSessions) {
-        // Only save sessions that are the target session or have explicit user edits
-        const hasExplicitEdits =
-          s === session ||
-          Boolean(Object.keys(multiYieldOverrides).some((id) => multiYieldOverrides[id]?.[s] !== undefined)) ||
-          Boolean(Object.keys(tankOverrides).some((id) => tankOverrides[id]?.[s] !== undefined));
-
-        if (!hasExplicitEdits) continue;
-
-        const entriesToSave: Array<{
-          cattleId: string;
-          yieldL: number | null;
-          baseUpdatedAt: string | null;
-          tankId?: string | null;
-        }> = [];
-
-        for (const r of rows) {
-          if (r.withholding) continue;
-          const sEntry = r.sessions?.[s];
-          const yieldVal = sEntry?.yieldL ?? (s === session ? r.yieldL : null);
-          if (typeof yieldVal === 'number' && yieldVal > 0) {
-            entriesToSave.push({
-              cattleId: r.cattleId,
-              yieldL: yieldVal,
-              baseUpdatedAt: r.baseUpdatedAt,
-              tankId: sEntry?.tankId ?? tankOverrides[r.cattleId]?.[s] ?? selectedTankId,
-            });
-          }
-        }
-
-        if (entriesToSave.length > 0) {
-          batchToQueue.push({
-            endpoint: 'milk.saveLog',
-            method: 'POST',
-            path: '/milk/log',
-            body: {
-              date,
-              session: s,
-              entries: entriesToSave,
-            },
+      for (const r of rows) {
+        if (r.withholding) continue;
+        const sEntry = r.sessions?.[s];
+        const yieldVal = sEntry?.yieldL ?? (s === session ? r.yieldL : null);
+        if (typeof yieldVal === 'number' && yieldVal > 0) {
+          entriesToSave.push({
+            cattleId: r.cattleId,
+            yieldL: yieldVal,
+            baseUpdatedAt: r.baseUpdatedAt,
+            tankId: sEntry?.tankId ?? tankOverrides[r.cattleId]?.[s] ?? selectedTankId,
           });
         }
       }
 
-      // Also submit current session if not already submitted
-      if (!isSessionSubmitted) {
+      if (entriesToSave.length > 0) {
         batchToQueue.push({
-          endpoint: 'milk.submit',
+          endpoint: 'milk.saveLog',
           method: 'POST',
-          path: '/milk/submit',
+          path: '/milk/log',
           body: {
             date,
-            session,
+            session: s,
+            entries: entriesToSave,
           },
         });
       }
+    }
 
-      // Atomic batch enqueue to prevent SQLite mutex lock contention
+    // Also submit current session if not already submitted
+    if (!isSessionSubmitted) {
+      batchToQueue.push({
+        endpoint: 'milk.submit',
+        method: 'POST',
+        path: '/milk/submit',
+        body: {
+          date,
+          session,
+        },
+      });
+    }
+
+    if (batchToQueue.length === 0) return;
+
+    isSavingRef.current = true;
+    setIsSaving(true);
+
+    // 0ms Optimistic Instant Handoff: create synthetic optimistic outbox rows
+    const optimisticQueuedRows: OutboxRow[] = batchToQueue.map((item, i) => ({
+      seq: Date.now() + i,
+      localId: `opt-${Date.now()}-${i}`,
+      farmId: '',
+      userId: '',
+      endpoint: item.endpoint,
+      method: item.method,
+      path: item.path,
+      body: item.body,
+      dependsOn: null,
+      status: 'pending',
+      queuedAt: Date.now(),
+      attempts: 0,
+      nextAttemptAt: null,
+      lastError: null,
+      conflict: null,
+      result: null,
+      doneAt: null,
+    }));
+
+    // Update outboxRows and clear overrides in the same React render pass
+    setOutboxRows((prev) => [...prev, ...optimisticQueuedRows]);
+    setYieldOverrides({});
+    setMultiYieldOverrides({});
+
+    // Immediate user feedback (0ms perceived latency)
+    toast.show({
+      message: t('milk.saveSuccess'),
+      tone: 'success',
+      bottomOffset: 90,
+    });
+
+    try {
+      // Atomic batch enqueue to SQLite
       const queuedRows = await sync.enqueueBatch(batchToQueue);
       if (queuedRows.length > 0) {
         lastSaveLocalId.current = queuedRows[queuedRows.length - 1]!.localId;
-        // Optimistic seamless handoff: update outboxRows immediately before clearing overrides.
-        // Batched in the same render pass to eliminate the split-second fallback to stale cache.
         setOutboxRows((prev) => [
-          ...prev.filter((r) => !queuedRows.some((q) => q.localId === r.localId)),
+          ...prev.filter(
+            (r) =>
+              !optimisticQueuedRows.some((o) => o.localId === r.localId) &&
+              !queuedRows.some((q) => q.localId === r.localId),
+          ),
           ...queuedRows,
         ]);
       }
-
-      setYieldOverrides({});
-      setMultiYieldOverrides({});
-
       reloadData();
-      toast.show({
-        message: t('milk.saveSuccess'),
-        tone: 'success',
-        bottomOffset: 90,
-      });
     } catch (err) {
-      console.warn('Failed to save milk collection', err);
+      console.warn('Failed to save milk collection to SQLite, rolling back optimistic state:', err);
+      // Graceful rollback: restore uncommitted draft overrides so no inputs are lost
+      setOutboxRows((prev) =>
+        prev.filter((r) => !optimisticQueuedRows.some((o) => o.localId === r.localId)),
+      );
+      setYieldOverrides(prevYieldOverrides);
+      setMultiYieldOverrides(prevMultiYieldOverrides);
+      setTankOverrides(prevTankOverrides);
       toast.show({
         message: t('milk.saveFailed'),
         tone: 'error',
         bottomOffset: 90,
       });
     } finally {
+      isSavingRef.current = false;
       setIsSaving(false);
     }
   }, [
-    isSaving,
     isSubmitting,
     isSessionSubmitted,
     yieldOverrides,
