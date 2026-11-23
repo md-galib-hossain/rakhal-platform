@@ -5,6 +5,7 @@ name: Images
 # PRs that touch the Docker setup only BUILD (no push) and run a compose smoke test.
 on:
   pull_request:
+    branches: [main]
     paths:
       - "docker/**"
       - "docker-compose*.yml"

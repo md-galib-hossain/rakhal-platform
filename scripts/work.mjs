@@ -409,7 +409,7 @@ export function checkWork({
     }
   }
 
-  if (!branch || ["main", "master", "HEAD"].includes(branch)) return { errors, warnings };
+  if (!branch || ["main", "master", "HEAD", "develop"].includes(branch)) return { errors, warnings };
 
   // exemptions for rules b-d
   if (branch.startsWith("hotfix/")) return { errors, warnings };
