@@ -613,6 +613,12 @@ export function useMilkScreen() {
         const queued = await sync.enqueueBatch(batchToQueue);
         if (queued.length > 0) {
           lastSaveLocalId.current = queued[queued.length - 1]!.localId;
+          // Optimistic seamless handoff: update outboxRows immediately before clearing overrides.
+          // Batched in the same render pass to eliminate the split-second fallback to stale cache.
+          setOutboxRows((prev) => [
+            ...prev.filter((r) => !queued.some((q) => q.localId === r.localId)),
+            ...queued,
+          ]);
         }
       }
 
@@ -744,6 +750,12 @@ export function useMilkScreen() {
       const queuedRows = await sync.enqueueBatch(batchToQueue);
       if (queuedRows.length > 0) {
         lastSaveLocalId.current = queuedRows[queuedRows.length - 1]!.localId;
+        // Optimistic seamless handoff: update outboxRows immediately before clearing overrides.
+        // Batched in the same render pass to eliminate the split-second fallback to stale cache.
+        setOutboxRows((prev) => [
+          ...prev.filter((r) => !queuedRows.some((q) => q.localId === r.localId)),
+          ...queuedRows,
+        ]);
       }
 
       setYieldOverrides({});

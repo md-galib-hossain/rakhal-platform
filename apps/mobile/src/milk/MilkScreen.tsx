@@ -163,14 +163,11 @@ export function MilkScreenContent() {
   const dateObj = new Date(`${date}T00:00:00`);
   const formattedDate = format.dateSafe(dateObj);
 
-  // Dynamic button label: embeds live total into action button per user direction
-  const buttonLabel = isSessionSubmitted
-    ? (liveTotals.totalL > 0
-        ? t('milk.submittedWithTotal', { total: format.numberSafe(liveTotals.totalL) })
-        : t('milk.submitted'))
-    : (liveTotals.totalL > 0
-        ? t('milk.saveCollectionWithTotal', { total: format.numberSafe(liveTotals.totalL) })
-        : t('milk.saveCollection'));
+  // Dynamic button label: always shows Save action per user direction
+  const buttonLabel =
+    liveTotals.totalL > 0
+      ? t('milk.saveCollectionWithTotal', { total: format.numberSafe(liveTotals.totalL) })
+      : t('milk.saveCollection');
 
   const handleOpenTankPicker = (cattleId: string, targetSession: MilkSession) => {
     setTargetCowForTank({ cattleId, session: targetSession });
