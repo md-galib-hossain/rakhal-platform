@@ -77,6 +77,7 @@ export function createSyncEngine(deps: EngineDeps) {
   let running: Promise<void> | null = null;
   let rerun = false;
   let forcePull = false;
+  let skipPullThisPass = false;
   let recovered = false;
 
   const listeners = new Set<() => void>();
@@ -190,8 +191,9 @@ export function createSyncEngine(deps: EngineDeps) {
       await publish();
       return;
     }
-    const due = forcePull || lastPullAt === null || now() - lastPullAt >= pullIntervalMs;
+    const due = !skipPullThisPass && (forcePull || lastPullAt === null || now() - lastPullAt >= pullIntervalMs);
     forcePull = false;
+    skipPullThisPass = false;
     if (due) {
       const pulled = await pullAll();
       if (pulled === 'offline') {
@@ -208,9 +210,10 @@ export function createSyncEngine(deps: EngineDeps) {
     await publish();
   }
 
-  function kick(options: { pull?: boolean } = {}): Promise<void> {
+  function kick(options: { pull?: boolean; drainOnly?: boolean } = {}): Promise<void> {
     if (stopped) return Promise.resolve();
     if (options.pull) forcePull = true;
+    if (options.drainOnly) skipPullThisPass = true;
     if (running) {
       rerun = true;
       return running;
@@ -252,7 +255,7 @@ export function createSyncEngine(deps: EngineDeps) {
     async enqueue(input: Omit<EnqueueInput, 'farmId' | 'userId'>): Promise<OutboxRow> {
       const row = await outbox.enqueue({ ...input, farmId, userId });
       await publish();
-      void kick();
+      void kick({ drainOnly: true });
       return row;
     },
 
@@ -260,7 +263,7 @@ export function createSyncEngine(deps: EngineDeps) {
       if (inputs.length === 0) return [];
       const rows = await outbox.enqueueBatch(inputs.map((input) => ({ ...input, farmId, userId })));
       await publish();
-      void kick();
+      void kick({ drainOnly: true });
       return rows;
     },
 
@@ -269,25 +272,25 @@ export function createSyncEngine(deps: EngineDeps) {
     async retry(localId: string): Promise<void> {
       await outbox.retryNow(localId);
       await publish();
-      void kick();
+      void kick({ drainOnly: true });
     },
 
     async discard(localId: string): Promise<void> {
       await outbox.discard(localId);
       await publish();
-      void kick();
+      void kick({ drainOnly: true });
     },
 
     async keepServerVersion(localId: string): Promise<void> {
       await outbox.resolveConflict(localId, 'kept-server');
       await publish();
-      void kick();
+      void kick({ drainOnly: true });
     },
 
     async useMine(localId: string): Promise<OutboxRow | null> {
       const created = await outbox.resolveUseMine(localId, deps.newId());
       await publish();
-      void kick();
+      void kick({ drainOnly: true });
       return created;
     },
 

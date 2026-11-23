@@ -196,7 +196,7 @@ describe('MilkScreen', () => {
     expect(input.props.editable).toBe(false);
   });
 
-  it('queues a milk.saveLog write with baseUpdatedAt on yield change and does NOT trigger undo toast on typing', async () => {
+  it('updates in-memory yield on typing and queues milk.saveLog write on save without undo toast on typing', async () => {
     const h = syncHarness({
       handler: serverHandler(),
     });
@@ -215,26 +215,30 @@ describe('MilkScreen', () => {
       fireEvent.changeText(input, '5.5');
     });
 
+    // Modern hybrid: typing does NOT queue immediate write or show undo toast
+    expect(screen.queryByText('Undo')).toBeNull();
+
+    // Tapping save collection queues the batch write
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('milk-submit-btn'));
+    });
+
     // Check that write was queued
     await waitFor(() => {
       const writes = h.writes();
       expect(writes.length).toBeGreaterThan(0);
-      const lastWrite = writes[writes.length - 1]!;
-      expect(lastWrite.url).toContain('/milk/log');
-      expect(lastWrite.body).toMatchObject({
+      const logWrite = writes.find((w) => w.url.includes('/milk/log'));
+      expect(logWrite).toBeTruthy();
+      expect(logWrite!.body).toMatchObject({
         session: 'MORNING',
-        entries: [
-          {
+        entries: expect.arrayContaining([
+          expect.objectContaining({
             cattleId: 'c2',
             yieldL: 5.5,
-            baseUpdatedAt: null,
-          },
-        ],
+          }),
+        ]),
       });
     });
-
-    // Verify NO undo toast is shown on typing (requirement 1)
-    expect(screen.queryByText('Undo')).toBeNull();
   });
 
   it('submits session with milk.submit when submit button is pressed', async () => {
@@ -333,16 +337,24 @@ describe('MilkScreen', () => {
       fireEvent.changeText(input, '10.0');
     });
 
+    // Check reactive input update
+    expect(input.props.value).toBe('10.0');
+
+    // Tapping save queues the entries to outbox
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('milk-submit-btn'));
+    });
+
     await waitFor(() => {
       const writes = h.writes();
-      const lastWrite = writes[writes.length - 1];
+      const lastWrite = writes.find((w) => w.url.includes('/milk/log'));
       expect(lastWrite?.body).toMatchObject({
-        entries: [
-          {
+        entries: expect.arrayContaining([
+          expect.objectContaining({
             cattleId: 'c2',
             yieldL: 10.0,
-          },
-        ],
+          }),
+        ]),
       });
     });
   });

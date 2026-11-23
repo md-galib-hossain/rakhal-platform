@@ -492,8 +492,9 @@ export function useMilkScreen() {
   }, []);
 
   // Update yield: supports both (cattleId, yieldL) and (cattleId, session, yieldL, tankId)
+  // Modern hybrid: updates local React state in memory only (0ms latency, no SQLite or network kicks on keystrokes)
   const updateYield = useCallback(
-    async (
+    (
       cattleId: string,
       sessionOrYield: MilkSession | number | null,
       maybeYield?: number | null,
@@ -512,7 +513,7 @@ export function useMilkScreen() {
       const cow = rows.find((r) => r.cattleId === cattleId);
       if (!cow) return;
 
-      // Optimistic override
+      // In-memory optimistic overrides
       setMultiYieldOverrides((prev) => ({
         ...prev,
         [cattleId]: {
@@ -525,33 +526,17 @@ export function useMilkScreen() {
         setYieldOverrides((prev) => ({ ...prev, [cattleId]: newYieldL }));
       }
 
-      const effectiveTankId = tankId ?? tankOverrides[cattleId]?.[targetSession] ?? selectedTankId;
-
-      try {
-        const queued = await sync.enqueue({
-          endpoint: 'milk.saveLog',
-          method: 'POST',
-          path: '/milk/log',
-          body: {
-            date,
-            session: targetSession,
-            entries: [
-              {
-                cattleId,
-                yieldL: newYieldL,
-                baseUpdatedAt: cow.baseUpdatedAt,
-                tankId: effectiveTankId,
-              },
-            ],
+      if (tankId) {
+        setTankOverrides((prev) => ({
+          ...prev,
+          [cattleId]: {
+            ...(prev[cattleId] || {}),
+            [targetSession]: tankId,
           },
-        });
-        lastSaveLocalId.current = queued.localId;
-        reloadData();
-      } catch (err) {
-        console.warn('Failed to queue milk save', err);
+        }));
       }
     },
-    [rows, sync, date, session, selectedTankId, tankOverrides, reloadData],
+    [rows, session],
   );
 
   // Update container for a cow & session
@@ -671,6 +656,23 @@ export function useMilkScreen() {
   // Save collection (entries + submit session) with robust feedback
   const saveCollection = useCallback(async () => {
     if (isSaving || isSubmitting) return;
+
+    // Check if session is already submitted with no new dirty edits
+    const hasDirtyEdits =
+      Object.keys(yieldOverrides).length > 0 ||
+      Boolean(Object.keys(multiYieldOverrides).some((id) => Object.keys(multiYieldOverrides[id] || {}).length > 0)) ||
+      Boolean(Object.keys(tankOverrides).some((id) => Object.keys(tankOverrides[id] || {}).length > 0)) ||
+      rows.some((r) => r.yieldL !== null && r.status !== 'saved');
+
+    if (isSessionSubmitted && !hasDirtyEdits) {
+      toast.show({
+        message: t('milk.alreadySubmitted'),
+        tone: 'info',
+        bottomOffset: 90,
+      });
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -725,16 +727,18 @@ export function useMilkScreen() {
         }
       }
 
-      // Also submit current session
-      batchToQueue.push({
-        endpoint: 'milk.submit',
-        method: 'POST',
-        path: '/milk/submit',
-        body: {
-          date,
-          session,
-        },
-      });
+      // Also submit current session if not already submitted
+      if (!isSessionSubmitted) {
+        batchToQueue.push({
+          endpoint: 'milk.submit',
+          method: 'POST',
+          path: '/milk/submit',
+          body: {
+            date,
+            session,
+          },
+        });
+      }
 
       // Atomic batch enqueue to prevent SQLite mutex lock contention
       const queuedRows = await sync.enqueueBatch(batchToQueue);
@@ -764,14 +768,16 @@ export function useMilkScreen() {
   }, [
     isSaving,
     isSubmitting,
-    configuredSessions,
-    session,
+    isSessionSubmitted,
+    yieldOverrides,
     multiYieldOverrides,
     tankOverrides,
     rows,
+    configuredSessions,
+    session,
     selectedTankId,
-    sync,
     date,
+    sync,
     reloadData,
     toast,
     t,
