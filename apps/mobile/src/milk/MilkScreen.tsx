@@ -1,31 +1,36 @@
 /**
- * Milk log and intelligence screen (WP10, UI/UX Redesign).
+ * Milk log and intelligence screen (WP10, UI/UX Evolution).
  *
  * Screen access is gated by `milk.read`; logging milk and submitting sessions is gated by `milk.log`.
  * Offline writes are queued via `useSync().enqueue` and synchronized when connected.
  *
- * Visual & Interaction Architecture (Reference Design):
- * 1. Top Header:
- *    - Title: "Milk" + Subtitle: "Track collection and performance" + Quick droplet icon.
- *    - Mode Tabs: [ 💧 Collection ] and [ 📊 Analytics ].
- * 2. Collection View:
- *    - Row 1: Date picker trigger [ 📅 16 Nov 2026 📅 ] + Session switch pills + Refresh action [ 🔄 ].
- *    - Row 2: Search input [ 🔍 Search by name or tag... ] + Filter button [ 🎚️ Filter ].
- *    - Row 3: Full-width prominent teal Live Total banner [ 💧 Live Total: XX.X L ].
- *    - Cow List: Redesigned ergonomic cards with avatar, tag, breed, Today's total, and multi-session grid.
- *    - Select Container Bottom Sheet: [ Tank A 1000L cap. ✓ ] matching reference mockup.
- *    - Generous bottom scroll padding (paddingBottom: 140) ensuring no cards are obscured.
- *    - Docked sticky footer: Primary [ 💧 Save Milk Collection ] action.
- * 3. Analytics View:
- *    - 4 Key Metric cards (Today's Yield, Avg Per Cow, Safety Status, Est. Market Value).
- *    - 7-day production trend mini-charts.
- *    - Container utilization progress bars.
- *    - Session volume breakdown.
- * 4. ADR-007 compliant: strictly zero drop shadows, 1px border and token fills only.
+ * Inspiration-Driven Architecture (ChatGPT reference):
+ * 1. Top Screen Header:
+ *    - Title: "Milk Collection" + Subtitle: "Record milk for today's collection"
+ *    - Mode tabs [ Collection | Analytics ] and Notification bell icon
+ *    - Side-by-side Top Stats Bar:
+ *      - Left: Date trigger card [ 📅 24 Nov, 2026 / Tuesday ▾ ] (opens DatePickerSheet)
+ *      - Right: Today's Total card [ 📊 Today's Total / 7.0 L ]
+ * 2. Session Selector Pills:
+ *    - 4 pills: Morning (☀️), Noon (⛅), Evening (🌤️), Night (🌙)
+ *    - Active session highlighted with primary/tint styling
+ *    - Subtle checkmark badge when session has recorded yields
+ * 3. Search & Filter Bar:
+ *    - Clean search input [ 🔍 Search by name or tag... ] + filter button [ 🎚️ Filter ]
+ * 4. Cow Milking Cards:
+ *    - Ergonomic single-session focus matching inspiration card layout
+ *    - Avatar, Name, Tag, "X L today" badge, session tag
+ *    - Yield input [ 💧 5.0 L ], Milk tank selector [ 🥛 Milk tank 1 ▾ ], and Prev yield [ 🕒 Prev: 4.8 L ]
+ * 5. Docked Sticky Footer:
+ *    - Split summary: Collected (<Session>) e.g. 5.0 L (with green checkmark) vs Total Today e.g. 7.0 L
+ *    - Primary Action button: [ 💾 Save Collection ]
+ *    - Helper hint: "ℹ️ You can update any entry before saving"
+ * 6. ADR-007 compliant: strictly zero drop shadows, 1px border and token fills only.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, PanResponder, Platform, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
+import Svg, { Path } from 'react-native-svg';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Button } from '../components/actions/Button.tsx';
 import { EmptyState } from '../components/feedback/StateMessage.tsx';
@@ -42,8 +47,18 @@ import { CalendarIcon } from './CalendarIcon.tsx';
 import { FilterIcon } from './FilterIcon.tsx';
 import { MilkAnalyticsView } from './MilkAnalyticsView.tsx';
 import { MilkCowCard } from './MilkCowCard.tsx';
+import {
+  BarChartIcon,
+  BellIcon,
+  CheckCircleIcon,
+  MoonIcon,
+  SunCloudIcon,
+  SunIcon,
+} from './MilkCustomIcons.tsx';
 import { MilkFilterSheet } from './MilkFilterSheet.tsx';
 import {
+  DEFAULT_SESSIONS,
+  SESSION_LABEL_KEYS,
   type MilkSession,
 } from './milk-model.ts';
 import { SearchIcon } from './SearchIcon.tsx';
@@ -95,7 +110,7 @@ export function MilkScreenContent() {
   const activeTank = tanks.find((t) => t.id === selectedTankId) ?? tanks[0];
   const hasActiveFilters = selectedShedId !== null || statusFilter !== 'all' || selectedTankId !== null;
 
-  // Local search state with 200ms debounce to prevent UI stutter and layout thrashing
+  // Local search state with 200ms debounce
   const [localSearch, setLocalSearch] = useState(search);
 
   useEffect(() => {
@@ -129,7 +144,6 @@ export function MilkScreenContent() {
         onStartShouldSetPanResponder: () => false,
         onMoveShouldSetPanResponder: (_, gestureState) => {
           if (isModalOpenRef.current) return false;
-          // Only claim when gesture is predominantly horizontal (avoids blocking vertical scrolling)
           return (
             Math.abs(gestureState.dx) > 25 &&
             Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5
@@ -137,14 +151,12 @@ export function MilkScreenContent() {
         },
         onPanResponderRelease: (_, gestureState) => {
           if (gestureState.dx < -50) {
-            // Forward swipe (finger dragged left -> next screen to the right)
             if (activeTabRef.current === 'collection') {
               setActiveTab('analytics');
             } else if (activeTabRef.current === 'analytics') {
               router.push('/tasks');
             }
           } else if (gestureState.dx > 50) {
-            // Backward swipe (finger dragged right -> previous screen to the left)
             if (activeTabRef.current === 'analytics') {
               setActiveTab('collection');
             } else if (activeTabRef.current === 'collection') {
@@ -156,14 +168,47 @@ export function MilkScreenContent() {
     [setActiveTab],
   );
 
-  // Format date display (e.g. 16 Nov 2026)
+  // Date parsing
   const dateObj = new Date(`${date}T00:00:00`);
   const formattedDate = format.dateSafe(dateObj);
+  const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
 
-  // Dynamic button label: always shows Save action per user direction
+  // Compute session total for current active session
+  const currentSessionTotal = useMemo(() => {
+    let sum = 0;
+    for (const r of rows) {
+      const y = r.sessions?.[session]?.yieldL ?? (r.yieldL ?? 0);
+      if (typeof y === 'number' && y > 0) {
+        sum += y;
+      }
+    }
+    return Math.round(sum * 10) / 10;
+  }, [rows, session]);
+
+  // Check if each session has logged yields
+  const sessionHasYield = useMemo(() => {
+    const hasYield: Record<MilkSession, boolean> = {
+      MORNING: false,
+      NOON: false,
+      EVENING: false,
+      NIGHT: false,
+    };
+    for (const s of DEFAULT_SESSIONS) {
+      for (const r of rows) {
+        const y = r.sessions?.[s]?.yieldL;
+        if (typeof y === 'number' && y > 0) {
+          hasYield[s] = true;
+          break;
+        }
+      }
+    }
+    return hasYield;
+  }, [rows]);
+
+  // Button label with current session total embedded
   const buttonLabel =
-    liveTotals.totalL > 0
-      ? t('milk.saveCollectionWithTotal', { total: format.numberSafe(liveTotals.totalL) })
+    currentSessionTotal > 0
+      ? t('milk.saveCollectionWithTotal', { total: format.numberSafe(currentSessionTotal) })
       : t('milk.saveCollection');
 
   const handleOpenTankPicker = (cattleId: string, targetSession: MilkSession) => {
@@ -180,15 +225,43 @@ export function MilkScreenContent() {
     }
   };
 
+  const renderSessionIcon = (s: MilkSession, isSelected: boolean) => {
+    // When selected on primary background, keep crisp contrast; when resting, use rich theme accent colors
+    if (isSelected) {
+      const activeColor = colors.primaryForeground;
+      switch (s) {
+        case 'MORNING':
+          return <SunIcon size={16} color={activeColor} />;
+        case 'NOON':
+          return <SunIcon size={16} color={activeColor} />;
+        case 'EVENING':
+          return <SunCloudIcon size={16} color={activeColor} />;
+        case 'NIGHT':
+          return <MoonIcon size={16} color={activeColor} />;
+      }
+    }
+
+    switch (s) {
+      case 'MORNING':
+        return <SunIcon size={16} color={colors.sessionMorning} />;
+      case 'NOON':
+        return <SunIcon size={16} color={colors.sessionNoon} />;
+      case 'EVENING':
+        return <SunCloudIcon size={16} color={colors.sessionEvening} />;
+      case 'NIGHT':
+        return <MoonIcon size={16} color={colors.accentIndigo} />;
+    }
+  };
+
   return (
     <KeyboardAvoidingView
       testID="screen-milk"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       enabled={Platform.OS === 'ios'}
-      style={{ flex: 1, backgroundColor: colors.card }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       {...panResponder.panHandlers}
     >
-      {/* 1. Top Mode Tabs: Segmented Control (Collection vs Analytics) */}
+      {/* Mode Switcher Segmented Control (Collection vs Analytics) */}
       <View
         style={{
           paddingHorizontal: tokens.spacing.md,
@@ -204,6 +277,7 @@ export function MilkScreenContent() {
             backgroundColor: colors.muted,
             borderRadius: tokens.radius.md,
             padding: 3,
+            marginTop: 2,
           }}
         >
           {/* Tab 1: Collection */}
@@ -215,7 +289,7 @@ export function MilkScreenContent() {
             testID="milk-tab-collection"
             style={{
               flex: 1,
-              paddingVertical: tokens.spacing.xs,
+              paddingVertical: 6,
               paddingHorizontal: tokens.spacing.sm,
               borderRadius: tokens.radius.md - 2,
               backgroundColor: activeTab === 'collection' ? colors.card : 'transparent',
@@ -223,7 +297,7 @@ export function MilkScreenContent() {
               borderColor: activeTab === 'collection' ? colors.border : 'transparent',
               alignItems: 'center',
               justifyContent: 'center',
-              minHeight: 34,
+              minHeight: 32,
             }}
           >
             <Text
@@ -244,7 +318,7 @@ export function MilkScreenContent() {
             testID="milk-tab-analytics"
             style={{
               flex: 1,
-              paddingVertical: tokens.spacing.xs,
+              paddingVertical: 6,
               paddingHorizontal: tokens.spacing.sm,
               borderRadius: tokens.radius.md - 2,
               backgroundColor: activeTab === 'analytics' ? colors.card : 'transparent',
@@ -252,7 +326,7 @@ export function MilkScreenContent() {
               borderColor: activeTab === 'analytics' ? colors.border : 'transparent',
               alignItems: 'center',
               justifyContent: 'center',
-              minHeight: 34,
+              minHeight: 32,
             }}
           >
             <Text
@@ -277,19 +351,21 @@ export function MilkScreenContent() {
         />
       ) : (
         <View style={{ flex: 1 }}>
-          {/* Controls Header: Date Picker & Search/Filter without divider line clutter */}
+          {/* Controls Header: Date Card + Total Card & Session Selector */}
           <View
             style={{
               paddingHorizontal: tokens.spacing.md,
-              paddingTop: tokens.spacing.xs,
-              paddingBottom: tokens.spacing.xs + 2,
-              gap: tokens.spacing.xs,
+              paddingTop: tokens.spacing.sm,
+              paddingBottom: tokens.spacing.xs,
+              gap: tokens.spacing.sm,
               backgroundColor: colors.card,
+              borderBottomWidth: 1,
+              borderColor: colors.border,
             }}
           >
-            {/* Single Row: Date Trigger Pill + Search Input + Filter Button */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs + 2 }}>
-              {/* 1. Date Trigger Pill */}
+            {/* 2. Side-by-side Top Stats Bar (Date Trigger Card + Today's Total Card) */}
+            <View style={{ flexDirection: 'row', gap: tokens.spacing.sm }}>
+              {/* Left: Date Card [ 📅 24 Nov, 2026 / Tuesday ▾ ] */}
               <PressableSurface
                 accessibilityRole="button"
                 accessibilityLabel={`${t('picker.singleDate')}: ${formattedDate}`}
@@ -297,24 +373,166 @@ export function MilkScreenContent() {
                 onPress={() => setDatePickerVisible(true)}
                 testID="milk-date-pill"
                 style={{
+                  flex: 1,
                   flexDirection: 'row',
                   alignItems: 'center',
-                  gap: 6,
                   paddingHorizontal: tokens.spacing.sm,
-                  borderRadius: tokens.radius.md,
+                  paddingVertical: tokens.spacing.xs + 2,
+                  borderRadius: tokens.radius.lg,
                   borderWidth: 1,
                   borderColor: colors.border,
                   backgroundColor: colors.card,
-                  minHeight: tokens.touchTarget.min,
+                  gap: tokens.spacing.xs + 2,
+                  minHeight: 48,
                 }}
               >
-                <CalendarIcon size={16} color={colors.primary} />
-                <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 12 }} testID="milk-current-date">
-                  {formattedDate}
-                </Text>
+                <View
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: tokens.radius.md,
+                    backgroundColor: colors.muted,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <CalendarIcon size={18} color={colors.primary} />
+                </View>
+
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text
+                    role="caption"
+                    color="foreground"
+                    style={{ fontWeight: '700', fontSize: 13 }}
+                    testID="milk-current-date"
+                    numberOfLines={1}
+                  >
+                    {formattedDate}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
+                      {dayOfWeek}
+                    </Text>
+                    <Svg width={8} height={8} viewBox="0 0 24 24" fill="none">
+                      <Path
+                        d="M6 9L12 15L18 9"
+                        stroke={colors.mutedForeground}
+                        strokeWidth={2.5}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </Svg>
+                  </View>
+                </View>
               </PressableSurface>
 
-              {/* 2. Search Input (Locked dimensions, zero layout shift) */}
+              {/* Right: Today's Total Card [ 📊 Today's Total / 7.0 L ] */}
+              <View
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: tokens.spacing.sm,
+                  paddingVertical: tokens.spacing.xs + 2,
+                  borderRadius: tokens.radius.lg,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.card,
+                  gap: tokens.spacing.xs + 2,
+                  minHeight: 48,
+                }}
+              >
+                <View
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: tokens.radius.md,
+                    backgroundColor: colors.muted,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <BarChartIcon size={18} color={colors.primary} />
+                </View>
+
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
+                    {t('milk.todayTotal')}
+                  </Text>
+                  <Text
+                    role="title"
+                    color="primary"
+                    style={{ fontWeight: '800', fontSize: 16 }}
+                  >
+                    {format.numberSafe(liveTotals.totalL)} L
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* 3. Session Selector Pills (Morning ☀️, Noon ⛅, Evening 🌤️, Night 🌙) */}
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {configuredSessions.map((s) => {
+                const isSelected = s === session;
+                const hasYield = sessionHasYield[s];
+                const sLabel = t(SESSION_LABEL_KEYS[s]);
+
+                return (
+                  <PressableSurface
+                    key={s}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                    pressedStyle="overlay"
+                    onPress={() => setSession(s)}
+                    testID={`session-chip-${s.toLowerCase()}`}
+                    style={{
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingVertical: 7,
+                      paddingHorizontal: 4,
+                      borderRadius: tokens.radius.full,
+                      backgroundColor: isSelected ? colors.primary : colors.card,
+                      borderWidth: 1,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                      minHeight: 38,
+                      gap: 4,
+                      position: 'relative',
+                    }}
+                  >
+                    {renderSessionIcon(s, isSelected)}
+                    <Text
+                      role="caption"
+                      style={{
+                        fontSize: 12,
+                        fontWeight: isSelected ? '700' : '600',
+                        color: isSelected ? colors.primaryForeground : colors.foreground,
+                      }}
+                      numberOfLines={1}
+                    >
+                      {sLabel}
+                    </Text>
+
+                    {/* Subtle green check badge if session has recorded yields */}
+                    {hasYield && !isSelected ? (
+                      <View
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: tokens.radius.full,
+                          backgroundColor: colors.primary,
+                        }}
+                      />
+                    ) : null}
+                  </PressableSurface>
+                );
+              })}
+            </View>
+
+            {/* 4. Search Input + Filter Button */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs + 2 }}>
+              {/* Search Input */}
               <View
                 style={{
                   flex: 1,
@@ -368,7 +586,7 @@ export function MilkScreenContent() {
                 ) : null}
               </View>
 
-              {/* 3. Dedicated Filter Button [ 🎚️ ] */}
+              {/* Dedicated Filter Button [ 🎚️ ] */}
               <PressableSurface
                 accessibilityRole="button"
                 accessibilityLabel={t('milk.filterTitle')}
@@ -406,7 +624,7 @@ export function MilkScreenContent() {
               </PressableSurface>
             </View>
 
-            {/* Hidden test-accessible session switchers for test suite compatibility */}
+            {/* Hidden test-accessible trigger */}
             <View style={{ height: 0, overflow: 'hidden' }}>
               <PressableSurface
                 accessibilityRole="button"
@@ -416,17 +634,6 @@ export function MilkScreenContent() {
               >
                 <Text>Sessions</Text>
               </PressableSurface>
-              {configuredSessions.map((s) => (
-                <PressableSurface
-                  key={s}
-                  accessibilityRole="button"
-                  pressedStyle="overlay"
-                  onPress={() => setSession(s)}
-                  testID={`session-chip-${s.toLowerCase()}`}
-                >
-                  <Text>{s}</Text>
-                </PressableSurface>
-              ))}
             </View>
           </View>
 
@@ -448,7 +655,7 @@ export function MilkScreenContent() {
             contentContainerStyle={{
               padding: tokens.spacing.md,
               gap: tokens.spacing.sm,
-              paddingBottom: 140, // Generous padding to prevent sticky footer from covering cards
+              paddingBottom: 110, // Generous clearance for docked footer
             }}
             ListEmptyComponent={
               <EmptyState
@@ -459,7 +666,7 @@ export function MilkScreenContent() {
             }
           />
 
-          {/* Sticky Docked Bottom Action Footer */}
+          {/* 5. Sticky Docked Action Footer */}
           <View
             style={{
               position: 'absolute',
@@ -472,10 +679,9 @@ export function MilkScreenContent() {
               paddingHorizontal: tokens.spacing.md,
               paddingTop: tokens.spacing.sm,
               paddingBottom: tokens.spacing.md,
-              gap: tokens.spacing.xs,
             }}
           >
-            {/* Primary Action Button: Save / Submit Milk Collection with Total embedded */}
+            {/* Primary Action Button: Save Collection (with session volume) */}
             <Button
               label={buttonLabel}
               variant="primary"

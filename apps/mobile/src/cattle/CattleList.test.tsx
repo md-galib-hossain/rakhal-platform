@@ -226,13 +226,12 @@ describe('CattleList', () => {
     await waitFor(() => expect(screen.getByTestId('cattle-row-c20-expanded-details')).toBeTruthy());
     const expanded = screen.getByTestId('cattle-row-c20-expanded-details');
     expect(toggle.props.accessibilityState).toMatchObject({ expanded: true });
-    expect(within(expanded).getByText('Production')).toBeTruthy();
     expect(within(expanded).getByText('Lactation')).toBeTruthy();
     expect(within(expanded).getByText('Reproduction')).toBeTruthy();
     expect(within(expanded).getByText('Mid lactation')).toBeTruthy();
     expect(within(expanded).getByText('Pregnant')).toBeTruthy();
     expect(within(expanded).getByTestId('cattle-row-c20-no-event')).toBeTruthy();
-    expect(within(expanded).getAllByText('No pending events').length).toBeGreaterThanOrEqual(1);
+    expect(within(expanded).getAllByText(/No pending/).length).toBeGreaterThanOrEqual(1);
 
     // Tap expand toggle again: collapses back
     fireEvent.press(toggle);
@@ -278,7 +277,7 @@ describe('CattleList', () => {
     const chip = screen.getByTestId('cattle-row-c30-next-event');
     expect(chip).toBeTruthy();
     expect(within(chip).getByText('Missing milk-log session')).toBeTruthy();
-    expect(within(chip).getByText('· 12d overdue')).toBeTruthy();
+    expect(within(chip).getByText('12d overdue')).toBeTruthy();
 
     // Pressing chip does NOT navigate to animal detail
     fireEvent.press(chip);
