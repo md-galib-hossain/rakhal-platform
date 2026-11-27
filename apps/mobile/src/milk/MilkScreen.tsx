@@ -30,7 +30,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, PanResponder, Platform, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { useAuth } from '../auth/AuthProvider.tsx';
 import { Button } from '../components/actions/Button.tsx';
 import { EmptyState } from '../components/feedback/StateMessage.tsx';
@@ -256,7 +256,7 @@ export function MilkScreenContent() {
       testID="screen-milk"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       enabled={Platform.OS === 'ios'}
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={{ flex: 1, backgroundColor: colors.card }}
       {...panResponder.panHandlers}
     >
       {/* Mode Switcher Segmented Control (Collection vs Analytics) */}
@@ -664,7 +664,29 @@ export function MilkScreenContent() {
             }
           />
 
-          {/* 5. Sticky Docked Action Footer */}
+          {/* 5. Foggy Vignette & Sticky Docked Action Footer */}
+          {/* Foggy gradient fade above sticky footer (ADR-007 compliant: zero drop shadows) */}
+          <View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              bottom: 84, // Sits directly on top of docked action footer
+              left: 0,
+              right: 0,
+              height: 24,
+            }}
+          >
+            <Svg width="100%" height={24}>
+              <Defs>
+                <LinearGradient id="milkDockFog" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0" stopColor={colors.card} stopOpacity={0} />
+                  <Stop offset="1" stopColor={colors.card} stopOpacity={1} />
+                </LinearGradient>
+              </Defs>
+              <Rect width="100%" height={24} fill="url(#milkDockFog)" />
+            </Svg>
+          </View>
+
           <View
             style={{
               position: 'absolute',
@@ -672,8 +694,6 @@ export function MilkScreenContent() {
               left: 0,
               right: 0,
               backgroundColor: colors.card,
-              borderTopWidth: 1,
-              borderColor: colors.border,
               paddingHorizontal: tokens.spacing.md,
               paddingTop: tokens.spacing.sm,
               paddingBottom: tokens.spacing.md,

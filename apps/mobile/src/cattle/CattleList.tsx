@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Alert, ScrollView, SectionList, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { Button } from '../components/actions/Button.tsx';
 import { SkeletonList } from '../components/display/Skeleton.tsx';
 import { EmptyState, ErrorState } from '../components/feedback/StateMessage.tsx';
@@ -640,6 +641,29 @@ export function CattleList({
             </PressableSurface>
           </ScrollView>
         ) : null}
+
+        {/* Soft foggy vignette at bottom of sticky header (ADR-007 compliant: zero drop shadows) */}
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            bottom: -16,
+            left: 0,
+            right: 0,
+            height: 16,
+            zIndex: 10,
+          }}
+        >
+          <Svg width="100%" height={16}>
+            <Defs>
+              <LinearGradient id="cattleStickyFog" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor={colors.card} stopOpacity={1} />
+                <Stop offset="1" stopColor={colors.card} stopOpacity={0} />
+              </LinearGradient>
+            </Defs>
+            <Rect width="100%" height={16} fill="url(#cattleStickyFog)" />
+          </Svg>
+        </View>
       </View>
     ),
     [
