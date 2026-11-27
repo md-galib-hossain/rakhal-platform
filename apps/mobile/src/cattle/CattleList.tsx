@@ -10,7 +10,7 @@
  * - Rich Animal Cards with avatar tint, metadata grid, AQR score box, next event banner, and animated accordion.
  */
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Alert, FlatList, ScrollView, TextInput, View } from 'react-native';
+import { Alert, ScrollView, SectionList, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../components/actions/Button.tsx';
 import { SkeletonList } from '../components/display/Skeleton.tsx';
@@ -204,19 +204,21 @@ export function CattleList({
 
   const renderItem = useCallback(
     ({ item }: { item: CattleListItem }) => (
-      <CattleCard
-        item={item}
-        disabled={isDisabled?.(item) ?? false}
-        onSelect={onSelect}
-        onOpenUpcomingEvents={setSheetItem}
-        testID={`cattle-row-${item.id}`}
-        isSelectionMode={isSelectionMode}
-        isSelected={selectedIds.has(item.id)}
-        onToggleSelect={toggleSelectItem}
-        onLongPress={handleLongPressItem}
-      />
+      <View style={{ paddingHorizontal: tokens.spacing.md }}>
+        <CattleCard
+          item={item}
+          disabled={isDisabled?.(item) ?? false}
+          onSelect={onSelect}
+          onOpenUpcomingEvents={setSheetItem}
+          testID={`cattle-row-${item.id}`}
+          isSelectionMode={isSelectionMode}
+          isSelected={selectedIds.has(item.id)}
+          onToggleSelect={toggleSelectItem}
+          onLongPress={handleLongPressItem}
+        />
+      </View>
     ),
-    [isDisabled, onSelect, isSelectionMode, selectedIds, toggleSelectItem, handleLongPressItem],
+    [isDisabled, onSelect, isSelectionMode, selectedIds, toggleSelectItem, handleLongPressItem, tokens.spacing.md],
   );
 
   const notes = useMemo(() => {
@@ -661,6 +663,11 @@ export function CattleList({
     ],
   );
 
+  const sections = useMemo(
+    () => [{ key: 'cattle-list', data: displayedItems }],
+    [displayedItems],
+  );
+
   let content: ReactNode;
   if (status === 'error') {
     content = <ErrorState title={t('cattle.error.title')} message={t('cattle.error.message')} onRetry={reload} testID="cattle-error" />;
@@ -669,13 +676,17 @@ export function CattleList({
   } else if (items.length === 0 && searching) {
     content = (
       <View style={{ gap: tokens.spacing.md }}>
-        {renderHeader()}
+        <View style={{ paddingHorizontal: tokens.spacing.md, paddingTop: tokens.spacing.md }}>
+          {renderHeader()}
+        </View>
         {renderStickyControls()}
-        <EmptyState
-          testID="cattle-no-match"
-          title={t('cattle.noMatch.title')}
-          description={t('cattle.noMatch.message', { query: search.trim() })}
-        />
+        <View style={{ paddingHorizontal: tokens.spacing.md }}>
+          <EmptyState
+            testID="cattle-no-match"
+            title={t('cattle.noMatch.title')}
+            description={t('cattle.noMatch.message', { query: search.trim() })}
+          />
+        </View>
       </View>
     );
   } else if (items.length === 0 && !hasSynced) {
@@ -691,35 +702,38 @@ export function CattleList({
   } else if (displayedItems.length === 0) {
     content = (
       <View style={{ gap: tokens.spacing.md }}>
-        {renderHeader()}
+        <View style={{ paddingHorizontal: tokens.spacing.md, paddingTop: tokens.spacing.md }}>
+          {renderHeader()}
+        </View>
         {renderStickyControls()}
-        <EmptyState
-          testID="cattle-no-match"
-          title={t('cattle.noMatch.title')}
-          description={t('cattle.noMatch.message', { query: search.trim() || selectedCategory })}
-        />
+        <View style={{ paddingHorizontal: tokens.spacing.md }}>
+          <EmptyState
+            testID="cattle-no-match"
+            title={t('cattle.noMatch.title')}
+            description={t('cattle.noMatch.message', { query: search.trim() || selectedCategory })}
+          />
+        </View>
       </View>
     );
   } else {
     content = (
-      <FlatList
-        data={displayedItems}
+      <SectionList
+        sections={sections}
         extraData={[isSelectionMode, selectedIds]}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ListHeaderComponent={
-          <>
-            <View style={{ paddingHorizontal: tokens.spacing.md, paddingTop: tokens.spacing.md }}>
-              {renderHeader()}
-            </View>
-            {renderStickyControls()}
-          </>
+          <View style={{ paddingHorizontal: tokens.spacing.md, paddingTop: tokens.spacing.md }}>
+            {renderHeader()}
+          </View>
         }
-        stickyHeaderIndices={[0]}
+        renderSectionHeader={renderStickyControls}
+        stickySectionHeadersEnabled={true}
         contentContainerStyle={{
           paddingBottom: selectedIds.size > 0 ? 80 + insets.bottom : tokens.spacing.md,
           backgroundColor: colors.card,
         }}
+        SectionSeparatorComponent={() => <View style={{ height: tokens.spacing.sm }} />}
         ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.sm }} />}
       />
     );
