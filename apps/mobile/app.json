@@ -11,17 +11,36 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#055640"
-      }
+      },
+      "package": "com.mdgalibhossain.rakhal"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
-      ["expo-splash-screen", { "backgroundColor": "#055640", "dark": { "backgroundColor": "#06301f" } }],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#055640",
+          "dark": {
+            "backgroundColor": "#06301f"
+          }
+        }
+      ],
       "expo-font",
       "expo-sqlite"
     ],
-    "experiments": {}
+    "experiments": {},
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "c4c9fef3-1bfb-4371-9d92-c84410747e02"
+      }
+    }
   }
 }
