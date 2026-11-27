@@ -126,6 +126,16 @@ describe('CattleDetailScreen', () => {
     await waitFor(() => expect(screen.getByTestId('record-event-modal')).toBeTruthy());
     fireEvent.press(screen.getByTestId('picker-close-btn'));
     await waitFor(() => expect(screen.queryByTestId('record-event-modal')).toBeNull());
+
+    // Swiping / momentum scroll snap between tabs
+    const pager = screen.getByTestId('workspace-horizontal-pager');
+    expect(pager).toBeTruthy();
+    fireEvent(pager, 'momentumScrollEnd', {
+      nativeEvent: {
+        contentOffset: { x: 0 },
+      },
+    });
+    await waitFor(() => expect(screen.getByTestId('tab-overview')).toBeTruthy());
   });
 
   it('offline: keeps the cached animal and says it is offline with the last-updated time', async () => {
