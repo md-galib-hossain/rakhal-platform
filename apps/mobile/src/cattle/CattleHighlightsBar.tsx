@@ -12,12 +12,10 @@ import {
   type CattleHighlightsData,
 } from './cattle-model.ts';
 import {
-  AwardIcon,
   CowIcon,
   DropletsIcon,
   HeartPulseIcon,
   TrendingUpIcon,
-  UsersIcon,
 } from './CattleIcons.tsx';
 
 export interface CattleHighlightsBarProps {
@@ -26,6 +24,7 @@ export interface CattleHighlightsBarProps {
   selectedCategory: CattleCategoryChipKey;
   onSelectCategory: (category: CattleCategoryChipKey) => void;
   testID?: string;
+  showCategoryChips?: boolean;
 }
 
 const CHIP_I18N_KEYS: Record<CattleCategoryChipKey, MessageKey> = {
@@ -44,12 +43,99 @@ const CHIP_I18N_KEYS: Record<CattleCategoryChipKey, MessageKey> = {
   SICK: 'cattle.chip.sick',
 };
 
+export interface CattleCategoryChipsProps {
+  categoryCounts: Record<CattleCategoryChipKey, number>;
+  selectedCategory: CattleCategoryChipKey;
+  onSelectCategory: (category: CattleCategoryChipKey) => void;
+  testID?: string;
+}
+
+export const CattleCategoryChips = memo(function CattleCategoryChips({
+  categoryCounts,
+  selectedCategory,
+  onSelectCategory,
+  testID = 'cattle-category-chips',
+}: CattleCategoryChipsProps) {
+  const { colors, tokens } = useTheme();
+  const { t } = useLocale();
+  const format = useFormat();
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ gap: tokens.spacing.xs, paddingVertical: 2 }}
+      testID={testID}
+    >
+      {CATTLE_CATEGORY_CHIP_KEYS.map((key) => {
+        const isSelected = selectedCategory === key;
+        const count = categoryCounts[key] ?? 0;
+        return (
+          <PressableSurface
+            key={key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isSelected }}
+            accessibilityLabel={`${t(CHIP_I18N_KEYS[key])}, ${count}`}
+            pressedStyle="overlay"
+            onPress={() => onSelectCategory(key)}
+            testID={`category-chip-${key}`}
+            hitSlop={tokens.spacing.xs}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              borderRadius: tokens.radius.full,
+              borderWidth: isSelected ? 1.5 : 1,
+              borderColor: isSelected ? colors.primary : colors.border,
+              backgroundColor: isSelected ? colors.successTint : colors.card,
+              minHeight: 40,
+            }}
+          >
+            <Text
+              role="caption"
+              style={{
+                fontWeight: isSelected ? '700' : '500',
+                color: isSelected ? colors.primaryText : colors.foreground,
+                fontSize: 12,
+              }}
+            >
+              {t(CHIP_I18N_KEYS[key])}
+            </Text>
+            <View
+              style={{
+                paddingHorizontal: 5,
+                paddingVertical: 1,
+                borderRadius: tokens.radius.full,
+                backgroundColor: isSelected ? colors.card : colors.muted,
+              }}
+            >
+              <Text
+                role="caption"
+                style={{
+                  fontSize: 10,
+                  fontWeight: isSelected ? '700' : '600',
+                  color: isSelected ? colors.primaryText : colors.mutedForeground,
+                }}
+              >
+                {format.numberSafe(count)}
+              </Text>
+            </View>
+          </PressableSurface>
+        );
+      })}
+    </ScrollView>
+  );
+});
+
 export const CattleHighlightsBar = memo(function CattleHighlightsBar({
   highlights,
   categoryCounts,
   selectedCategory,
   onSelectCategory,
   testID = 'cattle-highlights-bar',
+  showCategoryChips = true,
 }: CattleHighlightsBarProps) {
   const { colors, tokens } = useTheme();
   const { t } = useLocale();
@@ -222,71 +308,13 @@ export const CattleHighlightsBar = memo(function CattleHighlightsBar({
       </View>
 
       {/* Category Pills (Horizontal Scroll) */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: tokens.spacing.xs, paddingVertical: 2 }}
-        testID="cattle-category-chips"
-      >
-        {CATTLE_CATEGORY_CHIP_KEYS.map((key) => {
-          const isSelected = selectedCategory === key;
-          const count = categoryCounts[key] ?? 0;
-          return (
-            <PressableSurface
-              key={key}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: isSelected }}
-              accessibilityLabel={`${t(CHIP_I18N_KEYS[key])}, ${count}`}
-              pressedStyle="overlay"
-              onPress={() => onSelectCategory(key)}
-              testID={`category-chip-${key}`}
-              hitSlop={tokens.spacing.xs}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 6,
-                paddingHorizontal: 14,
-                paddingVertical: 8,
-                borderRadius: tokens.radius.full,
-                borderWidth: isSelected ? 1.5 : 1,
-                borderColor: isSelected ? colors.primary : colors.border,
-                backgroundColor: isSelected ? colors.successTint : colors.card,
-                minHeight: 40,
-              }}
-            >
-              <Text
-                role="caption"
-                style={{
-                  fontWeight: isSelected ? '700' : '500',
-                  color: isSelected ? colors.primaryText : colors.foreground,
-                  fontSize: 12,
-                }}
-              >
-                {t(CHIP_I18N_KEYS[key])}
-              </Text>
-              <View
-                style={{
-                  paddingHorizontal: 5,
-                  paddingVertical: 1,
-                  borderRadius: tokens.radius.full,
-                  backgroundColor: isSelected ? colors.card : colors.muted,
-                }}
-              >
-                <Text
-                  role="caption"
-                  style={{
-                    fontSize: 10,
-                    fontWeight: isSelected ? '700' : '600',
-                    color: isSelected ? colors.primaryText : colors.mutedForeground,
-                  }}
-                >
-                  {format.numberSafe(count)}
-                </Text>
-              </View>
-            </PressableSurface>
-          );
-        })}
-      </ScrollView>
+      {showCategoryChips ? (
+        <CattleCategoryChips
+          categoryCounts={categoryCounts}
+          selectedCategory={selectedCategory}
+          onSelectCategory={onSelectCategory}
+        />
+      ) : null}
     </View>
   );
 });

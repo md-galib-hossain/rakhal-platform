@@ -563,8 +563,6 @@ export const CattleCard = memo(function CattleCard({
           marginTop: animMarginTop,
           overflow: 'hidden',
           backgroundColor: colors.card,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
         }}
       >
         <View

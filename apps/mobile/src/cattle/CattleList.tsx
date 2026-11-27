@@ -30,7 +30,7 @@ import { BulkEventModal } from './BulkEventModal.tsx';
 import { CattleBulkDock } from './CattleBulkDock.tsx';
 import { CattleCard } from './CattleCard.tsx';
 import { CattleFilterSheet } from './CattleFilterSheet.tsx';
-import { CattleHighlightsBar } from './CattleHighlightsBar.tsx';
+import { CattleHighlightsBar, CattleCategoryChips } from './CattleHighlightsBar.tsx';
 import { FilterIcon, SearchIcon, UsersIcon } from './CattleIcons.tsx';
 import { UpcomingEventsSheet } from './UpcomingEventsSheet.tsx';
 import {
@@ -229,390 +229,418 @@ export function CattleList({
   const renderHeader = useCallback(
     () => (
       <View style={{ gap: tokens.spacing.md, paddingBottom: tokens.spacing.xs }}>
-        {/* 1. Highlights KPI & Category Pills Bar */}
+        {/* 1. Highlights KPI Bar (Non-sticky) */}
         <CattleHighlightsBar
           highlights={highlights}
           categoryCounts={categoryCounts}
           selectedCategory={selectedCategory}
           onSelectCategory={setSelectedCategory}
+          showCategoryChips={false}
         />
-
-        {/* 2. All Animals Section Header + Add Animal Button */}
-        <View style={{ gap: tokens.spacing.sm }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
-              {status === 'ready' && displayedItems.length > 0 ? (
-                <Text role="title" color="foreground" style={{ fontWeight: '700', fontSize: 18 }} testID="cattle-count" accessibilityLiveRegion="polite">
-                  {t('cattle.count', { count: format.numberSafe(displayedItems.length) })}
-                </Text>
-              ) : (
-                <Text role="title" color="foreground" style={{ fontWeight: '700', fontSize: 18 }}>
-                  {t('cattle.highlights.allAnimals')}
-                </Text>
-              )}
-            </View>
-
-            {/* Action buttons: Add New Animal */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
-              {/* + Add New Animal Primary Button */}
-              <Button
-                label={t('cattle.actions.addAnimal')}
-                leadingIcon="plus"
-                variant="primary"
-                size="md"
-                fullWidth={false}
-                onPress={handleAddAnimalPress}
-                testID="cattle-add-animal-btn"
-              />
-            </View>
-          </View>
-
-          {/* Single Row: Search Input + Filters Button + Groups Button */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs + 2 }}>
-            {/* 1. Search Input Bar */}
-            <View
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                minHeight: tokens.touchTarget.min,
-                height: tokens.touchTarget.min,
-                paddingLeft: tokens.spacing.sm,
-                paddingRight: tokens.spacing.xs,
-                backgroundColor: colors.card,
-                borderWidth: 1,
-                borderColor: colors.border,
-                borderRadius: tokens.radius.md,
-                gap: tokens.spacing.xs,
-              }}
-            >
-              <SearchIcon size={16} color={colors.mutedForeground} />
-              <TextInput
-                testID="cattle-search"
-                value={localSearch}
-                onChangeText={onSearchChange}
-                placeholder={t('cattle.search.placeholder')}
-                placeholderTextColor={colors.mutedForeground}
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="search"
-                style={{
-                  flex: 1,
-                  color: colors.foreground,
-                  fontSize: 13,
-                  paddingVertical: tokens.spacing.xs,
-                  paddingRight: localSearch.length > 0 ? 28 : 4,
-                }}
-              />
-              {localSearch.length > 0 ? (
-                <PressableSurface
-                  accessibilityRole="button"
-                  accessibilityLabel="Clear search"
-                  pressedStyle="overlay"
-                  onPress={clearSearch}
-                  testID="cattle-search-clear"
-                  hitSlop={tokens.spacing.xs}
-                  style={{
-                    position: 'absolute',
-                    right: 8,
-                    width: 28,
-                    height: 28,
-                    borderRadius: tokens.radius.full,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Glyph name="close" size={16} color="mutedForeground" />
-                </PressableSurface>
-              ) : null}
-            </View>
-
-            {/* 2. Filters Button (Icon only, matching milk page consistency) */}
-            <PressableSurface
-              accessibilityRole="button"
-              accessibilityLabel={t('cattle.actions.openFilters')}
-              pressedStyle="overlay"
-              onPress={() => setFilterSheetOpen(true)}
-              testID="cattle-filters-button"
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: tokens.touchTarget.min,
-                minHeight: tokens.touchTarget.min,
-                height: tokens.touchTarget.min,
-                paddingHorizontal: tokens.spacing.xs + 2,
-                borderRadius: tokens.radius.md,
-                borderWidth: 1,
-                borderColor: activeFilterCount > 0 ? colors.primaryEdge : colors.border,
-                backgroundColor: activeFilterCount > 0 ? colors.successTint : colors.card,
-                position: 'relative',
-                flexShrink: 0,
-              }}
-            >
-              <FilterIcon size={18} color={activeFilterCount > 0 ? colors.primary : colors.foreground} />
-              {activeFilterCount > 0 ? (
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: 6,
-                    right: 6,
-                    backgroundColor: colors.primary,
-                    minWidth: 16,
-                    height: 16,
-                    borderRadius: tokens.radius.full,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    paddingHorizontal: 3,
-                  }}
-                >
-                  <Text role="caption" color="primaryForeground" style={{ fontWeight: '700', fontSize: 9, lineHeight: 11 }}>
-                    {activeFilterCount}
-                  </Text>
-                </View>
-              ) : null}
-            </PressableSurface>
-
-            {/* 3. Animal Groups Button */}
-            <PressableSurface
-              accessibilityRole="button"
-              accessibilityLabel={t('cattle.actions.openGroups')}
-              pressedStyle="overlay"
-              onPress={() => setGroupsSheetOpen(true)}
-              testID="cattle-groups-button"
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: tokens.touchTarget.min,
-                height: tokens.touchTarget.min,
-                paddingHorizontal: tokens.spacing.sm,
-                borderRadius: tokens.radius.md,
-                borderWidth: 1,
-                borderColor: filterState.animalGroupId ? colors.primaryEdge : colors.border,
-                backgroundColor: filterState.animalGroupId ? colors.successTint : colors.card,
-                gap: 4,
-                flexShrink: 0,
-              }}
-            >
-              <UsersIcon size={15} color={filterState.animalGroupId ? colors.primary : colors.foreground} />
-              <Text
-                role="body"
-                color={filterState.animalGroupId ? 'primary' : 'foreground'}
-                style={{ fontSize: 13, fontWeight: filterState.animalGroupId ? '700' : '600' }}
-                numberOfLines={1}
-              >
-                {t('cattle.actions.openGroups')}
-              </Text>
-              {animalGroups.length > 0 ? (
-                <Text
-                  role="caption"
-                  color={filterState.animalGroupId ? 'primary' : 'mutedForeground'}
-                  style={{ fontSize: 11, fontWeight: '700' }}
-                >
-                  ({animalGroups.length})
-                </Text>
-              ) : null}
-            </PressableSurface>
-          </View>
-
-          {/* Active Filter Dismissible Chips Row */}
-          {activeFilterCount > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: tokens.spacing.xs, alignItems: 'center', paddingVertical: 2 }}
-              testID="cattle-active-filters-bar"
-            >
-              {filterState.animalGroupId ? (
-                <PressableSurface
-                  accessibilityRole="button"
-                  accessibilityLabel="Remove group filter"
-                  pressedStyle="overlay"
-                  onPress={() => handleFilterByGroup(null)}
-                  testID="cattle-chip-remove-group"
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 4,
-                    paddingLeft: 10,
-                    paddingRight: 6,
-                    paddingVertical: 5,
-                    borderRadius: tokens.radius.full,
-                    backgroundColor: colors.successTint,
-                    borderWidth: 1,
-                    borderColor: colors.primaryEdge,
-                  }}
-                >
-                  <Text role="caption" color="primary" style={{ fontWeight: '700', fontSize: 12 }}>
-                    {t('cattle.filters.chip.group', { name: activeGroupName ?? filterState.animalGroupId })}
-                  </Text>
-                  <Glyph name="close" size={16} color="primary" />
-                </PressableSurface>
-              ) : null}
-
-              {filterState.animalCategory ? (
-                <PressableSurface
-                  accessibilityRole="button"
-                  accessibilityLabel="Remove category filter"
-                  pressedStyle="overlay"
-                  onPress={() => setFilterState((prev) => ({ ...prev, animalCategory: null }))}
-                  testID="cattle-chip-remove-category"
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 4,
-                    paddingLeft: 10,
-                    paddingRight: 6,
-                    paddingVertical: 5,
-                    borderRadius: tokens.radius.full,
-                    backgroundColor: colors.secondary,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 12 }}>
-                    {filterState.animalCategory}
-                  </Text>
-                  <Glyph name="close" size={16} color="mutedForeground" />
-                </PressableSurface>
-              ) : null}
-
-              {filterState.productionStatus ? (
-                <PressableSurface
-                  accessibilityRole="button"
-                  accessibilityLabel="Remove production filter"
-                  pressedStyle="overlay"
-                  onPress={() => setFilterState((prev) => ({ ...prev, productionStatus: null }))}
-                  testID="cattle-chip-remove-production"
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 4,
-                    paddingLeft: 10,
-                    paddingRight: 6,
-                    paddingVertical: 5,
-                    borderRadius: tokens.radius.full,
-                    backgroundColor: colors.secondary,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 12 }}>
-                    {filterState.productionStatus}
-                  </Text>
-                  <Glyph name="close" size={16} color="mutedForeground" />
-                </PressableSurface>
-              ) : null}
-
-              {filterState.lactationStage ? (
-                <PressableSurface
-                  accessibilityRole="button"
-                  accessibilityLabel="Remove lactation filter"
-                  pressedStyle="overlay"
-                  onPress={() => setFilterState((prev) => ({ ...prev, lactationStage: null }))}
-                  testID="cattle-chip-remove-lactation"
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 4,
-                    paddingLeft: 10,
-                    paddingRight: 6,
-                    paddingVertical: 5,
-                    borderRadius: tokens.radius.full,
-                    backgroundColor: colors.secondary,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 12 }}>
-                    {filterState.lactationStage}
-                  </Text>
-                  <Glyph name="close" size={16} color="mutedForeground" />
-                </PressableSurface>
-              ) : null}
-
-              {filterState.reproductiveStatus ? (
-                <PressableSurface
-                  accessibilityRole="button"
-                  accessibilityLabel="Remove reproduction filter"
-                  pressedStyle="overlay"
-                  onPress={() => setFilterState((prev) => ({ ...prev, reproductiveStatus: null }))}
-                  testID="cattle-chip-remove-reproduction"
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 4,
-                    paddingLeft: 10,
-                    paddingRight: 6,
-                    paddingVertical: 5,
-                    borderRadius: tokens.radius.full,
-                    backgroundColor: colors.secondary,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 12 }}>
-                    {filterState.reproductiveStatus}
-                  </Text>
-                  <Glyph name="close" size={16} color="mutedForeground" />
-                </PressableSurface>
-              ) : null}
-
-              {filterState.healthStatus ? (
-                <PressableSurface
-                  accessibilityRole="button"
-                  accessibilityLabel="Remove health filter"
-                  pressedStyle="overlay"
-                  onPress={() => setFilterState((prev) => ({ ...prev, healthStatus: null }))}
-                  testID="cattle-chip-remove-health"
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 4,
-                    paddingLeft: 10,
-                    paddingRight: 6,
-                    paddingVertical: 5,
-                    borderRadius: tokens.radius.full,
-                    backgroundColor: colors.secondary,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                  }}
-                >
-                  <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 12 }}>
-                    {filterState.healthStatus}
-                  </Text>
-                  <Glyph name="close" size={16} color="mutedForeground" />
-                </PressableSurface>
-              ) : null}
-
-              {/* Clear all text button */}
-              <PressableSurface
-                accessibilityRole="button"
-                accessibilityLabel={t('cattle.filters.clearAll')}
-                pressedStyle="overlay"
-                onPress={handleClearAllFilters}
-                testID="cattle-clear-all-filters"
-                style={{ paddingHorizontal: 8, paddingVertical: 5 }}
-              >
-                <Text role="caption" color="destructive" style={{ fontWeight: '700', fontSize: 12 }}>
-                  {t('cattle.filters.clearAll')}
-                </Text>
-              </PressableSurface>
-            </ScrollView>
-          ) : null}
-
-          {/* Sync / Offline Notes */}
-          {notes.map((line) => (
-            <Note key={line.id} text={line.text} testID={`cattle-note-${line.id}`} />
-          ))}
-        </View>
       </View>
     ),
     [
       highlights,
       categoryCounts,
       selectedCategory,
+      setSelectedCategory,
+      tokens,
+    ],
+  );
+
+  const renderStickyControls = useCallback(
+    () => (
+      <View
+        style={{
+          gap: tokens.spacing.sm,
+          paddingHorizontal: tokens.spacing.md,
+          paddingTop: tokens.spacing.xs,
+          paddingBottom: tokens.spacing.sm,
+          backgroundColor: colors.card,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+        }}
+      >
+        {/* 1. Horizontal Category Filter Chips */}
+        <CattleCategoryChips
+          categoryCounts={categoryCounts}
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+        />
+
+        {/* 2. All Animals Section Header + Add Animal Button */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
+            {status === 'ready' && displayedItems.length > 0 ? (
+              <Text role="title" color="foreground" style={{ fontWeight: '700', fontSize: 18 }} testID="cattle-count" accessibilityLiveRegion="polite">
+                {t('cattle.count', { count: format.numberSafe(displayedItems.length) })}
+              </Text>
+            ) : (
+              <Text role="title" color="foreground" style={{ fontWeight: '700', fontSize: 18 }}>
+                {t('cattle.highlights.allAnimals')}
+              </Text>
+            )}
+          </View>
+
+          {/* Action buttons: Add New Animal */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
+            <Button
+              label={t('cattle.actions.addAnimal')}
+              leadingIcon="plus"
+              variant="primary"
+              size="md"
+              fullWidth={false}
+              onPress={handleAddAnimalPress}
+              testID="cattle-add-animal-btn"
+            />
+          </View>
+        </View>
+
+        {/* 3. Single Row: Search Input + Filters Button + Groups Button */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs + 2 }}>
+          {/* Search Input Bar */}
+          <View
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              minHeight: tokens.touchTarget.min,
+              height: tokens.touchTarget.min,
+              paddingLeft: tokens.spacing.sm,
+              paddingRight: tokens.spacing.xs,
+              backgroundColor: colors.card,
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: tokens.radius.md,
+              gap: tokens.spacing.xs,
+            }}
+          >
+            <SearchIcon size={16} color={colors.mutedForeground} />
+            <TextInput
+              testID="cattle-search"
+              value={localSearch}
+              onChangeText={onSearchChange}
+              placeholder={t('cattle.search.placeholder')}
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              style={{
+                flex: 1,
+                color: colors.foreground,
+                fontSize: 13,
+                paddingVertical: tokens.spacing.xs,
+                paddingRight: localSearch.length > 0 ? 28 : 4,
+              }}
+            />
+            {localSearch.length > 0 ? (
+              <PressableSurface
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
+                pressedStyle="overlay"
+                onPress={clearSearch}
+                testID="cattle-search-clear"
+                hitSlop={tokens.spacing.xs}
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  width: 28,
+                  height: 28,
+                  borderRadius: tokens.radius.full,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Glyph name="close" size={16} color="mutedForeground" />
+              </PressableSurface>
+            ) : null}
+          </View>
+
+          {/* Filters Button */}
+          <PressableSurface
+            accessibilityRole="button"
+            accessibilityLabel={t('cattle.actions.openFilters')}
+            pressedStyle="overlay"
+            onPress={() => setFilterSheetOpen(true)}
+            testID="cattle-filters-button"
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: tokens.touchTarget.min,
+              minHeight: tokens.touchTarget.min,
+              height: tokens.touchTarget.min,
+              paddingHorizontal: tokens.spacing.xs + 2,
+              borderRadius: tokens.radius.md,
+              borderWidth: 1,
+              borderColor: activeFilterCount > 0 ? colors.primaryEdge : colors.border,
+              backgroundColor: activeFilterCount > 0 ? colors.successTint : colors.card,
+              position: 'relative',
+              flexShrink: 0,
+            }}
+          >
+            <FilterIcon size={18} color={activeFilterCount > 0 ? colors.primary : colors.foreground} />
+            {activeFilterCount > 0 ? (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 6,
+                  right: 6,
+                  backgroundColor: colors.primary,
+                  minWidth: 16,
+                  height: 16,
+                  borderRadius: tokens.radius.full,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 3,
+                }}
+              >
+                <Text role="caption" color="primaryForeground" style={{ fontWeight: '700', fontSize: 9, lineHeight: 11 }}>
+                  {activeFilterCount}
+                </Text>
+              </View>
+            ) : null}
+          </PressableSurface>
+
+          {/* Animal Groups Button */}
+          <PressableSurface
+            accessibilityRole="button"
+            accessibilityLabel={t('cattle.actions.openGroups')}
+            pressedStyle="overlay"
+            onPress={() => setGroupsSheetOpen(true)}
+            testID="cattle-groups-button"
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: tokens.touchTarget.min,
+              height: tokens.touchTarget.min,
+              paddingHorizontal: tokens.spacing.sm,
+              borderRadius: tokens.radius.md,
+              borderWidth: 1,
+              borderColor: filterState.animalGroupId ? colors.primaryEdge : colors.border,
+              backgroundColor: filterState.animalGroupId ? colors.successTint : colors.card,
+              gap: 4,
+              flexShrink: 0,
+            }}
+          >
+            <UsersIcon size={15} color={filterState.animalGroupId ? colors.primary : colors.foreground} />
+            <Text
+              role="body"
+              color={filterState.animalGroupId ? 'primary' : 'foreground'}
+              style={{ fontSize: 13, fontWeight: filterState.animalGroupId ? '700' : '600' }}
+              numberOfLines={1}
+            >
+              {t('cattle.actions.openGroups')}
+            </Text>
+            {animalGroups.length > 0 ? (
+              <Text
+                role="caption"
+                color={filterState.animalGroupId ? 'primary' : 'mutedForeground'}
+                style={{ fontSize: 11, fontWeight: '700' }}
+              >
+                ({animalGroups.length})
+              </Text>
+            ) : null}
+          </PressableSurface>
+        </View>
+
+        {/* Active Filter Dismissible Chips Row */}
+        {activeFilterCount > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: tokens.spacing.xs, alignItems: 'center', paddingVertical: 2 }}
+            testID="cattle-active-filters-bar"
+          >
+            {filterState.animalGroupId ? (
+              <PressableSurface
+                accessibilityRole="button"
+                accessibilityLabel="Remove group filter"
+                pressedStyle="overlay"
+                onPress={() => handleFilterByGroup(null)}
+                testID="cattle-chip-remove-group"
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingLeft: 10,
+                  paddingRight: 6,
+                  paddingVertical: 5,
+                  borderRadius: tokens.radius.full,
+                  backgroundColor: colors.successTint,
+                  borderWidth: 1,
+                  borderColor: colors.primaryEdge,
+                }}
+              >
+                <Text role="caption" color="primary" style={{ fontWeight: '700', fontSize: 12 }}>
+                  {t('cattle.filters.chip.group', { name: activeGroupName ?? filterState.animalGroupId })}
+                </Text>
+                <Glyph name="close" size={16} color="primary" />
+              </PressableSurface>
+            ) : null}
+
+            {filterState.animalCategory ? (
+              <PressableSurface
+                accessibilityRole="button"
+                accessibilityLabel="Remove category filter"
+                pressedStyle="overlay"
+                onPress={() => setFilterState((prev) => ({ ...prev, animalCategory: null }))}
+                testID="cattle-chip-remove-category"
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingLeft: 10,
+                  paddingRight: 6,
+                  paddingVertical: 5,
+                  borderRadius: tokens.radius.full,
+                  backgroundColor: colors.secondary,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 12 }}>
+                  {filterState.animalCategory}
+                </Text>
+                <Glyph name="close" size={16} color="mutedForeground" />
+              </PressableSurface>
+            ) : null}
+
+            {filterState.productionStatus ? (
+              <PressableSurface
+                accessibilityRole="button"
+                accessibilityLabel="Remove production filter"
+                pressedStyle="overlay"
+                onPress={() => setFilterState((prev) => ({ ...prev, productionStatus: null }))}
+                testID="cattle-chip-remove-production"
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingLeft: 10,
+                  paddingRight: 6,
+                  paddingVertical: 5,
+                  borderRadius: tokens.radius.full,
+                  backgroundColor: colors.secondary,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 12 }}>
+                  {filterState.productionStatus}
+                </Text>
+                <Glyph name="close" size={16} color="mutedForeground" />
+              </PressableSurface>
+            ) : null}
+
+            {filterState.lactationStage ? (
+              <PressableSurface
+                accessibilityRole="button"
+                accessibilityLabel="Remove lactation filter"
+                pressedStyle="overlay"
+                onPress={() => setFilterState((prev) => ({ ...prev, lactationStage: null }))}
+                testID="cattle-chip-remove-lactation"
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingLeft: 10,
+                  paddingRight: 6,
+                  paddingVertical: 5,
+                  borderRadius: tokens.radius.full,
+                  backgroundColor: colors.secondary,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 12 }}>
+                  {filterState.lactationStage}
+                </Text>
+                <Glyph name="close" size={16} color="mutedForeground" />
+              </PressableSurface>
+            ) : null}
+
+            {filterState.reproductiveStatus ? (
+              <PressableSurface
+                accessibilityRole="button"
+                accessibilityLabel="Remove reproduction filter"
+                pressedStyle="overlay"
+                onPress={() => setFilterState((prev) => ({ ...prev, reproductiveStatus: null }))}
+                testID="cattle-chip-remove-reproduction"
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingLeft: 10,
+                  paddingRight: 6,
+                  paddingVertical: 5,
+                  borderRadius: tokens.radius.full,
+                  backgroundColor: colors.secondary,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 12 }}>
+                  {filterState.reproductiveStatus}
+                </Text>
+                <Glyph name="close" size={16} color="mutedForeground" />
+              </PressableSurface>
+            ) : null}
+
+            {filterState.healthStatus ? (
+              <PressableSurface
+                accessibilityRole="button"
+                accessibilityLabel="Remove health filter"
+                pressedStyle="overlay"
+                onPress={() => setFilterState((prev) => ({ ...prev, healthStatus: null }))}
+                testID="cattle-chip-remove-health"
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingLeft: 10,
+                  paddingRight: 6,
+                  paddingVertical: 5,
+                  borderRadius: tokens.radius.full,
+                  backgroundColor: colors.secondary,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text role="caption" color="foreground" style={{ fontWeight: '600', fontSize: 12 }}>
+                  {filterState.healthStatus}
+                </Text>
+                <Glyph name="close" size={16} color="mutedForeground" />
+              </PressableSurface>
+            ) : null}
+
+            {/* Clear all text button */}
+            <PressableSurface
+              accessibilityRole="button"
+              accessibilityLabel={t('cattle.filters.clearAll')}
+              pressedStyle="overlay"
+              onPress={handleClearAllFilters}
+              testID="cattle-clear-all-filters"
+              style={{ paddingHorizontal: 8, paddingVertical: 5 }}
+            >
+              <Text role="caption" color="destructive" style={{ fontWeight: '700', fontSize: 12 }}>
+                {t('cattle.filters.clearAll')}
+              </Text>
+            </PressableSurface>
+          </ScrollView>
+        ) : null}
+
+        {/* Sync / Offline Notes */}
+        {notes.map((line) => (
+          <Note key={line.id} text={line.text} testID={`cattle-note-${line.id}`} />
+        ))}
+      </View>
+    ),
+    [
+      categoryCounts,
+      selectedCategory,
+      setSelectedCategory,
       displayedItems.length,
       status,
       localSearch,
@@ -625,7 +653,6 @@ export function CattleList({
       handleClearAllFilters,
       handleAddAnimalPress,
       animalGroups.length,
-      isSelectionMode,
       notes,
       colors,
       tokens,
@@ -643,6 +670,7 @@ export function CattleList({
     content = (
       <View style={{ gap: tokens.spacing.md }}>
         {renderHeader()}
+        {renderStickyControls()}
         <EmptyState
           testID="cattle-no-match"
           title={t('cattle.noMatch.title')}
@@ -664,6 +692,7 @@ export function CattleList({
     content = (
       <View style={{ gap: tokens.spacing.md }}>
         {renderHeader()}
+        {renderStickyControls()}
         <EmptyState
           testID="cattle-no-match"
           title={t('cattle.noMatch.title')}
@@ -678,13 +707,20 @@ export function CattleList({
         extraData={[isSelectionMode, selectedIds]}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        ListHeaderComponent={renderHeader()}
+        ListHeaderComponent={
+          <>
+            <View style={{ paddingHorizontal: tokens.spacing.md, paddingTop: tokens.spacing.md }}>
+              {renderHeader()}
+            </View>
+            {renderStickyControls()}
+          </>
+        }
+        stickyHeaderIndices={[0]}
         contentContainerStyle={{
-          padding: tokens.spacing.md,
           paddingBottom: selectedIds.size > 0 ? 80 + insets.bottom : tokens.spacing.md,
-          gap: tokens.spacing.sm,
           backgroundColor: colors.card,
         }}
+        ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.sm }} />}
       />
     );
   }
