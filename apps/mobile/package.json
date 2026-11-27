@@ -11,7 +11,7 @@
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
-    "build:apk": "eas build --platform android --profile preview",
+    "build:apk": "npx eas-cli build --platform android --profile preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:node": "node --test \"test/*.test.ts\" && node scripts/check-token-drift.ts",
