@@ -465,7 +465,7 @@ export const CattleCard = memo(function CattleCard({
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingHorizontal: tokens.spacing.md,
-          paddingTop: 11,
+          paddingTop: 7,
           paddingBottom: 11,
           borderTopWidth: 1,
           borderTopColor: colors.border,
