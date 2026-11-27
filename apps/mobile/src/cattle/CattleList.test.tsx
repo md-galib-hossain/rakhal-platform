@@ -48,7 +48,6 @@ describe('CattleList', () => {
     expect(screen.getByText('Sick')).toBeTruthy();
     expect(screen.getAllByText('Healthy').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('BD-001')).toBeTruthy();
-    expect(screen.getByText('Sahiwal')).toBeTruthy();
     expect(screen.getByTestId('cattle-count')).toHaveTextContent('Animals: 3');
     expect(screen.queryByTestId('cattle-note-updated')).toBeNull();
   });
@@ -171,15 +170,15 @@ describe('CattleList', () => {
 
     expect(screen.getByText('Padma')).toBeTruthy();
     expect(screen.getByText('BD-010')).toBeTruthy();
-    expect(screen.getByText('Sahiwal')).toBeTruthy();
     expect(screen.getAllByText('85').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('/100')).toBeTruthy();
     expect(screen.getByText('480 kg')).toBeTruthy();
     expect(screen.getByText('Main Shed')).toBeTruthy();
 
-    // Tap expand toggle to reveal next event row in expanded mode
+    // Tap expand toggle to reveal expanded details (including breed tile and next event)
     fireEvent.press(screen.getByTestId('cattle-row-c10-expand-toggle'));
     await waitFor(() => expect(screen.getByTestId('cattle-row-c10-expanded-details')).toBeTruthy());
+    expect(screen.getByText('Sahiwal')).toBeTruthy();
     expect(screen.getByText('Calving')).toBeTruthy();
     expect(screen.getByText(/2d overdue/)).toBeTruthy();
   });

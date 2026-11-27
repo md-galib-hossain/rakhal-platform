@@ -355,23 +355,6 @@ export const CattleCard = memo(function CattleCard({
                   </View>
                 </>
               ) : null}
-
-              {item.breedName ? (
-                <>
-                  <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>
-                    ·
-                  </Text>
-                  <Text
-                    role="caption"
-                    color="mutedForeground"
-                    style={{ fontSize: 12 }}
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                  >
-                    {item.breedName}
-                  </Text>
-                </>
-              ) : null}
             </View>
           </View>
 
