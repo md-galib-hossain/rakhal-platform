@@ -243,8 +243,6 @@ export function CattleList({
           paddingTop: tokens.spacing.xs,
           paddingBottom: tokens.spacing.sm,
           backgroundColor: colors.card,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
         }}
       >
         {/* 1. All Animals Section Header + Add Animal Button */}
