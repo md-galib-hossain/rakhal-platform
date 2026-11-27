@@ -83,19 +83,19 @@ export const CattleCategoryChips = memo(function CattleCategoryChips({
               alignItems: 'center',
               gap: 6,
               paddingHorizontal: 14,
-              paddingVertical: 8,
+              paddingVertical: 7,
               borderRadius: tokens.radius.full,
-              borderWidth: isSelected ? 1.5 : 1,
+              borderWidth: 1,
               borderColor: isSelected ? colors.primary : colors.border,
-              backgroundColor: isSelected ? colors.successTint : colors.card,
-              minHeight: 40,
+              backgroundColor: isSelected ? colors.primary : colors.card,
+              minHeight: 38,
             }}
           >
             <Text
               role="caption"
               style={{
-                fontWeight: isSelected ? '700' : '500',
-                color: isSelected ? colors.primaryText : colors.foreground,
+                fontWeight: isSelected ? '700' : '600',
+                color: isSelected ? colors.primaryForeground : colors.foreground,
                 fontSize: 12,
               }}
             >
@@ -103,7 +103,7 @@ export const CattleCategoryChips = memo(function CattleCategoryChips({
             </Text>
             <View
               style={{
-                paddingHorizontal: 5,
+                paddingHorizontal: 6,
                 paddingVertical: 1,
                 borderRadius: tokens.radius.full,
                 backgroundColor: isSelected ? colors.card : colors.muted,
@@ -113,8 +113,8 @@ export const CattleCategoryChips = memo(function CattleCategoryChips({
                 role="caption"
                 style={{
                   fontSize: 10,
-                  fontWeight: isSelected ? '700' : '600',
-                  color: isSelected ? colors.primaryText : colors.mutedForeground,
+                  fontWeight: '700',
+                  color: isSelected ? colors.primary : colors.mutedForeground,
                 }}
               >
                 {format.numberSafe(count)}
