@@ -28,7 +28,7 @@
  * 6. ADR-007 compliant: strictly zero drop shadows, 1px border and token fills only.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, PanResponder, Platform, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, PanResponder, Platform, SectionList, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import Svg, { Defs, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { useAuth } from '../auth/AuthProvider.tsx';
@@ -57,6 +57,7 @@ import { MilkFilterSheet } from './MilkFilterSheet.tsx';
 import {
   DEFAULT_SESSIONS,
   SESSION_LABEL_KEYS,
+  type MilkCowRow,
   type MilkSession,
 } from './milk-model.ts';
 import { SearchIcon } from './SearchIcon.tsx';
@@ -251,389 +252,305 @@ export function MilkScreenContent() {
     }
   };
 
-  return (
-    <KeyboardAvoidingView
-      testID="screen-milk"
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      enabled={Platform.OS === 'ios'}
-      style={{ flex: 1, backgroundColor: colors.card }}
-      {...panResponder.panHandlers}
+  const renderTabSwitcher = () => (
+    <View
+      style={{
+        paddingHorizontal: tokens.spacing.md,
+        paddingTop: tokens.spacing.xs,
+        paddingBottom: tokens.spacing.xs,
+        backgroundColor: colors.card,
+      }}
     >
-      {/* Mode Switcher Segmented Control (Collection vs Analytics) */}
+      <View
+        testID="milk-tab-switcher-container"
+        style={{
+          flexDirection: 'row',
+          backgroundColor: colors.muted,
+          borderRadius: tokens.radius.md,
+          padding: 3,
+          marginTop: 2,
+        }}
+      >
+        {/* Tab 1: Collection */}
+        <PressableSurface
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'collection' }}
+          pressedStyle="overlay"
+          onPress={() => setActiveTab('collection')}
+          testID="milk-tab-collection"
+          style={{
+            flex: 1,
+            paddingVertical: 6,
+            paddingHorizontal: tokens.spacing.sm,
+            borderRadius: tokens.radius.md - 2,
+            backgroundColor: activeTab === 'collection' ? colors.card : 'transparent',
+            borderWidth: activeTab === 'collection' ? 1 : 0,
+            borderColor: activeTab === 'collection' ? colors.border : 'transparent',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 32,
+          }}
+        >
+          <Text
+            role="label"
+            color={activeTab === 'collection' ? 'foreground' : 'mutedForeground'}
+            style={{ fontWeight: activeTab === 'collection' ? '700' : '500', fontSize: 13 }}
+          >
+            {t('milk.tabCollection')}
+          </Text>
+        </PressableSurface>
+
+        {/* Tab 2: Analytics */}
+        <PressableSurface
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === 'analytics' }}
+          pressedStyle="overlay"
+          onPress={() => setActiveTab('analytics')}
+          testID="milk-tab-analytics"
+          style={{
+            flex: 1,
+            paddingVertical: 6,
+            paddingHorizontal: tokens.spacing.sm,
+            borderRadius: tokens.radius.md - 2,
+            backgroundColor: activeTab === 'analytics' ? colors.card : 'transparent',
+            borderWidth: activeTab === 'analytics' ? 1 : 0,
+            borderColor: activeTab === 'analytics' ? colors.border : 'transparent',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 32,
+          }}
+        >
+          <Text
+            role="label"
+            color={activeTab === 'analytics' ? 'foreground' : 'mutedForeground'}
+            style={{ fontWeight: activeTab === 'analytics' ? '700' : '500', fontSize: 13 }}
+          >
+            {t('milk.tabAnalytics')}
+          </Text>
+        </PressableSurface>
+      </View>
+    </View>
+  );
+
+  const renderHeader = useCallback(
+    () => (
+      <View style={{ backgroundColor: colors.card, paddingBottom: tokens.spacing.xs }}>
+        {renderTabSwitcher()}
+
+        {/* Side-by-side Top Stats Bar (Date Trigger Card + Today's Total Card) */}
+        <View
+          style={{
+            paddingHorizontal: tokens.spacing.md,
+            paddingTop: tokens.spacing.xs,
+            paddingBottom: tokens.spacing.xs,
+          }}
+        >
+          <View style={{ flexDirection: 'row', gap: tokens.spacing.sm }}>
+            {/* Left: Date Card [ 📅 24 Nov, 2026 / Tuesday ▾ ] */}
+            <PressableSurface
+              accessibilityRole="button"
+              accessibilityLabel={`${t('picker.singleDate')}: ${formattedDate}`}
+              pressedStyle="overlay"
+              onPress={() => setDatePickerVisible(true)}
+              testID="milk-date-pill"
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: tokens.spacing.sm,
+                paddingVertical: tokens.spacing.xs + 2,
+                borderRadius: tokens.radius.lg,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+                gap: tokens.spacing.xs + 2,
+                minHeight: 48,
+              }}
+            >
+              <View
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: tokens.radius.md,
+                  backgroundColor: colors.muted,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <CalendarIcon size={18} color={colors.primary} />
+              </View>
+
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  role="caption"
+                  color="foreground"
+                  style={{ fontWeight: '700', fontSize: 13 }}
+                  testID="milk-current-date"
+                  numberOfLines={1}
+                >
+                  {formattedDate}
+                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
+                    {dayOfWeek}
+                  </Text>
+                  <Svg width={8} height={8} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      d="M6 9L12 15L18 9"
+                      stroke={colors.mutedForeground}
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </Svg>
+                </View>
+              </View>
+            </PressableSurface>
+
+            {/* Right: Today's Total Card [ 📊 Today's Total / 7.0 L ] */}
+            <View
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: tokens.spacing.sm,
+                paddingVertical: tokens.spacing.xs + 2,
+                borderRadius: tokens.radius.lg,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.card,
+                gap: tokens.spacing.xs + 2,
+                minHeight: 48,
+              }}
+            >
+              <View
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: tokens.radius.md,
+                  backgroundColor: colors.muted,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <BarChartIcon size={18} color={colors.primary} />
+              </View>
+
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
+                  {t('milk.todayTotal')}
+                </Text>
+                <Text
+                  role="title"
+                  color="primary"
+                  style={{ fontWeight: '800', fontSize: 16 }}
+                >
+                  {format.numberSafe(liveTotals.totalL)} L
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+    ),
+    [
+      activeTab,
+      colors,
+      tokens,
+      t,
+      formattedDate,
+      dayOfWeek,
+      format,
+      liveTotals.totalL,
+      setActiveTab,
+      setDatePickerVisible,
+    ],
+  );
+
+  const renderStickyControls = useCallback(
+    () => (
       <View
         style={{
           paddingHorizontal: tokens.spacing.md,
           paddingTop: tokens.spacing.xs,
           paddingBottom: tokens.spacing.xs,
+          gap: tokens.spacing.sm,
           backgroundColor: colors.card,
+          position: 'relative',
+          zIndex: 10,
         }}
       >
+        {/* Soft foggy vignette fade underneath sticky top header (ADR-007 compliant: zero drop shadows) */}
         <View
-          testID="milk-tab-switcher-container"
+          pointerEvents="none"
           style={{
-            flexDirection: 'row',
-            backgroundColor: colors.muted,
-            borderRadius: tokens.radius.md,
-            padding: 3,
-            marginTop: 2,
+            position: 'absolute',
+            bottom: -10,
+            left: 0,
+            right: 0,
+            height: 10,
+            zIndex: 10,
           }}
         >
-          {/* Tab 1: Collection */}
-          <PressableSurface
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'collection' }}
-            pressedStyle="overlay"
-            onPress={() => setActiveTab('collection')}
-            testID="milk-tab-collection"
-            style={{
-              flex: 1,
-              paddingVertical: 6,
-              paddingHorizontal: tokens.spacing.sm,
-              borderRadius: tokens.radius.md - 2,
-              backgroundColor: activeTab === 'collection' ? colors.card : 'transparent',
-              borderWidth: activeTab === 'collection' ? 1 : 0,
-              borderColor: activeTab === 'collection' ? colors.border : 'transparent',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 32,
-            }}
-          >
-            <Text
-              role="label"
-              color={activeTab === 'collection' ? 'foreground' : 'mutedForeground'}
-              style={{ fontWeight: activeTab === 'collection' ? '700' : '500', fontSize: 13 }}
-            >
-              {t('milk.tabCollection')}
-            </Text>
-          </PressableSurface>
-
-          {/* Tab 2: Analytics */}
-          <PressableSurface
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeTab === 'analytics' }}
-            pressedStyle="overlay"
-            onPress={() => setActiveTab('analytics')}
-            testID="milk-tab-analytics"
-            style={{
-              flex: 1,
-              paddingVertical: 6,
-              paddingHorizontal: tokens.spacing.sm,
-              borderRadius: tokens.radius.md - 2,
-              backgroundColor: activeTab === 'analytics' ? colors.card : 'transparent',
-              borderWidth: activeTab === 'analytics' ? 1 : 0,
-              borderColor: activeTab === 'analytics' ? colors.border : 'transparent',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: 32,
-            }}
-          >
-            <Text
-              role="label"
-              color={activeTab === 'analytics' ? 'foreground' : 'mutedForeground'}
-              style={{ fontWeight: activeTab === 'analytics' ? '700' : '500', fontSize: 13 }}
-            >
-              {t('milk.tabAnalytics')}
-            </Text>
-          </PressableSurface>
+          <Svg width="100%" height={10}>
+            <Defs>
+              <LinearGradient id="milkHeaderFog" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor={colors.card} stopOpacity={1} />
+                <Stop offset="1" stopColor={colors.card} stopOpacity={0} />
+              </LinearGradient>
+            </Defs>
+            <Rect width="100%" height={10} fill="url(#milkHeaderFog)" />
+          </Svg>
         </View>
-      </View>
 
-      {/* Main Tab Content */}
-      {activeTab === 'analytics' ? (
-        <MilkAnalyticsView
-          totals={liveTotals}
-          rows={rows}
-          tanks={tanks}
-          date={date}
-          configuredSessions={configuredSessions}
-        />
-      ) : (
-        <View style={{ flex: 1 }}>
-          {/* Controls Header: Date Card + Total Card & Session Selector */}
-          <View
-            style={{
-              paddingHorizontal: tokens.spacing.md,
-              paddingTop: tokens.spacing.sm,
-              paddingBottom: tokens.spacing.xs,
-              gap: tokens.spacing.sm,
-              backgroundColor: colors.card,
-              position: 'relative',
-              zIndex: 10,
-            }}
-          >
-            {/* Soft foggy vignette fade underneath sticky top header (ADR-007 compliant: zero drop shadows) */}
-            <View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                bottom: -16,
-                left: 0,
-                right: 0,
-                height: 16,
-                zIndex: 10,
-              }}
-            >
-              <Svg width="100%" height={16}>
-                <Defs>
-                  <LinearGradient id="milkHeaderFog" x1="0" y1="0" x2="0" y2="1">
-                    <Stop offset="0" stopColor={colors.card} stopOpacity={1} />
-                    <Stop offset="1" stopColor={colors.card} stopOpacity={0} />
-                  </LinearGradient>
-                </Defs>
-                <Rect width="100%" height={16} fill="url(#milkHeaderFog)" />
-              </Svg>
-            </View>
-            {/* 2. Side-by-side Top Stats Bar (Date Trigger Card + Today's Total Card) */}
-            <View style={{ flexDirection: 'row', gap: tokens.spacing.sm }}>
-              {/* Left: Date Card [ 📅 24 Nov, 2026 / Tuesday ▾ ] */}
+        {/* 3. Session Selector Pills (Morning ☀️, Noon ⛅, Evening 🌤️, Night 🌙) */}
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          {configuredSessions.map((s) => {
+            const isSelected = s === session;
+            const hasYield = sessionHasYield[s];
+            const sLabel = t(SESSION_LABEL_KEYS[s]);
+
+            return (
               <PressableSurface
+                key={s}
                 accessibilityRole="button"
-                accessibilityLabel={`${t('picker.singleDate')}: ${formattedDate}`}
+                accessibilityState={{ selected: isSelected }}
                 pressedStyle="overlay"
-                onPress={() => setDatePickerVisible(true)}
-                testID="milk-date-pill"
+                onPress={() => setSession(s)}
+                testID={`session-chip-${s.toLowerCase()}`}
                 style={{
                   flex: 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingHorizontal: tokens.spacing.sm,
-                  paddingVertical: tokens.spacing.xs + 2,
-                  borderRadius: tokens.radius.lg,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  backgroundColor: colors.card,
-                  gap: tokens.spacing.xs + 2,
-                  minHeight: 48,
-                }}
-              >
-                <View
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: tokens.radius.md,
-                    backgroundColor: colors.muted,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <CalendarIcon size={18} color={colors.primary} />
-                </View>
-
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text
-                    role="caption"
-                    color="foreground"
-                    style={{ fontWeight: '700', fontSize: 13 }}
-                    testID="milk-current-date"
-                    numberOfLines={1}
-                  >
-                    {formattedDate}
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
-                      {dayOfWeek}
-                    </Text>
-                    <Svg width={8} height={8} viewBox="0 0 24 24" fill="none">
-                      <Path
-                        d="M6 9L12 15L18 9"
-                        stroke={colors.mutedForeground}
-                        strokeWidth={2.5}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </Svg>
-                  </View>
-                </View>
-              </PressableSurface>
-
-              {/* Right: Today's Total Card [ 📊 Today's Total / 7.0 L ] */}
-              <View
-                style={{
-                  flex: 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingHorizontal: tokens.spacing.sm,
-                  paddingVertical: tokens.spacing.xs + 2,
-                  borderRadius: tokens.radius.lg,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  backgroundColor: colors.card,
-                  gap: tokens.spacing.xs + 2,
-                  minHeight: 48,
-                }}
-              >
-                <View
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: tokens.radius.md,
-                    backgroundColor: colors.muted,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <BarChartIcon size={18} color={colors.primary} />
-                </View>
-
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text role="caption" color="mutedForeground" style={{ fontSize: 11 }}>
-                    {t('milk.todayTotal')}
-                  </Text>
-                  <Text
-                    role="title"
-                    color="primary"
-                    style={{ fontWeight: '800', fontSize: 16 }}
-                  >
-                    {format.numberSafe(liveTotals.totalL)} L
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            {/* 3. Session Selector Pills (Morning ☀️, Noon ⛅, Evening 🌤️, Night 🌙) */}
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              {configuredSessions.map((s) => {
-                const isSelected = s === session;
-                const hasYield = sessionHasYield[s];
-                const sLabel = t(SESSION_LABEL_KEYS[s]);
-
-                return (
-                  <PressableSurface
-                    key={s}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected }}
-                    pressedStyle="overlay"
-                    onPress={() => setSession(s)}
-                    testID={`session-chip-${s.toLowerCase()}`}
-                    style={{
-                      flex: 1,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      paddingVertical: 7,
-                      paddingHorizontal: 4,
-                      borderRadius: tokens.radius.full,
-                      backgroundColor: isSelected ? colors.primary : colors.card,
-                      borderWidth: 1,
-                      borderColor: isSelected ? colors.primary : colors.border,
-                      minHeight: 38,
-                      gap: 4,
-                      position: 'relative',
-                    }}
-                  >
-                    {renderSessionIcon(s, isSelected)}
-                    <Text
-                      role="caption"
-                      style={{
-                        fontSize: 12,
-                        fontWeight: isSelected ? '700' : '600',
-                        color: isSelected ? colors.primaryForeground : colors.foreground,
-                      }}
-                      numberOfLines={1}
-                    >
-                      {sLabel}
-                    </Text>
-
-                    {/* Subtle green check badge if session has recorded yields */}
-                    {hasYield && !isSelected ? (
-                      <View
-                        style={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: tokens.radius.full,
-                          backgroundColor: colors.primary,
-                        }}
-                      />
-                    ) : null}
-                  </PressableSurface>
-                );
-              })}
-            </View>
-
-            {/* 4. Search Input + Filter Button */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs + 2 }}>
-              {/* Search Input */}
-              <View
-                style={{
-                  flex: 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  minHeight: tokens.touchTarget.min,
-                  height: tokens.touchTarget.min,
-                  paddingLeft: tokens.spacing.sm,
-                  paddingRight: tokens.spacing.xs,
-                  backgroundColor: colors.card,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  borderRadius: tokens.radius.md,
-                  gap: tokens.spacing.xs,
-                  position: 'relative',
-                }}
-              >
-                <SearchIcon size={16} color={colors.mutedForeground} />
-                <TextInput
-                  testID="milk-search"
-                  value={localSearch}
-                  onChangeText={setLocalSearch}
-                  placeholder={t('cattle.search.placeholder')}
-                  placeholderTextColor={colors.mutedForeground}
-                  style={{
-                    flex: 1,
-                    color: colors.foreground,
-                    fontSize: 13,
-                    paddingVertical: tokens.spacing.xs,
-                    paddingRight: 28,
-                  }}
-                />
-                {localSearch.length > 0 ? (
-                  <PressableSurface
-                    accessibilityRole="button"
-                    accessibilityLabel="Clear search"
-                    pressedStyle="overlay"
-                    onPress={clearSearch}
-                    style={{
-                      position: 'absolute',
-                      right: 8,
-                      width: 28,
-                      height: 28,
-                      borderRadius: tokens.radius.full,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Glyph name="close" size={16} color="mutedForeground" />
-                  </PressableSurface>
-                ) : null}
-              </View>
-
-              {/* Dedicated Filter Button [ 🎚️ ] */}
-              <PressableSurface
-                accessibilityRole="button"
-                accessibilityLabel={t('milk.filterTitle')}
-                pressedStyle="overlay"
-                onPress={() => setFilterSheetVisible(true)}
-                testID="milk-filter-button"
-                style={{
                   flexDirection: 'row',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  minWidth: tokens.touchTarget.min,
-                  minHeight: tokens.touchTarget.min,
-                  paddingHorizontal: tokens.spacing.xs + 2,
-                  borderRadius: tokens.radius.md,
+                  paddingVertical: 7,
+                  paddingHorizontal: 4,
+                  borderRadius: tokens.radius.full,
+                  backgroundColor: isSelected ? colors.primary : colors.card,
                   borderWidth: 1,
-                  borderColor: hasActiveFilters ? colors.primary : colors.border,
-                  backgroundColor: colors.card,
+                  borderColor: isSelected ? colors.primary : colors.border,
+                  minHeight: 38,
+                  gap: 4,
                   position: 'relative',
                 }}
               >
-                <FilterIcon size={18} color={hasActiveFilters ? colors.primary : colors.mutedForeground} />
-                {hasActiveFilters ? (
+                {renderSessionIcon(s, isSelected)}
+                <Text
+                  role="caption"
+                  style={{
+                    fontSize: 12,
+                    fontWeight: isSelected ? '700' : '600',
+                    color: isSelected ? colors.primaryForeground : colors.foreground,
+                  }}
+                  numberOfLines={1}
+                >
+                  {sLabel}
+                </Text>
+
+                {/* Subtle green check badge if session has recorded yields */}
+                {hasYield && !isSelected ? (
                   <View
                     style={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
                       width: 6,
                       height: 6,
                       borderRadius: tokens.radius.full,
@@ -642,47 +559,196 @@ export function MilkScreenContent() {
                   />
                 ) : null}
               </PressableSurface>
-            </View>
+            );
+          })}
+        </View>
 
-            {/* Hidden test-accessible trigger */}
-            <View style={{ height: 0, overflow: 'hidden' }}>
+        {/* 4. Search Input + Filter Button */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs + 2 }}>
+          {/* Search Input */}
+          <View
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              minHeight: tokens.touchTarget.min,
+              height: tokens.touchTarget.min,
+              paddingLeft: tokens.spacing.sm,
+              paddingRight: tokens.spacing.xs,
+              backgroundColor: colors.card,
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: tokens.radius.md,
+              gap: tokens.spacing.xs,
+              position: 'relative',
+            }}
+          >
+            <SearchIcon size={16} color={colors.mutedForeground} />
+            <TextInput
+              testID="milk-search"
+              value={localSearch}
+              onChangeText={setLocalSearch}
+              placeholder={t('cattle.search.placeholder')}
+              placeholderTextColor={colors.mutedForeground}
+              style={{
+                flex: 1,
+                color: colors.foreground,
+                fontSize: 13,
+                paddingVertical: tokens.spacing.xs,
+                paddingRight: 28,
+              }}
+            />
+            {localSearch.length > 0 ? (
               <PressableSurface
                 accessibilityRole="button"
+                accessibilityLabel="Clear search"
                 pressedStyle="overlay"
-                onPress={() => setSessionConfigVisible(true)}
-                testID="milk-manage-sessions"
+                onPress={clearSearch}
+                style={{
+                  position: 'absolute',
+                  right: 8,
+                  width: 28,
+                  height: 28,
+                  borderRadius: tokens.radius.full,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
-                <Text>Sessions</Text>
+                <Glyph name="close" size={16} color="mutedForeground" />
               </PressableSurface>
-            </View>
+            ) : null}
           </View>
 
-          {/* Cow Milking Cards List */}
-          <FlatList
-            data={rows}
-            keyExtractor={(item) => item.cattleId}
-            renderItem={({ item }) => (
-              <MilkCowCard
-                row={item}
-                disabled={!canLog}
-                activeSession={session}
-                configuredSessions={configuredSessions}
-                tankName={activeTank?.name}
-                onChangeYield={updateYield}
-                onPressContainer={handleOpenTankPicker}
+          {/* Dedicated Filter Button [ 🎚️ ] */}
+          <PressableSurface
+            accessibilityRole="button"
+            accessibilityLabel={t('milk.filterTitle')}
+            pressedStyle="overlay"
+            onPress={() => setFilterSheetVisible(true)}
+            testID="milk-filter-button"
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: tokens.touchTarget.min,
+              minHeight: tokens.touchTarget.min,
+              paddingHorizontal: tokens.spacing.xs + 2,
+              borderRadius: tokens.radius.md,
+              borderWidth: 1,
+              borderColor: hasActiveFilters ? colors.primary : colors.border,
+              backgroundColor: colors.card,
+              position: 'relative',
+            }}
+          >
+            <FilterIcon size={18} color={hasActiveFilters ? colors.primary : colors.mutedForeground} />
+            {hasActiveFilters ? (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 8,
+                  right: 8,
+                  width: 6,
+                  height: 6,
+                  borderRadius: tokens.radius.full,
+                  backgroundColor: colors.primary,
+                }}
               />
-            )}
+            ) : null}
+          </PressableSurface>
+        </View>
+
+        {/* Hidden test-accessible trigger */}
+        <View style={{ height: 0, overflow: 'hidden' }}>
+          <PressableSurface
+            accessibilityRole="button"
+            pressedStyle="overlay"
+            onPress={() => setSessionConfigVisible(true)}
+            testID="milk-manage-sessions"
+          >
+            <Text>Sessions</Text>
+          </PressableSurface>
+        </View>
+      </View>
+    ),
+    [
+      tokens,
+      colors,
+      configuredSessions,
+      session,
+      sessionHasYield,
+      t,
+      localSearch,
+      clearSearch,
+      hasActiveFilters,
+      renderSessionIcon,
+    ],
+  );
+
+  const sections = useMemo(
+    () => [{ key: 'milk-cow-list', data: rows }],
+    [rows],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: MilkCowRow }) => (
+      <View style={{ paddingHorizontal: tokens.spacing.md }}>
+        <MilkCowCard
+          row={item}
+          disabled={!canLog}
+          activeSession={session}
+          configuredSessions={configuredSessions}
+          tankName={activeTank?.name}
+          onChangeYield={updateYield}
+          onPressContainer={handleOpenTankPicker}
+        />
+      </View>
+    ),
+    [canLog, session, configuredSessions, activeTank?.name, updateYield, handleOpenTankPicker, tokens.spacing.md],
+  );
+
+  return (
+    <KeyboardAvoidingView
+      testID="screen-milk"
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      enabled={Platform.OS === 'ios'}
+      style={{ flex: 1, backgroundColor: colors.card }}
+      {...panResponder.panHandlers}
+    >
+      {/* Main Tab Content */}
+      {activeTab === 'analytics' ? (
+        <View style={{ flex: 1 }}>
+          {renderTabSwitcher()}
+          <MilkAnalyticsView
+            totals={liveTotals}
+            rows={rows}
+            tanks={tanks}
+            date={date}
+            configuredSessions={configuredSessions}
+          />
+        </View>
+      ) : (
+        <View style={{ flex: 1 }}>
+          {/* Cow Milking Cards SectionList with Sticky Section Controls */}
+          <SectionList
+            sections={sections}
+            keyExtractor={(item: MilkCowRow) => item.cattleId}
+            renderItem={renderItem}
+            ListHeaderComponent={renderHeader}
+            renderSectionHeader={renderStickyControls}
+            stickySectionHeadersEnabled={true}
             contentContainerStyle={{
-              padding: tokens.spacing.md,
               gap: tokens.spacing.sm,
+              paddingTop: tokens.spacing.xs,
               paddingBottom: 90, // Generous clearance for docked footer
             }}
             ListEmptyComponent={
-              <EmptyState
-                title={t('milk.empty')}
-                description={t('cattle.empty.message')}
-                icon="info"
-              />
+              <View style={{ paddingHorizontal: tokens.spacing.md }}>
+                <EmptyState
+                  title={t('milk.empty')}
+                  description={t('cattle.empty.message')}
+                  icon="info"
+                />
+              </View>
             }
           />
 
