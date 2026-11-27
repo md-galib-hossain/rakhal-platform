@@ -11,10 +11,9 @@ import {
   type CattleCategoryChipKey,
   type CattleHighlightsData,
 } from './cattle-model.ts';
-import { CattleIcon, MilkIcon } from '../assets/icons/index.ts';
+import { CattleIcon, MilkIcon, AqrGaugeIcon } from '../assets/icons/index.ts';
 import {
   BreedingPedigreeIcon,
-  SolidTrendChartIcon,
 } from './CattleIcons.tsx';
 
 export interface CattleHighlightsBarProps {
@@ -220,7 +219,7 @@ export const CattleHighlightsBar = memo(function CattleHighlightsBar({
                   justifyContent: 'center',
                 }}
               >
-                <SolidTrendChartIcon size={18} color={colors.info} />
+                <AqrGaugeIcon size={18} color={colors.info} />
               </View>
               <Text role="caption" color="mutedForeground" style={{ fontWeight: '600', fontSize: 11, flexShrink: 1 }} numberOfLines={1}>
                 {t('cattle.highlights.avgAqr')}
