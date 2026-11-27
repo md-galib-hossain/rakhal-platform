@@ -441,8 +441,19 @@ export const CattleCard = memo(function CattleCard({
         </View>
       </PressableSurface>
 
-      {/* Status Strip & Accordion Toggle Bar: Twin Pills on Left + Chevron on Right */}
-      <View
+      {/* Status Strip & Accordion Toggle Bar: Tapping bar toggles expand; chips do not toggle */}
+      <PressableSurface
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isExpanded }}
+        accessibilityLabel={
+          isExpanded
+            ? `${t('cattle.card.lessDetails')}, ${displayName}`
+            : `${t('cattle.card.moreDetails')}, ${displayName}`
+        }
+        pressedStyle="overlay"
+        disabled={disabled}
+        onPress={toggleExpand}
+        testID={`${cardTestID}-expand-bar`}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -459,6 +470,8 @@ export const CattleCard = memo(function CattleCard({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', flexShrink: 1 }}>
           {/* Pill 1: Health Status */}
           <View
+            onStartShouldSetResponder={() => true}
+            onTouchEnd={(e) => e.stopPropagation()}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -493,6 +506,8 @@ export const CattleCard = memo(function CattleCard({
 
           {/* Pill 2: Production / Milking Status */}
           <View
+            onStartShouldSetResponder={() => true}
+            onTouchEnd={(e) => e.stopPropagation()}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -551,7 +566,7 @@ export const CattleCard = memo(function CattleCard({
             <ChevronDownIcon size={13} color={colors.primary} />
           </Animated.View>
         </PressableSurface>
-      </View>
+      </PressableSurface>
 
       {/* 2. Expanded In-Card Accordion Content */}
       <Animated.View
@@ -565,7 +580,11 @@ export const CattleCard = memo(function CattleCard({
           backgroundColor: colors.card,
         }}
       >
-        <View
+        <PressableSurface
+          accessibilityRole="none"
+          pressedStyle="overlay"
+          disabled={disabled}
+          onPress={toggleExpand}
           onLayout={(event) => {
             const h = event.nativeEvent.layout.height;
             if (h > 0 && Math.abs(h - contentHeight) > 1) {
@@ -785,7 +804,7 @@ export const CattleCard = memo(function CattleCard({
             </Text>
             <ArrowRightIcon size={14} color={colors.primaryForeground} />
           </PressableSurface>
-        </View>
+        </PressableSurface>
       </Animated.View>
     </View>
   );

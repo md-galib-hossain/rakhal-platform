@@ -238,6 +238,15 @@ describe('CattleList', () => {
     await waitFor(() => expect(screen.queryByTestId('cattle-row-c20-expanded-details')).toBeNull());
     expect(toggle.props.accessibilityState).toMatchObject({ expanded: false });
 
+    // Tapping bottom expand bar also expands card
+    const expandBar = screen.getByTestId('cattle-row-c20-expand-bar');
+    fireEvent.press(expandBar);
+    await waitFor(() => expect(screen.getByTestId('cattle-row-c20-expanded-details')).toBeTruthy());
+
+    // Tapping neutral area inside expanded details collapses it
+    fireEvent.press(screen.getByTestId('cattle-row-c20-expanded-details'));
+    await waitFor(() => expect(screen.queryByTestId('cattle-row-c20-expanded-details')).toBeNull());
+
     // Tapping card body calls onSelect
     fireEvent.press(screen.getByTestId('cattle-row-c20'));
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'c20', tagNumber: 'BD-020' }));
