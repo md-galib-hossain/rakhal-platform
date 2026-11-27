@@ -247,8 +247,9 @@ export const CattleCard = memo(function CattleCard({
         testID={cardTestID}
         focusInset
         style={{
-          padding: tokens.spacing.md,
-          paddingBottom: tokens.spacing.sm,
+          paddingHorizontal: tokens.spacing.md,
+          paddingTop: tokens.spacing.md,
+          paddingBottom: tokens.spacing.md,
           gap: tokens.spacing.sm,
         }}
       >
@@ -464,7 +465,7 @@ export const CattleCard = memo(function CattleCard({
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingHorizontal: tokens.spacing.md,
-          paddingVertical: 8,
+          paddingVertical: 10,
           borderTopWidth: 1,
           borderTopColor: colors.border,
           backgroundColor: colors.card,
