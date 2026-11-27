@@ -13,8 +13,10 @@ import {
 } from './cattle-model.ts';
 import {
   AwardIcon,
+  CowIcon,
   DropletsIcon,
   HeartPulseIcon,
+  TrendingUpIcon,
   UsersIcon,
 } from './CattleIcons.tsx';
 
@@ -98,7 +100,7 @@ export const CattleHighlightsBar = memo(function CattleHighlightsBar({
                   justifyContent: 'center',
                 }}
               >
-                <UsersIcon size={14} color={colors.accentIndigo} />
+                <CowIcon size={15} color={colors.accentIndigo} />
               </View>
               <Text role="caption" color="mutedForeground" style={{ fontWeight: '600', fontSize: 11 }} numberOfLines={1}>
                 {t('cattle.highlights.total')}
@@ -133,7 +135,7 @@ export const CattleHighlightsBar = memo(function CattleHighlightsBar({
                   justifyContent: 'center',
                 }}
               >
-                <AwardIcon size={14} color={colors.info} />
+                <TrendingUpIcon size={14} color={colors.info} />
               </View>
               <Text role="caption" color="mutedForeground" style={{ fontWeight: '600', fontSize: 11 }} numberOfLines={1}>
                 {t('cattle.highlights.avgAqr')}

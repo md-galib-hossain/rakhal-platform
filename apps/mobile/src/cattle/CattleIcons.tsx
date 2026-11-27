@@ -521,5 +521,40 @@ export function Maximize2Icon({ size = 16, color = 'currentColor' }: IconProps) 
   );
 }
 
+export function CowIcon({ size = 18, color = 'currentColor' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M5 4c0 3 2 5 4 5M19 4c0 3-2 5-4 5M7 9h10c1.5 0 2.5 1 2.5 3v4c0 2-1.5 3.5-3.5 3.5h-8C6 19.5 4.5 18 4.5 16v-4c0-2 1-3 2.5-3z"
+        stroke={color}
+        strokeWidth={1.8}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Circle cx="9" cy="14" r="1" fill={color} />
+      <Circle cx="15" cy="14" r="1" fill={color} />
+    </Svg>
+  );
+}
+
+export function ArrowRightIcon({ size = 16, color = 'currentColor' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M5 12h14M12 5l7 7-7 7" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+export function BarChartIcon({ size = 16, color = 'currentColor' }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 20V10M18 20V4M6 20v-4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+
+
+
 
 
