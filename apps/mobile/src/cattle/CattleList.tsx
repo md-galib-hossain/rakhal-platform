@@ -263,14 +263,7 @@ export function CattleList({
           borderBottomColor: colors.border,
         }}
       >
-        {/* 1. Horizontal Category Filter Chips */}
-        <CattleCategoryChips
-          categoryCounts={categoryCounts}
-          selectedCategory={selectedCategory}
-          onSelectCategory={setSelectedCategory}
-        />
-
-        {/* 2. All Animals Section Header + Add Animal Button */}
+        {/* 1. All Animals Section Header + Add Animal Button */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
             {status === 'ready' && displayedItems.length > 0 ? (
@@ -297,6 +290,13 @@ export function CattleList({
             />
           </View>
         </View>
+
+        {/* 2. Horizontal Category Filter Chips */}
+        <CattleCategoryChips
+          categoryCounts={categoryCounts}
+          selectedCategory={selectedCategory}
+          onSelectCategory={setSelectedCategory}
+        />
 
         {/* 3. Single Row: Search Input + Filters Button + Groups Button */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs + 2 }}>
