@@ -127,7 +127,7 @@ export function WorkspaceHeader({
 
         {/* Name and Tag (Line 1) + Subtitle (Line 2) */}
         <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <Text role="title" style={{ fontWeight: '700', fontSize: 18 }} numberOfLines={1}>
               {detail.name || detail.tagNumber}
             </Text>

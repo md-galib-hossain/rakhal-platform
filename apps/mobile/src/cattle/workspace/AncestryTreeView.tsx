@@ -17,7 +17,6 @@ import Svg, { Circle, Defs, Path, Pattern, Rect } from 'react-native-svg';
 import { PressableSurface } from '../../components/internal/PressableSurface.tsx';
 import { Text } from '../../components/primitives/Text.tsx';
 import type { MessageKey } from '../../i18n/messages.ts';
-import { useFormat } from '../../i18n/useFormat.ts';
 import { useLocale } from '../../providers/LocaleProvider.tsx';
 import { useTheme } from '../../providers/ThemeProvider.tsx';
 import { radius, type ColorTokens } from '../../theme/tokens.ts';
@@ -26,7 +25,6 @@ import {
   MarsIcon,
   Maximize2Icon,
   RotateCcwIcon,
-  SparklesIcon,
   VenusIcon,
   WarehouseIcon,
   ZoomInIcon,
@@ -73,7 +71,6 @@ export function AncestryTreeView({
 }: AncestryTreeViewProps) {
   const { colors } = useTheme();
   const { t } = useLocale();
-  const format = useFormat();
   const patternId = useId();
 
   const [containerSize, setContainerSize] = useState({ width: 360, height: CANVAS_HEIGHT });
@@ -350,39 +347,16 @@ export function AncestryTreeView({
     [onInnerScrollActiveChange]
   );
 
-  const siblingCount = pedigree?.siblings?.length ?? 0;
-
   return (
     <View testID={testID} style={{ gap: 8 }}>
       {/* ── Top Header Bar ── */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-          <Text role="caption" style={{ fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-            {t('cattle.workspace.family.treeView')}
-          </Text>
-          <Text role="caption" style={{ color: colors.mutedForeground, fontSize: 11 }}>
-            ({t('cattle.workspace.family.panHint')})
-          </Text>
-        </View>
-
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 4,
-            paddingHorizontal: 8,
-            paddingVertical: 3,
-            borderRadius: radius.full,
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.card,
-          }}
-        >
-          <SparklesIcon size={12} color={colors.primary} />
-          <Text role="caption" style={{ fontWeight: '600', fontSize: 11 }}>
-            {t('cattle.workspace.family.self')} + {format.numberSafe(siblingCount)} {t('cattle.workspace.family.siblings').toLowerCase()}
-          </Text>
-        </View>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+        <Text role="caption" style={{ fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          {t('cattle.workspace.family.treeView')}
+        </Text>
+        <Text role="caption" style={{ color: colors.mutedForeground, fontSize: 11 }}>
+          ({t('cattle.workspace.family.panHint')})
+        </Text>
       </View>
 
       {/* ── Canvas Viewport ── */}

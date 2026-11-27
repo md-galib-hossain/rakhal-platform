@@ -63,7 +63,7 @@ export function AppHeader() {
               style={{
                 width: 40,
                 height: 40,
-                borderRadius: tokens.radius.full,
+                borderRadius: tokens.radius.md,
                 borderWidth: 1,
                 borderColor: colors.warningEdge,
                 backgroundColor: colors.warningTint,
@@ -85,10 +85,10 @@ export function AppHeader() {
             style={{
               width: 40,
               height: 40,
-              borderRadius: tokens.radius.full,
+              borderRadius: tokens.radius.md,
               borderWidth: 1,
               borderColor: colors.border,
-              backgroundColor: colors.card,
+              backgroundColor: colors.muted,
               justifyContent: 'center',
               alignItems: 'center',
               position: 'relative',

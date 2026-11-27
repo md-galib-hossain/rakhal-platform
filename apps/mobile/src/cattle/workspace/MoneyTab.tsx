@@ -2,21 +2,23 @@
  * MoneyTab: Tab 5 of the Animal Workspace.
  * Renders:
  * 1. Financial KPIs: Total Income, Total Cost, Net Profit (BDT color coded)
- * 2. Month pagination (< 2026-11 >)
+ * 2. Month Date Picker trigger card (opens DatePickerSheet)
  * 3. Expense and Income category breakdowns with proportion bars
  * Strictly zero drop shadows (ADR-007 compliant).
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View } from 'react-native';
+import { farmDayKey, MONTHS_LONG, toBanglaDigits } from '@rakhal/domain';
 import { Card } from '../../components/display/Card.tsx';
 import { PressableSurface } from '../../components/internal/PressableSurface.tsx';
+import { DatePickerSheet } from '../../components/picker/DatePickerSheet.tsx';
 import { Text } from '../../components/primitives/Text.tsx';
 import { useFormat } from '../../i18n/useFormat.ts';
 import { useLocale } from '../../providers/LocaleProvider.tsx';
 import { useTheme } from '../../providers/ThemeProvider.tsx';
 import { radius, type ColorTokens } from '../../theme/tokens.ts';
 import type { CattleDetail } from '../cattle-detail-model.ts';
-import { ChevronLeftIcon, ChevronRightIcon } from '../CattleIcons.tsx';
+import { CalendarIcon, ChevronDownIcon } from '../CattleIcons.tsx';
 
 export interface MoneyTabProps {
   detail: CattleDetail;
@@ -24,17 +26,42 @@ export interface MoneyTabProps {
 }
 
 export function MoneyTab({ detail, testID = 'tab-money' }: MoneyTabProps) {
-  const { colors } = useTheme();
-  const { t } = useLocale();
+  const { colors, tokens } = useTheme();
+  const { t, locale, digits } = useLocale();
   const format = useFormat();
 
   const finance = detail.finance;
-  const [monthOffset, setMonthOffset] = useState(0);
+  const rawPeriod = finance?.period;
+  const initialDate = useMemo(() => {
+    if (rawPeriod && /^\d{4}-\d{2}$/.test(rawPeriod)) {
+      return `${rawPeriod}-01`;
+    }
+    return farmDayKey(Date.now());
+  }, [rawPeriod]);
+
+  const [selectedDate, setSelectedDate] = useState<string>(initialDate);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   const totalIncome = finance?.total_income ?? 0;
   const totalCost = finance?.total_cost ?? 0;
   const netProfit = finance?.net_profit ?? 0;
-  const period = finance?.period || '2026-11';
+  const period = selectedDate ? selectedDate.slice(0, 7) : (rawPeriod || '2026-11');
+
+  const formattedPeriod = useMemo(() => {
+    try {
+      const parts = (selectedDate || '').split('-');
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      if (!isNaN(y) && !isNaN(m) && m >= 1 && m <= 12) {
+        const monthName = MONTHS_LONG[locale]?.[m - 1] ?? MONTHS_LONG.en[m - 1];
+        const yearFormatted = digits === 'beng' ? toBanglaDigits(String(y)) : String(y);
+        return `${monthName} ${yearFormatted}`;
+      }
+    } catch {
+      // fallback
+    }
+    return period;
+  }, [selectedDate, locale, digits, period]);
 
   const expenses = finance?.expense_breakdown ?? { feed: 0, health: 0, breeding: 0, others: 0 };
   const income = finance?.income_breakdown ?? { milk_sales: 0, calf_sales: 0 };
@@ -81,67 +108,61 @@ export function MoneyTab({ detail, testID = 'tab-money' }: MoneyTabProps) {
         </Card>
       </View>
 
-      {/* 2. Month pagination */}
-      <View
+      {/* 2. Month / Period Date Picker Trigger */}
+      <PressableSurface
+        accessibilityRole="button"
+        accessibilityLabel={`${t('picker.singleDate')}: ${formattedPeriod}`}
+        pressedStyle="overlay"
+        onPress={() => setDatePickerVisible(true)}
+        testID="money-date-picker-trigger"
         style={{
           flexDirection: 'row',
           justifyContent: 'space-between',
           alignItems: 'center',
-          paddingHorizontal: 12,
-          paddingVertical: 8,
+          paddingHorizontal: tokens.spacing.md,
+          paddingVertical: 10,
           borderRadius: radius.md,
           backgroundColor: colors.card,
           borderWidth: 1,
           borderColor: colors.border,
+          minHeight: 48,
         }}
       >
-        <Text role="body" style={{ fontWeight: '700' }}>
-          {period}
-        </Text>
-        <View style={{ flexDirection: 'row', gap: 6 }}>
-          <PressableSurface
-            accessibilityRole="button"
-            pressedStyle="overlay"
-            accessibilityLabel={t('common.previous')}
-            onPress={() => setMonthOffset((o) => o - 1)}
-            testID="btn-prev-month"
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View
             style={{
-              width: 48,
-              height: 48,
-              borderRadius: radius.md,
+              width: 32,
+              height: 32,
+              borderRadius: radius.sm,
+              backgroundColor: colors.muted,
               alignItems: 'center',
               justifyContent: 'center',
-              backgroundColor: colors.muted,
-              borderWidth: 1,
-              borderColor: colors.border,
             }}
           >
-            <ChevronLeftIcon size={18} color={colors.foreground} />
-          </PressableSurface>
-
-          <PressableSurface
-            accessibilityRole="button"
-            pressedStyle="overlay"
-            accessibilityLabel={t('common.next')}
-            onPress={() => setMonthOffset((o) => Math.min(o + 1, 0))}
-            disabled={monthOffset >= 0}
-            testID="btn-next-month"
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: radius.md,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: colors.muted,
-              borderWidth: 1,
-              borderColor: colors.border,
-              opacity: monthOffset >= 0 ? 0.4 : 1,
-            }}
-          >
-            <ChevronRightIcon size={18} color={colors.foreground} />
-          </PressableSurface>
+            <CalendarIcon size={16} color={colors.primary} />
+          </View>
+          <Text role="body" style={{ fontWeight: '700', fontSize: 14, color: colors.foreground }}>
+            {formattedPeriod}
+          </Text>
         </View>
-      </View>
+
+        <ChevronDownIcon size={18} color={colors.mutedForeground} />
+      </PressableSurface>
+
+      {/* DatePickerSheet */}
+      <DatePickerSheet
+        visible={datePickerVisible}
+        onClose={() => setDatePickerVisible(false)}
+        mode="single"
+        value={selectedDate}
+        onConfirmSingle={(date) => {
+          if (date) {
+            setSelectedDate(date);
+          }
+          setDatePickerVisible(false);
+        }}
+        testID="money-date-picker-sheet"
+      />
 
       {/* 3. Expense Breakdown */}
       <Card testID="card-expense-breakdown">

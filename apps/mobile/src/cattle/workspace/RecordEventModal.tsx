@@ -4,7 +4,7 @@
  * Connects directly to POST /api/v1/cattle/:id/events with Idempotency-Key.
  * Strictly ADR-007 compliant (zero drop shadows, 1px border separation, token fills).
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, TextInput, View } from 'react-native';
 import { useAuth } from '../../auth/AuthProvider.tsx';
 import { Button } from '../../components/actions/Button.tsx';
@@ -131,10 +131,51 @@ export function RecordEventModal({
 
   // SERVICE (BREEDING) fields
   const [breedingMethod, setBreedingMethod] = useState<'AI' | 'NATURAL' | 'EMBRYO_TRANSFER'>('AI');
-  const [semenSource, setSemenSource] = useState<'FARM_INVENTORY' | 'TECHNICIAN_SUPPLIED' | 'EXTERNAL'>('FARM_INVENTORY');
+  const [semenSource, setSemenSource] = useState<'FARM_INVENTORY' | 'TECHNICIAN_SUPPLIED' | 'EXTERNAL'>('EXTERNAL');
   const [sireNameOrCode, setSireNameOrCode] = useState('');
   const [inseminator, setInseminator] = useState('');
   const [serviceCost, setServiceCost] = useState('');
+  const [serviceProviders, setServiceProviders] = useState<Array<{ id: string; name: string }>>([]);
+  const [semenBatches, setSemenBatches] = useState<Array<{ id: string; name: string; strawBatchCode?: string; bullTag?: string }>>([]);
+  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    let active = true;
+
+    // Fetch registered service providers if available
+    client
+      .get<{ service_providers?: Array<{ id: string; name: string }> }>('/settings/service-providers')
+      .then((res) => {
+        if (!active) return;
+        const list = res.data?.service_providers ?? (Array.isArray(res.data) ? res.data : []);
+        if (Array.isArray(list)) {
+          setServiceProviders(list);
+        }
+      })
+      .catch(() => {
+        // Silently catch if permission is denied or offline
+      });
+
+    // Fetch semen inventory batches if available
+    client
+      .get<{ items?: Array<{ id: string; name: string; strawBatchCode?: string; bullTag?: string }> }>('/inventory/semen/batches')
+      .then((res) => {
+        if (!active) return;
+        const list = res.data?.items ?? (Array.isArray(res.data) ? res.data : []);
+        if (Array.isArray(list)) {
+          setSemenBatches(list);
+        }
+      })
+      .catch(() => {
+        // Silently catch if permission is denied or offline
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [visible, client]);
 
   // PREG_CHECK fields
   const [pregResult, setPregResult] = useState<'PREGNANT' | 'NOT_PREGNANT' | 'SUSPECTED'>('PREGNANT');
@@ -238,14 +279,44 @@ export function RecordEventModal({
       } else if (currentEventKey === 'SERVICE') {
         payload.breedingMethod = breedingMethod;
         if (breedingMethod === 'AI') {
-          payload.semenSource = semenSource;
-          if (inseminator.trim()) payload.inseminator = inseminator.trim();
+          if (semenSource === 'FARM_INVENTORY') {
+            if (!selectedBatchId) {
+              setError(t('cattle.eventForm.error.batchRequired'));
+              setSubmitting(false);
+              return;
+            }
+            payload.semenSource = 'FARM_INVENTORY';
+            payload.semenBatchId = selectedBatchId;
+          } else if (semenSource === 'TECHNICIAN_SUPPLIED' && selectedProviderId) {
+            payload.semenSource = 'TECHNICIAN_SUPPLIED';
+            payload.serviceProviderId = selectedProviderId;
+            if (inseminator.trim()) payload.inseminator = inseminator.trim();
+          } else {
+            // Unregistered technician or external semen:
+            // Backend domain model requires EXTERNAL when serviceProviderId is not registered
+            payload.semenSource = 'EXTERNAL';
+            if (inseminator.trim()) payload.inseminator = inseminator.trim();
+          }
+
+          // Service cost check: for AI when semen is not from inventory, cost is required on backend
+          const costNum = parseFloat(serviceCost);
+          if (semenSource !== 'FARM_INVENTORY') {
+            if (isNaN(costNum) || costNum < 0) {
+              setError(t('cattle.eventForm.error.serviceCostRequired'));
+              setSubmitting(false);
+              return;
+            }
+            payload.serviceCost = costNum;
+          } else if (!isNaN(costNum) && costNum >= 0) {
+            payload.serviceCost = costNum;
+          }
+        } else {
+          const costNum = parseFloat(serviceCost);
+          if (!isNaN(costNum) && costNum >= 0) {
+            payload.serviceCost = costNum;
+          }
         }
         if (sireNameOrCode.trim()) payload.sireNameOrCode = sireNameOrCode.trim();
-        const costNum = parseFloat(serviceCost);
-        if (!isNaN(costNum) && costNum >= 0) {
-          payload.serviceCost = costNum;
-        }
       } else if (currentEventKey === 'PREG_CHECK') {
         payload.result = pregResult;
         payload.diagnosisMethod = diagnosisMethod;
@@ -757,16 +828,16 @@ export function RecordEventModal({
 
                 {/* Semen Source for AI */}
                 {breedingMethod === 'AI' ? (
-                  <View style={{ gap: 6 }}>
+                  <View style={{ gap: 8 }}>
                     <Text role="caption" style={{ fontWeight: '600', color: colors.mutedForeground }}>
-                      Semen Source
+                      {t('cattle.eventForm.service.semenSource')}
                     </Text>
                     <View style={{ flexDirection: 'row', gap: 6 }}>
                       {(
                         [
-                          { id: 'FARM_INVENTORY', label: 'Inventory' },
-                          { id: 'TECHNICIAN_SUPPLIED', label: 'Technician' },
-                          { id: 'EXTERNAL', label: 'External' },
+                          { id: 'EXTERNAL', label: t('cattle.eventForm.service.semenSource.external') },
+                          { id: 'TECHNICIAN_SUPPLIED', label: t('cattle.eventForm.service.semenSource.technician') },
+                          { id: 'FARM_INVENTORY', label: t('cattle.eventForm.service.semenSource.inventory') },
                         ] as const
                       ).map((src) => {
                         const isSel = semenSource === src.id;
@@ -776,7 +847,10 @@ export function RecordEventModal({
                             accessibilityRole="button"
                             pressedStyle="overlay"
                             testID={`semen-source-${src.id.toLowerCase()}`}
-                            onPress={() => setSemenSource(src.id)}
+                            onPress={() => {
+                              setSemenSource(src.id);
+                              setError(null);
+                            }}
                             style={{
                               flex: 1,
                               minHeight: 38,
@@ -793,6 +867,7 @@ export function RecordEventModal({
                               style={{
                                 fontWeight: '600',
                                 color: isSel ? colors.primaryForeground : colors.foreground,
+                                textAlign: 'center',
                               }}
                             >
                               {src.label}
@@ -801,6 +876,128 @@ export function RecordEventModal({
                         );
                       })}
                     </View>
+
+                    {/* Semen Batch selection when FARM_INVENTORY */}
+                    {semenSource === 'FARM_INVENTORY' ? (
+                      <View style={{ gap: 6, marginTop: 4 }}>
+                        <Text role="caption" style={{ fontWeight: '600', color: colors.mutedForeground }}>
+                          {t('cattle.eventForm.service.selectBatch')}
+                        </Text>
+                        {semenBatches.length > 0 ? (
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                            {semenBatches.map((batch) => {
+                              const isPicked = selectedBatchId === batch.id;
+                              return (
+                                <PressableSurface
+                                  key={batch.id}
+                                  accessibilityRole="button"
+                                  pressedStyle="overlay"
+                                  testID={`semen-batch-option-${batch.id}`}
+                                  onPress={() => {
+                                    setSelectedBatchId(batch.id);
+                                    if (batch.bullTag || batch.name) {
+                                      setSireNameOrCode(batch.bullTag || batch.name);
+                                    }
+                                  }}
+                                  style={{
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 8,
+                                    borderRadius: radius.md,
+                                    backgroundColor: isPicked ? colors.primary : colors.card,
+                                    borderWidth: 1,
+                                    borderColor: isPicked ? colors.primary : colors.border,
+                                  }}
+                                >
+                                  <Text
+                                    role="caption"
+                                    style={{
+                                      fontWeight: '600',
+                                      color: isPicked ? colors.primaryForeground : colors.foreground,
+                                    }}
+                                  >
+                                    {batch.name || batch.bullTag || batch.id}
+                                  </Text>
+                                </PressableSurface>
+                              );
+                            })}
+                          </View>
+                        ) : (
+                          <Text role="caption" style={{ color: colors.mutedForeground, fontStyle: 'italic' }}>
+                            {t('cattle.eventForm.service.noBatches')}
+                          </Text>
+                        )}
+                      </View>
+                    ) : null}
+
+                    {/* Service Provider selection when TECHNICIAN_SUPPLIED */}
+                    {semenSource === 'TECHNICIAN_SUPPLIED' && serviceProviders.length > 0 ? (
+                      <View style={{ gap: 6, marginTop: 4 }}>
+                        <Text role="caption" style={{ fontWeight: '600', color: colors.mutedForeground }}>
+                          {t('cattle.eventForm.service.selectProvider')}
+                        </Text>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                          {serviceProviders.map((provider) => {
+                            const isPicked = selectedProviderId === provider.id;
+                            return (
+                              <PressableSurface
+                                key={provider.id}
+                                accessibilityRole="button"
+                                pressedStyle="overlay"
+                                testID={`service-provider-${provider.id}`}
+                                onPress={() => {
+                                  setSelectedProviderId(provider.id);
+                                  setInseminator(provider.name);
+                                }}
+                                style={{
+                                  paddingHorizontal: 12,
+                                  paddingVertical: 8,
+                                  borderRadius: radius.md,
+                                  backgroundColor: isPicked ? colors.primary : colors.card,
+                                  borderWidth: 1,
+                                  borderColor: isPicked ? colors.primary : colors.border,
+                                }}
+                              >
+                                <Text
+                                  role="caption"
+                                  style={{
+                                    fontWeight: '600',
+                                    color: isPicked ? colors.primaryForeground : colors.foreground,
+                                  }}
+                                >
+                                  {provider.name}
+                                </Text>
+                              </PressableSurface>
+                            );
+                          })}
+                          <PressableSurface
+                            accessibilityRole="button"
+                            pressedStyle="overlay"
+                            testID="service-provider-custom"
+                            onPress={() => {
+                              setSelectedProviderId(null);
+                            }}
+                            style={{
+                              paddingHorizontal: 12,
+                              paddingVertical: 8,
+                              borderRadius: radius.md,
+                              backgroundColor: selectedProviderId === null ? colors.muted : colors.card,
+                              borderWidth: 1,
+                              borderColor: selectedProviderId === null ? colors.primary : colors.border,
+                            }}
+                          >
+                            <Text
+                              role="caption"
+                              style={{
+                                fontWeight: '600',
+                                color: selectedProviderId === null ? colors.primary : colors.foreground,
+                              }}
+                            >
+                              {t('cattle.eventForm.service.customTechnician')}
+                            </Text>
+                          </PressableSurface>
+                        </View>
+                      </View>
+                    ) : null}
                   </View>
                 ) : null}
 

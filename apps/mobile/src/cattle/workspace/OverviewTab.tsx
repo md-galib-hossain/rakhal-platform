@@ -159,19 +159,23 @@ export function OverviewTab({
                 flexDirection: 'row',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8,
                 borderBottomWidth: 1,
                 borderBottomColor: colors.border,
                 paddingBottom: 10,
               }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, minWidth: 140 }}>
                 <SparklesIcon size={18} color={colors.accentPurple} />
-                <Text role="title" style={{ fontWeight: '700' }}>
+                <Text role="title" style={{ fontWeight: '700' }} numberOfLines={1}>
                   {t('cattle.workspace.overview.reproTitle')}
                 </Text>
               </View>
               {reproText ? (
-                <StatusBadge tone={reproTone} label={reproText} testID="badge-repro-status" />
+                <View style={{ flexShrink: 0 }}>
+                  <StatusBadge tone={reproTone} label={reproText} testID="badge-repro-status" />
+                </View>
               ) : null}
             </View>
 
@@ -254,20 +258,24 @@ export function OverviewTab({
 
             {/* Quick action buttons */}
             <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-              <Button
-                variant="secondary"
-                size="md"
-                label={t('cattle.workspace.overview.addHeat')}
-                onPress={() => onRecordEvent('HEAT')}
-                testID="btn-add-heat"
-              />
-              <Button
-                variant="secondary"
-                size="md"
-                label={t('cattle.workspace.overview.addService')}
-                onPress={() => onRecordEvent('SERVICE')}
-                testID="btn-add-service"
-              />
+              <View style={{ flex: 1 }}>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  label={t('cattle.workspace.overview.addHeat')}
+                  onPress={() => onRecordEvent('HEAT')}
+                  testID="btn-add-heat"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  label={t('cattle.workspace.overview.addService')}
+                  onPress={() => onRecordEvent('SERVICE')}
+                  testID="btn-add-service"
+                />
+              </View>
             </View>
           </View>
         </Card>
@@ -282,14 +290,16 @@ export function OverviewTab({
                 flexDirection: 'row',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8,
                 borderBottomWidth: 1,
                 borderBottomColor: colors.border,
                 paddingBottom: 10,
               }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
                 <MilkIcon size={18} color={colors.info} />
-                <Text role="title" style={{ fontWeight: '700' }}>
+                <Text role="title" style={{ fontWeight: '700' }} numberOfLines={1}>
                   {t('cattle.workspace.overview.milkTitle')}
                 </Text>
               </View>
@@ -369,14 +379,16 @@ export function OverviewTab({
               flexDirection: 'row',
               justifyContent: 'space-between',
               alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 8,
               borderBottomWidth: 1,
               borderBottomColor: colors.border,
               paddingBottom: 10,
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
               <HeartPulseIcon size={18} color={isSick ? colors.destructiveText : colors.primaryText} />
-              <Text role="title" style={{ fontWeight: '700' }}>
+              <Text role="title" style={{ fontWeight: '700' }} numberOfLines={1}>
                 {t('cattle.workspace.overview.healthTitle')}
               </Text>
             </View>
@@ -460,14 +472,16 @@ export function OverviewTab({
               flexDirection: 'row',
               justifyContent: 'space-between',
               alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 8,
               borderBottomWidth: 1,
               borderBottomColor: colors.border,
               paddingBottom: 10,
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
               <ScaleIcon size={18} color={colors.accentTeal} />
-              <Text role="title" style={{ fontWeight: '700' }}>
+              <Text role="title" style={{ fontWeight: '700' }} numberOfLines={1}>
                 {t('cattle.workspace.overview.growthTitle')}
               </Text>
             </View>
@@ -526,12 +540,14 @@ export function OverviewTab({
               flexDirection: 'row',
               justifyContent: 'space-between',
               alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 8,
               borderBottomWidth: 1,
               borderBottomColor: colors.border,
               paddingBottom: 8,
             }}
           >
-            <Text role="title" style={{ fontWeight: '700' }}>
+            <Text role="title" style={{ fontWeight: '700', flexShrink: 1 }}>
               {t('cattle.workspace.overview.recentTitle')}
             </Text>
             {recentEvents.length > 0 ? (

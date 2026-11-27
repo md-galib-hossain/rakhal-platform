@@ -12,15 +12,8 @@
  * 7. Action Modals: RecordEventModal, EditAnimalProfileModal, SingleDisposeModal, SingleDeleteModal
  */
 import { router, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  ScrollView,
-  type ScrollViewInstance,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { useCallback, useState } from 'react';
+import { ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../components/actions/Button.tsx';
 import { Card } from '../components/display/Card.tsx';
@@ -88,57 +81,6 @@ function DetailContent({ id }: { id: string }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [offlineSheetOpen, setOfflineSheetOpen] = useState(false);
   const [outerScrollEnabled, setOuterScrollEnabled] = useState(true);
-
-  const { width: windowWidth } = useWindowDimensions();
-  const [containerWidth, setContainerWidth] = useState(windowWidth);
-  const horizontalPagerRef = useRef<ScrollViewInstance>(null);
-  const isProgrammaticScroll = useRef(false);
-
-  const visibleSections = useMemo<WorkspaceSectionKey[]>(() => {
-    return ['overview', 'timeline', 'feeding', 'family', 'money'];
-  }, []);
-
-  const handleSelectSection = useCallback((section: WorkspaceSectionKey) => {
-    setActiveSection(section);
-    const index = visibleSections.indexOf(section);
-    if (index >= 0 && horizontalPagerRef.current && containerWidth > 0) {
-      isProgrammaticScroll.current = true;
-      horizontalPagerRef.current.scrollTo({
-        x: index * containerWidth,
-        animated: true,
-      });
-      // Reset programmatic flag after animation completes
-      setTimeout(() => {
-        isProgrammaticScroll.current = false;
-      }, 350);
-    }
-  }, [containerWidth, visibleSections]);
-
-  const handleMomentumScrollEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (isProgrammaticScroll.current) {
-      isProgrammaticScroll.current = false;
-      return;
-    }
-    const offsetX = e.nativeEvent.contentOffset.x;
-    if (containerWidth > 0) {
-      const pageIndex = Math.round(offsetX / containerWidth);
-      const nextSection = visibleSections[pageIndex];
-      if (nextSection && nextSection !== activeSection) {
-        setActiveSection(nextSection);
-      }
-    }
-  }, [activeSection, containerWidth, visibleSections]);
-
-  // Sync scroll position if containerWidth updates (e.g. orientation or initial layout)
-  useEffect(() => {
-    const index = visibleSections.indexOf(activeSection);
-    if (index >= 0 && horizontalPagerRef.current && containerWidth > 0) {
-      horizontalPagerRef.current.scrollTo({
-        x: index * containerWidth,
-        animated: false,
-      });
-    }
-  }, [containerWidth]);
 
   const handleInnerScrollActiveChange = useCallback((active: boolean) => {
     setOuterScrollEnabled(!active);
@@ -401,67 +343,42 @@ function DetailContent({ id }: { id: string }) {
         {/* 3. Section Switcher Tabs */}
         <SectionSwitcher
           currentSection={activeSection}
-          onSelectSection={handleSelectSection}
+          onSelectSection={setActiveSection}
         />
 
-        {/* 4. Active Tab Content - Horizontal Pager with Snap/Paging for Tab Switch Gestures */}
-        <View
-          style={{ width: '100%' }}
-          onLayout={(e) => {
-            const width = Math.round(e.nativeEvent.layout.width);
-            if (width > 0 && width !== containerWidth) {
-              setContainerWidth(width);
-            }
-          }}
-        >
-          <ScrollView
-            ref={horizontalPagerRef}
-            testID="workspace-horizontal-pager"
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            scrollEventThrottle={16}
-            onMomentumScrollEnd={handleMomentumScrollEnd}
-            style={{ width: containerWidth }}
-          >
-            {visibleSections.map((section) => (
-              <View key={section} style={{ width: containerWidth }}>
-                {section === 'overview' ? (
-                  <OverviewTab
-                    detail={detail}
-                    onRecordEvent={(type) => {
-                      setRecordEventTarget(type ?? null);
-                      setRecordEventOpen(true);
-                    }}
-                    onSeeAllTimeline={() => handleSelectSection('timeline')}
-                    onLogMilk={() => router.push('/milk')}
-                    onInnerScrollActiveChange={handleInnerScrollActiveChange}
-                  />
-                ) : null}
+        {/* 4. Active Tab Content */}
+        {activeSection === 'overview' ? (
+          <OverviewTab
+            detail={detail}
+            onRecordEvent={(type) => {
+              setRecordEventTarget(type ?? null);
+              setRecordEventOpen(true);
+            }}
+            onSeeAllTimeline={() => setActiveSection('timeline')}
+            onLogMilk={() => router.push('/milk')}
+            onInnerScrollActiveChange={handleInnerScrollActiveChange}
+          />
+        ) : null}
 
-                {section === 'timeline' ? (
-                  <TimelineTab detail={detail} />
-                ) : null}
+        {activeSection === 'timeline' ? (
+          <TimelineTab detail={detail} />
+        ) : null}
 
-                {section === 'feeding' ? (
-                  <FeedingTab detail={detail} />
-                ) : null}
+        {activeSection === 'feeding' ? (
+          <FeedingTab detail={detail} />
+        ) : null}
 
-                {section === 'family' ? (
-                  <FamilyTab
-                    detail={detail}
-                    onNavigateToAnimal={(animalId) => router.push(`/cattle/${encodeURIComponent(animalId)}`)}
-                    onInnerScrollActiveChange={handleInnerScrollActiveChange}
-                  />
-                ) : null}
+        {activeSection === 'family' ? (
+          <FamilyTab
+            detail={detail}
+            onNavigateToAnimal={(animalId) => router.push(`/cattle/${encodeURIComponent(animalId)}`)}
+            onInnerScrollActiveChange={handleInnerScrollActiveChange}
+          />
+        ) : null}
 
-                {section === 'money' ? (
-                  <MoneyTab detail={detail} />
-                ) : null}
-              </View>
-            ))}
-          </ScrollView>
-        </View>
+        {activeSection === 'money' ? (
+          <MoneyTab detail={detail} />
+        ) : null}
       </ScrollView>
 
       {/* 5. Sticky Floating Action Bar at the bottom */}

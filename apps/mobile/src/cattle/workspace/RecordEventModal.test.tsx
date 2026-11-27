@@ -167,14 +167,48 @@ describe('RecordEventModal', () => {
 
     await fireEvent.changeText(screen.getByTestId('input-service-sire'), 'Bull Sahiwal #9');
     await fireEvent.changeText(screen.getByTestId('input-service-inseminator'), 'Dr. Kabir');
+    await fireEvent.changeText(screen.getByTestId('input-service-cost'), '500');
     await fireEvent.press(screen.getByTestId('event-form-save'));
 
     await waitFor(() => expect(capturedBody).not.toBeNull());
     const payload = capturedBody as { type: string; payload: Record<string, unknown> };
     expect(payload.type).toBe('BREEDING');
     expect(payload.payload.breedingMethod).toBe('AI');
+    expect(payload.payload.semenSource).toBe('EXTERNAL');
     expect(payload.payload.sireNameOrCode).toBe('Bull Sahiwal #9');
     expect(payload.payload.inseminator).toBe('Dr. Kabir');
+    expect(payload.payload.serviceCost).toBe(500);
+  });
+
+  it('maps technician button to EXTERNAL when free-text inseminator is entered', async () => {
+    let capturedBody: unknown = null;
+    const handler: Handler = (url, body, method) => {
+      if (url.includes('/cattle/c1/events') && method === 'POST') {
+        capturedBody = body;
+        return ok({ id: 'ev-srv-2', type: 'BREEDING' });
+      }
+      return ok({ ok: true });
+    };
+
+    const h = syncHarness({ handler });
+    await openModal(h, { initialEventKey: 'SERVICE' });
+
+    await waitFor(() => expect(screen.getByTestId('semen-source-technician_supplied')).toBeTruthy());
+
+    // Select Technician source
+    await fireEvent.press(screen.getByTestId('semen-source-technician_supplied'));
+    await fireEvent.changeText(screen.getByTestId('input-service-sire'), 'Friesian-102');
+    await fireEvent.changeText(screen.getByTestId('input-service-inseminator'), 'Dr. Alam');
+    await fireEvent.changeText(screen.getByTestId('input-service-cost'), '333');
+    await fireEvent.press(screen.getByTestId('event-form-save'));
+
+    await waitFor(() => expect(capturedBody).not.toBeNull());
+    const payload = capturedBody as { type: string; payload: Record<string, unknown> };
+    expect(payload.payload.breedingMethod).toBe('AI');
+    // Mapped to EXTERNAL to prevent "serviceProviderId is required" backend crash
+    expect(payload.payload.semenSource).toBe('EXTERNAL');
+    expect(payload.payload.inseminator).toBe('Dr. Alam');
+    expect(payload.payload.serviceCost).toBe(333);
   });
 
   it('records ILLNESS report with severity and symptoms', async () => {
