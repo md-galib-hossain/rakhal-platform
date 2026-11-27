@@ -100,15 +100,15 @@ describe('CattleList', () => {
     expect(screen.getByText('Not downloaded yet')).toBeTruthy();
   });
 
-  it('reads from the phone when the server goes away, with an offline note', async () => {
+  it('reads from the phone when the server goes away', async () => {
     const h = syncHarness({ handler: server(cows) });
     await open(h);
     await waitFor(() => expect(screen.getByTestId('cattle-row-c1')).toBeTruthy());
     h.setReachable(false);
     h.emitNetwork(false);
     await h.sync().syncNow();
-    await waitFor(() => expect(screen.getByTestId('cattle-note-offline')).toBeTruthy());
     expect(screen.getByTestId('cattle-row-c1')).toBeTruthy();
+    expect(screen.queryByTestId('cattle-note-offline')).toBeNull();
   });
 
   it('shows Bangla copy', async () => {

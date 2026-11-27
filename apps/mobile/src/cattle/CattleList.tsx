@@ -32,8 +32,7 @@ import { CattleBulkDock } from './CattleBulkDock.tsx';
 import { CattleCard } from './CattleCard.tsx';
 import { CattleFilterSheet } from './CattleFilterSheet.tsx';
 import { CattleHighlightsBar, CattleCategoryChips } from './CattleHighlightsBar.tsx';
-import { FilterIcon, SearchIcon, UsersIcon, WifiOffIcon } from './CattleIcons.tsx';
-import { OfflineDetailsSheet } from './OfflineDetailsSheet.tsx';
+import { FilterIcon, SearchIcon, UsersIcon } from './CattleIcons.tsx';
 import { UpcomingEventsSheet } from './UpcomingEventsSheet.tsx';
 import {
   computeCategoryCounts,
@@ -90,7 +89,6 @@ export function CattleList({
   const [bulkGroupOpen, setBulkGroupOpen] = useState(false);
   const [bulkDisposeOpen, setBulkDisposeOpen] = useState(false);
   const [addAnimalOpen, setAddAnimalOpen] = useState(false);
-  const [offlineSheetOpen, setOfflineSheetOpen] = useState(false);
 
   const { groups: animalGroups, reload: reloadGroups } = useAnimalGroups();
 
@@ -258,32 +256,6 @@ export function CattleList({
                 {t('cattle.highlights.allAnimals')}
               </Text>
             )}
-
-            {syncState === 'offline' && showSyncNotes ? (
-              <PressableSurface
-                accessibilityRole="button"
-                accessibilityLabel={t('cattle.offline')}
-                pressedStyle="overlay"
-                onPress={() => setOfflineSheetOpen(true)}
-                testID="cattle-note-offline"
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                  borderRadius: tokens.radius.full,
-                  backgroundColor: colors.warningTint,
-                  borderWidth: 1,
-                  borderColor: colors.warningEdge,
-                }}
-              >
-                <WifiOffIcon size={14} color={colors.warningText} />
-                <Text role="caption" color="warningText" style={{ fontWeight: '700', fontSize: 11 }}>
-                  {t('sync.pill.offline')}
-                </Text>
-              </PressableSurface>
-            ) : null}
           </View>
 
           {/* Action buttons: Add New Animal */}
@@ -887,13 +859,6 @@ export function CattleList({
         onRefreshGroups={reloadGroups}
       />
 
-      {/* Sheet 4: Offline Details Bottom Sheet Modal */}
-      <OfflineDetailsSheet
-        visible={offlineSheetOpen}
-        onClose={() => setOfflineSheetOpen(false)}
-        message={t('cattle.offline')}
-        testID="cattle-offline-modal"
-      />
     </View>
   );
 }

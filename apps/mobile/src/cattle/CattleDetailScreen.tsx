@@ -268,22 +268,17 @@ function DetailContent({ id }: { id: string }) {
               testID="detail-offline"
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               style={{
+                width: 40,
                 height: 40,
-                paddingHorizontal: 10,
                 borderRadius: radius.md,
                 alignItems: 'center',
                 justifyContent: 'center',
-                flexDirection: 'row',
-                gap: 5,
                 backgroundColor: colors.warningTint,
                 borderWidth: 1,
                 borderColor: colors.warningEdge,
               }}
             >
-              <WifiOffIcon size={16} color={colors.warningText} />
-              <Text role="caption" color="warningText" style={{ fontWeight: '700', fontSize: 11 }}>
-                {t('sync.pill.offline')}
-              </Text>
+              <WifiOffIcon size={18} color={colors.warningText} />
             </PressableSurface>
           ) : null}
 
