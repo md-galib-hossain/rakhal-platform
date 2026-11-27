@@ -357,10 +357,32 @@ export function MilkScreenContent() {
               paddingBottom: tokens.spacing.xs,
               gap: tokens.spacing.sm,
               backgroundColor: colors.card,
-              borderBottomWidth: 1,
-              borderColor: colors.border,
+              position: 'relative',
+              zIndex: 10,
             }}
           >
+            {/* Soft foggy vignette fade underneath sticky top header (ADR-007 compliant: zero drop shadows) */}
+            <View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                bottom: -16,
+                left: 0,
+                right: 0,
+                height: 16,
+                zIndex: 10,
+              }}
+            >
+              <Svg width="100%" height={16}>
+                <Defs>
+                  <LinearGradient id="milkHeaderFog" x1="0" y1="0" x2="0" y2="1">
+                    <Stop offset="0" stopColor={colors.card} stopOpacity={1} />
+                    <Stop offset="1" stopColor={colors.card} stopOpacity={0} />
+                  </LinearGradient>
+                </Defs>
+                <Rect width="100%" height={16} fill="url(#milkHeaderFog)" />
+              </Svg>
+            </View>
             {/* 2. Side-by-side Top Stats Bar (Date Trigger Card + Today's Total Card) */}
             <View style={{ flexDirection: 'row', gap: tokens.spacing.sm }}>
               {/* Left: Date Card [ 📅 24 Nov, 2026 / Tuesday ▾ ] */}
@@ -653,7 +675,7 @@ export function MilkScreenContent() {
             contentContainerStyle={{
               padding: tokens.spacing.md,
               gap: tokens.spacing.sm,
-              paddingBottom: 110, // Generous clearance for docked footer
+              paddingBottom: 90, // Generous clearance for docked footer
             }}
             ListEmptyComponent={
               <EmptyState
@@ -663,29 +685,6 @@ export function MilkScreenContent() {
               />
             }
           />
-
-          {/* 5. Foggy Vignette & Sticky Docked Action Footer */}
-          {/* Foggy gradient fade above sticky footer (ADR-007 compliant: zero drop shadows) */}
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              bottom: 84, // Sits directly on top of docked action footer
-              left: 0,
-              right: 0,
-              height: 24,
-            }}
-          >
-            <Svg width="100%" height={24}>
-              <Defs>
-                <LinearGradient id="milkDockFog" x1="0" y1="0" x2="0" y2="1">
-                  <Stop offset="0" stopColor={colors.card} stopOpacity={0} />
-                  <Stop offset="1" stopColor={colors.card} stopOpacity={1} />
-                </LinearGradient>
-              </Defs>
-              <Rect width="100%" height={24} fill="url(#milkDockFog)" />
-            </Svg>
-          </View>
 
           <View
             style={{
