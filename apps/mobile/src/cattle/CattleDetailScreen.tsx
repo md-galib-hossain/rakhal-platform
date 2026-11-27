@@ -28,7 +28,8 @@ import { useFormat } from '../i18n/useFormat.ts';
 import { useLocale } from '../providers/LocaleProvider.tsx';
 import { useTheme } from '../providers/ThemeProvider.tsx';
 import { radius } from '../theme/tokens.ts';
-import { ArrowLeftIcon, BellIcon, MoreVerticalIcon, PencilIcon, Trash2Icon } from './CattleIcons.tsx';
+import { ArrowLeftIcon, BellIcon, MoreVerticalIcon, PencilIcon, Trash2Icon, WifiOffIcon } from './CattleIcons.tsx';
+import { OfflineDetailsSheet } from './OfflineDetailsSheet.tsx';
 import { useNotificationContext } from '../notifications/NotificationContext.tsx';
 import { TABS } from '../navigation/nav-config.ts';
 import { PermissionGate } from '../permissions/PermissionGate.tsx';
@@ -78,6 +79,7 @@ function DetailContent({ id }: { id: string }) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [offlineSheetOpen, setOfflineSheetOpen] = useState(false);
   const [outerScrollEnabled, setOuterScrollEnabled] = useState(true);
 
   const handleInnerScrollActiveChange = useCallback((active: boolean) => {
@@ -197,8 +199,36 @@ function DetailContent({ id }: { id: string }) {
           <ArrowLeftIcon size={20} color={colors.foreground} />
         </PressableSurface>
 
-        {/* Top actions: Remind me, Edit, More */}
+        {/* Top actions: Offline indicator (if offline), Remind me, Edit, More */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {state.notice === 'offline' ? (
+            <PressableSurface
+              accessibilityRole="button"
+              pressedStyle="overlay"
+              accessibilityLabel={t('cattle.detail.offlineNotice', { time })}
+              onPress={() => setOfflineSheetOpen(true)}
+              testID="detail-offline"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{
+                height: 40,
+                paddingHorizontal: 10,
+                borderRadius: radius.md,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'row',
+                gap: 5,
+                backgroundColor: colors.warningTint,
+                borderWidth: 1,
+                borderColor: colors.warningEdge,
+              }}
+            >
+              <WifiOffIcon size={16} color={colors.warningText} />
+              <Text role="caption" color="warningText" style={{ fontWeight: '700', fontSize: 11 }}>
+                {t('sync.pill.offline')}
+              </Text>
+            </PressableSurface>
+          ) : null}
+
           <PressableSurface
             accessibilityRole="button"
             pressedStyle="overlay"
@@ -281,12 +311,7 @@ function DetailContent({ id }: { id: string }) {
         contentContainerStyle={{ paddingBottom: insets.bottom + 88, backgroundColor: colors.card }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Offline / Failed Notices */}
-        {state.notice === 'offline' ? (
-          <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-            <Notice testID="detail-offline" text={t('cattle.detail.offlineNotice', { time })} />
-          </View>
-        ) : null}
+        {/* Failed Notice (if any server error occurred) */}
         {state.notice === 'failed' ? (
           <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
             <Notice testID="detail-failed" text={t('cattle.detail.failedNotice', { time })} />
@@ -434,6 +459,15 @@ function DetailContent({ id }: { id: string }) {
           toast?.show({ message: msg });
           router.replace('/cattle');
         }}
+      />
+
+      {/* Offline Details Bottom Sheet Modal */}
+      <OfflineDetailsSheet
+        visible={offlineSheetOpen}
+        onClose={() => setOfflineSheetOpen(false)}
+        message={t('cattle.detail.offlineNotice', { time })}
+        lastUpdatedText={lastSyncedAt ? t('sync.sheet.lastSynced', { time }) : null}
+        testID="detail-offline-modal"
       />
 
       {/* More Options Bottom Sheet */}

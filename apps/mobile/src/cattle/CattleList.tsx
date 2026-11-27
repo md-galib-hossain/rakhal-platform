@@ -31,7 +31,8 @@ import { CattleBulkDock } from './CattleBulkDock.tsx';
 import { CattleCard } from './CattleCard.tsx';
 import { CattleFilterSheet } from './CattleFilterSheet.tsx';
 import { CattleHighlightsBar, CattleCategoryChips } from './CattleHighlightsBar.tsx';
-import { FilterIcon, SearchIcon, UsersIcon } from './CattleIcons.tsx';
+import { FilterIcon, SearchIcon, UsersIcon, WifiOffIcon } from './CattleIcons.tsx';
+import { OfflineDetailsSheet } from './OfflineDetailsSheet.tsx';
 import { UpcomingEventsSheet } from './UpcomingEventsSheet.tsx';
 import {
   computeCategoryCounts,
@@ -55,17 +56,6 @@ export interface CattleListProps {
   /** Keep the "last updated" and offline lines (default true). A picker inside a sheet may hide them. */
   showSyncNotes?: boolean;
   testID?: string;
-}
-
-function Note({ text, testID }: { text: string; testID: string }) {
-  return (
-    <View testID={testID} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-      <Glyph name="info" size={16} color="infoText" />
-      <Text role="label" color="foreground" style={{ flex: 1 }}>
-        {text}
-      </Text>
-    </View>
-  );
 }
 
 export function CattleList({
@@ -99,6 +89,7 @@ export function CattleList({
   const [bulkGroupOpen, setBulkGroupOpen] = useState(false);
   const [bulkDisposeOpen, setBulkDisposeOpen] = useState(false);
   const [addAnimalOpen, setAddAnimalOpen] = useState(false);
+  const [offlineSheetOpen, setOfflineSheetOpen] = useState(false);
 
   const { groups: animalGroups, reload: reloadGroups } = useAnimalGroups();
 
@@ -221,13 +212,6 @@ export function CattleList({
     [isDisabled, onSelect, isSelectionMode, selectedIds, toggleSelectItem, handleLongPressItem, tokens.spacing.md],
   );
 
-  const notes = useMemo(() => {
-    if (!showSyncNotes) return [];
-    const lines: { id: string; text: string }[] = [];
-    if (syncState === 'offline') lines.push({ id: 'offline', text: t('cattle.offline') });
-    return lines;
-  }, [showSyncNotes, syncState, t]);
-
   const renderHeader = useCallback(
     () => (
       <View style={{ gap: tokens.spacing.md, paddingBottom: tokens.spacing.xs }}>
@@ -275,6 +259,32 @@ export function CattleList({
                 {t('cattle.highlights.allAnimals')}
               </Text>
             )}
+
+            {syncState === 'offline' && showSyncNotes ? (
+              <PressableSurface
+                accessibilityRole="button"
+                accessibilityLabel={t('cattle.offline')}
+                pressedStyle="overlay"
+                onPress={() => setOfflineSheetOpen(true)}
+                testID="cattle-note-offline"
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: tokens.radius.full,
+                  backgroundColor: colors.warningTint,
+                  borderWidth: 1,
+                  borderColor: colors.warningEdge,
+                }}
+              >
+                <WifiOffIcon size={14} color={colors.warningText} />
+                <Text role="caption" color="warningText" style={{ fontWeight: '700', fontSize: 11 }}>
+                  {t('sync.pill.offline')}
+                </Text>
+              </PressableSurface>
+            ) : null}
           </View>
 
           {/* Action buttons: Add New Animal */}
@@ -632,11 +642,6 @@ export function CattleList({
             </PressableSurface>
           </ScrollView>
         ) : null}
-
-        {/* Sync / Offline Notes */}
-        {notes.map((line) => (
-          <Note key={line.id} text={line.text} testID={`cattle-note-${line.id}`} />
-        ))}
       </View>
     ),
     [
@@ -655,7 +660,8 @@ export function CattleList({
       handleClearAllFilters,
       handleAddAnimalPress,
       animalGroups.length,
-      notes,
+      syncState,
+      showSyncNotes,
       colors,
       tokens,
       t,
@@ -857,6 +863,14 @@ export function CattleList({
         onFilterByGroup={handleFilterByGroup}
         groups={animalGroups}
         onRefreshGroups={reloadGroups}
+      />
+
+      {/* Sheet 4: Offline Details Bottom Sheet Modal */}
+      <OfflineDetailsSheet
+        visible={offlineSheetOpen}
+        onClose={() => setOfflineSheetOpen(false)}
+        message={t('cattle.offline')}
+        testID="cattle-offline-modal"
       />
     </View>
   );
