@@ -579,7 +579,7 @@ export const CattleCard = memo(function CattleCard({
           opacity: animOpacity,
           marginTop: animMarginTop,
           overflow: 'hidden',
-          backgroundColor: colors.muted,
+          backgroundColor: colors.card,
           borderTopWidth: 1,
           borderTopColor: colors.border,
         }}
@@ -591,7 +591,7 @@ export const CattleCard = memo(function CattleCard({
               setContentHeight(h);
             }
           }}
-          style={{ padding: tokens.spacing.md, gap: tokens.spacing.sm }}
+          style={{ padding: tokens.spacing.md, gap: tokens.spacing.sm, backgroundColor: colors.card }}
           testID={isExpanded ? `${cardTestID}-expanded-details` : undefined}
         >
           {/* 1. Full-Width Actionable Next Event Alert Banner */}
