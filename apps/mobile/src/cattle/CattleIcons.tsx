@@ -554,78 +554,43 @@ export function BarChartIcon({ size = 16, color = 'currentColor' }: IconProps) {
 }
 
 /**
- * Solid Trend Chart Icon for KPI stats (AQR performance).
+ * Solid Trend Up Icon for KPI stats (AQR performance / score).
+ * Highly legible at small mobile viewports (18-20dp) with bold stroke and arrow.
  */
 export function SolidTrendChartIcon({ size = 18, color = 'currentColor' }: IconProps) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24">
-      {/* 3 solid rounded bars */}
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      {/* Upward zigzag line with bold stroke */}
       <Path
-        d="M4 19h2.5a1 1 0 0 0 1-1v-4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v4a1 1 0 0 0 1 1Zm7 0h2.5a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1Zm7 0h2.5a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H18a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1Z"
-        fill={color}
+        d="M3 17l6-6 4 4 8-8"
+        stroke={color}
+        strokeWidth={2.75}
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
-      {/* Upward trend pointer arrow */}
+      {/* Crisp solid arrowhead */}
       <Path
-        d="M3.7 10.7a1 1 0 0 1 0-1.4l5.3-5.3a1 1 0 0 1 1.4 0l3.3 3.3 5.3-5.3H16a1 1 0 1 1 0-2h5a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0V3.4l-5.6 5.6a1 1 0 0 1-1.4 0l-3.3-3.3-4.6 4.6a1 1 0 0 1-1.4 0Z"
-        fill={color}
+        d="M14 7h7v7"
+        stroke={color}
+        strokeWidth={2.75}
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </Svg>
   );
 }
 
 /**
- * Solid Breeding / Pedigree Icon matching user's reference image:
- * Pedigree tree with 2 parent cows at the top, a T-bar connector,
- * and an offspring calf at the bottom with radiant sparks.
+ * Solid Heart / Fertility Icon for Breeding Ready KPI.
+ * A bold, beautifully curved solid heart with a subtle sparkle/pulse motif,
+ * instantly recognized across all viewing distances at 18-20dp.
  */
 export function BreedingPedigreeIcon({ size = 18, color = 'currentColor' }: IconProps) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 100 100" fill="none">
-      {/* T-bar connector between parents and down to calf */}
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      {/* Bold solid heart */}
       <Path
-        d="M36 32h28v4H52v16h-4V36H36v-4Z"
-        fill={color}
-      />
-
-      {/* --- Left Parent Cow --- */}
-      {/* Horns & Ears & Head Base with eye cutouts and muzzle cutout in evenodd fill */}
-      <Path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M17 11l4 6h10l4-6 5 7c4-1 9 1 9 4s-4 4-7 4c-1 3-3 8-6 10-2 2-5 3-8 3s-6-1-8-3c-3-2-5-7-6-10-3 0-7-1-7-4s5-5 9-4l5-7Zm6 13a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4Zm8 0a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4Zm-4 13c-4.4 0-8 2.7-8 6s3.6 6 8 6 8-2.7 8-6-3.6-6-8-6Z"
-        fill={color}
-      />
-      {/* Left cow nostrils inside muzzle */}
-      <Circle cx="24" cy="43" r="1.6" fill={color} />
-      <Circle cx="30" cy="43" r="1.6" fill={color} />
-
-      {/* --- Right Parent Cow --- */}
-      {/* Horns & Ears & Head Base with eye cutouts and muzzle cutout in evenodd fill */}
-      <Path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M63 11l4 6h10l4-6 5 7c4-1 9 1 9 4s-4 4-7 4c-1 3-3 8-6 10-2 2-5 3-8 3s-6-1-8-3c-3-2-5-7-6-10-3 0-7-1-7-4s5-5 9-4l5-7Zm6 13a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4Zm8 0a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4Zm-4 13c-4.4 0-8 2.7-8 6s3.6 6 8 6 8-2.7 8-6-3.6-6-8-6Z"
-        fill={color}
-      />
-      {/* Right cow nostrils inside muzzle */}
-      <Circle cx="70" cy="43" r="1.6" fill={color} />
-      <Circle cx="76" cy="43" r="1.6" fill={color} />
-
-      {/* --- Bottom Calf / Offspring --- */}
-      {/* Horns & Ears & Head Base with eye cutouts and muzzle cutout */}
-      <Path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M43 50l3 4.5h8l3-4.5 4 5.5c3-.8 7 .8 7 3s-3 3-5.5 3c-.8 2.5-2.2 6-4.5 7.5-1.5 1.5-3.5 2-5 2s-3.5-.5-5-2c-2.3-1.5-3.7-5-4.5-7.5-2.5 0-5.5-.8-5.5-3s4-3.8 7-3l4-5.5Zm4 9.5a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Zm6 0a1.6 1.6 0 1 0 0 3.2 1.6 1.6 0 0 0 0-3.2Zm-3 10c-3.3 0-6 2-6 4.5s2.7 4.5 6 4.5 6-2 6-4.5-2.7-4.5-6-4.5Z"
-        fill={color}
-      />
-      {/* Calf nostrils inside muzzle */}
-      <Circle cx="47.5" cy="74" r="1.2" fill={color} />
-      <Circle cx="52.5" cy="74" r="1.2" fill={color} />
-
-      {/* Radiant sparks around calf */}
-      <Path
-        d="M32 71h5a1.5 1.5 0 0 0 0-3h-5a1.5 1.5 0 0 0 0 3ZM63 71h5a1.5 1.5 0 0 0 0-3h-5a1.5 1.5 0 0 0 0 3ZM35.5 83.5l4-2.5a1.5 1.5 0 0 0-1.6-2.5l-4 2.5a1.5 1.5 0 1 0 1.6 2.5ZM60.5 81l4 2.5a1.5 1.5 0 0 0 1.6-2.5l-4-2.5a1.5 1.5 0 0 0-1.6 2.5ZM50 85a1.5 1.5 0 0 0-1.5 1.5v5a1.5 1.5 0 0 0 3 0v-5A1.5 1.5 0 0 0 50 85Z"
+        d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z"
         fill={color}
       />
     </Svg>

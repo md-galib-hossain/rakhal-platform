@@ -11,10 +11,9 @@ import {
   type CattleCategoryChipKey,
   type CattleHighlightsData,
 } from './cattle-model.ts';
-import { CattleIcon } from '../assets/icons/index.ts';
+import { CattleIcon, MilkIcon } from '../assets/icons/index.ts';
 import {
   BreedingPedigreeIcon,
-  SolidDropletsIcon,
   SolidTrendChartIcon,
 } from './CattleIcons.tsx';
 
@@ -312,7 +311,7 @@ export const CattleHighlightsBar = memo(function CattleHighlightsBar({
                   justifyContent: 'center',
                 }}
               >
-                <SolidDropletsIcon size={18} color={colors.primaryText} />
+                <MilkIcon size={18} color={colors.primaryText} />
               </View>
               <Text role="caption" color="mutedForeground" style={{ fontWeight: '600', fontSize: 11, flexShrink: 1 }} numberOfLines={1}>
                 {t('cattle.highlights.milking')}
