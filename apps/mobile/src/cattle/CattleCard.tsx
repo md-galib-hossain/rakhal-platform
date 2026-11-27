@@ -1,7 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing, View } from 'react-native';
 import { Glyph } from '../components/internal/Glyph.tsx';
-import { StatusBadge } from '../components/display/StatusBadge.tsx';
 import { PressableSurface } from '../components/internal/PressableSurface.tsx';
 import { useReduceMotion } from '../components/internal/useReduceMotion.ts';
 import { Text } from '../components/primitives/Text.tsx';
@@ -23,20 +22,17 @@ import {
 } from './cattle-model.ts';
 import {
   ArrowRightIcon,
-  BarChartIcon,
   CalendarIcon,
   CheckCircleIcon,
   ChevronDownIcon,
   DnaIcon,
   DropletsIcon,
   EventKindIcon,
-  HeartPulseIcon,
   MapPinIcon,
   MarsIcon,
   MilkIcon,
   ScaleIcon,
-  StethoscopeIcon,
-  TrendingUpIcon,
+  UsersIcon,
   VenusIcon,
 } from './CattleIcons.tsx';
 
@@ -51,8 +47,6 @@ export interface CattleCardProps {
   onToggleSelect?: (item: CattleListItem) => void;
   onLongPress?: (item: CattleListItem) => void;
 }
-
-type AccordionTab = 'OVERVIEW' | 'HEALTH' | 'MILK' | 'REPRODUCTION';
 
 export const CattleCard = memo(function CattleCard({
   item,
@@ -71,7 +65,6 @@ export const CattleCard = memo(function CattleCard({
   const reduceMotion = useReduceMotion();
   const [isExpanded, setIsExpanded] = useState(false);
   const [contentHeight, setContentHeight] = useState(240);
-  const [activeTab, setActiveTab] = useState<AccordionTab>('OVERVIEW');
 
   const animProgress = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
   const isFirstRender = useRef(true);
@@ -599,275 +592,193 @@ export const CattleCard = memo(function CattleCard({
           style={{ padding: tokens.spacing.md, gap: tokens.spacing.sm }}
           testID={isExpanded ? `${cardTestID}-expanded-details` : undefined}
         >
-          {/* Sub-tabs: Overview, Health, Milk, Reproduction */}
-          <View
-            style={{
-              flexDirection: 'row',
-              backgroundColor: colors.card,
-              borderRadius: tokens.radius.md,
-              borderWidth: 1,
-              borderColor: colors.border,
-              padding: 3,
-              gap: 4,
-            }}
-          >
-            {(
-              [
-                { key: 'OVERVIEW', label: t('cattle.card.tab.overview'), icon: BarChartIcon },
-                { key: 'HEALTH', label: t('cattle.card.tab.health'), icon: StethoscopeIcon },
-                { key: 'MILK', label: t('cattle.card.tab.milk'), icon: MilkIcon },
-                { key: 'REPRODUCTION', label: t('cattle.card.tab.reproduction'), icon: DnaIcon },
-              ] as const
-            ).map((tab) => {
-              const isActive = activeTab === tab.key;
-              const TabIcon = tab.icon;
-              return (
-                <PressableSurface
-                  key={tab.key}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: isActive }}
-                  pressedStyle="overlay"
-                  onPress={() => setActiveTab(tab.key)}
+          {/* 1. Full-Width Actionable Next Event Alert Banner */}
+          {item.nextEvent && nextEventDue && nextEventTitle ? (
+            <PressableSurface
+              accessibilityRole="button"
+              accessibilityLabel={`${nextEventTitle}, ${nextEventDue.text}`}
+              pressedStyle="overlay"
+              disabled={disabled}
+              onPress={() => onOpenUpcomingEvents?.(item)}
+              testID={`${cardTestID}-next-event`}
+              style={{
+                backgroundColor: nextToneColors.bg,
+                borderWidth: 1,
+                borderColor: nextToneColors.border,
+                borderRadius: tokens.radius.md,
+                padding: tokens.spacing.sm,
+                gap: 6,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: tokens.spacing.xs }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                  <EventKindIcon kind={item.nextEvent.kind} size={15} color={nextToneColors.text} />
+                  <Text
+                    role="caption"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: '800',
+                      color: nextToneColors.text,
+                      letterSpacing: 0.3,
+                      textTransform: 'uppercase',
+                    }}
+                    numberOfLines={1}
+                  >
+                    {t('cattle.card.tile.nextEvent')}
+                  </Text>
+                </View>
+                {/* Overdue / Due Tag Badge */}
+                <View
                   style={{
-                    flex: 1,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 4,
-                    paddingVertical: 6,
-                    borderRadius: tokens.radius.sm,
-                    backgroundColor: isActive ? colors.successTint : 'transparent',
-                    borderWidth: isActive ? 1 : 0,
-                    borderColor: colors.primaryEdge,
+                    backgroundColor: nextToneColors.border,
+                    paddingHorizontal: 7,
+                    paddingVertical: 2,
+                    borderRadius: tokens.radius.full,
                   }}
                 >
-                  <TabIcon size={12} color={isActive ? colors.primaryText : colors.mutedForeground} />
                   <Text
                     role="caption"
                     style={{
                       fontSize: 10,
-                      fontWeight: isActive ? '800' : '600',
-                      color: isActive ? colors.primaryText : colors.mutedForeground,
+                      fontWeight: '800',
+                      color: colors.card,
                     }}
-                    numberOfLines={1}
                   >
-                    {tab.label}
-                  </Text>
-                </PressableSurface>
-              );
-            })}
-          </View>
-
-          {/* Quick Intelligence Tiles (2x2 Grid) */}
-          <View style={{ gap: tokens.spacing.xs }}>
-            {/* Row 1 of Tiles */}
-            <View style={{ flexDirection: 'row', gap: tokens.spacing.xs }}>
-              {/* Tile 1: Last Milk Yield */}
-              <View
-                style={{
-                  flex: 1,
-                  backgroundColor: colors.card,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  borderRadius: tokens.radius.md,
-                  padding: tokens.spacing.sm,
-                  gap: 3,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <DropletsIcon size={12} color={colors.info} />
-                  <Text role="caption" color="mutedForeground" style={{ fontSize: 10, fontWeight: '600' }} numberOfLines={1}>
-                    {t('cattle.card.tile.lastMilk')}
+                    {nextEventDue.text}
                   </Text>
                 </View>
-                <Text role="body" color="foreground" style={{ fontWeight: '800', fontSize: 13 }}>
-                  {isMilking ? `5.0 L (${t('cattle.card.production')})` : '—'}
+              </View>
+
+              {/* Event Title (Full width, wraps cleanly without truncation) */}
+              <Text
+                role="body"
+                style={{
+                  fontSize: 13,
+                  fontWeight: '700',
+                  color: nextToneColors.text,
+                  lineHeight: 18,
+                }}
+              >
+                {nextEventTitle}
+              </Text>
+            </PressableSurface>
+          ) : (
+            <View
+              testID={`${cardTestID}-no-event`}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 8,
+                backgroundColor: colors.card,
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: tokens.radius.md,
+                paddingHorizontal: tokens.spacing.sm,
+                paddingVertical: 9,
+              }}
+            >
+              <CheckCircleIcon size={16} color={colors.success} />
+              <Text
+                role="caption"
+                color="mutedForeground"
+                style={{ fontSize: 12, fontWeight: '600', flex: 1 }}
+              >
+                {t('cattle.card.noPendingAlerts')}
+              </Text>
+            </View>
+          )}
+
+          {/* 2. Three Clean Operational Tiles with Real Data */}
+          <View style={{ flexDirection: 'row', gap: tokens.spacing.xs }}>
+            {/* Tile 1: Lactation Stage */}
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: colors.card,
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: tokens.radius.md,
+                padding: tokens.spacing.sm,
+                gap: 4,
+                justifyContent: 'space-between',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <MilkIcon size={12} color={colors.accentIndigo} />
+                <Text role="caption" color="mutedForeground" style={{ fontSize: 10, fontWeight: '700' }} numberOfLines={1}>
+                  {t('cattle.card.lactation')}
                 </Text>
               </View>
-
-              {/* Tile 2: Next Event */}
-              <View
-                style={{
-                  flex: 1,
-                  backgroundColor: colors.card,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  borderRadius: tokens.radius.md,
-                  padding: tokens.spacing.sm,
-                  gap: 3,
-                }}
+              <Text
+                role="body"
+                color="foreground"
+                style={{ fontWeight: '800', fontSize: 12, lineHeight: 16 }}
+                numberOfLines={2}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <CalendarIcon size={12} color={colors.warning} />
-                  <Text role="caption" color="mutedForeground" style={{ fontSize: 10, fontWeight: '600' }} numberOfLines={1}>
-                    {t('cattle.card.tile.nextEvent')}
-                  </Text>
-                </View>
-                {item.nextEvent && nextEventDue && nextEventTitle ? (
-                  <PressableSurface
-                    accessibilityRole="button"
-                    accessibilityLabel={`${nextEventTitle}, ${nextEventDue.text}`}
-                    pressedStyle="overlay"
-                    disabled={disabled}
-                    onPress={() => onOpenUpcomingEvents?.(item)}
-                    testID={`${cardTestID}-next-event`}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 3, flexWrap: 'wrap' }}
-                  >
-                    <EventKindIcon kind={item.nextEvent.kind} size={11} color={nextToneColors.text} />
-                    <Text
-                      role="caption"
-                      style={{
-                        fontSize: 11,
-                        fontWeight: '700',
-                        color: nextToneColors.text,
-                      }}
-                      numberOfLines={1}
-                    >
-                      {nextEventTitle}
-                    </Text>
-                    <Text
-                      role="caption"
-                      style={{
-                        fontSize: 10,
-                        fontWeight: '700',
-                        color: nextToneColors.text,
-                      }}
-                    >
-                      · {nextEventDue.text}
-                    </Text>
-                  </PressableSurface>
-                ) : (
-                  <View
-                    testID={`${cardTestID}-no-event`}
-                    style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}
-                  >
-                    <CheckCircleIcon size={11} color={colors.mutedForeground} />
-                    <Text role="caption" color="mutedForeground" style={{ fontSize: 11, fontWeight: '500' }}>
-                      {t('cattle.card.noEvents')}
-                    </Text>
-                  </View>
-                )}
-              </View>
+                {lactLabel ?? (isMilking ? t('cattle.card.status.milking') : '—')}
+              </Text>
             </View>
 
-            {/* Row 2 of Tiles */}
-            <View style={{ flexDirection: 'row', gap: tokens.spacing.xs }}>
-              {/* Tile 3: Lactation Stage */}
-              <View
-                style={{
-                  flex: 1,
-                  backgroundColor: colors.card,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  borderRadius: tokens.radius.md,
-                  padding: tokens.spacing.sm,
-                  gap: 3,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <MilkIcon size={12} color={colors.accentIndigo} />
-                  <Text role="caption" color="mutedForeground" style={{ fontSize: 10, fontWeight: '600' }} numberOfLines={1}>
-                    {t('cattle.card.lactation')}
-                  </Text>
-                </View>
-                <Text role="body" color="foreground" style={{ fontWeight: '800', fontSize: 13 }}>
-                  {lactLabel ?? '—'}
+            {/* Tile 2: Reproductive Status */}
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: colors.card,
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: tokens.radius.md,
+                padding: tokens.spacing.sm,
+                gap: 4,
+                justifyContent: 'space-between',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <DnaIcon size={12} color={colors.accentPink} />
+                <Text role="caption" color="mutedForeground" style={{ fontSize: 10, fontWeight: '700' }} numberOfLines={1}>
+                  {t('cattle.card.reproduction')}
                 </Text>
               </View>
-
-              {/* Tile 4: Production Trend */}
-              <View
-                style={{
-                  flex: 1,
-                  backgroundColor: colors.card,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  borderRadius: tokens.radius.md,
-                  padding: tokens.spacing.sm,
-                  gap: 3,
-                }}
+              <Text
+                role="body"
+                color="foreground"
+                style={{ fontWeight: '800', fontSize: 12, lineHeight: 16 }}
+                numberOfLines={2}
               >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <TrendingUpIcon size={12} color={colors.primary} />
-                  <Text role="caption" color="mutedForeground" style={{ fontSize: 10, fontWeight: '600' }} numberOfLines={1}>
-                    {t('cattle.card.tile.trend')}
-                  </Text>
-                </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text role="body" color="primary" style={{ fontWeight: '800', fontSize: 13 }}>
-                    {isMilking ? t('cattle.card.trend.stable') : '—'}
-                  </Text>
-                </View>
+                {reproLabel ?? '—'}
+              </Text>
+            </View>
+
+            {/* Tile 3: Breed / Group */}
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: colors.card,
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: tokens.radius.md,
+                padding: tokens.spacing.sm,
+                gap: 4,
+                justifyContent: 'space-between',
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <UsersIcon size={12} color={colors.info} />
+                <Text role="caption" color="mutedForeground" style={{ fontSize: 10, fontWeight: '700' }} numberOfLines={1}>
+                  {t('cattle.card.tile.breedGroup')}
+                </Text>
               </View>
+              <Text
+                role="body"
+                color="foreground"
+                style={{ fontWeight: '800', fontSize: 12, lineHeight: 16 }}
+                numberOfLines={2}
+              >
+                {item.breedName ?? (item.shedName ? item.shedName : '—')}
+              </Text>
             </View>
           </View>
 
-          {/* Deep Status Table (Visible for detail parity) */}
-          <View
-            style={{
-              backgroundColor: colors.card,
-              borderWidth: 1,
-              borderColor: colors.border,
-              borderRadius: tokens.radius.md,
-              paddingHorizontal: tokens.spacing.sm,
-              paddingVertical: 7,
-              gap: 6,
-            }}
-          >
-            {/* Health Status Row */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text role="caption" color="mutedForeground" style={{ fontSize: 12, fontWeight: '600' }}>
-                {t('cattle.card.health')}
-              </Text>
-              {hlthBadgeSpec && hlthLabel ? (
-                'herdState' in hlthBadgeSpec ? (
-                  <StatusBadge herdState={hlthBadgeSpec.herdState} label={hlthLabel} />
-                ) : (
-                  <StatusBadge tone={hlthBadgeSpec.tone} label={hlthLabel} />
-                )
-              ) : (
-                <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>—</Text>
-              )}
-            </View>
-
-            <View style={{ height: 1, backgroundColor: colors.border }} />
-
-            {/* Production Status Row */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text role="caption" color="mutedForeground" style={{ fontSize: 12, fontWeight: '600' }}>
-                {t('cattle.card.production')}
-              </Text>
-              {prodBadgeSpec && prodLabel ? (
-                'herdState' in prodBadgeSpec ? (
-                  <StatusBadge herdState={prodBadgeSpec.herdState} label={prodLabel} />
-                ) : (
-                  <StatusBadge tone={prodBadgeSpec.tone} label={prodLabel} />
-                )
-              ) : (
-                <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>—</Text>
-              )}
-            </View>
-
-            <View style={{ height: 1, backgroundColor: colors.border }} />
-
-            {/* Reproduction Status Row */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Text role="caption" color="mutedForeground" style={{ fontSize: 12, fontWeight: '600' }}>
-                {t('cattle.card.reproduction')}
-              </Text>
-              {reproBadgeSpec && reproLabel ? (
-                'herdState' in reproBadgeSpec ? (
-                  <StatusBadge herdState={reproBadgeSpec.herdState} label={reproLabel} />
-                ) : (
-                  <StatusBadge tone={reproBadgeSpec.tone} label={reproLabel} />
-                )
-              ) : (
-                <Text role="caption" color="mutedForeground" style={{ fontSize: 12 }}>—</Text>
-              )}
-            </View>
-          </View>
-
-          {/* Bottom Action: "View Full Details →" Button */}
+          {/* 3. Primary CTA: "View Full Details →" Button */}
           <PressableSurface
             accessibilityRole="button"
             accessibilityLabel={`${t('cattle.card.viewFullDetails')}, ${displayName}`}
@@ -880,7 +791,7 @@ export const CattleCard = memo(function CattleCard({
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
-              paddingVertical: 10,
+              paddingVertical: 11,
               borderRadius: tokens.radius.md,
               backgroundColor: colors.primary,
               minHeight: 44,
