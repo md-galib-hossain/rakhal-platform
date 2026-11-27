@@ -11,11 +11,11 @@ import {
   type CattleCategoryChipKey,
   type CattleHighlightsData,
 } from './cattle-model.ts';
+import { CattleIcon } from '../assets/icons/index.ts';
 import {
-  CowIcon,
-  DropletsIcon,
-  HeartPulseIcon,
-  TrendingUpIcon,
+  BreedingPedigreeIcon,
+  SolidDropletsIcon,
+  SolidTrendChartIcon,
 } from './CattleIcons.tsx';
 
 export interface CattleHighlightsBarProps {
@@ -162,27 +162,36 @@ export const CattleHighlightsBar = memo(function CattleHighlightsBar({
               borderColor: colors.border,
               borderRadius: tokens.radius.md,
               padding: tokens.spacing.sm,
-              gap: tokens.spacing.xs,
+              minHeight: 76,
+              justifyContent: 'space-between',
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
               <View
                 style={{
-                  width: 26,
-                  height: 26,
+                  width: 32,
+                  height: 32,
                   borderRadius: tokens.radius.sm,
                   backgroundColor: colors.accentIndigoTint,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <CowIcon size={15} color={colors.accentIndigo} />
+                <CattleIcon size={18} color={colors.accentIndigo} />
               </View>
-              <Text role="caption" color="mutedForeground" style={{ fontWeight: '600', fontSize: 11 }} numberOfLines={1}>
+              <Text role="caption" color="mutedForeground" style={{ fontWeight: '600', fontSize: 11, flexShrink: 1 }} numberOfLines={1}>
                 {t('cattle.highlights.total')}
               </Text>
             </View>
-            <Text role="title" color="foreground" style={{ fontWeight: '800', fontSize: 20 }}>
+            <Text
+              role="title"
+              color="foreground"
+              style={{
+                fontWeight: '800',
+                fontSize: 22,
+                alignSelf: 'flex-end',
+              }}
+            >
               {format.numberSafe(highlights.totalActive)}
             </Text>
           </View>
@@ -197,27 +206,36 @@ export const CattleHighlightsBar = memo(function CattleHighlightsBar({
               borderColor: colors.border,
               borderRadius: tokens.radius.md,
               padding: tokens.spacing.sm,
-              gap: tokens.spacing.xs,
+              minHeight: 76,
+              justifyContent: 'space-between',
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
               <View
                 style={{
-                  width: 26,
-                  height: 26,
+                  width: 32,
+                  height: 32,
                   borderRadius: tokens.radius.sm,
                   backgroundColor: colors.infoTint,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <TrendingUpIcon size={14} color={colors.info} />
+                <SolidTrendChartIcon size={18} color={colors.info} />
               </View>
-              <Text role="caption" color="mutedForeground" style={{ fontWeight: '600', fontSize: 11 }} numberOfLines={1}>
+              <Text role="caption" color="mutedForeground" style={{ fontWeight: '600', fontSize: 11, flexShrink: 1 }} numberOfLines={1}>
                 {t('cattle.highlights.avgAqr')}
               </Text>
             </View>
-            <Text role="title" color="foreground" style={{ fontWeight: '800', fontSize: 20 }}>
+            <Text
+              role="title"
+              color="foreground"
+              style={{
+                fontWeight: '800',
+                fontSize: 22,
+                alignSelf: 'flex-end',
+              }}
+            >
               {highlights.avgHerdAqr !== null ? format.numberSafe(highlights.avgHerdAqr) : '—'}
             </Text>
           </View>
@@ -235,27 +253,36 @@ export const CattleHighlightsBar = memo(function CattleHighlightsBar({
               borderColor: colors.border,
               borderRadius: tokens.radius.md,
               padding: tokens.spacing.sm,
-              gap: tokens.spacing.xs,
+              minHeight: 76,
+              justifyContent: 'space-between',
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
               <View
                 style={{
-                  width: 26,
-                  height: 26,
+                  width: 32,
+                  height: 32,
                   borderRadius: tokens.radius.sm,
                   backgroundColor: colors.accentPurpleTint,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <HeartPulseIcon size={14} color={colors.accentPurple} />
+                <BreedingPedigreeIcon size={18} color={colors.accentPurple} />
               </View>
-              <Text role="caption" color="mutedForeground" style={{ fontWeight: '600', fontSize: 11 }} numberOfLines={1}>
+              <Text role="caption" color="mutedForeground" style={{ fontWeight: '600', fontSize: 11, flexShrink: 1 }} numberOfLines={1}>
                 {t('cattle.highlights.breedingReady')}
               </Text>
             </View>
-            <Text role="title" color="foreground" style={{ fontWeight: '800', fontSize: 20 }}>
+            <Text
+              role="title"
+              color="foreground"
+              style={{
+                fontWeight: '800',
+                fontSize: 22,
+                alignSelf: 'flex-end',
+              }}
+            >
               {format.numberSafe(highlights.breedingReadyCount)}
             </Text>
           </View>
@@ -270,27 +297,36 @@ export const CattleHighlightsBar = memo(function CattleHighlightsBar({
               borderColor: colors.border,
               borderRadius: tokens.radius.md,
               padding: tokens.spacing.sm,
-              gap: tokens.spacing.xs,
+              minHeight: 76,
+              justifyContent: 'space-between',
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: tokens.spacing.xs }}>
               <View
                 style={{
-                  width: 26,
-                  height: 26,
+                  width: 32,
+                  height: 32,
                   borderRadius: tokens.radius.sm,
                   backgroundColor: colors.successTint,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <DropletsIcon size={14} color={colors.primaryText} />
+                <SolidDropletsIcon size={18} color={colors.primaryText} />
               </View>
-              <Text role="caption" color="mutedForeground" style={{ fontWeight: '600', fontSize: 11 }} numberOfLines={1}>
+              <Text role="caption" color="mutedForeground" style={{ fontWeight: '600', fontSize: 11, flexShrink: 1 }} numberOfLines={1}>
                 {t('cattle.highlights.milking')}
               </Text>
             </View>
-            <Text role="title" color="foreground" style={{ fontWeight: '800', fontSize: 20 }}>
+            <Text
+              role="title"
+              color="foreground"
+              style={{
+                fontWeight: '800',
+                fontSize: 22,
+                alignSelf: 'flex-end',
+              }}
+            >
               {format.numberSafe(highlights.milkingCount)}
             </Text>
           </View>

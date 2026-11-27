@@ -49,8 +49,6 @@ import { MilkAnalyticsView } from './MilkAnalyticsView.tsx';
 import { MilkCowCard } from './MilkCowCard.tsx';
 import {
   BarChartIcon,
-  BellIcon,
-  CheckCircleIcon,
   MoonIcon,
   SunCloudIcon,
   SunIcon,
