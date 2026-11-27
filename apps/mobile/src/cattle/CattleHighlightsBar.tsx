@@ -145,19 +145,9 @@ export const CattleHighlightsBar = memo(function CattleHighlightsBar({
     <View
       testID={testID}
       style={{
-        backgroundColor: colors.card,
-        borderWidth: 1,
-        borderColor: colors.border,
-        borderRadius: tokens.radius.lg,
-        padding: tokens.spacing.md,
-        gap: tokens.spacing.md,
+        gap: tokens.spacing.xs + 2,
       }}
     >
-      {/* Title */}
-      <Text role="title" color="foreground" style={{ fontWeight: '700', fontSize: 16 }}>
-        {t('cattle.highlights.title')}
-      </Text>
-
       {/* 2x2 KPI Grid */}
       <View style={{ gap: tokens.spacing.xs + 2 }}>
         {/* Row 1 */}
